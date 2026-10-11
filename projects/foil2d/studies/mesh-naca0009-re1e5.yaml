@@ -1,0 +1,17 @@
+study: mesh-naca0009-re1e5
+project: foil2d
+description: >
+  Grid convergence for the transition model at the IOM fin regime: NACA 0009,
+  Re = 1e5, Tu = 0.1 %, three mesh levels (2x cells per level). 2 deg is
+  attached with a small bubble; 8 deg has a long leading-edge bubble. (4 deg
+  is unsteady in a steady solver, see the transient study.)
+reference: validation/naca0009_re1e5_princeton.csv
+defaults:
+  foil: naca0009
+  chord: 0.08
+  Re: 1.0e5
+  Tu: 0.1
+  turbulence: kOmegaSSTLM
+sweep:
+  aoa: [2, 8]
+  mesh: [coarse, medium, fine]

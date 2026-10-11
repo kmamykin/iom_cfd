@@ -1,0 +1,26 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| sails template (OpenFOAM v2512). Values come from                           |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      surfaceFeatureExtractDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Sail edges (luff, leech, foot) are open edges of the baffle surfaces.
+rig
+{
+    surfaces            (main.stl jib.stl mast.stl);
+    extractionMethod    extractFromSurface;
+    includedAngle       150;
+    subsetFeatures
+    {
+        nonManifoldEdges    no;
+        openEdges           yes;
+    }
+    writeObj            no;
+}

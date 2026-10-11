@@ -1,0 +1,28 @@
+#!/bin/sh
+# foil2d: the mesh (constant/polyMesh) is written by iomcfd when the case is
+# rendered, so this script only checks it and runs the solver.
+#   NP=4 ./Allrun     # run on 4 MPI ranks
+cd "${0%/*}" || exit 1
+. "${WM_PROJECT_DIR:?}"/bin/tools/RunFunctions
+
+NP="${NP:-1}"
+
+runApplication checkMesh -allGeometry -allTopology
+
+if [ "$NP" -gt 1 ]; then
+    foamDictionary -entry numberOfSubdomains -set "$NP" system/decomposeParDict > /dev/null
+    runApplication decomposePar -force
+    runParallel $(getApplication)
+    rc=$?
+    runApplication reconstructPar -latestTime
+else
+    runApplication $(getApplication)
+    rc=$?
+fi
+
+# A clean OpenFOAM exit prints "End" as the last line of the log.
+log="log.$(getApplication)"
+if [ "$rc" -ne 0 ] || ! tail -n 3 "$log" | grep -q "^End"; then
+    echo "solver failed (exit $rc), see $log" >&2
+    exit 1
+fi

@@ -1,0 +1,67 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| hull template (OpenFOAM v2512, interFoam VOF). Values come from             |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+| Derived from the OpenFOAM DTCHull / DTCHullMoving tutorials.                |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+application     interFoam;
+
+startFrom       latestTime;
+startTime       0;
+stopAt          endTime;
+
+// endTime, deltaT, write and time-step controls depend on the attitude mode:
+// fixed attitude = pseudo-steady local time stepping (iterations),
+// free sinkage/trim = transient (seconds). Written by iomcfd.
+#include "include/timeControl"
+
+purgeWrite      2;
+writeFormat     binary;
+writePrecision  8;
+writeCompression off;
+timeFormat      general;
+timePrecision   6;
+runTimeModifiable true;     // iomcfd sets 'stopAt writeNow' once resistance has converged
+
+functions
+{
+    // Forces on every boat patch (N, full boat: iomcfd doubles half-domain runs).
+    #include "include/forceFunctions"
+
+    // Free-surface elevation (alpha = 0.5) at write times: wave pattern.
+    freeSurface
+    {
+        type            surfaces;
+        libs            (sampling);
+        writeControl    writeTime;
+        surfaceFormat   raw;
+        fields          (alpha.water);
+        surfaces
+        {
+            waterline
+            {
+                type        isoSurface;
+                isoField    alpha.water;
+                isoValue    0.5;
+                interpolate true;
+            }
+        }
+    }
+
+    residuals
+    {
+        type            solverInfo;
+        libs            (utilityFunctionObjects);
+        fields          (U p_rgh k omega);
+    }
+}

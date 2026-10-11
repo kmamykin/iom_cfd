@@ -1,0 +1,36 @@
+#!/bin/sh
+# hull: snappyHexMesh around constant/triSurface/boat.stl, water below z=0,
+# then interFoam. NP=8 ./Allrun runs on 8 MPI ranks (default: 1).
+cd "${0%/*}" || exit 1
+. "${WM_PROJECT_DIR:?}"/bin/tools/RunFunctions
+
+NP="${NP:-1}"
+app=$(getApplication)
+
+runApplication surfaceFeatureExtract || exit 1
+runApplication blockMesh || exit 1
+
+if [ "$NP" -gt 1 ]; then
+    foamDictionary -entry numberOfSubdomains -set "$NP" system/decomposeParDict > /dev/null
+    runApplication decomposePar -force -copyZero || exit 1
+    runParallel snappyHexMesh -overwrite || exit 1
+    runParallel checkMesh
+    runParallel setFields || exit 1
+    runParallel renumberMesh -overwrite
+    runParallel "$app"
+    rc=$?
+    runApplication reconstructParMesh -constant
+    runApplication reconstructPar -latestTime
+else
+    runApplication snappyHexMesh -overwrite || exit 1
+    runApplication checkMesh
+    runApplication setFields || exit 1
+    runApplication "$app"
+    rc=$?
+fi
+
+log="log.$app"
+if [ "$rc" -ne 0 ] || ! tail -n 3 "$log" | grep -q "^End"; then
+    echo "solver failed (exit $rc), see $log" >&2
+    exit 1
+fi

@@ -1,0 +1,73 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| sails template (OpenFOAM v2512). Values come from                           |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+application     simpleFoam;
+
+startFrom       latestTime;
+startTime       0;
+stopAt          endTime;
+endTime         $maxIter;
+deltaT          1;
+writeControl    timeStep;
+writeInterval   $maxIter;
+purgeWrite      1;
+writeFormat     binary;
+writePrecision  8;
+writeCompression off;
+timeFormat      general;
+timePrecision   6;
+runTimeModifiable true;    // iomcfd sets 'stopAt writeNow' once forces have converged
+
+functions
+{
+    // Coefficients for the whole rig (sails + mast).
+    // e1 = drag (apparent wind direction), e3 = lift (horizontal, normal to the wind).
+    forceCoeffs
+    {
+        type            forceCoeffs;
+        libs            (forces);
+        writeControl    timeStep;
+        writeInterval   1;
+        log             false;
+        patches         (rig);
+        rho             rhoInf;
+        rhoInf          $rhoInf;
+        magUInf         $magUInf;
+        lRef            $lRef;
+        Aref            $Aref;
+        origin          (0 0 0);
+        e1              $dragDir;
+        e3              $liftDir;
+    }
+
+    // Dimensional forces (N) and moments (N m, about the origin = bow at the
+    // waterline) per sail, mast and total.
+    #include "include/forceFunctions"
+
+    yPlus
+    {
+        type            yPlus;
+        libs            (fieldFunctionObjects);
+        writeControl    writeTime;
+        log             false;
+    }
+
+    residuals
+    {
+        type            solverInfo;
+        libs            (utilityFunctionObjects);
+        fields          (U p k omega);
+    }
+}

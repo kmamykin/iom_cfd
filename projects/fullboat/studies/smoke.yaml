@@ -1,0 +1,9 @@
+study: fullboat-smoke
+project: fullboat
+description: >
+  Pipeline check: Wigley hull + parametric appendages + IOM A rig, heeled 10 deg,
+  xcoarse mesh, a few iterations. Not for engineering use.
+defaults:
+  mesh: xcoarse
+  max_iter: 10
+  np: 4

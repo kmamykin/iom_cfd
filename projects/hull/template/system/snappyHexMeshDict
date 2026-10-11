@@ -1,0 +1,109 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| hull template (OpenFOAM v2512, interFoam VOF). Values come from             |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+| Derived from the OpenFOAM DTCHull / DTCHullMoving tutorials.                |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      snappyHexMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+castellatedMesh true;
+snap            true;
+addLayers       true;
+
+geometry
+{
+    boat.stl                // solids: hull (+ fin, bulb, rudder...) -> patches boat_<solid>
+    {
+        type    triSurfaceMesh;
+        name    boat;
+    }
+    nearBox     { type searchableBox; min $nearBoxMin; max $nearBoxMax; }
+    waveBox     { type searchableBox; min $waveBoxMin; max $waveBoxMax; }   // Kelvin wave pattern
+}
+
+castellatedMeshControls
+{
+    maxLocalCells       5000000;
+    maxGlobalCells      40000000;
+    minRefinementCells  10;
+    maxLoadUnbalance    0.10;
+    nCellsBetweenLevels 3;
+
+    features
+    (
+        { file "boat.eMesh"; level $featureLevel; }
+    );
+
+    refinementSurfaces
+    {
+        boat
+        {
+            level       ($surfaceLevelMin $surfaceLevelMax);
+            patchInfo   { type wall; inGroups (boat); }
+        }
+    }
+
+    resolveFeatureAngle 25;
+
+    refinementRegions
+    {
+        nearBox { mode inside; levels ((1e15 $nearBoxLevel)); }
+        waveBox { mode inside; levels ((1e15 $waveBoxLevel)); }
+    }
+
+    locationInMesh      $locationInMesh;
+    allowFreeStandingZoneFaces true;
+}
+
+snapControls
+{
+    nSmoothPatch        3;
+    tolerance           2.0;
+    nSolveIter          100;
+    nRelaxIter          5;
+    nFeatureSnapIter    10;
+    implicitFeatureSnap false;
+    explicitFeatureSnap true;
+    multiRegionFeatureSnap true;
+}
+
+addLayersControls
+{
+    relativeSizes       true;
+    layers
+    {
+        "boat_.*" { nSurfaceLayers $nLayers; }
+    }
+    expansionRatio      1.3;
+    finalLayerThickness 0.6;
+    minThickness        0.2;
+    nGrow               0;
+    featureAngle        130;
+    slipFeatureAngle    30;
+    nRelaxIter          5;
+    nSmoothSurfaceNormals 1;
+    nSmoothNormals      3;
+    nSmoothThickness    10;
+    maxFaceThicknessRatio 0.5;
+    maxThicknessToMedialRatio 0.3;
+    minMedialAxisAngle  90;
+    nBufferCellsNoExtrude 0;
+    nLayerIter          50;
+}
+
+meshQualityControls
+{
+    #includeEtc "caseDicts/meshQualityDict"
+    nSmoothScale    4;
+    errorReduction  0.75;
+}
+
+mergeTolerance 1e-6;

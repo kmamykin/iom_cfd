@@ -1,0 +1,57 @@
+# appendage3d: keel fin + bulb + rudder in steady single-phase water flow.
+# The hull is represented by a flat symmetry plane at z = -hull_depth
+# (the canoe-body bottom). Boat frame: x aft, y port, z up.
+
+# --- geometry: 'parametric' builds fin/bulb/rudder from the values below;
+# --- or give STL files exported from Fusion 360 (any units, see stl_scale).
+geometry: parametric     # parametric | stl
+stl_files: []           # e.g. [appendages/my_fin.stl, appendages/my_bulb.stl] in geometry/
+stl_scale: 0.001        # Fusion 360 exports mm -> m
+stl_rotate: []          # e.g. [[x, 90]] to map CAD axes into the boat frame (degrees)
+stl_translate: [0, 0, 0]
+
+hull_depth: 0.04        # m, canoe body bottom (top of the domain) below the waterline
+
+fin_section: naca0008
+fin_root_chord: 0.085
+fin_tip_chord: 0.075
+fin_span: 0.36          # m, below the hull bottom
+fin_sweep: 0.0          # deg, quarter-chord sweep, + = tip aft
+fin_x: 0.45             # m, root leading edge from the bow
+
+bulb: true
+bulb_length: 0.33
+bulb_diameter: 0.0375   # ~2.4 kg of lead with these defaults
+bulb_max_at: 0.4        # fraction of length at max diameter
+bulb_x: 0.30            # m, nose position from the bow
+
+rudder: true
+rudder_section: naca0008
+rudder_root_chord: 0.085
+rudder_tip_chord: 0.060
+rudder_span: 0.20
+rudder_sweep: 5.0
+rudder_x: 0.86          # m, root leading edge
+rudder_angle: 0.0       # deg, + = trailing edge to port
+
+# --- attitude and flow -------------------------------------------------------
+speed: 1.0              # m/s boat speed through the water
+leeway: 0.0             # deg, + = flow from port side (port tack upwind)
+heel: 0.0               # deg, + = mast to starboard (port tack upwind)
+fluid: water
+temperature: 15.0
+
+# --- turbulence ---------------------------------------------------------------
+turbulence: kOmegaSST   # wall functions (Spalding); see README for transition
+Tu: 0.5
+viscosity_ratio: 10
+
+# --- mesh (snappyHexMesh) ------------------------------------------------------
+mesh: medium            # xcoarse | coarse | medium | fine
+n_layers: 5             # prism layers on the appendages
+
+# --- solver -------------------------------------------------------------------
+max_iter: 3000          # SIMPLE iteration budget
+conv_window: 200        # iterations per averaging window
+conv_tol: 2.0e-3        # stop when window means of drag and side force change < this fraction
+np: 8                   # MPI ranks per case

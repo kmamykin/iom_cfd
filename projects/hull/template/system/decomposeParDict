@@ -1,0 +1,16 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| appendage3d template (OpenFOAM v2512). Values come from                     |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      decomposeParDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+numberOfSubdomains  8;      // set from $NP by Allrun
+
+method          scotch;

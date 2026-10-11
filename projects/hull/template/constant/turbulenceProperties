@@ -1,0 +1,24 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| hull template (OpenFOAM v2512, interFoam VOF). Values come from             |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+| Derived from the OpenFOAM DTCHull / DTCHullMoving tutorials.                |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      turbulenceProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+simulationType  RAS;
+
+RAS
+{
+    RASModel        kOmegaSST;
+    turbulence      on;
+    printCoeffs     on;
+}

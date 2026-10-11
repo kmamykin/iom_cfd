@@ -1,0 +1,29 @@
+# Simulation output (rendered cases, logs, fields). Large; never commit.
+/runs/
+# Downloaded cloud results
+/cloud-results/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# OpenFOAM artefacts if a template is ever run in place
+projects/*/template/[0-9]*/
+projects/*/template/processor*/
+projects/*/template/postProcessing/
+projects/*/template/log.*
+projects/*/template/constant/polyMesh/
+
+# Local cloud configuration (project ids, bucket names)
+cloud/gcp/config.env
+
+# OS / editors
+.DS_Store
+*.swp
+.idea/
+.vscode/

@@ -1,0 +1,48 @@
+# hull: calm-water resistance with a free surface (interFoam, VOF).
+# Boat frame: x aft (bow near x = 0), y port, z up, design waterline z = 0.
+
+# --- geometry -----------------------------------------------------------------
+hull: wigley            # wigley (analytic test hull) | file:hulls/<name>.stl (Fusion 360 export)
+wigley_length: 1.0      # with B=0.18, T=0.05 the Wigley hull displaces 4.0 kg
+wigley_beam: 0.18
+wigley_draft: 0.05
+freeboard: 0.06         # wigley: side height above the waterline
+
+stl_scale: 0.001        # file hulls: Fusion 360 exports mm -> m
+stl_rotate: []          # e.g. [[x, 90]] if the CAD model is Y-up
+stl_translate: [0, 0, 0]  # put the bow at x~0 and the design waterline at z=0
+
+appendages: false       # true: add fin/bulb/rudder from the appendage3d generator
+appendage_params: {}    # overrides for appendage3d parameters, e.g. {fin_span: 0.35}
+extra_stl: []           # more STLs in the boat frame (e.g. Fusion 360 keel export)
+
+# --- condition ----------------------------------------------------------------
+speed: 1.0              # m/s
+heel: 0.0               # deg, + = mast to starboard
+leeway: 0.0             # deg, hull yaw relative to the flow (+ = bow to port)
+sinkage: 0.0            # m, fixed attitude: lower the hull by this (+ = down)
+trim: 0.0               # deg, fixed attitude: + = bow down
+fluid: water            # water | seawater
+temperature: 15.0
+
+# --- attitude -----------------------------------------------------------------
+attitude: fixed         # fixed: pseudo-steady (local time stepping), fast
+                        # free:  transient, hull free in sinkage and trim
+mass: 4.0               # kg (free attitude). Must match the displacement at z = 0
+cog: null               # [x, y, z] m; null = (0.5 L, 0, 0)
+inertia: [0.05, 0.0, 0.0, 0.3, 0.0, 0.3]   # Ixx Ixy Ixz Iyy Iyz Izz about the CoG, kg m^2
+sim_time: 15.0          # s of physical time (free attitude)
+
+# --- turbulence -----------------------------------------------------------------
+Tu: 1.0
+viscosity_ratio: 10
+
+# --- mesh -----------------------------------------------------------------------
+mesh: medium            # xcoarse | coarse | medium | fine
+half_domain: auto       # auto: symmetry plane at y=0 when heel = leeway = 0
+
+# --- solver -----------------------------------------------------------------------
+max_iter: 3000          # fixed attitude: LTS iterations
+conv_window: 300
+conv_tol: 2.0e-3        # relative change of windowed mean resistance
+np: 8

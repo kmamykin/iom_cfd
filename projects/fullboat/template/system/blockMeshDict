@@ -1,0 +1,45 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| fullboat template (OpenFOAM v2512, interFoam VOF, water + air).             |
+| Values come from system/caseParameters, written by iomcfd. EXPERIMENTAL.    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+// Two blocks split at the calm waterline z = 0, so the inflow can be water
+// below and apparent wind above. Cells are graded towards the free surface.
+// Port tack: the apparent wind blows from the port (y = yMax) bow, so the
+// port side above water is an inflow and the starboard side an outflow.
+vertices
+(
+    ($xMin $yMin $zMin) ($xMax $yMin $zMin) ($xMax $yMax $zMin) ($xMin $yMax $zMin)
+    ($xMin $yMin 0)     ($xMax $yMin 0)     ($xMax $yMax 0)     ($xMin $yMax 0)
+    ($xMin $yMin $zMax) ($xMax $yMin $zMax) ($xMax $yMax $zMax) ($xMin $yMax $zMax)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) ($nx $ny $nzWater)
+    simpleGrading (1 1 (($wFracDeep $wNFracDeep $wGrade) ($wFracBand $wNFracBand 1)))
+
+    hex (4 5 6 7 8 9 10 11) ($nx $ny $nzAir)
+    simpleGrading (1 1 (($aFracBand $aNFracBand 1) ($aFracHigh $aNFracHigh $aGrade)))
+);
+
+boundary
+(
+    inletWater      { type patch; faces ((0 4 7 3)); }
+    inletAir        { type patch; faces ((4 8 11 7) (7 11 10 6)); }        // front + port side
+    outletWater     { type patch; faces ((1 2 6 5)); }
+    outletAir       { type patch; faces ((5 6 10 9) (4 5 9 8) (8 9 10 11)); }  // back + starboard side + top
+    sideWaterStbd   { type symmetryPlane; faces ((0 1 5 4)); }
+    sideWaterPort   { type symmetryPlane; faces ((3 7 6 2)); }
+    bottom          { type symmetryPlane; faces ((0 3 2 1)); }
+);

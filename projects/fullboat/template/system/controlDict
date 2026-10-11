@@ -1,0 +1,64 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| fullboat template (OpenFOAM v2512, interFoam VOF, water + air).             |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+application     interFoam;
+
+startFrom       latestTime;
+startTime       0;
+stopAt          endTime;
+
+// Fixed attitude, pseudo-steady local time stepping (iterations). Written by iomcfd.
+#include "include/timeControl"
+
+purgeWrite      2;
+writeFormat     binary;
+writePrecision  8;
+writeCompression off;
+timeFormat      general;
+timePrecision   6;
+runTimeModifiable true;     // iomcfd sets 'stopAt writeNow' once forces have converged
+
+functions
+{
+    // Forces on the hull, appendages, sails and mast (N, about the CoG).
+    #include "include/forceFunctions"
+
+    // Free-surface elevation (alpha = 0.5) at write times: wave pattern.
+    freeSurface
+    {
+        type            surfaces;
+        libs            (sampling);
+        writeControl    writeTime;
+        surfaceFormat   raw;
+        fields          (alpha.water);
+        surfaces
+        {
+            waterline
+            {
+                type        isoSurface;
+                isoField    alpha.water;
+                isoValue    0.5;
+                interpolate true;
+            }
+        }
+    }
+
+    residuals
+    {
+        type            solverInfo;
+        libs            (utilityFunctionObjects);
+        fields          (U p_rgh k omega);
+    }
+}

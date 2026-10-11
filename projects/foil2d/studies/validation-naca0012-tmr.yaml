@@ -1,0 +1,19 @@
+study: validation-naca0012-tmr
+project: foil2d
+description: >
+  Solver/mesh verification against the NASA TMR NACA 0012 case: Re = 6e6,
+  fully turbulent k-omega SST, alpha = 0, 10, 15 deg. Expect Cl within ~1-2 %
+  and Cd within ~5 % of the reference SST results (our far field is 50 c,
+  TMR's is 500 c, which mostly affects drag).
+reference: validation/naca0012_re6e6_tmr.csv
+defaults:
+  foil: naca0012
+  chord: 1.0
+  Re: 6.0e6
+  turbulence: kOmegaSST
+  Tu: 0.052               # TMR SST freestream values
+  viscosity_ratio: 0.009
+  decay_control: false    # TMR's SST reference runs have no sustaining terms
+  max_iter: 12000         # high-Re cases converge slowly from a uniform start
+sweep:
+  aoa: [0, 10, 15]

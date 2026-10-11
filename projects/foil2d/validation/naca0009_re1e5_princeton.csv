@@ -1,0 +1,26 @@
+# NACA 0009 wind-tunnel drag polars, Princeton (Selig, Donovan & Fraser 1989, "Airfoils at Low Speeds",
+# SoarTech 8, Fig. 12.60), from the UIUC archive https://m-selig.ae.illinois.edu/uiuc_lsat.html
+# (Stec8.zip, file ALL.PD, block "PDN0009"). Cd from a wake rake, Cl from the balance.
+# Tunnel turbulence (unfiltered) ~0.4-0.6 % at Re 60-100k, but only 0.01-0.06 % above 1 Hz.
+# Note: a separate lift-curve run in the same archive (NACA0009.10, Re 99,944) reads ~0.01-0.02 lower Cl.
+source,Re,aoa,Cl,Cd
+Princeton,100300,-0.91,-0.041,0.0106
+Princeton,100300,0.09,-0.004,0.0096
+Princeton,100300,1.11,0.119,0.0106
+Princeton,100300,2.15,0.257,0.0117
+Princeton,100300,3.15,0.353,0.0118
+Princeton,100300,4.19,0.440,0.0138
+Princeton,100300,5.21,0.523,0.0175
+Princeton,100300,6.21,0.596,0.0217
+Princeton,100300,7.23,0.669,0.0264
+Princeton,100300,8.24,0.727,0.0394
+Princeton,199000,0.10,0.060,0.0081
+Princeton,199000,1.10,0.167,0.0083
+Princeton,199000,2.13,0.253,0.0084
+Princeton,199000,3.15,0.346,0.0100
+Princeton,199000,4.19,0.439,0.0118
+Princeton,199000,5.19,0.526,0.0143
+Princeton,199000,6.23,0.611,0.0180
+Princeton,199000,7.24,0.684,0.0228
+Princeton,199000,8.24,0.748,0.0309
+Princeton,199000,9.25,0.787,0.0629

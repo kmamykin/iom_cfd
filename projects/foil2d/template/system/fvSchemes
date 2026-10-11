@@ -1,0 +1,56 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| foil2d template (OpenFOAM v2512). Values come from system/caseParameters,   |
+| which iomcfd writes from the study YAML.                                    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSchemes;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+ddtSchemes
+{
+    default         steadyState;
+}
+
+gradSchemes
+{
+    default         Gauss linear;
+    grad(U)         cellLimited Gauss linear 1;
+    limitedGrad     cellLimited Gauss linear 1;   // turbulence transport: avoids omega undershoots
+}
+
+divSchemes
+{
+    default         none;
+    div(phi,U)      bounded Gauss linearUpwind grad(U);
+    turbulence      bounded Gauss linearUpwind limitedGrad;
+    div(phi,k)      $turbulence;
+    div(phi,omega)  $turbulence;
+    div(phi,ReThetat) $turbulence;
+    div(phi,gammaInt) $turbulence;
+    div((nuEff*dev2(T(grad(U))))) Gauss linear;
+}
+
+laplacianSchemes
+{
+    default         Gauss linear corrected;
+}
+
+interpolationSchemes
+{
+    default         linear;
+}
+
+snGradSchemes
+{
+    default         corrected;
+}
+
+wallDist
+{
+    method          meshWave;
+}

@@ -1,0 +1,9 @@
+study: hull-smoke
+project: hull
+description: >
+  Pipeline check: Wigley hull, xcoarse mesh, a few LTS iterations.
+  Not for engineering use.
+defaults:
+  mesh: xcoarse
+  max_iter: 20
+  np: 4

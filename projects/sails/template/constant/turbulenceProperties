@@ -1,0 +1,30 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| sails template (OpenFOAM v2512). Values come from                           |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      turbulenceProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+simulationType  RAS;
+
+RAS
+{
+    RASModel        $turbModel;
+    turbulence      on;
+    printCoeffs     on;
+
+    kOmegaSSTCoeffs     // hold the freestream turbulence level (see foil2d)
+    {
+        decayControl    true;
+        kInf            $kInf;
+        omegaInf        $omegaInf;
+    }
+}

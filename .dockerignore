@@ -1,0 +1,11 @@
+.git
+.venv
+runs
+cloud-results
+**/__pycache__
+**/*.pyc
+.pytest_cache
+cloud/gcp/jobs
+cloud/gcp/config.env
+docs
+tests

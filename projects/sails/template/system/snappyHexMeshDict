@@ -1,0 +1,122 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| sails template (OpenFOAM v2512). Values come from                           |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      snappyHexMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+castellatedMesh true;
+snap            true;
+addLayers       true;
+
+// Sails are zero-thickness surfaces: snappyHexMesh turns them into baffles
+// (two wall patches per sail: <name> and <name>_slave). The mast is a solid.
+geometry
+{
+    main.stl    { type triSurfaceMesh; name main; }
+    jib.stl     { type triSurfaceMesh; name jib; }
+    mast.stl    { type triSurfaceMesh; name mast; }
+    nearBox     { type searchableBox; min $nearBoxMin; max $nearBoxMax; }
+    wakeBox     { type searchableBox; min $wakeBoxMin; max $wakeBoxMax; }
+}
+
+castellatedMeshControls
+{
+    maxLocalCells       5000000;
+    maxGlobalCells      40000000;
+    minRefinementCells  10;
+    maxLoadUnbalance    0.10;
+    nCellsBetweenLevels 3;
+
+    features
+    (
+        { file "rig.eMesh"; level $featureLevel; }
+    );
+
+    refinementSurfaces
+    {
+        main
+        {
+            level       ($surfaceLevelMin $surfaceLevelMax);
+            faceZone    main;
+            faceType    baffle;
+            patchInfo   { type wall; inGroups (rig sails); }
+        }
+        jib
+        {
+            level       ($surfaceLevelMin $surfaceLevelMax);
+            faceZone    jib;
+            faceType    baffle;
+            patchInfo   { type wall; inGroups (rig sails); }
+        }
+        mast
+        {
+            level       ($surfaceLevelMin $surfaceLevelMax);
+            patchInfo   { type wall; inGroups (rig); }
+        }
+    }
+
+    resolveFeatureAngle 25;
+
+    refinementRegions
+    {
+        nearBox { mode inside; levels ((1e15 $nearBoxLevel)); }
+        wakeBox { mode inside; levels ((1e15 $wakeBoxLevel)); }
+    }
+
+    locationInMesh      $locationInMesh;
+    allowFreeStandingZoneFaces true;
+}
+
+snapControls
+{
+    nSmoothPatch        3;
+    tolerance           2.0;
+    nSolveIter          100;
+    nRelaxIter          5;
+    nFeatureSnapIter    10;
+    implicitFeatureSnap false;
+    explicitFeatureSnap true;
+    multiRegionFeatureSnap false;
+}
+
+addLayersControls
+{
+    relativeSizes       true;
+    layers
+    {
+        "(main|jib|mast).*" { nSurfaceLayers $nLayers; }
+    }
+    expansionRatio      1.2;
+    finalLayerThickness 0.5;
+    minThickness        0.1;
+    nGrow               0;
+    featureAngle        130;
+    slipFeatureAngle    30;
+    nRelaxIter          5;
+    nSmoothSurfaceNormals 1;
+    nSmoothNormals      3;
+    nSmoothThickness    10;
+    maxFaceThicknessRatio 0.5;
+    maxThicknessToMedialRatio 0.3;
+    minMedialAxisAngle  90;
+    nBufferCellsNoExtrude 0;
+    nLayerIter          50;
+}
+
+meshQualityControls
+{
+    #includeEtc "caseDicts/meshQualityDict"
+    nSmoothScale    4;
+    errorReduction  0.75;
+}
+
+mergeTolerance 1e-6;

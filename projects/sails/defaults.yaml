@@ -1,0 +1,38 @@
+# sails: steady flow of air over the rig (mainsail + jib + mast) above a flat
+# water surface. Sails are rigid, zero-thickness surfaces (no aeroelasticity).
+# Boat frame: x aft, y port, z up, water surface z = 0.
+
+# --- geometry -------------------------------------------------------------------
+rig: iom_a              # iom_a (parametric A rig) | stl
+stl_files: {}           # rig: stl -> {main: sails/main.stl, jib: sails/jib.stl, mast: sails/mast.stl}
+stl_scale: 0.001
+stl_rotate: []
+stl_translate: [0, 0, 0]
+
+main_sheet: 8.0         # deg, main chord angle to the centreline at the foot (+ = boom to starboard)
+jib_sheet: 12.0         # deg
+main_twist: 10.0        # deg, foot-to-head twist
+jib_twist: 10.0
+camber: 0.08            # sail section camber / chord
+deck: 0.06              # m, deck height above the water at the mast
+
+# --- wind and attitude ------------------------------------------------------------
+aws: 4.0                # m/s apparent wind speed (uniform with height, see README)
+awa: 30.0               # deg apparent wind angle from the bow, wind from port
+heel: 0.0               # deg, + = mast to starboard (heeling to leeward on port tack)
+temperature: 15.0
+
+# --- turbulence ---------------------------------------------------------------------
+turbulence: kOmegaSST
+Tu: 1.0
+viscosity_ratio: 10
+
+# --- mesh -----------------------------------------------------------------------------
+mesh: medium            # xcoarse | coarse | medium | fine
+n_layers: 3
+
+# --- solver ---------------------------------------------------------------------------
+max_iter: 3000
+conv_window: 200
+conv_tol: 2.0e-3
+np: 8

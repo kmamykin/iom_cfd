@@ -1,0 +1,65 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| sails template (OpenFOAM v2512). Values come from                           |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    p
+    {
+        solver          GAMG;
+        smoother        GaussSeidel;
+        tolerance       1e-7;
+        relTol          0.05;
+    }
+    Phi     // potentialFoam initialisation
+    {
+        $p;
+    }
+    "(U|k|omega)"
+    {
+        solver          smoothSolver;
+        smoother        GaussSeidel;
+        nSweeps         2;
+        tolerance       1e-8;
+        relTol          0.1;
+    }
+}
+
+SIMPLE
+{
+    consistent      yes;
+    nNonOrthogonalCorrectors 0;
+    residualControl
+    {
+        p               1e-5;
+        U               1e-6;
+        "(k|omega)"     1e-6;
+    }
+}
+
+potentialFlow
+{
+    nNonOrthogonalCorrectors 5;
+}
+
+relaxationFactors
+{
+    equations
+    {
+        U               0.7;
+        "(k|omega)"     0.6;
+    }
+    fields
+    {
+        p               0.5;    // needed with SIMPLEC on non-orthogonal meshes
+    }
+}

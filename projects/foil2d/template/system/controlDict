@@ -1,0 +1,115 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| foil2d template (OpenFOAM v2512). Values come from system/caseParameters,   |
+| which iomcfd writes from the study YAML.                                    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+application     simpleFoam;
+
+startFrom       latestTime;
+startTime       0;
+stopAt          endTime;
+endTime         $maxIter;
+deltaT          1;
+
+writeControl    timeStep;
+writeInterval   $maxIter;       // only the final state (plus on convergence)
+purgeWrite      1;
+writeFormat     binary;
+writePrecision  10;
+writeCompression off;
+timeFormat      general;
+timePrecision   6;
+runTimeModifiable true;    // iomcfd sets 'stopAt writeNow' once forces have converged
+
+functions
+{
+    // Lift/drag/moment coefficients every iteration.
+    // e1 = drag direction (along the freestream), e3 = lift direction,
+    // so e2 = -z and CmPitch is positive nose-up about the quarter chord.
+    forceCoeffs
+    {
+        type            forceCoeffs;
+        libs            (forces);
+        writeControl    timeStep;
+        writeInterval   1;
+        log             false;
+        patches         (foil);
+        rho             rhoInf;
+        rhoInf          $rhoInf;
+        magUInf         $magUInf;
+        lRef            $lRef;
+        Aref            $Aref;
+        origin          $CofR;
+        e1              $dragDir;
+        e3              $liftDir;
+    }
+
+    // Dimensional forces split into pressure and viscous parts (N, per Aref).
+    forces
+    {
+        type            forces;
+        libs            (forces);
+        writeControl    timeStep;
+        writeInterval   10;
+        log             false;
+        patches         (foil);
+        rho             rhoInf;
+        rhoInf          $rhoInf;
+        CofR            $CofR;
+    }
+
+    residuals
+    {
+        type            solverInfo;
+        libs            (utilityFunctionObjects);
+        fields          (U p k omega ReThetat gammaInt);
+        writeResidualFields false;
+    }
+
+    yPlus
+    {
+        type            yPlus;
+        libs            (fieldFunctionObjects);
+        writeControl    writeTime;
+        log             false;
+    }
+
+    wallShearStress
+    {
+        type            wallShearStress;
+        libs            (fieldFunctionObjects);
+        patches         (foil);
+        writeControl    writeTime;
+        log             false;
+    }
+
+    // Surface p and wall shear stress at the final time (Cp / Cf plots,
+    // transition and separation points).
+    foilSurface
+    {
+        type            surfaces;
+        libs            (sampling);
+        writeControl    writeTime;
+        surfaceFormat   raw;
+        fields          (p wallShearStress);
+        surfaces
+        {
+            foil
+            {
+                type        patch;
+                patches     (foil);
+                interpolate false;
+            }
+        }
+    }
+}

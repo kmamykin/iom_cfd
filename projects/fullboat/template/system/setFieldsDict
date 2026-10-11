@@ -1,0 +1,29 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| fullboat template (OpenFOAM v2512, interFoam VOF, water + air).             |
+| Values come from system/caseParameters, written by iomcfd. EXPERIMENTAL.    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      setFieldsDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+defaultFieldValues
+(
+    volScalarFieldValue alpha.water 0
+    volVectorFieldValue U $Uair
+);
+
+regions
+(
+    boxToCell
+    {
+        box (-1e3 -1e3 -1e3) (1e3 1e3 0);
+        fieldValues ( volScalarFieldValue alpha.water 1  volVectorFieldValue U $Uwater );
+    }
+);

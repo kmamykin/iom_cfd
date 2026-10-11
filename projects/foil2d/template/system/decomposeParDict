@@ -1,0 +1,16 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| foil2d template (OpenFOAM v2512). Values come from system/caseParameters,   |
+| which iomcfd writes from the study YAML.                                    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      decomposeParDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+numberOfSubdomains  1;      // set from $NP by Allrun
+
+method          scotch;

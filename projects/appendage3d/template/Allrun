@@ -1,0 +1,37 @@
+#!/bin/sh
+# appendage3d: snappyHexMesh around constant/triSurface/appendages.stl, then
+# simpleFoam. NP=8 ./Allrun runs on 8 MPI ranks (default: 1).
+cd "${0%/*}" || exit 1
+. "${WM_PROJECT_DIR:?}"/bin/tools/RunFunctions
+
+NP="${NP:-1}"
+app=$(getApplication)
+
+runApplication surfaceFeatureExtract || exit 1
+runApplication blockMesh || exit 1
+
+if [ "$NP" -gt 1 ]; then
+    foamDictionary -entry numberOfSubdomains -set "$NP" system/decomposeParDict > /dev/null
+    # -copyZero: copy 0/ as-is (patch-group BCs), so the patches that
+    # snappyHexMesh adds later are covered without re-decomposing fields.
+    runApplication decomposePar -force -copyZero || exit 1
+    runParallel snappyHexMesh -overwrite || exit 1
+    runParallel checkMesh
+    runParallel potentialFoam -writep
+    runParallel "$app"
+    rc=$?
+    runApplication reconstructParMesh -constant
+    runApplication reconstructPar -latestTime
+else
+    runApplication snappyHexMesh -overwrite || exit 1
+    runApplication checkMesh
+    runApplication potentialFoam -writep
+    runApplication "$app"
+    rc=$?
+fi
+
+log="log.$app"
+if [ "$rc" -ne 0 ] || ! tail -n 3 "$log" | grep -q "^End"; then
+    echo "solver failed (exit $rc), see $log" >&2
+    exit 1
+fi

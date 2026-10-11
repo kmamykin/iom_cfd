@@ -1,0 +1,12 @@
+study: appendage3d-smoke
+project: appendage3d
+description: >
+  Pipeline check: xcoarse snappyHexMesh around the default fin/bulb/rudder,
+  a few iterations. Not for engineering use.
+defaults:
+  mesh: xcoarse
+  n_layers: 2
+  max_iter: 30
+  leeway: 3
+  heel: 10
+  np: 4

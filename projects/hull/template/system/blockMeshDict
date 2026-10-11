@@ -1,0 +1,48 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| hull template (OpenFOAM v2512, interFoam VOF). Values come from             |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+| Derived from the OpenFOAM DTCHull / DTCHullMoving tutorials.                |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+// Box with the free surface (z = 0) inside a band of fine, flat cells.
+// z grading: below the band | band [zBandLow, zBandHigh] | above the band.
+vertices
+(
+    ($xMin $yMin $zMin) ($xMax $yMin $zMin) ($xMax $yMax $zMin) ($xMin $yMax $zMin)
+    ($xMin $yMin $zMax) ($xMax $yMin $zMax) ($xMax $yMax $zMax) ($xMin $yMax $zMax)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) ($nx $ny $nz)
+    simpleGrading
+    (
+        1
+        1
+        (
+            ($zFracBelow $nzFracBelow $zGradeBelow)   // coarse -> fine towards the surface
+            ($zFracBand  $nzFracBand  1)
+            ($zFracAbove $nzFracAbove $zGradeAbove)   // fine -> coarse upwards
+        )
+    )
+);
+
+boundary
+(
+    inlet       { type patch; faces ((0 4 7 3)); }
+    outlet      { type patch; faces ((1 2 6 5)); }
+    atmosphere  { type patch; faces ((4 5 6 7)); }
+    bottom      { type symmetryPlane; faces ((0 3 2 1)); }
+    side        { type symmetryPlane; faces ((0 1 5 4)); }     // y = yMin (starboard)
+    midPlane    { type symmetryPlane; faces ((3 7 6 2)); }     // y = yMax: y = 0 for half-domain runs
+);

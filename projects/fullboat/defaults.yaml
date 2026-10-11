@@ -1,0 +1,49 @@
+# fullboat (EXPERIMENTAL): hull + appendages in water and the rig in air,
+# one interFoam (VOF) simulation. Fixed attitude: you choose speed, heel and
+# leeway; the case reports the net force and moment imbalance (including the
+# boat's weight) so a study can search for the sailing equilibrium (a VPP).
+# Port tack only (starboard tack is the mirror image). Boat frame as in hull/.
+
+# --- boat (same meaning as in projects/hull) -------------------------------
+hull: wigley
+wigley_length: 1.0
+wigley_beam: 0.18
+wigley_draft: 0.05
+freeboard: 0.06
+stl_scale: 0.001
+stl_rotate: []
+stl_translate: [0, 0, 0]
+appendages: true        # parametric fin/bulb/rudder from appendage3d
+appendage_params: {}
+extra_stl: []
+
+# --- rig (same meaning as in projects/sails) --------------------------------
+rig: iom_a
+rig_stl_files: {}
+main_sheet: 8.0
+jib_sheet: 12.0
+main_twist: 10.0
+jib_twist: 10.0
+camber: 0.08
+deck: 0.06
+
+# --- sailing condition -----------------------------------------------------
+speed: 1.0              # m/s boat speed through the water
+tws: 4.0                # m/s true wind speed (uniform with height)
+twa: 45.0               # deg true wind angle from the bow, wind from port
+heel: 10.0              # deg, + = to starboard
+leeway: 3.0             # deg, + = bow to port
+trim: 0.0
+sinkage: 0.0
+mass: 4.0               # kg, for the weight moment in the balance
+cog: null               # [x, y, z] in the upright boat frame; null = (0.5 L, 0, -0.15)
+temperature: 15.0
+
+# --- turbulence / mesh / solver ----------------------------------------------
+Tu: 1.0
+viscosity_ratio: 10
+mesh: medium            # xcoarse | coarse | medium
+max_iter: 4000
+conv_window: 300
+conv_tol: 3.0e-3
+np: 16

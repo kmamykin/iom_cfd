@@ -1,0 +1,11 @@
+study: foil2d-smoke
+project: foil2d
+description: >
+  Fast end-to-end check of the pipeline (coarse mesh, a few hundred
+  iterations). Not for engineering use.
+defaults:
+  foil: naca0009
+  mesh: xcoarse
+  max_iter: 300
+sweep:
+  aoa: [0, 4]

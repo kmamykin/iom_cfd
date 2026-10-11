@@ -1,0 +1,37 @@
+# foil2d: every parameter, with its default. Studies override these.
+# Units SI unless stated. Anything not listed here is rejected (typo guard).
+
+# --- geometry -------------------------------------------------------------
+foil: naca0008          # 'nacaMPTT' (analytic 4-digit) or 'file:<name>.dat' in geometry/foils/
+chord: 0.080            # m. IOM fins are ~65-90 mm, rudders ~80 mm
+
+# --- flow -------------------------------------------------------------------
+aoa: 0.0                # deg, angle of attack (leeway + any fin incidence)
+speed: 1.0              # m/s. Ignored when Re is set
+Re: null                # chord Reynolds number; if set, speed = Re*nu/chord
+fluid: water            # water | seawater | air
+temperature: 15.0       # deg C (sets rho and nu)
+
+# --- turbulence / transition ---------------------------------------------
+turbulence: kOmegaSSTLM # kOmegaSSTLM (Langtry-Menter transition) | kOmegaSST (fully turbulent)
+Tu: 0.2                 # % freestream turbulence intensity. Pond value unknown: sweep it!
+viscosity_ratio: 10     # nut/nu in the freestream
+decay_control: auto     # hold freestream k/omega (Spalart-Rumsey) so Tu at the foil = Tu.
+                        # auto = on for kOmegaSSTLM only. With a very low viscosity_ratio
+                        # (<1) at high Re it can destabilise the solution; keep it off there.
+
+# --- mesh (structured C-grid, see src/iomcfd/geometry/cmesh.py) ---------
+mesh: medium            # xcoarse | coarse | medium | fine | xfine  (each level = 2x cells)
+yplus: 0.5              # target wall y+ at the 'medium' level (scales with level)
+farfield: 50            # chords, radius of the C-domain and wake length
+
+# --- solver -------------------------------------------------------------
+solver: steady          # steady (simpleFoam) | transient (pimpleFoam, time-averaged forces)
+flow_times: 15          # transient: simulated time in chord flow-throughs (c/U)
+average_times: 6        # transient: forces averaged over the last this many c/U
+max_co: 10              # transient: maximum Courant number (adaptive time step)
+max_iter: 8000          # SIMPLE iteration budget
+conv_window: 500        # iterations per averaging window
+conv_tol: 1.0e-3        # stop when the window means of Cl and Cd change by less
+                        # than this fraction between consecutive windows
+np: 1                   # MPI ranks per case (2D cases are fastest with 1)

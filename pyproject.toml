@@ -1,0 +1,42 @@
+[project]
+name = "iomcfd"
+version = "0.1.0"
+description = "OpenFOAM-based CFD toolkit for International One Metre (IOM) RC yachts"
+readme = "README.md"
+requires-python = ">=3.12"
+# Runtime deps needed inside the solver container (installed there via apt).
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Host-side analysis and plotting (not installed in the container).
+analysis = [
+    "pandas>=2.2",
+    "matplotlib>=3.8",
+]
+
+[project.scripts]
+iomcfd = "iomcfd.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pandas>=2.2",
+    "matplotlib>=3.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iomcfd"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "docker: needs the iom-cfd Docker image (OpenFOAM) to run",
+]

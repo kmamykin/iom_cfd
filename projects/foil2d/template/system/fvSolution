@@ -1,0 +1,63 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| foil2d template (OpenFOAM v2512). Values come from system/caseParameters,   |
+| which iomcfd writes from the study YAML.                                    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    p
+    {
+        solver          GAMG;
+        smoother        GaussSeidel;
+        tolerance       1e-8;
+        relTol          0.05;
+    }
+    "(U|k|omega|ReThetat|gammaInt)"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-10;
+        relTol          0.1;
+    }
+    // final PIMPLE corrector (solver: transient)
+    pFinal
+    {
+        $p;
+        relTol          0;
+    }
+    "(U|k|omega|ReThetat|gammaInt)Final"
+    {
+        $U;
+        relTol          0;
+    }
+}
+
+SIMPLE
+{
+    consistent      yes;        // SIMPLEC
+    nNonOrthogonalCorrectors 0;
+    residualControl
+    {
+        p               1e-7;
+        U               1e-8;
+        "(k|omega|ReThetat|gammaInt)" 1e-7;
+    }
+}
+
+relaxationFactors
+{
+    equations
+    {
+        U               0.8;
+        "(k|omega)"     0.7;
+        "(ReThetat|gammaInt)" 0.7;
+    }
+}

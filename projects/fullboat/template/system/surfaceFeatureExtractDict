@@ -1,0 +1,29 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| fullboat template (OpenFOAM v2512, interFoam VOF, water + air).             |
+| Values come from system/caseParameters, written by iomcfd. EXPERIMENTAL.    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      surfaceFeatureExtractDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+boat.stl
+{
+    extractionMethod    extractFromSurface;
+    includedAngle       150;
+    subsetFeatures { nonManifoldEdges no; openEdges yes; }
+    intersectionMethod  region;     // hull/appendage junctions
+    writeObj            no;
+}
+rig
+{
+    surfaces            (main.stl jib.stl mast.stl);
+    extractionMethod    extractFromSurface;
+    includedAngle       150;
+    subsetFeatures { nonManifoldEdges no; openEdges yes; }
+    writeObj            no;
+}

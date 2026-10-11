@@ -1,0 +1,10 @@
+study: sails-smoke
+project: sails
+description: >
+  Pipeline check: parametric IOM A rig, xcoarse mesh, a few iterations.
+  Not for engineering use.
+defaults:
+  mesh: xcoarse
+  n_layers: 1
+  max_iter: 20
+  np: 4

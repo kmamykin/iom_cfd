@@ -1,0 +1,15 @@
+study: validation-naca0009-re1e5
+project: foil2d
+description: >
+  Transition-model check against Princeton wind-tunnel data for NACA 0009 at
+  Re = 1e5 (the IOM fin regime). Compare kOmegaSSTLM (transition) with fully
+  turbulent kOmegaSST to see how much laminar flow matters.
+reference: validation/naca0009_re1e5_princeton.csv
+defaults:
+  foil: naca0009
+  chord: 0.08
+  Re: 1.0e5
+  Tu: 0.1
+sweep:
+  turbulence: [kOmegaSSTLM, kOmegaSST]
+  aoa: [0, 2, 4, 6, 8]
