@@ -8,6 +8,8 @@
       views: [velocity, separation] # default: the project's DEFAULT_VIEWS
       animate: aoa                  # swept parameter for study animations
       options: {q_level: 3}         # passed to the project's view functions
+    report:                         # optional, options for `iomcfd report` (no re-run needed)
+      fin_span: 0.36                # e.g. foil2d: whole-fin forces in the selection figure
     defaults:                       # override the project's defaults.yaml
       speed: 1.0
     sweep:                          # full factorial (cartesian product)
@@ -93,6 +95,7 @@ class Study:
     sample: dict[str, Any] = field(default_factory=dict)
     cases: list[dict[str, Any]] = field(default_factory=list)
     reference: str | None = None  # CSV of reference data, relative to the project dir
+    report: dict[str, Any] = field(default_factory=dict)  # options for Project.report
     raw: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -100,7 +103,7 @@ class Study:
         path = Path(path)
         data = coerce_numbers(yaml.safe_load(path.read_text()) or {})
         unknown = set(data) - {"study", "project", "description", "reference", "defaults", "sweep", "zip", "sample", "cases",
-                               "viz"}
+                               "viz", "report"}
         if unknown:
             raise ValueError(f"{path}: unknown top-level keys {sorted(unknown)}")
         st = cls(
@@ -114,6 +117,7 @@ class Study:
             sample=dict(data.get("sample") or {}),
             cases=list(data.get("cases") or []),
             reference=data.get("reference"),
+            report=dict(data.get("report") or {}),
             raw=data,
         )
         if not re.fullmatch(r"[A-Za-z0-9._-]+", st.name):

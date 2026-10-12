@@ -174,7 +174,7 @@ def cmd_report(args) -> None:
     out = sdir / "report"
     out.mkdir(exist_ok=True)
     project = load_project(study.project)
-    files = project.report(df, out, reference=project.load_reference(study.reference))
+    files = project.report(df, out, reference=project.load_reference(study.reference), options=study.report)
     from .meshplot import study_mesh_figures
 
     files += study_mesh_figures(project, sdir, df, out)

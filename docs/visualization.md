@@ -21,7 +21,7 @@ make viz-image                                     # ParaView 6.2 image (~4.8 GB
 uv run iomcfd viz foil2d/validation-naca0009-re1e5 # all cases, default views
 open runs/validation-naca0009-re1e5/viz/index.html # gallery: report, animations, every view
 
-uv run iomcfd viz foil2d/tu-sweep-naca0009-re1e5 --views separation --animate Tu
+uv run iomcfd viz foil2d/fin-profile-selection --views separation --animate speed
 uv run iomcfd viz appendage3d/leeway --options '{"q_level": 5}' --only leeway4
 uv run iomcfd shell --viz                          # pvpython/pvbatch in the viz image
 ```

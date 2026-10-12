@@ -51,6 +51,24 @@ reattachment and trailing-edge separation, x/c, per side); `yplus_max`;
 `converged`, `unsteady`. Each case also has `surface.csv` (Cp and Cf along
 both surfaces). `iomcfd report` draws polars with any reference data.
 
+Studies that vary the section or chord also get `report/selection.png`
+(and the numbers in `selection.csv`): drag against side force, one panel per
+speed and turbulence setting. Sections and chords are compared at equal side
+force, not equal Cl. Options in the study's `report:` block (no re-run):
+
+```yaml
+report:
+  fin_span: 0.36        # m: whole-fin forces [N] instead of per metre of span
+  induced_drag: true    # add L^2 / (2 pi q e b^2): lifting line, hull as reflection plane
+  span_efficiency: 0.9  # e
+```
+
+Induced drag depends on side force and span, not on chord or section, so at
+equal side force it is the same for every candidate: it shows how much the
+section differences matter in the total, it does not reorder them. Questions
+where the span changes (equal-area fins, aspect ratio, tip and bulb effects)
+need the 3D `appendage3d` project.
+
 ## Validation: NACA 0009, Re = 1e5
 
 Study `validation-naca0009-re1e5`, coarse mesh, Tu = 0.1 %, compared with
@@ -94,5 +112,5 @@ good enough to rank sections, with absolute drag uncertain by roughly
 Studies: `smoke` (pipeline check), `validation-naca0009-re1e5`,
 `validation-naca0012-tmr` (NASA Turbulence Modeling Resource case, Re 6e6,
 fully turbulent: a solver check independent of transition modelling),
-`thickness-re1e5` (NACA 0006 against NACA 0009, Re 1e5; no reference data
-for the 0006).
+`fin-profile-selection` (NACA 0006/0009/0012, 80 and 100 mm chord,
+0.25-2.5 m/s, Tu 0.1 and 1 %: 360 cases).

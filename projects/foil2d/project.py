@@ -293,7 +293,7 @@ class Foil2D(Project):
         return res
 
     # ------------------------------------------------------------------
-    def report(self, df, out_dir: Path, reference=None) -> list[Path]:  # pragma: no cover - plotting
+    def report(self, df, out_dir: Path, reference=None, options=None) -> list[Path]:  # pragma: no cover - plotting
         import matplotlib
 
         matplotlib.use("Agg")
@@ -314,6 +314,7 @@ class Foil2D(Project):
             axs[0, 1].plot(g["Cd"], g["Cl"], **style)
             axs[1, 0].plot(g["aoa"], g["Cd"], **style)
             axs[1, 1].plot(g["aoa"], g["L_D"], **style)
+        n_groups = len(groups) if group_cols else 1
         if reference is not None:
             for src, r in reference.groupby("source"):
                 for key, rr in (r.groupby("Re") if "Re" in r else [(None, r)]):
@@ -327,16 +328,126 @@ class Foil2D(Project):
             ax.set_xlabel(xl)
             ax.set_ylabel(yl)
             ax.grid(alpha=0.3)
-        axs[0, 0].legend(fontsize=7)
+        if n_groups <= 16:
+            axs[0, 0].legend(fontsize=7)
+        else:  # too many lines to label; selection.png separates them
+            axs[0, 0].set_title(f"{n_groups} combinations of {', '.join(group_cols)}", fontsize=9)
         fig.tight_layout()
         polar = out_dir / "polar.png"
         fig.savefig(polar, dpi=130)
         plt.close(fig)
         files = [polar]
+        sel = self._selection(df, out_dir, options)
+        if sel:
+            files += [sel, out_dir / "selection.csv"]
         gci = self._mesh_convergence(df, out_dir)
         if gci:
             files.append(gci)
         return files
+
+    def _selection(self, df, out_dir: Path, options=None):
+        """Section/chord selection: drag against side force.
+
+        At a fixed fin span (the class draught limit) the fin must produce a
+        given side force; a longer chord does that at a lower Cl, so sections
+        and chords are compared at equal lift force, not equal Cl. One panel
+        per speed (columns) and per turbulence model / Tu (rows, whichever the
+        study varies); colour = section, line style = chord. Only for studies
+        that vary the section or chord.
+
+        Study `report:` options: `fin_span` [m] turns the per-metre 2D forces
+        into whole-fin forces [N]; `induced_drag: true` adds the lifting-line
+        induced drag of that span (hull as a reflection plane; it is the same
+        for every candidate at equal side force, so it shows the size of the
+        differences, not a different ranking); `span_efficiency` (default 0.9).
+        Writes selection.png and the plotted numbers to selection.csv.
+        """
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        from iomcfd.physics import induced_drag
+
+        need = {"foil", "chord", "aoa", "lift_N_per_m", "drag_N_per_m"}
+        if not need <= set(df) or (df["foil"].nunique() < 2 and df["chord"].nunique() < 2):
+            return None
+        opts = dict(options or {})
+        span = float(opts["fin_span"]) if opts.get("fin_span") else None
+        with_induced = bool(opts.get("induced_drag"))
+        e = float(opts.get("span_efficiency", 0.9))
+        if with_induced and span is None:
+            raise ValueError("report: induced_drag needs fin_span")
+
+        t = df.copy()
+        if span is None:
+            t["side_force"], t["drag_section"] = t["lift_N_per_m"], t["drag_N_per_m"]
+            unit, what = "N/m", "per metre of span (2D)"
+        else:
+            t["side_force"], t["drag_section"] = t["lift_N_per_m"] * span, t["drag_N_per_m"] * span
+            unit, what = "N", f"whole fin, span {span * 1000:g} mm"
+        t["drag_induced"] = 0.0
+        if with_induced:
+            q = 0.5 * t["rhoInf"] * t["magUInf"] ** 2
+            t["drag_induced"] = induced_drag(t["side_force"], q, span, e)
+            what += f", section + induced drag (lifting line, e = {e:g})"
+        t["drag"] = t["drag_section"] + t["drag_induced"]
+        keep = [c for c in ("foil", "chord", "speed", "Re", "turbulence", "Tu", "aoa", "side_force", "drag_section",
+                            "drag_induced", "drag", "unsteady", "status") if c in t]
+        t[keep].sort_values([c for c in ("foil", "chord", "speed", "turbulence", "Tu", "aoa") if c in t]) \
+            .to_csv(out_dir / "selection.csv", index=False)
+
+        speeds = sorted(t["speed"].unique()) if "speed" in t else [None]
+        row_cols = [c for c in ("turbulence", "Tu") if c in t and t[c].nunique() > 1]
+        rows = (sorted(t[row_cols].drop_duplicates().itertuples(index=False, name=None),
+                       key=lambda r: tuple((v != "kOmegaSSTLM", v) if isinstance(v, str) else (False, v) for v in r))
+                if row_cols else [()])  # transition model first, then increasing Tu
+        foils = sorted(t["foil"].unique())
+        chords = sorted(t["chord"].unique())
+        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+        styles = ["-", "--", ":", "-."]
+        width = max(4.2 * len(speeds), 10.0)  # wide enough for the title and legend
+        fig, axs = plt.subplots(len(rows), len(speeds), figsize=(width, 3.8 * len(rows) + 0.6), squeeze=False)
+        for i, row in enumerate(rows):
+            for j, speed in enumerate(speeds):
+                ax = axs[i, j]
+                sub = t
+                if speed is not None:
+                    sub = sub[sub["speed"] == speed]
+                for c, v in zip(row_cols, row):
+                    sub = sub[sub[c] == v]
+                for k, foil in enumerate(foils):
+                    for m, chord in enumerate(chords):
+                        g = sub[(sub["foil"] == foil) & (sub["chord"] == chord)].sort_values("aoa")
+                        if g.empty:
+                            continue
+                        ax.plot(g["side_force"], g["drag"], styles[m % len(styles)], marker="o", ms=3,
+                                color=colors[k % len(colors)], label=f"{foil}, c = {chord * 1000:g} mm")
+                        unsteady = g[g["unsteady"].astype(str) == "True"] if "unsteady" in g else g.iloc[0:0]
+                        if not unsteady.empty:  # steady answer of an unsteady flow: less certain
+                            ax.plot(unsteady["side_force"], unsteady["drag"], "x", ms=7, color=colors[k % len(colors)])
+                title = []
+                if speed is not None:
+                    title.append(f"{speed:g} m/s")
+                title += [f"Tu {v:g} %" if c == "Tu" else str(v) for c, v in zip(row_cols, row)]
+                ax.set_title(", ".join(title), fontsize=10)
+                ax.set_xlabel(f"side force (lift) [{unit}]")
+                ax.set_ylabel(f"drag [{unit}]")
+                ax.grid(alpha=0.3)
+        h, lab = axs[0, 0].get_legend_handles_labels()
+        ncol = min(len(lab), 6, max(1, int(width // 2.4)))
+        legend_rows = -(-len(lab) // ncol)
+        H = fig.get_figheight()
+        fig.tight_layout()  # panels first, then make room at the top for the title and the legend
+        fig.subplots_adjust(top=1 - (0.95 + 0.2 * legend_rows) / H)
+        fig.suptitle(f"Section and chord selection, {what}\nlower curve = less drag for the same side force "
+                     "(points: aoa 0, 2, 4...; x: unsteady)", y=1 - 0.05 / H, va="top", fontsize=11)
+        fig.legend(h, lab, loc="upper center", bbox_to_anchor=(0.5, 1 - 0.55 / H), ncol=ncol, fontsize=8,
+                   frameon=False)
+        path = out_dir / "selection.png"
+        fig.savefig(path, dpi=110)
+        plt.close(fig)
+        return path
 
     def _mesh_convergence(self, df, out_dir: Path):  # pragma: no cover - host only
         """GCI table when a study runs the same case on three consecutive mesh levels."""

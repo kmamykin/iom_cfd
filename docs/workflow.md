@@ -10,6 +10,9 @@ study: keel-sections            # results go to runs/keel-sections/
 project: foil2d
 description: Compare candidate fin sections at upwind speed.
 reference: validation/some.csv  # optional data overlaid by `iomcfd report`
+report:                         # optional post-processing options for `iomcfd report`
+  fin_span: 0.36                # foil2d: whole-fin forces in selection.png
+viz: {views: [velocity]}        # optional, for `iomcfd viz` (docs/visualization.md)
 defaults:                       # override projects/foil2d/defaults.yaml
   chord: 0.085
   speed: 1.0
@@ -31,6 +34,9 @@ cases:                          # extra one-off cases, appended
 
 * Every parameter must exist in the project's `defaults.yaml`; unknown names
   are errors.
+* `report:` and `viz:` only change how finished results are presented. They
+  are not case parameters, so editing them never re-runs a case: change them
+  and re-run `iomcfd report` / `iomcfd viz`.
 * `iomcfd plan <study> -v` prints the cases and every derived quantity
   (Reynolds number, inflow vectors, first-cell height...) without running
   anything.

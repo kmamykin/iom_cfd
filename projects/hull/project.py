@@ -317,7 +317,7 @@ class Hull(Project):
         hours = (1 + 3 * cells) * (6 if p.get("attitude") == "free" else 1)
         return {"cpus": int(p.get("np", 8)), "memory_gb": max(4, int(4 * cells)), "max_hours": hours}
 
-    def report(self, df, out_dir: Path, reference=None) -> list[Path]:  # pragma: no cover - plotting
+    def report(self, df, out_dir: Path, reference=None, options=None) -> list[Path]:  # pragma: no cover - plotting
         import matplotlib
 
         matplotlib.use("Agg")

@@ -249,7 +249,7 @@ class Appendage3D(Project):
         cells = {"xcoarse": 0.3, "coarse": 0.8, "medium": 3, "fine": 12}[p.get("mesh", "medium")]  # millions
         return {"cpus": int(p.get("np", 8)), "memory_gb": max(4, int(3 * cells)), "max_hours": 1 + cells}
 
-    def report(self, df, out_dir: Path, reference=None) -> list[Path]:  # pragma: no cover - plotting
+    def report(self, df, out_dir: Path, reference=None, options=None) -> list[Path]:  # pragma: no cover - plotting
         import matplotlib
 
         matplotlib.use("Agg")

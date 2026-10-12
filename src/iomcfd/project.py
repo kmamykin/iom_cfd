@@ -54,10 +54,11 @@ class Project:
         """Parse solver output into a flat dict of metrics."""
         return {}
 
-    def report(self, df, out_dir: Path, reference=None) -> list[Path]:  # pragma: no cover - host only
+    def report(self, df, out_dir: Path, reference=None, options=None) -> list[Path]:  # pragma: no cover - host only
         """Make plots from the collected results (pandas DataFrame).
 
-        `reference` is the study's reference-data table (DataFrame) or None.
+        `reference` is the study's reference-data table (DataFrame) or None;
+        `options` the study's `report:` block (dict) or None.
         """
         return []
 

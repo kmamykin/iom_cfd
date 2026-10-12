@@ -123,3 +123,17 @@ def first_cell_height(speed: float, length: float, nu: float, yplus: float) -> f
 
 def froude(speed: float, length: float) -> float:
     return speed / math.sqrt(G * length)
+
+
+def induced_drag(lift, q, span: float, e: float = 0.9, reflection_plane: bool = True):
+    """Lifting-line induced drag [N] of a fin of `span` [m] carrying `lift` [N]
+    at dynamic pressure `q` [Pa] (scalars or numpy arrays).
+
+    D_i = L^2 / (pi q e b^2) for a free wing. A fin under a hull sees the hull
+    as a reflection plane: it behaves as half of a wing of span 2b carrying
+    2L, so D_i = L^2 / (2 pi q e b^2). e is the span efficiency (1 for an
+    elliptic load; ~0.85-0.95 for a tapered fin). An estimate: heel, the gap
+    to the hull and the bulb change the effective span.
+    """
+    factor = 2.0 if reflection_plane else 1.0
+    return lift**2 / (factor * math.pi * q * e * span**2)

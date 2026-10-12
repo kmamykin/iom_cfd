@@ -1,3 +1,5 @@
+import math
+
 import pytest
 import yaml
 
@@ -108,3 +110,19 @@ def test_grid_convergence_second_order():
     assert gc.f_extrapolated == pytest.approx(1.0)
     assert gc.monotone and gc.gci_fine > 0
     assert grid_convergence(1.0, 1.1, 1.05, 2.0).order is None  # oscillatory
+
+
+def test_induced_drag_reflection_plane():
+    from iomcfd.physics import induced_drag
+
+    # 3 N side force, 1 m/s in water, 0.36 m fin span, e = 0.9
+    q = 0.5 * 999.1 * 1.0**2
+    assert induced_drag(3.0, q, 0.36) == pytest.approx(9.0 / (2 * math.pi * q * 0.9 * 0.36**2))
+    assert induced_drag(3.0, q, 0.36, reflection_plane=False) == pytest.approx(2 * induced_drag(3.0, q, 0.36))
+
+
+def test_study_report_block(tmp_path):
+    p = tmp_path / "s.yaml"
+    p.write_text("study: t\nproject: foil2d\nreport: {fin_span: 0.36, induced_drag: true}\nsweep: {aoa: [0, 2]}\n")
+    st = Study.load(p)
+    assert st.report == {"fin_span": 0.36, "induced_drag": True}
