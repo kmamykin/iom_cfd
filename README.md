@@ -124,7 +124,7 @@ results copied to a bucket. One-time setup and commands:
 ```bash
 cp cloud/gcp/config.env.example cloud/gcp/config.env   # fill in project/bucket
 cloud/gcp/setup.sh                                     # APIs, registry, bucket, service account
-make push                                              # multi-arch image -> Artifact Registry
+cloud/gcp/setup-github.sh                              # GitHub Actions pushes the image on every push to main
 uv run iomcfd gcp submit foil2d/keel-sections
 uv run iomcfd gcp status
 uv run iomcfd gcp fetch foil2d/keel-sections           # -> runs/<study>/results.csv

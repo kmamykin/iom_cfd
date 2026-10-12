@@ -25,13 +25,37 @@ FUSE. VMs are Spot by default, and preempted tasks retry automatically
 
 ## Image
 
+Every push to `main` builds and pushes the solver image from GitHub Actions
+([.github/workflows/image.yml](../.github/workflows/image.yml)): fast tests
+first, then `docker/Dockerfile` for linux/amd64, tagged `<git describe>`
+(the short commit hash) and `latest`. Run it by hand with
+`gh workflow run image.yml`. Local builds (`make image`) are unaffected.
+
+One-time setup, after `setup.sh`:
+
+```bash
+cloud/gcp/setup-github.sh     # asks first; -y to skip the question
+```
+
+It sets up Workload Identity Federation, so GitHub gets short-lived tokens
+and no service account key exists anywhere. Only workflow runs from pushes
+to `main` of this repository are accepted. They act as the `iom-cfd-ci`
+service account, which can push to the image repository and nothing else.
+The script also sets the repository variables the workflow reads
+(`GCP_PROJECT`, `GCP_REGION`, `AR_REPO`, `IMAGE_NAME`, `GCP_WIF_PROVIDER`,
+`GCP_CI_SA`) with the `gh` CLI, or prints them if `gh` is not logged in.
+These are identifiers, not credentials; in a public repository they show
+up in the Actions logs.
+
+Manual pushes still work, e.g. to test an image before committing:
+
 ```bash
 make push      # docker buildx: linux/amd64 + linux/arm64, tags <git describe> and latest
 make push-amd64  # x86 only (all Cloud Batch needs); much faster from an Apple Silicon Mac
 ```
 
-The image contains the code, templates and `geometry/`. Rebuild and push
-after changing templates or `src/`. Study YAMLs and `geometry/` are uploaded
+The image contains the code, templates and `geometry/`, so changes to
+templates or `src/` reach the cloud once they are pushed to `main`. Study YAMLs and `geometry/` are uploaded
 at submit time, so new studies and new STL files don't need a rebuild. Set
 `IMAGE_TAG` in `config.env` to a git tag to pin a reproducible version; the
 tag is recorded in every `result.json` (`image`).
