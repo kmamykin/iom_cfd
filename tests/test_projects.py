@@ -31,6 +31,8 @@ def test_render_smoke_study(tmp_path, name):
     run_study(project, study, cases[:1], RunOptions(render_only=True), runs=tmp_path, log=lambda *a: None)
     case = tmp_path / study.name / cases[0].name
     assert (case / "Allrun").is_file() and (case / "params.json").is_file()
+    # initial conditions come from the template's 0/ (must be tracked in git: CI builds from a clean checkout)
+    assert (case / "0" / "U").is_file() and any((case / "0" / f).is_file() for f in ("p", "p_rgh"))
     params = (case / "system" / "caseParameters").read_text()
     keys = {m.group(1) for m in re.finditer(r"^(\w+)\s", params, re.M)}
     assert not keys & RESERVED, keys & RESERVED

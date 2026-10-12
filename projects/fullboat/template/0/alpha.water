@@ -1,0 +1,34 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| fullboat template (OpenFOAM v2512, interFoam VOF, water + air).             |
+| Values come from system/caseParameters, written by iomcfd. EXPERIMENTAL.    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      alpha.water;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 0 0 0 0 0];
+
+internalField   uniform 0;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"   // processor, symmetryPlane...
+
+    inletWater      { type fixedValue; value uniform 1; }
+    inletAir        { type fixedValue; value uniform 0; }
+    outletWater
+    {
+        type            variableHeightFlowRate;
+        lowerBound      0;
+        upperBound      1;
+        value           uniform 1;
+    }
+    outletAir       { type inletOutlet; inletValue uniform 0; value uniform 0; }
+    boat        { type zeroGradient; }
+    rig         { type zeroGradient; }
+}

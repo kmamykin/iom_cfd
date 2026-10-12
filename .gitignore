@@ -13,7 +13,10 @@ dist/
 build/
 
 # OpenFOAM artefacts if a template is ever run in place
-projects/*/template/[0-9]*/
+# (time directories other than 0/: 0/ holds the initial conditions and is source)
+projects/*/template/[1-9]*/
+projects/*/template/0.*/
+projects/*/template/0[eE]*/
 projects/*/template/processor*/
 projects/*/template/postProcessing/
 projects/*/template/log.*

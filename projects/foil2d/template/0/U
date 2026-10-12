@@ -1,0 +1,37 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| foil2d template (OpenFOAM v2512). Values come from system/caseParameters,   |
+| which iomcfd writes from the study YAML.                                    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform $Uinf;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"   // processor, cyclic, empty...
+
+    foil
+    {
+        type            noSlip;
+    }
+    freestream          // patch group: farfield + outlet
+    {
+        type            freestreamVelocity;
+        freestreamValue uniform $Uinf;
+    }
+    frontAndBack
+    {
+        type            empty;
+    }
+}

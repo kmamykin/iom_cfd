@@ -1,0 +1,42 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| hull template (OpenFOAM v2512, interFoam VOF). Values come from             |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+| Derived from the OpenFOAM DTCHull / DTCHullMoving tutorials.                |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      p_rgh;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [1 -1 -2 0 0 0 0];
+
+internalField   uniform 0;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"   // processor, symmetryPlane...
+
+    inlet
+    {
+        type            fixedFluxPressure;
+        value           uniform 0;
+    }
+    outlet
+    {
+        type            zeroGradient;
+    }
+    atmosphere
+    {
+        type            totalPressure;
+        p0              uniform 0;
+    }
+    boat
+    {
+        type            fixedFluxPressure;
+        value           uniform 0;
+    }
+}
