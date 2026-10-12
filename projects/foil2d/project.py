@@ -337,9 +337,7 @@ class Foil2D(Project):
         fig.savefig(polar, dpi=130)
         plt.close(fig)
         files = [polar]
-        sel = self._selection(df, out_dir, options)
-        if sel:
-            files += [sel, out_dir / "selection.csv"]
+        files += self._selection(df, out_dir, options)
         gci = self._mesh_convergence(df, out_dir)
         if gci:
             files.append(gci)
@@ -359,8 +357,11 @@ class Foil2D(Project):
         into whole-fin forces [N]; `induced_drag: true` adds the lifting-line
         induced drag of that span (hull as a reflection plane; it is the same
         for every candidate at equal side force, so it shows the size of the
-        differences, not a different ranking); `span_efficiency` (default 0.9).
-        Writes selection.png and the plotted numbers to selection.csv.
+        differences, not a different ranking); `span_efficiency` (default 0.9);
+        `compare_at: {foil, chord, aoa}` sets the side forces of the comparison
+        table (see _compare_at_equal_force).
+        Writes selection.png, the plotted numbers (selection.csv) and the
+        comparison table (selection_compare.csv / .md). Returns the files.
         """
         import matplotlib
 
@@ -371,7 +372,7 @@ class Foil2D(Project):
 
         need = {"foil", "chord", "aoa", "lift_N_per_m", "drag_N_per_m"}
         if not need <= set(df) or (df["foil"].nunique() < 2 and df["chord"].nunique() < 2):
-            return None
+            return []
         opts = dict(options or {})
         span = float(opts["fin_span"]) if opts.get("fin_span") else None
         with_induced = bool(opts.get("induced_drag"))
@@ -447,7 +448,118 @@ class Foil2D(Project):
         path = out_dir / "selection.png"
         fig.savefig(path, dpi=110)
         plt.close(fig)
-        return path
+        files = [path, out_dir / "selection.csv"]
+        files += self._compare_at_equal_force(t, row_cols, rows, speeds, opts, unit, what, out_dir)
+        return files
+
+    @staticmethod
+    def _compare_at_equal_force(t, row_cols, rows, speeds, opts, unit, what, out_dir: Path) -> list[Path]:
+        """Every candidate's drag at the same side forces, as % above the best.
+
+        The side forces are those the reference candidate makes at the
+        reference angles (`compare_at: {foil, chord, aoa}`; default: the
+        middle section, the shortest chord, aoa 2/4/6), i.e. roughly light,
+        typical and high upwind leeway. Other candidates are interpolated
+        linearly along their pre-stall branch: the points up to the maximum
+        side force where it rises with aoa (a dip near 0°, the low-Re lift
+        reversal of thick sections, is skipped); '-' = that force is outside
+        it. '*' = interpolated from an unsteady or not-converged point.
+        """
+        import pandas as pd
+
+        foils, chords = sorted(t["foil"].unique()), sorted(t["chord"].unique())
+        ref = dict(opts.get("compare_at") or {})
+        ref_foil = ref.get("foil", foils[len(foils) // 2])
+        ref_chord = float(ref.get("chord", chords[0]))
+        angles = ref.get("aoa", [2, 4, 6])
+        if ref_foil not in foils or not np.isclose(chords, ref_chord).any():
+            raise ValueError(f"report: compare_at {ref_foil} / {ref_chord} is not one of the study's candidates")
+
+        def label(foil, chord):
+            return f"{str(foil).removeprefix('naca')}/{chord * 1000:g}"
+
+        def drag_at(g, force):
+            g = g.sort_values("aoa")
+            sf, dr = g["side_force"].to_numpy(), g["drag"].to_numpy()
+            shaky = ((g["status"] != "ok") | (g["unsteady"].astype(str) == "True")).to_numpy() if "unsteady" in g \
+                else (g["status"] != "ok").to_numpy()
+            if not len(sf):
+                return None, False
+            keep, low = [], np.inf  # walk down from the maximum, keep a strictly rising branch
+            for k in range(int(np.argmax(sf)), -1, -1):
+                if sf[k] < low:
+                    keep.append(k)
+                    low = sf[k]
+            keep = keep[::-1]
+            sf, dr, shaky = sf[keep], dr[keep], shaky[keep]
+            if not len(sf) or force < sf[0] - 1e-12 or force > sf[-1] + 1e-12:
+                return None, False
+            i = int(np.clip(np.searchsorted(sf, force), 1, max(1, len(sf) - 1)))
+            if len(sf) == 1:
+                return float(dr[0]), bool(shaky[0])
+            return float(np.interp(force, sf, dr)), bool(shaky[i - 1] or shaky[i])
+
+        records = []
+        for row in rows:
+            for speed in speeds:
+                sub = t if speed is None else t[t["speed"] == speed]
+                for c, v in zip(row_cols, row):
+                    sub = sub[sub[c] == v]
+                r = sub[(sub["foil"] == ref_foil) & np.isclose(sub["chord"], ref_chord)].set_index("aoa")
+                for a in angles:
+                    if a not in r.index:
+                        continue
+                    force = float(r.loc[a, "side_force"])
+                    got = {}
+                    for foil in foils:
+                        for chord in chords:
+                            g = sub[(sub["foil"] == foil) & np.isclose(sub["chord"], chord)]
+                            got[(foil, chord)] = drag_at(g, force) if not g.empty else (None, False)
+                    valid = [d for d, _ in got.values() if d is not None]
+                    best = min(valid) if valid else None
+                    for (foil, chord), (d, shaky) in got.items():
+                        records.append({**dict(zip(row_cols, row)), "speed": speed, "ref_aoa": a,
+                                        "side_force": force, "foil": foil, "chord": chord, "drag": d,
+                                        "above_best_pct": 100 * (d / best - 1) if d is not None and best else None,
+                                        "uncertain": shaky})
+        if not records:
+            return []
+        cmp = pd.DataFrame(records)
+        cmp["rank"] = cmp.groupby([*row_cols, "speed", "ref_aoa"])["drag"].rank(method="min")
+        csv_path = out_dir / "selection_compare.csv"
+        cmp.to_csv(csv_path, index=False)
+
+        cands = [(f, c) for f in foils for c in chords]
+        md = [f"## Drag at equal side force ({what})", "",
+              f"Side forces: what {label(ref_foil, ref_chord)} makes at aoa {', '.join(f'{a:g}' for a in angles)}°. "
+              "Cells: % drag above the lowest at that force; **best** = lowest; '-' = force outside that "
+              "candidate's pre-stall range; '*' = interpolated from an unsteady or not-converged point.", ""]
+        for row in rows:
+            if row_cols:
+                md += [f"### {', '.join(f'Tu {v:g} %' if c == 'Tu' else str(v) for c, v in zip(row_cols, row))}", ""]
+            md.append(f"| speed [m/s] | aoa ref | side force [{unit}] | lowest drag [{unit}] | "
+                      + " | ".join(label(f, c) for f, c in cands) + " |")
+            md.append("|---|---|---|---|" + "---|" * len(cands))
+            sel = cmp
+            for c, v in zip(row_cols, row):
+                sel = sel[sel[c] == v]
+            for (speed, a), g in sel.groupby(["speed", "ref_aoa"], sort=True, dropna=False):
+                g = g.set_index(["foil", "chord"])
+                lowest = g["drag"].min()
+                cells = []
+                for f, c in cands:
+                    d, pct, shaky = g.loc[(f, c), "drag"], g.loc[(f, c), "above_best_pct"], g.loc[(f, c), "uncertain"]
+                    if pd.isna(d):
+                        cells.append("-")
+                        continue
+                    cell = "**best**" if pct < 0.05 else f"+{pct:.0f}%"
+                    cells.append(cell + ("*" if shaky else ""))
+                sp = "-" if pd.isna(speed) else f"{speed:g}"
+                md.append(f"| {sp} | {a:g}° | {g['side_force'].iloc[0]:.3g} | {lowest:.3g} | " + " | ".join(cells) + " |")
+            md.append("")
+        md_path = out_dir / "selection_compare.md"
+        md_path.write_text("\n".join(md))
+        return [csv_path, md_path]
 
     def _mesh_convergence(self, df, out_dir: Path):  # pragma: no cover - host only
         """GCI table when a study runs the same case on three consecutive mesh levels."""

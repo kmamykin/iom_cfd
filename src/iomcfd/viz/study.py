@@ -4,11 +4,11 @@ animations (one frame per case along a swept parameter) and an HTML gallery.
 Reads only finished results (params.json, result.json, the final field
 directory); never modifies them. Re-run as often as you like.
 
-Outputs
-    runs/<study>/<case>/viz/<view>.png        per-case views
-    runs/<study>/<case>/viz/<view>_time.mp4   time series (transient runs with snapshots)
-    runs/<study>/viz/<view>_by_<param>[_<group>].mp4/.gif   study animations
-    runs/<study>/viz/index.html               gallery of everything above + the report
+Outputs (in one run of the study, runs/<study>/<run id>/ = <run>)
+    <run>/<case>/viz/<view>.png        per-case views
+    <run>/<case>/viz/<view>_time.mp4   time series (transient runs with snapshots)
+    <run>/viz/<view>_by_<param>[_<group>].mp4/.gif   study animations
+    <run>/viz/index.html               gallery of everything above + the report
 """
 
 from __future__ import annotations
@@ -197,13 +197,13 @@ def write_gallery(study, sdir: Path, cases, views: list[str], animations: list[d
     """Static HTML page linking every image and animation (open it locally)."""
     e = html.escape
     parts = [
-        "<!doctype html><html><head><meta charset='utf-8'><title>" + e(study.name) + "</title>",
+        "<!doctype html><html><head><meta charset='utf-8'><title>" + e(f"{study.name} {sdir.name}") + "</title>",
         "<style>body{font:14px system-ui,sans-serif;margin:16px;max-width:1700px}"
         "img,video{max-width:100%;border:1px solid #ddd}.grid{display:grid;"
         "grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:12px}"
         "h2{margin-top:32px;border-bottom:1px solid #ccc}figure{margin:0}figcaption{color:#555}"
         "table{border-collapse:collapse}td{padding:2px 8px;border-bottom:1px solid #eee}</style></head><body>",
-        f"<h1>{e(study.name)}</h1><p>{e((study.description or '').strip())}</p>",
+        f"<h1>{e(study.name)} <small>run {e(sdir.name)}</small></h1><p>{e((study.description or '').strip())}</p>",
     ]
     report = sdir / "report"
     if report.is_dir():

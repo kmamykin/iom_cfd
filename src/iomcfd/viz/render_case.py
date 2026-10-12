@@ -1,6 +1,6 @@
 """Render the views of one case (run inside the viz image, one process per case).
 
-    python -m iomcfd.viz.render_case --case runs/<study>/<case> --project foil2d \
+    python -m iomcfd.viz.render_case --case runs/<study>/<run id>/<case> --project foil2d \
         [--views velocity,pressure] [--options '{"q_level": 3}'] [--no-time]
 
 Writes <case>/viz/<view>.png, and for cases with several time directories

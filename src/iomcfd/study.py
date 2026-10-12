@@ -1,6 +1,6 @@
 """Studies: a YAML file that expands into a list of concrete cases.
 
-    study: keel-sections            # name -> runs/<study>/
+    study: keel-sections            # name -> runs/<study>/<run id>/
     project: foil2d                 # projects/<project>/
     description: free text
     reference: validation/data.csv  # optional, overlaid by `iomcfd report`
@@ -97,6 +97,7 @@ class Study:
     reference: str | None = None  # CSV of reference data, relative to the project dir
     report: dict[str, Any] = field(default_factory=dict)  # options for Project.report
     raw: dict[str, Any] = field(default_factory=dict)
+    overrides: dict[str, Any] = field(default_factory=dict)  # --set on the command line
 
     @classmethod
     def load(cls, path: str | Path, overrides: dict[str, Any] | None = None) -> "Study":
@@ -129,6 +130,7 @@ class Study:
     def apply_overrides(self, overrides: dict[str, Any]) -> None:
         """--set key=value from the CLI: pins a parameter for every case."""
         for k, v in coerce_numbers(overrides).items():
+            self.overrides[k] = v
             self.defaults[k] = v
             self.sweep.pop(k, None)
             self.zip.pop(k, None)

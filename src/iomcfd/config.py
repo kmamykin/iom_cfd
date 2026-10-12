@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 
 DEFAULT_IMAGE = "iom-cfd:latest"
@@ -45,3 +46,16 @@ def viz_image() -> str:
 
 def in_viz_container() -> bool:
     return bool(os.environ.get("IOMCFD_VIZ_CONTAINER"))
+
+
+def git_describe() -> str:
+    """Code version for run.json: `git describe --always --dirty` of the
+    repository ($IOMCFD_GIT inside the container, set from the host)."""
+    if os.environ.get("IOMCFD_GIT"):
+        return os.environ["IOMCFD_GIT"]
+    try:
+        out = subprocess.run(["git", "-C", str(home()), "describe", "--always", "--dirty"],
+                             capture_output=True, text=True, timeout=10)
+        return out.stdout.strip() if out.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""

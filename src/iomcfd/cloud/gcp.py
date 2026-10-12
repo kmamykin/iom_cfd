@@ -1,12 +1,14 @@
 """Google Cloud Batch backend.
 
-One Batch job per study; one Batch *task* per case (BATCH_TASK_INDEX picks
-the case). Each task runs the solver image on Spot VMs, works on local disk,
-and copies the finished case to the bucket (mounted with Cloud Storage FUSE).
+One Batch job per run of a study; one Batch *task* per case
+(BATCH_TASK_INDEX picks the case). Each task runs the solver image on Spot
+VMs, works on local disk, and copies the finished case to the bucket (mounted
+with Cloud Storage FUSE) at runs/<study>/<run id>/<case>/. The run id is the
+UTC submit time; the job is named after it.
 
     iomcfd gcp submit foil2d/keel-sections [--machine c3d-standard-16] [--dry-run]
     iomcfd gcp status [JOB]
-    iomcfd gcp fetch  foil2d/keel-sections      # bucket -> runs/<study>/ + collect
+    iomcfd gcp fetch  foil2d/keel-sections [--run-id ID]   # latest run -> runs/<study>/<run id>/ + collect
 
 Configuration: cloud/gcp/config.env (copy config.env.example). One-time
 infrastructure: cloud/gcp/setup.sh. Image: `make push`.
@@ -14,7 +16,6 @@ infrastructure: cloud/gcp/setup.sh. Image: `make push`.
 
 from __future__ import annotations
 
-import datetime as dt
 import json
 import re
 import shlex
@@ -27,6 +28,11 @@ from typing import Any
 from .. import config
 
 MOUNT = "/mnt/disks/data"
+
+# Paths (relative to the run) of field directories: OpenFOAM time directories
+# directly inside a case, e.g. aoa4/1500/U. Not postProcessing/<fo>/0/*.dat.
+# gcloud storage rsync --exclude must match the whole relative path.
+FIELD_DIRS = r"[^/]+/[0-9.e+-]+/.*"
 
 # vCPUs per physical core. CFD is memory-bandwidth bound: give each MPI rank
 # a whole core, i.e. 2 vCPUs on SMT machine families.
@@ -94,6 +100,7 @@ def build_job(
     parallelism: int | None,
     sets: list[str],
     tag: str | None,
+    run_id: str,
 ) -> dict[str, Any]:
     vcpu = machine_vcpus(machine)
     task_vcpus = max(1, np_) * vcpus_per_rank(machine)
@@ -103,9 +110,9 @@ def build_job(
     mem_mib = int(1024 * {"c3d": 4, "c2d": 4, "c4d": 3.75, "h3": 4, "t2d": 4}.get(machine.split("-")[0], 3.5)
                   * task_vcpus * 0.9)
     shm_gb = max(1, min(64, mem_mib // 1024 // 2))
-    study_file = f"{MOUNT}/studies/{study_name}.yaml"
-    cmd = ["iomcfd", "--runs", "/tmp/iomcfd-runs", "run", study_file, "--index", "BATCH_TASK_INDEX",
-           "--jobs", "1", "--np", str(np_), "--export", f"{MOUNT}/runs"]
+    study_file = f"{MOUNT}/runs/{study_name}/{run_id}/study.yaml"  # this run's own copy
+    cmd = ["iomcfd", "--runs", "/tmp/iomcfd-runs", "run", study_file, "--run-id", run_id,
+           "--index", "BATCH_TASK_INDEX", "--jobs", "1", "--np", str(np_), "--export", f"{MOUNT}/runs"]
     for s in sets:
         cmd += ["--set", s]
     job = {
@@ -156,16 +163,15 @@ def build_job(
                 }
             ],
         },
-        "labels": {"app": "iomcfd", "study": re.sub(r"[^a-z0-9_-]", "-", study_name.lower())[:63]},
+        "labels": {"app": "iomcfd", "study": re.sub(r"[^a-z0-9_-]", "-", study_name.lower())[:63], "run": run_id},
         "logsPolicy": {"destination": "CLOUD_LOGGING"},
     }
     return job
 
 
-def job_name(study_name: str) -> str:
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%m%d-%H%M%S")
-    base = re.sub(r"[^a-z0-9-]", "-", study_name.lower()).strip("-")[:40]
-    return f"iomcfd-{base}-{stamp}"
+def job_name(study_name: str, run_id: str) -> str:
+    base = re.sub(r"[^a-z0-9-]", "-", study_name.lower()).strip("-")[:39]
+    return f"iomcfd-{base}-{run_id}"  # Batch: at most 63 characters
 
 
 # ---------------------------------------------------------------------------
@@ -174,6 +180,7 @@ def job_name(study_name: str) -> str:
 
 def cmd_submit(args) -> None:
     from ..cli import _load, parse_sets  # noqa: F401  (shared study loading)
+    from ..runner import new_run_id, write_run_info
 
     cfg = load_config()
     study, project, cases = _load(args)
@@ -181,23 +188,28 @@ def cmd_submit(args) -> None:
     np_ = args.np or int(cases[0].params.get("np", 1))
     res = project.resources({**cases[0].params, "np": np_})
     max_hours = args.max_hours or float(res.get("max_hours", 4))
+    run_id = new_run_id()
     job = build_job(cfg, study.name, len(cases), np_, machine, not args.standard, max_hours,
-                    args.parallelism, args.set or [], args.tag)
-    name = job_name(study.name)
-    out = config.home() / "cloud" / "gcp" / "jobs"
+                    args.parallelism, args.set or [], args.tag, run_id)
+    name = job_name(study.name, run_id)
+    out = config.home() / "cloud" / "gcp" / "jobs" / name
     out.mkdir(parents=True, exist_ok=True)
-    job_file = out / f"{name}.json"
+    job_file = out / "job.json"
     job_file.write_text(json.dumps(job, indent=2) + "\n")
-    print(f"{len(cases)} tasks, {machine} ({'spot' if not args.standard else 'standard'}), "
+    run_info = write_run_info(out, study, len(cases), run_id=run_id, backend="gcp", job=name, machine=machine,
+                              image=image_uri(cfg, args.tag))
+    print(f"run {run_id}: {len(cases)} tasks, {machine} ({'spot' if not args.standard else 'standard'}), "
           f"{job['taskGroups'][0]['taskCountPerNode']} tasks/VM, job spec: {job_file}")
 
     bucket = f"gs://{cfg['GCS_BUCKET']}"
-    _gcloud("storage", "cp", str(study.path), f"{bucket}/studies/{study.name}.yaml", dry=args.dry_run)
+    dst = f"{bucket}/runs/{study.name}/{run_id}"
+    _gcloud("storage", "cp", str(study.path), f"{dst}/study.yaml", dry=args.dry_run)
+    _gcloud("storage", "cp", str(run_info), f"{dst}/run.json", dry=args.dry_run)
     _gcloud("storage", "rsync", "-r", str(config.geometry_dir()), f"{bucket}/geometry", dry=args.dry_run)
     _gcloud("batch", "jobs", "submit", name, "--project", cfg["GCP_PROJECT"], "--location", cfg["GCP_REGION"],
             "--config", str(job_file), dry=args.dry_run)
     if not args.dry_run:
-        print(f"\nsubmitted {name}\n  iomcfd gcp status {name}\n  iomcfd gcp fetch {args.study}")
+        print(f"\nsubmitted {name}\n  iomcfd gcp status {name}\n  iomcfd gcp fetch {args.study} --run-id {run_id}")
 
 
 def cmd_status(args) -> None:
@@ -221,15 +233,29 @@ def cmd_fetch(args) -> None:
     from ..results import collect
     from ..study import Study
 
+    from ..runner import is_run_id
+
     cfg = load_config()
     study = Study.load(resolve_study_path(args.study))
-    dst = config.runs_dir() / study.name
+    base = f"gs://{cfg['GCS_BUCKET']}/runs/{study.name}"
+    run_id = args.run_id
+    if run_id in (None, "latest"):
+        try:
+            listing = _gcloud("storage", "ls", f"{base}/", capture=True)
+        except subprocess.CalledProcessError:  # no such prefix
+            listing = ""
+        ids = sorted(n for n in (ln.rstrip("/").rsplit("/", 1)[-1] for ln in listing.split()) if is_run_id(n))
+        if not ids:
+            raise SystemExit(f"no runs of {study.name} in {base}/")
+        run_id = ids[-1]
+    elif not is_run_id(run_id):
+        raise SystemExit(f"--run-id {run_id}: expected YYYYMMDD-HHMMSS")
+    dst = config.runs_dir() / study.name / run_id
     dst.mkdir(parents=True, exist_ok=True)
-    src = f"gs://{cfg['GCS_BUCKET']}/runs/{study.name}"
-    excl = [] if args.fields else ["--exclude", r".*/[0-9.e+-]+/.*"]  # skip field directories
-    _gcloud("storage", "rsync", "-r", *excl, src, str(dst))
+    excl = [] if args.fields else ["--exclude", FIELD_DIRS]
+    _gcloud("storage", "rsync", "-r", *excl, f"{base}/{run_id}", str(dst))
     rows, out = collect(dst)
-    print(f"{out}: {len(rows)} cases")
+    print(f"{out}: {len(rows)} cases (run {run_id})")
 
 
 def add_parser(sub) -> None:
@@ -254,5 +280,6 @@ def add_parser(sub) -> None:
 
     s = gsub.add_parser("fetch", help="download a study's results from the bucket and collect them")
     s.add_argument("study")
+    s.add_argument("--run-id", metavar="ID", help="which run (default: the latest in the bucket)")
     s.add_argument("--fields", action="store_true", help="also download final field directories (large)")
     s.set_defaults(func=cmd_fetch)

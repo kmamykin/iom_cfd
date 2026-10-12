@@ -3,15 +3,21 @@
     iomcfd projects                         list projects
     iomcfd plan    STUDY                    show the cases a study expands to
     iomcfd render  STUDY                    write OpenFOAM case dirs, don't run
-    iomcfd run     STUDY [-j N] [--np P]    render + mesh + solve + extract
-    iomcfd collect STUDY                    gather results -> runs/<study>/results.csv
-    iomcfd report  STUDY                    plots from results.csv (host, needs [analysis])
+    iomcfd run     STUDY [-j N] [--np P]    render + mesh + solve + extract (a new run)
+    iomcfd runs    STUDY                    list the runs of a study
+    iomcfd collect STUDY                    gather results -> runs/<study>/<run>/results.csv
+    iomcfd report  STUDY                    plots, tables, summary.md (host, needs [analysis])
     iomcfd viz     STUDY                    ParaView images, animations, gallery (viz image)
     iomcfd shell                            OpenFOAM shell in the container (host)
     iomcfd gcp ...                          Google Cloud Batch (see `iomcfd gcp -h`)
 
 STUDY is a path to a study YAML or the short form <project>/<study>
 (= projects/<project>/studies/<study>.yaml).
+
+Each `run` writes a new timestamped run, runs/<study>/<YYYYMMDD-HHMMSS>/, so
+earlier results are never overwritten; `--resume` continues the latest run
+instead. collect, report and viz work on the latest run, or `--run-id ID`,
+using the study file as it was when that run started.
 
 `run` executes OpenFOAM. Outside the container it re-launches itself inside
 the iom-cfd Docker image with the repository mounted at /work.
@@ -64,6 +70,34 @@ def _load(args):
     return study, project, cases
 
 
+def _load_run(args):
+    """Study, project, cases and directory of an existing run. The study comes
+    from the run's own copy of the study file, so later edits to the study
+    (new parameters, report options) don't change what an old run means."""
+    from .project import load_project
+    from .runner import resolve_run
+    from .study import Study
+
+    current = Study.load(resolve_study_path(args.study))
+    rdir = resolve_run(current, _runs(args), getattr(args, "run_id", None))
+    snap = rdir / "study.yaml"
+    study = Study.load(snap) if snap.is_file() else current
+    project = load_project(study.project)
+    return study, project, study.expand(project.defaults), rdir
+
+
+def _target_run(args, study) -> Path:
+    """Run directory to write into: a new run, the latest (--resume) or --run-id."""
+    from .runner import is_run_id, new_run_id, resolve_run, study_dir
+
+    run_id = getattr(args, "run_id", None)
+    if getattr(args, "resume", False) or run_id == "latest":
+        return resolve_run(study, _runs(args))
+    if run_id and not is_run_id(run_id):
+        raise SystemExit(f"--run-id {run_id}: expected YYYYMMDD-HHMMSS (UTC) or 'latest'")
+    return study_dir(study, _runs(args)) / (run_id or new_run_id())
+
+
 def _select(cases, args):
     if getattr(args, "only", None):
         wanted = set(args.only)
@@ -113,8 +147,9 @@ def cmd_render(args) -> None:
     from .runner import RunOptions, run_study
 
     study, project, cases = _load(args)
-    run_study(project, study, _select(cases, args), RunOptions(render_only=True), runs=_runs(args))
-    print(f"rendered into {_runs(args) / study.name}")
+    rdir = _target_run(args, study)
+    run_study(project, study, _select(cases, args), RunOptions(render_only=True), rdir)
+    print(f"rendered into {rdir}")
 
 
 def cmd_run(args) -> None:
@@ -122,35 +157,49 @@ def cmd_run(args) -> None:
         _exec_in_docker(["run", *sys.argv[sys.argv.index("run") + 1 :]], args)
         return
     from .results import collect
-    from .runner import RunOptions, run_study, study_dir
+    from .runner import RunOptions, run_study
 
     study, project, cases = _load(args)
     cases = _select(cases, args)
+    rdir = _target_run(args, study)
     np_ = args.np
     jobs = args.jobs or max(1, (os.cpu_count() or 1) // (np_ or int(cases[0].params.get("np", 1))))
     opts = RunOptions(jobs=jobs, np=np_, force=args.force, export=args.export, keep_fields=not args.no_fields)
-    results = run_study(project, study, cases, opts, runs=_runs(args))
-    rows, out = collect(study_dir(study, _runs(args)))
+    results = run_study(project, study, cases, opts, rdir)
+    rows, out = collect(rdir)
     n_bad = sum(r["status"] == "failed" for r in results)
-    print(f"results: {out}  ({len(rows)} cases, {n_bad} failed this run)")
+    print(f"results: {out}  ({len(rows)} cases, {n_bad} failed this time)")
     if opts.export:
         import shutil
 
-        dst = Path(opts.export) / study.name
+        dst = Path(opts.export) / study.name / rdir.name
         dst.mkdir(parents=True, exist_ok=True)
-        if study.path:
+        if study.path and not (dst / "study.yaml").exists():
             shutil.copy2(study.path, dst / "study.yaml")
     if n_bad:
         sys.exit(1)
 
 
-def cmd_collect(args) -> None:
-    from .results import collect
-    from .runner import study_dir
+def cmd_runs(args) -> None:
+    import json as _json
+
+    from .runner import list_runs, study_dir
     from .study import Study
 
-    study = Study.load(resolve_study_path(args.study))
-    rows, out = collect(study_dir(study, _runs(args)))
+    sdir = study_dir(Study.load(resolve_study_path(args.study)), _runs(args))
+    for rid in list_runs(sdir):
+        info = {}
+        if (sdir / rid / "run.json").is_file():
+            info = _json.loads((sdir / rid / "run.json").read_text())
+        n_cases = sum(1 for p in (sdir / rid).iterdir() if (p / "params.json").is_file())
+        report = "report" if (sdir / rid / "report").is_dir() else ""
+        print(f"{rid}  {n_cases:>4} cases  {info.get('backend', 'local'):<5} git {info.get('git') or '?':<16} {report}")
+
+
+def cmd_collect(args) -> None:
+    from .results import collect
+
+    rows, out = collect(_load_run(args)[3])
     counts: dict[str, int] = {}
     for r in rows:
         counts[r["status"]] = counts.get(r["status"], 0) + 1
@@ -162,22 +211,19 @@ def cmd_report(args) -> None:
         import pandas as pd
     except ImportError:
         raise SystemExit("report needs pandas + matplotlib: `uv sync` (dev group) or `pip install iomcfd[analysis]`")
-    from .project import load_project
-    from .results import collect
-    from .runner import study_dir
-    from .study import Study
-
-    study = Study.load(resolve_study_path(args.study))
-    sdir = study_dir(study, _runs(args))
-    collect(sdir)
-    df = pd.read_csv(sdir / "results.csv")
-    out = sdir / "report"
-    out.mkdir(exist_ok=True)
-    project = load_project(study.project)
-    files = project.report(df, out, reference=project.load_reference(study.reference), options=study.report)
     from .meshplot import study_mesh_figures
+    from .results import collect
+    from .summary import write_summary
 
-    files += study_mesh_figures(project, sdir, df, out)
+    study, project, cases, rdir = _load_run(args)
+    collect(rdir)
+    df = pd.read_csv(rdir / "results.csv")
+    out = rdir / "report"
+    out.mkdir(exist_ok=True)
+    files = project.report(df, out, reference=project.load_reference(study.reference), options=study.report)
+    files += study_mesh_figures(project, rdir, df, out)
+    files.append(write_summary(rdir, study, cases, df, files))
+    print(f"run {rdir.name}")
     for f in files:
         print(f)
 
@@ -189,10 +235,9 @@ def cmd_viz(args) -> None:
         return
     import json as _json
 
-    from .runner import study_dir
     from .viz.study import VizOptions, visualize_study
 
-    study, project, all_cases = _load(args)
+    study, project, all_cases, rdir = _load_run(args)
     cases = _select(all_cases, args)
     opts = VizOptions(
         views=args.views.split(",") if args.views else None,
@@ -201,7 +246,7 @@ def cmd_viz(args) -> None:
         no_time=args.no_time,
         options=_json.loads(args.options) if args.options else {},
     )
-    visualize_study(project.name, study, cases, study_dir(study, _runs(args)), opts, all_cases=all_cases)
+    visualize_study(project.name, study, cases, rdir, opts, all_cases=all_cases)
 
 
 def cmd_shell(args) -> None:
@@ -231,7 +276,7 @@ def docker_base(interactive: bool = False, runs: Path | None = None) -> list[str
         cmd += ["-v", f"{runs}:/runs", "-e", "IOMCFD_RUNS=/runs"]
     if platform.system() == "Linux":
         cmd += ["--user", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp"]
-    cmd += ["-e", f"IOMCFD_IMAGE_REF={config.image()}"]
+    cmd += ["-e", f"IOMCFD_IMAGE_REF={config.image()}", "-e", f"IOMCFD_GIT={config.git_describe()}"]
     return cmd
 
 
@@ -278,26 +323,41 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("projects", help="list projects").set_defaults(func=cmd_projects)
     p = study_cmd("plan", cmd_plan, "list the cases of a study")
     p.add_argument("-v", "--verbose", action="store_true")
-    study_cmd("render", cmd_render, "write case directories without running")
+    def target_run(p):
+        p.add_argument("--run-id", metavar="ID", help="write into this run (YYYYMMDD-HHMMSS, UTC; created if "
+                       "missing) instead of a new one")
+        p.add_argument("--resume", action="store_true", help="continue the latest run: skip its finished cases")
+
+    def existing_run(p):
+        p.add_argument("--run-id", metavar="ID", help="which run (default: the latest; see `iomcfd runs`)")
+
+    target_run(study_cmd("render", cmd_render, "write case directories without running"))
     p = study_cmd("run", cmd_run, "run a study (in Docker unless already inside the container)")
+    target_run(p)
     p.add_argument("-j", "--jobs", type=int, help="cases in parallel (default: cpus / np)")
     p.add_argument("--np", type=int, help="MPI ranks per case (overrides the study)")
-    p.add_argument("--force", action="store_true", help="re-run finished cases")
+    p.add_argument("--force", action="store_true", help="with --resume / --run-id: re-run finished cases too")
     p.add_argument("--export", type=Path, help="copy finished cases to this directory")
     p.add_argument("--no-fields", action="store_true", help="with --export: skip the final field directory")
     p.add_argument("--no-docker", action="store_true", help="run with the local OpenFOAM installation")
     p = study_cmd("viz", cmd_viz, "render ParaView views, study animations and a gallery (viz image)")
+    existing_run(p)
     p.add_argument("--views", help="comma-separated view names (default: project/study defaults)")
     p.add_argument("--animate", help="swept parameter for study animations (default: auto)")
     p.add_argument("-j", "--jobs", type=int, help="cases rendered in parallel (default: cpus / 2)")
     p.add_argument("--options", help='JSON options for the views, e.g. \'{"q_level": 3}\'')
     p.add_argument("--no-time", action="store_true", help="skip time-series animations of transient cases")
     p.add_argument("--no-docker", action="store_true", help="run with the local ParaView installation")
+    p = sub.add_parser("runs", help="list the runs of a study")
+    p.add_argument("study")
+    p.set_defaults(func=cmd_runs)
     p = sub.add_parser("collect", help="gather results into results.csv")
     p.add_argument("study")
+    existing_run(p)
     p.set_defaults(func=cmd_collect)
-    p = sub.add_parser("report", help="plots from results.csv")
+    p = sub.add_parser("report", help="plots, comparison tables and summary.md from results.csv")
     p.add_argument("study")
+    existing_run(p)
     p.set_defaults(func=cmd_report)
     p = sub.add_parser("shell", help="interactive shell (or a command) in the container")
     p.add_argument("--viz", action="store_true", help="use the visualisation (ParaView) image")

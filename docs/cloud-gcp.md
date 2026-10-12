@@ -68,11 +68,22 @@ uv run iomcfd gcp submit foil2d/keel-sections                # 2D sweep, default
 uv run iomcfd gcp submit appendage3d/leeway-sweep --machine h3-standard-88 --np 44
 uv run iomcfd gcp status                                     # recent jobs
 uv run iomcfd gcp status <job-name>                          # task counts + log query
-uv run iomcfd gcp fetch foil2d/keel-sections                 # bucket -> runs/, then results.csv
+uv run iomcfd gcp fetch foil2d/keel-sections                 # latest run -> runs/<study>/<run id>/, then results.csv
+uv run iomcfd gcp fetch foil2d/keel-sections --run-id 20261012-045433   # a particular run
 uv run iomcfd gcp fetch foil2d/keel-sections --fields        # also final flow fields
 ```
 
-Job specs are saved in `cloud/gcp/jobs/` for reference.
+Every submit is a new run of the study. The run id (UTC submit time,
+`YYYYMMDD-HHMMSS`) names the job (`iomcfd-<study>-<run id>`), is a job label
+(`run`), and is the results directory. The study file and `run.json` are
+uploaded to that directory first, and tasks read the study from there, so
+editing or resubmitting a study never affects a job that is already running.
+The job spec and `run.json` are also saved locally in
+`cloud/gcp/jobs/<job name>/`.
+
+`--parallelism` caps how many tasks run at once. With the default
+`c3d-standard-16` (8 tasks per VM) and a 64-vCPU quota, `--parallelism 32`
+runs 4 VMs.
 
 How tasks are packed: each case gets `np` MPI ranks, each rank a physical
 core (2 vCPUs on SMT families such as C3D/C2D, 1 vCPU on H3, T2D, C4A).
@@ -102,5 +113,5 @@ resolution have not been measured yet; run one case first and scale from its
   tasks get `--shm-size` scaled to their memory for MPI shared memory.
 * Logs: `gcloud logging read` with the query `iomcfd gcp status <job>`
   prints, or in the Cloud console under Batch.
-* Results land in `gs://<bucket>/runs/<study>/<case>/`, mirroring the local
-  `runs/` layout, so fetched results merge with local ones.
+* Results land in `gs://<bucket>/runs/<study>/<run id>/<case>/`, the same
+  layout as local `runs/`.

@@ -5,9 +5,12 @@ repeatable. So visualisation is a separate layer that only reads finished
 cases:
 
 ```
-iomcfd run   (solver image, once)  ->  runs/<study>/<case>/  (fields, results)
-iomcfd viz   (viz image, any time) ->  runs/<study>/<case>/viz/*.png, *.mp4
-                                       runs/<study>/viz/*_by_<param>.mp4, index.html
+iomcfd run   (solver image, once)  ->  runs/<study>/<run>/<case>/  (fields, results)
+iomcfd viz   (viz image, any time) ->  runs/<study>/<run>/<case>/viz/*.png, *.mp4
+                                       runs/<study>/<run>/viz/*_by_<param>.mp4, index.html
+
+(<run> = the run id, YYYYMMDD-HHMMSS. `viz` works on the latest run;
+`--run-id ID` picks another, see `iomcfd runs <study>`.)
 ```
 
 Re-render as often as you like: with new views, other colour ranges,
@@ -19,7 +22,7 @@ re-solved.
 ```bash
 make viz-image                                     # ParaView 6.2 image (~4.8 GB, once)
 uv run iomcfd viz foil2d/validation-naca0009-re1e5 # all cases, default views
-open runs/validation-naca0009-re1e5/viz/index.html # gallery: report, animations, every view
+open runs/validation-naca0009-re1e5/*/viz/index.html # gallery: report, animations, every view
 
 uv run iomcfd viz foil2d/fin-profile-selection --views separation --animate speed
 uv run iomcfd viz appendage3d/leeway --options '{"q_level": 5}' --only leeway4
@@ -42,9 +45,9 @@ created in each case).
 
 ## What gets rendered
 
-Per case, `runs/<study>/<case>/viz/<view>.png` (1600x900 unless a view needs
+Per case, `runs/<study>/<run>/<case>/viz/<view>.png` (1600x900 unless a view needs
 another shape) and a manifest `viz.json` (status per view, timings, errors).
-Per study, `runs/<study>/viz/`:
+Per study, `runs/<study>/<run>/viz/`:
 
 * **study animations** `<view>_by_<param>[_<group>].mp4/.gif`: one frame per
   case along the swept parameter (angle of attack, speed, leeway, Tu...),
@@ -123,7 +126,7 @@ result of a case, so it can be added to existing studies.
 ## Interactive ParaView
 
 Install ParaView 6.2 on the Mac (paraview.org, macOS arm64 build) and open
-`runs/<study>/<case>/case.foam`. To turn something you built in the GUI into
+`runs/<study>/<run>/<case>/case.foam`. To turn something you built in the GUI into
 a batch view, use *Tools > Start Trace*, reproduce it, and paste the traced
 Python into a view function.
 

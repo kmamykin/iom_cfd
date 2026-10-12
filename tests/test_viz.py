@@ -81,7 +81,13 @@ def test_has_fields(tmp_path):
 def test_foil2d_render_in_viz_image():
     if not shutil.which("docker"):
         pytest.skip("docker not installed")
-    case = config.runs_dir() / "foil2d-smoke" / "aoa4"
+    from iomcfd.runner import list_runs
+
+    sdir = config.runs_dir() / "foil2d-smoke"
+    runs = list_runs(sdir)
+    if not runs:
+        pytest.skip("run `make smoke` first")
+    case = sdir / runs[-1] / "aoa4"
     if not vstudy.has_fields(case):
         pytest.skip("run `make smoke` first")
     r = subprocess.run(["uv", "run", "iomcfd", "viz", "foil2d/smoke", "--views", "velocity,pressure"],
@@ -90,4 +96,4 @@ def test_foil2d_render_in_viz_image():
     manifest = json.loads((case / "viz" / "viz.json").read_text())
     assert manifest["views"]["velocity"]["status"] == "ok"
     assert (case / "viz" / "velocity.png").stat().st_size > 50_000
-    assert (config.runs_dir() / "foil2d-smoke" / "viz" / "index.html").is_file()
+    assert (sdir / runs[-1] / "viz" / "index.html").is_file()

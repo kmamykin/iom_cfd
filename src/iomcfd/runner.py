@@ -1,9 +1,24 @@
-"""Render and execute cases (inside the OpenFOAM container)."""
+"""Render and execute cases (inside the OpenFOAM container).
+
+Every `iomcfd run` writes a new, timestamped run of the study, so a later
+run never overwrites an earlier one:
+
+    runs/<study>/<run id>/              run id = UTC start time, YYYYMMDD-HHMMSS
+        study.yaml                      the study file as it was run
+        run.json                        when, which code (git) and image, overrides
+        <case>/                         one OpenFOAM case per parameter set
+        results.csv  report/  viz/      post-processing (re-runnable)
+
+`--resume` (or `--run-id ID`) continues an existing run instead: finished
+cases are skipped, failed ones run again.
+"""
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -33,8 +48,63 @@ class RunOptions:
     poll_seconds: float = 15.0  # convergence-monitor interval
 
 
+RUN_ID_FORMAT = "%Y%m%d-%H%M%S"
+_RUN_ID = re.compile(r"\d{8}-\d{6}")
+
+
 def study_dir(study: Study, runs: Path | None = None) -> Path:
+    """All runs of a study: runs/<study>/."""
     return (runs or config.runs_dir()) / study.name
+
+
+def new_run_id(now: dt.datetime | None = None) -> str:
+    return (now or dt.datetime.now(dt.timezone.utc)).strftime(RUN_ID_FORMAT)
+
+
+def is_run_id(name: str) -> bool:
+    return bool(_RUN_ID.fullmatch(name))
+
+
+def list_runs(sdir: Path) -> list[str]:
+    """Run ids of a study, oldest first."""
+    if not Path(sdir).is_dir():
+        return []
+    return sorted(p.name for p in Path(sdir).iterdir() if p.is_dir() and is_run_id(p.name))
+
+
+def resolve_run(study: Study, runs: Path | None = None, run_id: str | None = None) -> Path:
+    """An existing run of the study: `run_id`, or the latest one (None or 'latest')."""
+    sdir = study_dir(study, runs)
+    ids = list_runs(sdir)
+    if run_id in (None, "latest"):
+        if not ids:
+            raise SystemExit(f"no runs of {study.name} in {sdir}")
+        run_id = ids[-1]
+    if run_id not in ids:
+        raise SystemExit(f"run {run_id} of {study.name} not found in {sdir} (runs: {', '.join(ids) or 'none'})")
+    return sdir / run_id
+
+
+def write_run_info(rdir: Path, study: Study, n_cases: int, **extra: Any) -> Path:
+    """run.json: what was run, when, with which code. Written once per run;
+    `extra` adds or overrides fields (backend, job, ...)."""
+    f = Path(rdir) / "run.json"
+    if not f.is_file():
+        info = {
+            "run_id": Path(rdir).name,
+            "study": study.name,
+            "project": study.project,
+            "created": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+            "git": config.git_describe(),
+            "image": os.environ.get("IOMCFD_IMAGE_REF", ""),
+            "backend": "local",
+            "cases": n_cases,
+            "overrides": study.overrides,
+            **extra,
+        }
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(info, indent=2, default=str) + "\n")
+    return f
 
 
 def read_result(case_dir: Path) -> dict[str, Any] | None:
@@ -52,7 +122,8 @@ def is_done(case_dir: Path, case: Case) -> bool:
     return bool(r and r.get("status") in ("ok", "not_converged") and r.get("params_hash") == case.params_hash)
 
 
-def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions) -> dict[str, Any]:
+def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
+             export_dir: Path | None = None) -> dict[str, Any]:
     """Render (if needed) and run one case. Never raises; returns the result."""
     t0 = time.time()
     result: dict[str, Any] = {
@@ -93,8 +164,8 @@ def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions) -> 
     result["wall_time_s"] = round(time.time() - t0, 1)
     if case_dir.exists():
         (case_dir / RESULT).write_text(json.dumps(result, indent=2, default=str) + "\n")
-    if opts.export and result.get("status") != "rendered":
-        export_case(case_dir, Path(opts.export) / case_dir.parent.name / case_dir.name, opts.keep_fields)
+    if export_dir and result.get("status") != "rendered":
+        export_case(case_dir, Path(export_dir) / case_dir.name, opts.keep_fields)
     return result
 
 
@@ -153,26 +224,30 @@ def run_study(
     study: Study,
     cases: list[Case],
     opts: RunOptions,
-    runs: Path | None = None,
+    rdir: Path,
     log=print,
 ) -> list[dict[str, Any]]:
-    sdir = study_dir(study, runs)
-    sdir.mkdir(parents=True, exist_ok=True)
-    if study.path:
-        shutil.copy2(study.path, sdir / "study.yaml")
+    """Run `cases` into the run directory `rdir` (runs/<study>/<run id>/).
+    Cases already finished there are skipped unless opts.force."""
+    rdir = Path(rdir)
+    rdir.mkdir(parents=True, exist_ok=True)
+    if study.path and not (rdir / "study.yaml").is_file():  # keep the file the run started with
+        shutil.copy2(study.path, rdir / "study.yaml")
+    write_run_info(rdir, study, len(cases))
+    export_dir = Path(opts.export) / study.name / rdir.name if opts.export else None
 
     todo = []
     for c in cases:
-        cdir = sdir / c.name
+        cdir = rdir / c.name
         if not opts.force and not opts.render_only and is_done(cdir, c):
             log(f"  skip  {c.name} (done)")
             continue
         todo.append((c, cdir))
-    log(f"study {study.name}: {len(cases)} cases, {len(todo)} to run, {opts.jobs} in parallel")
+    log(f"study {study.name}, run {rdir.name}: {len(cases)} cases, {len(todo)} to run, {opts.jobs} in parallel")
 
     results = []
     with ThreadPoolExecutor(max_workers=max(1, opts.jobs)) as pool:
-        futs = {pool.submit(run_case, project, c, d, opts): c for c, d in todo}
+        futs = {pool.submit(run_case, project, c, d, opts, export_dir): c for c, d in todo}
         for fut in as_completed(futs):
             r = fut.result()
             results.append(r)

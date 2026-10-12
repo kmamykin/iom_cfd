@@ -1,4 +1,4 @@
-"""Collect per-case results into one table (runs/<study>/results.csv)."""
+"""Collect per-case results into one table (runs/<study>/<run id>/results.csv)."""
 
 from __future__ import annotations
 
@@ -21,9 +21,9 @@ def _flat(prefix: str, d: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def collect(study_dir: Path) -> tuple[list[dict[str, Any]], Path]:
+def collect(run_dir: Path) -> tuple[list[dict[str, Any]], Path]:
     rows = []
-    for case_dir in sorted(p for p in Path(study_dir).iterdir() if p.is_dir()):
+    for case_dir in sorted(p for p in Path(run_dir).iterdir() if p.is_dir()):
         pj = case_dir / "params.json"
         if not pj.is_file():
             continue
@@ -37,7 +37,7 @@ def collect(study_dir: Path) -> tuple[list[dict[str, Any]], Path]:
         row.update(_flat("", res.get("metrics") or {}))
         row["wall_time_s"] = res.get("wall_time_s")
         rows.append(row)
-    out = Path(study_dir) / "results.csv"
+    out = Path(run_dir) / "results.csv"
     if rows:
         cols: list[str] = []
         for r in rows:

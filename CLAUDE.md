@@ -9,7 +9,15 @@
   `uv run pytest -m docker` runs a real foil2d case in the image.
 - OpenFOAM runs in Docker: `uv run iomcfd run <study>` re-execs in the
   `iom-cfd:latest` image (`make image` to build). Smoke studies exist for
-  every project: `uv run iomcfd run <project>/smoke --force`.
+  every project: `uv run iomcfd run <project>/smoke`.
+- Runs are timestamped: `runs/<study>/<YYYYMMDD-HHMMSS>/` (UTC; study.yaml
+  and run.json inside). Each `run`/`gcp submit` is a new run; `--resume`
+  continues the latest. collect/report/viz take `--run-id` (default latest)
+  and use the run's own study.yaml.
+- Findings: `projects/<project>/findings/<study>.md` (committed) logs
+  conclusions, evidence tables, assumptions, compromises and decisions per
+  run. `iomcfd report` writes report/summary.md; the `study-findings` skill
+  turns it into a log entry.
 - Templates read `system/caseParameters` via `#include` and `$name`. Only
   derived camelCase names become entries (study inputs are comments) to avoid
   clashing with OpenFOAM keywords; tests/test_projects.py enforces it.

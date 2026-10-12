@@ -43,20 +43,25 @@ make smoke          # 2-case foil2d run end to end (~2 min)
 uv run iomcfd projects                                   # list projects and studies
 uv run iomcfd plan foil2d/validation-naca0009-re1e5      # what a study expands to
 uv run iomcfd run  foil2d/validation-naca0009-re1e5 --set mesh=coarse -j 8
-uv run iomcfd report foil2d/validation-naca0009-re1e5    # plots + mesh figure in runs/<study>/report/
+uv run iomcfd report foil2d/validation-naca0009-re1e5    # plots, tables, summary.md in runs/<study>/<run id>/report/
+uv run iomcfd runs foil2d/validation-naca0009-re1e5      # every run is kept, newest last
 
 make viz-image                                           # ParaView 6.2 visualisation image (once)
 uv run iomcfd viz foil2d/validation-naca0009-re1e5       # flow images, animations, gallery
-open runs/validation-naca0009-re1e5/viz/index.html
+open runs/validation-naca0009-re1e5/*/viz/index.html
 ```
 
 `iomcfd run` on the host re-launches itself in the Docker image with the
 repository mounted at `/work`, so template and code edits take effect
-without rebuilding the image. Finished cases are skipped on re-runs (results
-are cached by a hash of the parameters); use `--force` to recompute.
+without rebuilding the image. Each run goes to its own timestamped
+directory, `runs/<study>/<YYYYMMDD-HHMMSS>/`, so results are never
+overwritten; `--resume` continues the latest run (finished cases are
+skipped). What each run showed is logged in
+`projects/<project>/findings/<study>.md`. In Claude Code,
+`/study-findings <project>/<study>` writes the entry.
 
 To look inside a case with OpenFOAM tools: `uv run iomcfd shell`, then
-`cd runs/<study>/<case>` (for ParaView, `foamToVTK -latestTime` and open the
+`cd runs/<study>/<run id>/<case>` (for ParaView, `foamToVTK -latestTime` and open the
 `VTK/` folder on the host).
 
 ## Directory layout
@@ -106,18 +111,18 @@ iom_cfd/
    ([`foil2d/validation`](projects/foil2d/validation)), so you know how far to
    trust absolute numbers versus differences between designs.
 3. **Explore** designs with sweeps: change one or two parameters, keep
-   everything else fixed, compare. Cases are cached, so adding points to a
-   sweep only runs the new ones.
+   everything else fixed, compare. Log what each run showed, and the
+   assumptions it rests on, in the study's findings file.
 4. **Optimise** with sampled designs (`sample: {method: lhs, ...}`) fitted
    with a surrogate model, or drive studies from your own optimiser.
 
-Details, naming, caching and statistics: [docs/workflow.md](docs/workflow.md).
+Details, runs, findings and statistics: [docs/workflow.md](docs/workflow.md).
 Visualisation of results (views per project, adding views, animations):
 [docs/visualization.md](docs/visualization.md).
 
 ## Running on Google Cloud
 
-One Cloud Batch job per study and one task per case, on Spot VMs, with
+One Cloud Batch job per run of a study and one task per case, on Spot VMs, with
 results copied to a bucket. One-time setup and commands:
 [docs/cloud-gcp.md](docs/cloud-gcp.md).
 
@@ -127,7 +132,7 @@ cloud/gcp/setup.sh                                     # APIs, registry, bucket,
 cloud/gcp/setup-github.sh                              # GitHub Actions pushes the image on every push to main
 uv run iomcfd gcp submit foil2d/keel-sections
 uv run iomcfd gcp status
-uv run iomcfd gcp fetch foil2d/keel-sections           # -> runs/<study>/results.csv
+uv run iomcfd gcp fetch foil2d/keel-sections           # latest run -> runs/<study>/<run id>/results.csv
 ```
 
 ## Validation so far

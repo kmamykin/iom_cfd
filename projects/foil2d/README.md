@@ -54,13 +54,18 @@ both surfaces). `iomcfd report` draws polars with any reference data.
 Studies that vary the section or chord also get `report/selection.png`
 (and the numbers in `selection.csv`): drag against side force, one panel per
 speed and turbulence setting. Sections and chords are compared at equal side
-force, not equal Cl. Options in the study's `report:` block (no re-run):
+force, not equal Cl. `selection_compare.md` / `.csv` tabulate every
+candidate's drag, as % above the best, at the side forces a reference
+candidate makes at a few angles (interpolated along each candidate's
+pre-stall branch). The table is also included in `summary.md`. Options in
+the study's `report:` block (no re-run):
 
 ```yaml
 report:
   fin_span: 0.36        # m: whole-fin forces [N] instead of per metre of span
   induced_drag: true    # add L^2 / (2 pi q e b^2): lifting line, hull as reflection plane
   span_efficiency: 0.9  # e
+  compare_at: {foil: naca0009, chord: 0.08, aoa: [2, 4, 6]}  # default: middle section, shortest chord
 ```
 
 Induced drag depends on side force and span, not on chord or section, so at
@@ -112,5 +117,10 @@ good enough to rank sections, with absolute drag uncertain by roughly
 Studies: `smoke` (pipeline check), `validation-naca0009-re1e5`,
 `validation-naca0012-tmr` (NASA Turbulence Modeling Resource case, Re 6e6,
 fully turbulent: a solver check independent of transition modelling),
-`fin-profile-selection` (NACA 0006/0009/0012, 80 and 100 mm chord,
-0.25-2.5 m/s, Tu 0.1 and 1 %: 360 cases).
+`fin-profile-selection` (NACA 0006/0007/0008/0009/0012, 80/90/100 mm chord,
+0.25-2.5 m/s, Tu 1 %, medium mesh: 450 cases; run 20261012-045433 had
+0006/0009/0012, 80/100 mm, Tu 0.1 and 1 %, coarse mesh).
+
+What the runs showed, and the assumptions behind them, is logged per study
+in [findings/](findings/), e.g.
+[findings/fin-profile-selection.md](findings/fin-profile-selection.md).

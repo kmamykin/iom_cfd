@@ -6,12 +6,13 @@ A study is a YAML file in `projects/<project>/studies/`. It names the project,
 overrides some defaults, and says which parameters vary.
 
 ```yaml
-study: keel-sections            # results go to runs/keel-sections/
+study: keel-sections            # results go to runs/keel-sections/<run id>/
 project: foil2d
 description: Compare candidate fin sections at upwind speed.
 reference: validation/some.csv  # optional data overlaid by `iomcfd report`
 report:                         # optional post-processing options for `iomcfd report`
   fin_span: 0.36                # foil2d: whole-fin forces in selection.png
+  compare_at: {foil: naca0008, chord: 0.085, aoa: [2, 4, 6]}  # foil2d: forces of the comparison table
 viz: {views: [velocity]}        # optional, for `iomcfd viz` (docs/visualization.md)
 defaults:                       # override projects/foil2d/defaults.yaml
   chord: 0.085
@@ -36,26 +37,67 @@ cases:                          # extra one-off cases, appended
   are errors.
 * `report:` and `viz:` only change how finished results are presented. They
   are not case parameters, so editing them never re-runs a case: change them
-  and re-run `iomcfd report` / `iomcfd viz`.
+  and re-run `iomcfd report` / `iomcfd viz`. (Those read the study file
+  stored with the run, so to re-present an old run with new options, edit
+  `runs/<study>/<run id>/study.yaml` or start a new run.)
 * `iomcfd plan <study> -v` prints the cases and every derived quantity
   (Reynolds number, inflow vectors, first-cell height...) without running
   anything.
 * `--set key=value` on the command line pins a parameter for all cases, e.g.
   `--set mesh=xcoarse --set max_iter=200` for a quick check of a big study.
-  Pinned studies hash differently, so they don't overwrite the real results.
+  The overrides are recorded in the run's `run.json`.
 
-## Case names and caching
+## Runs
 
-Case directories are named from the varied parameters
-(`aoa4_foilnaca0008`). Each case stores `params.json` and, when finished,
-`result.json` with a hash of the physical parameters (`np` excluded). A
-re-run skips cases whose result exists with the same hash, so you can:
+Every `iomcfd run` (and every `iomcfd gcp submit`) starts a new run of the
+study in its own directory, named after its UTC start time, so a later run
+never overwrites an earlier one:
 
-* add angles or designs to a sweep and only the new cases run,
-* interrupt a long study and resume it,
-* fetch cloud results into `runs/` and keep extending locally.
+```
+runs/<study>/<YYYYMMDD-HHMMSS>/
+    study.yaml          the study file as it was when the run started
+    run.json            created, git version (`git describe --dirty`), image, overrides, backend, job
+    <case>/             one OpenFOAM case per parameter set
+    results.csv         collected results
+    report/             iomcfd report (plots, tables, summary.md)
+    viz/                iomcfd viz (animations, gallery)
+```
 
-`--force` recomputes everything.
+* `iomcfd runs <study>` lists the runs.
+* `collect`, `report` and `viz` work on the latest run, or `--run-id ID`.
+  They use the run's own `study.yaml`, so editing the study afterwards (for
+  the next run) does not change what an old run means.
+* `iomcfd run <study> --resume` continues the latest run instead of starting
+  a new one: finished cases are skipped, failed and missing ones run. Use
+  it after an interruption, to retry failed cases (e.g. with
+  `--set relax_U=0.6`), or to add points to the same run. `--run-id ID`
+  continues a particular run.
+* Within a run, a case counts as finished when its `result.json` has the
+  same hash of the physical parameters (`np` and relaxation factors are
+  excluded). `--force` with `--resume` re-runs finished cases too.
+* A new run computes every case again, so each run reflects the code at
+  its git version. Old runs are not reused; delete the ones you no longer
+  need.
+
+Case directories are named from the varied parameters (`aoa4_foilnaca0008`).
+Each case stores `params.json` and, when finished, `result.json`.
+
+## Findings
+
+Each study keeps a log of what its runs showed in
+`projects/<project>/findings/<study>.md`. It is committed; `runs/` is not.
+One entry per run, newest first, with conclusions, the evidence tables they
+rest on, assumptions, compromises, decisions for the next run, learnings
+and next steps.
+
+`iomcfd report` writes `report/summary.md`: the facts of the run (setup,
+status, failures and their reasons, convergence and unsteadiness by
+parameter, compute used) plus the project's comparison tables. The
+`study-findings` skill builds on it. In Claude Code, run
+`/study-findings <project>/<study> [run id]`, or headless
+`claude -p "/study-findings <project>/<study>"`. It reads the summary, the
+figures, the run's study file and the earlier findings for this and related
+studies, checks the conclusions against the numbers, and adds the entry.
 
 ## Convergence and statistics
 
@@ -122,11 +164,15 @@ call `iomcfd run` (or `iomcfd gcp submit`), reading `results.csv` back.
 
 ## Results
 
-* `runs/<study>/results.csv`: one row per case, all inputs, derived values
-  and metrics.
-* `runs/<study>/<case>/`: the full OpenFOAM case, logs, `postProcessing/`,
+All paths below are in one run, `runs/<study>/<run id>/` (`<run>`).
+
+* `<run>/results.csv`: one row per case, all inputs, derived values and
+  metrics.
+* `<run>/<case>/`: the full OpenFOAM case, logs, `postProcessing/`,
   `result.json`, and for foil2d `surface.csv` (Cp, Cf along the section).
-* `iomcfd report <study>`: plots in `runs/<study>/report/`:
+* `iomcfd report <study>`: in `<run>/report/`:
+  * `summary.md`: setup, status, failures, convergence, compute, tables
+    (see Findings);
   * the project's result plots (foil2d: polar with reference data, and a
     grid-convergence table `mesh_convergence.csv` when the study varies `mesh`);
   * **a mesh figure for every study**, `mesh_<case>.png` (one per mesh level

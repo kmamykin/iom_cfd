@@ -171,7 +171,7 @@ def render(case: Path, spec: MeshSpec, out_png: Path, title: str) -> Path:
     return out_png
 
 
-def study_mesh_figures(project, study_dir: Path, df, out_dir: Path, max_figures: int = 4) -> list[Path]:
+def study_mesh_figures(project, run_dir: Path, df, out_dir: Path, max_figures: int = 4) -> list[Path]:
     """One mesh figure per distinct mesh level in the study (or one in total)."""
     from .project import Project  # noqa: F401  (type only)
 
@@ -182,14 +182,14 @@ def study_mesh_figures(project, study_dir: Path, df, out_dir: Path, max_figures:
     files = []
     for _, g in groups:
         for case_name in g["case"]:
-            case = study_dir / case_name
+            case = run_dir / case_name
             if not (case / "constant" / "polyMesh" / "points").exists() and not (case / "constant" / "polyMesh" / "points.gz").exists():
                 continue
             pj = json.loads((case / "params.json").read_text())
             spec = project.mesh_views(case, pj["params"], pj["derived"])
             if spec is None:
                 break
-            title = f"{study_dir.name} / {case_name}: mesh '{pj['params'].get('mesh', '')}'"
+            title = f"{run_dir.parent.name} / {run_dir.name} / {case_name}: mesh '{pj['params'].get('mesh', '')}'"
             files.append(render(case, spec, out_dir / f"mesh_{case_name}.png", title))
             break
         if len(files) >= max_figures:

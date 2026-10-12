@@ -65,3 +65,23 @@ def test_induced_drag_needs_span(tmp_path):
     df = _results(["naca0006", "naca0009"], [0.08], [1.0], ["kOmegaSSTLM"])
     with pytest.raises(ValueError, match="fin_span"):
         load_project("foil2d").report(df, tmp_path, options={"induced_drag": True})
+
+
+def test_compare_at_equal_side_force(tmp_path):
+    df = _results(["naca0006", "naca0009", "naca0012"], [0.08, 0.10], [1.0], ["kOmegaSSTLM"])
+    # low-Re lift reversal of the thick section near 0 deg: must not hide the rest of its polar
+    rev = (df.foil == "naca0012") & (df.chord == 0.08) & (df.aoa == 2)
+    df.loc[rev, "lift_N_per_m"] = -0.05
+    opts = {"fin_span": 0.36, "compare_at": {"foil": "naca0009", "chord": 0.08, "aoa": [2, 4, 6]}}
+    names = {f.name for f in load_project("foil2d").report(df, tmp_path, options=opts)}
+    assert {"selection_compare.csv", "selection_compare.md"} <= names
+    cmp = pd.read_csv(tmp_path / "selection_compare.csv")
+    assert set(cmp.ref_aoa) == {2, 4, 6} and len(cmp) == 3 * 6
+    ref = cmp[(cmp.foil == "naca0009") & (cmp.chord == 0.08) & (cmp.ref_aoa == 4)].iloc[0]
+    src = df[(df.foil == "naca0009") & (df.chord == 0.08) & (df.aoa == 4)].iloc[0]
+    assert ref.drag == pytest.approx(src.drag_N_per_m * 0.36)  # the reference sits on its own point
+    assert (cmp.groupby("ref_aoa")["above_best_pct"].min().abs() < 1e-9).all()  # one best per force
+    thick = cmp[(cmp.foil == "naca0012") & (cmp.chord == 0.08) & (cmp.ref_aoa == 4)].iloc[0]
+    assert pd.notna(thick.drag)
+    md = (tmp_path / "selection_compare.md").read_text()
+    assert "**best**" in md and "| 0009/80 |" in md

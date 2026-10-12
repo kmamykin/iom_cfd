@@ -33,7 +33,7 @@ test-docker: image  ## integration tests that run OpenFOAM in the image
 	uv run pytest -m docker
 
 smoke: image  ## 2-case end-to-end foil2d run (~1-2 min)
-	uv run iomcfd run foil2d/smoke --force
+	uv run iomcfd run foil2d/smoke
 
 push:  ## build multi-arch image and push to Artifact Registry (tags: git describe + latest)
 	@test -n "$(GCP_PROJECT)" || (echo "fill in cloud/gcp/config.env first" && exit 1)

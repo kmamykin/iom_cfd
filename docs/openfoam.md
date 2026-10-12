@@ -90,7 +90,7 @@ Output goes to `postProcessing/<name>/<startTime>/`.
 
 ```bash
 uv run iomcfd shell                     # OpenFOAM environment, repo at /work
-cd runs/<study>/<case>
+cd runs/<study>/<run id>/<case>
 tail -50 log.simpleFoam                 # or log.interFoam, log.snappyHexMesh
 foamDictionary system/caseParameters    # resolved values
 ./Allclean && NP=4 ./Allrun             # re-run by hand
