@@ -1,38 +1,48 @@
 study: fin-profile-selection
 project: foil2d
 description: >
-  Fin and rudder section and chord selection for an IOM: NACA 0006, 0009 and
-  0012 at 80 and 100 mm chord over the boat's speed range, with the transition
-  model (kOmegaSSTLM) at two freestream turbulence levels: Tu 0.1 % (quiet
-  water) and Tu 1 % (best match to the NACA 0009 wind-tunnel drag at
-  Re 1e5 on this mesh, within 2-4 % at 4 and 8 deg; partly a calibration of
-  the method, not a measured pond value). Sections should be ranked the same
-  way at both Tu for the choice to be robust.
+  Fin and rudder section and chord selection for an IOM: NACA 0006 to 0012
+  at 80, 90 and 100 mm chord over the boat's speed range, with the
+  transition model (kOmegaSSTLM). Compare drag at equal side force, not at
+  equal Cl (report/selection.png; the table in report/selection_compare.md
+  and summary.md). Findings, assumptions and decisions per run are logged in
+  projects/foil2d/findings/fin-profile-selection.md.
+  Run 20261012-045433 (0006/0009/0012, 80/100 mm, Tu 0.1 and 1 %, coarse
+  mesh) found 0009/80 best at working side force and the optimum thickness
+  between 0006 and 0009, so this run adds 0007 and 0008 and a 90 mm chord.
+  Tu is fixed at 1 % (an assumption, see the findings log): it matched the
+  NACA 0009 wind-tunnel drag at Re 1e5 within 2-4 % at 4 and 8 deg, it
+  converges far better than 0.1 % (5 vs 46 of 180 cases not converged), and
+  in the first run the lowest-drag candidate was the same at both levels in
+  10 to 15 of 17 to 18 comparisons; where it differed, the Tu 1 % pick had
+  3-12 % more drag at Tu 0.1 %. So close calls (within ~10 %) in this run
+  must be checked at Tu 0.1 % before they decide anything.
+  Medium mesh (~90k cells): neighbouring candidates (0007/0008/0009, 80/90
+  mm) are expected to differ by a few %, about the coarse-mesh error (Cd up
+  to ~4 % from medium at 8 deg in mesh-naca0009-re1e5).
   Speeds: 0.25 m/s drifting in very light air; 0.5 and 0.75 m/s light air;
-  1.0 m/s upwind in medium air (Fn 0.32);
-  1.5 m/s above displacement hull speed (about 1.25 m/s at Fn 0.4 for a
-  1 m waterline); 2.5 m/s downwind surfing in a strong breeze (about 5 kn,
-  reported as an average downwind speed at a national championship).
-  Re = 17,600 to 220,000; below about 50,000 the method is unvalidated
-  (the transition model was checked at Re 1e5 only) and the laminar bubble
-  may not reattach, so read the lowest speeds as trends. There is no wind-tunnel data for the 0006 and 0012
-  at these Re in the repository; validation-naca0009-re1e5 shows how close
-  the method gets for the 0009. To choose a chord, compare drag at equal
-  side force (report/selection.png, numbers in selection.csv), not at equal
-  Cl. The figure shows the whole fin (report.fin_span) with the induced drag
-  of that span added: the same for every candidate at equal side force, so it
-  shows how large the section differences are, not a different ranking. Steady solutions:
-  where the laminar bubble sheds (near 4 deg, lowest speeds) the `unsteady`
-  column is set; rerun those with `solver: transient`.
+  1.0 m/s upwind in medium air (Fn 0.32); 1.5 m/s above displacement hull
+  speed (about 1.25 m/s at Fn 0.4 for a 1 m waterline); 2.5 m/s downwind
+  surfing in a strong breeze (about 5 kn, reported as an average downwind
+  speed at a national championship). Re = 17,600 to 220,000; below about
+  50,000 the method is unvalidated (the transition model was checked at
+  Re 1e5 only) and the laminar bubble may not reattach, so read the lowest
+  speeds as trends. The figure and table show the whole fin
+  (report.fin_span) with the induced drag of that span added: the same for
+  every candidate at equal side force, so it shows how large the section
+  differences are, not a different ranking. Steady solutions: where the
+  laminar bubble sheds the `unsteady` column is set; rerun the cases that
+  matter with `solver: transient`.
 report:
   fin_span: 0.36        # m below the hull (appendage3d default; the class draught limit sets it)
   induced_drag: true    # lifting-line estimate, hull as a reflection plane, e = 0.9
+  compare_at: {foil: naca0009, chord: 0.08, aoa: [2, 4, 6]}   # side forces of the comparison table (as run 1)
 defaults:
   turbulence: kOmegaSSTLM
-  mesh: coarse
+  Tu: 1.0
+  mesh: medium
 sweep:
-  foil: [naca0006, naca0009, naca0012]
-  chord: [0.08, 0.10]
+  foil: [naca0006, naca0007, naca0008, naca0009, naca0012]
+  chord: [0.08, 0.09, 0.10]
   speed: [0.25, 0.5, 0.75, 1.0, 1.5, 2.5]
-  Tu: [0.1, 1.0]
   aoa: [0, 2, 4, 6, 8]
