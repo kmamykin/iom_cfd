@@ -93,4 +93,6 @@ good enough to rank sections, with absolute drag uncertain by roughly
 
 Studies: `smoke` (pipeline check), `validation-naca0009-re1e5`,
 `validation-naca0012-tmr` (NASA Turbulence Modeling Resource case, Re 6e6,
-fully turbulent: a solver check independent of transition modelling).
+fully turbulent: a solver check independent of transition modelling),
+`thickness-re1e5` (NACA 0006 against NACA 0009, Re 1e5; no reference data
+for the 0006).

@@ -78,7 +78,7 @@ def test_graded_section_growth():
 # --- C-mesh -----------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("code", ["0009", "4412"])
+@pytest.mark.parametrize("code", ["0006", "0009", "4412"])
 def test_cmesh_valid_and_orthogonal(code):
     spec = cmesh.CMeshSpec(chord=0.08, span=0.008, n_surface=96, n_wake=40, n_normal=64, first_cell=2e-5)
     P, nw = cmesh.generate(foils.naca4(code), spec)
