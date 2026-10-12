@@ -17,7 +17,9 @@ FUSE. VMs are Spot by default, and preempted tasks retry automatically
    Registry, Storage), creates the Docker repository, the bucket and a service
    account with only the roles Batch VMs need (`batch.agentReporter`,
    `logging.logWriter`, `artifactregistry.reader` on the repo,
-   `storage.objectUser` on the bucket). It asks before creating anything.
+   `storage.objectUser` on the bucket). It asks before creating anything
+   (`-y` skips the question, e.g. when run with `!` from Claude Code) and
+   does not change your active gcloud configuration.
 4. Your own account needs `roles/batch.jobsEditor` and
    `roles/iam.serviceAccountUser` on that service account.
 
@@ -25,6 +27,7 @@ FUSE. VMs are Spot by default, and preempted tasks retry automatically
 
 ```bash
 make push      # docker buildx: linux/amd64 + linux/arm64, tags <git describe> and latest
+make push-amd64  # x86 only (all Cloud Batch needs); much faster from an Apple Silicon Mac
 ```
 
 The image contains the code, templates and `geometry/`. Rebuild and push

@@ -7,11 +7,12 @@ OPENFOAM_VERSION ?= 2512
 -include cloud/gcp/config.env
 GIT_TAG := $(shell git describe --always --dirty 2>/dev/null || echo dev)
 REMOTE_IMAGE = $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT)/$(AR_REPO)/$(or $(IMAGE_NAME),iom-cfd)
+PLATFORMS ?= linux/amd64,linux/arm64
 
-.PHONY: help setup image viz-image shell test test-docker smoke push push-viz clean-runs
+.PHONY: help setup image viz-image shell test test-docker smoke push push-amd64 push-viz clean-runs
 
 help:  ## list targets
-	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
+	@grep -hE '^[a-z0-9-]+:.*##' $(firstword $(MAKEFILE_LIST)) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
 setup:  ## create the local Python env (uv) for planning, analysis and tests
 	uv sync
@@ -36,11 +37,14 @@ smoke: image  ## 2-case end-to-end foil2d run (~1-2 min)
 
 push:  ## build multi-arch image and push to Artifact Registry (tags: git describe + latest)
 	@test -n "$(GCP_PROJECT)" || (echo "fill in cloud/gcp/config.env first" && exit 1)
-	docker buildx build --platform linux/amd64,linux/arm64 \
+	docker buildx build --platform $(PLATFORMS) \
 	    --build-arg OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
 	    -t $(REMOTE_IMAGE):$(GIT_TAG) -t $(REMOTE_IMAGE):latest \
 	    -f docker/Dockerfile --push .
-	@echo "pushed $(REMOTE_IMAGE):$(GIT_TAG)"
+	@echo "pushed $(REMOTE_IMAGE):$(GIT_TAG) ($(PLATFORMS))"
+
+push-amd64:  ## like push, x86 only: what Cloud Batch runs; faster from an Arm Mac
+	$(MAKE) push PLATFORMS=linux/amd64
 
 push-viz:  ## build multi-arch visualisation image and push to Artifact Registry
 	@test -n "$(GCP_PROJECT)" || (echo "fill in cloud/gcp/config.env first" && exit 1)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time Google Cloud setup for iom-cfd: APIs, Artifact Registry repo,
 # results bucket, and a least-privilege service account for Batch VMs.
-# Usage: cloud/gcp/setup.sh            (reads cloud/gcp/config.env)
+# Usage: cloud/gcp/setup.sh [-y]       (reads cloud/gcp/config.env; -y skips the prompt)
 # Safe to re-run: existing resources are left as they are.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -10,10 +10,18 @@ source config.env
 
 SA_NAME="${BATCH_SA%%@*}"
 echo "project=$GCP_PROJECT region=$GCP_REGION bucket=gs://$GCS_BUCKET repo=$AR_REPO sa=$BATCH_SA"
-read -r -p "Create/verify these resources? [y/N] " ok
-[ "$ok" = "y" ] || exit 1
+echo "account=$(gcloud config get account 2>/dev/null)"
+if [ "${1:-}" != "-y" ]; then
+    if [ ! -t 0 ]; then
+        echo "no terminal to confirm on: re-run with -y to create/verify these resources" >&2
+        exit 1
+    fi
+    read -r -p "Create/verify these resources? [y/N] " ok
+    [ "$ok" = "y" ] || exit 1
+fi
 
-gcloud config set project "$GCP_PROJECT"
+# Scope the project to this script; the active gcloud configuration is left alone.
+export CLOUDSDK_CORE_PROJECT="$GCP_PROJECT"
 gcloud services enable batch.googleapis.com compute.googleapis.com logging.googleapis.com \
     artifactregistry.googleapis.com storage.googleapis.com
 
@@ -27,14 +35,24 @@ gcloud storage buckets describe "gs://$GCS_BUCKET" >/dev/null 2>&1 || \
 gcloud iam service-accounts describe "$BATCH_SA" >/dev/null 2>&1 || \
     gcloud iam service-accounts create "$SA_NAME" --display-name "iom-cfd Batch VMs"
 
+# A new service account takes a little while to be visible to IAM policies.
+retry() {
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        "$@" && return 0
+        echo "  retrying in 10 s (new service accounts take a moment to propagate)" >&2
+        sleep 10
+    done
+    return 1
+}
+
 # Batch agent + logs, pull images, read/write results
 for role in roles/batch.agentReporter roles/logging.logWriter; do
-    gcloud projects add-iam-policy-binding "$GCP_PROJECT" \
+    retry gcloud projects add-iam-policy-binding "$GCP_PROJECT" \
         --member "serviceAccount:$BATCH_SA" --role "$role" --condition=None >/dev/null
 done
-gcloud artifacts repositories add-iam-policy-binding "$AR_REPO" --location "$GCP_REGION" \
+retry gcloud artifacts repositories add-iam-policy-binding "$AR_REPO" --location "$GCP_REGION" \
     --member "serviceAccount:$BATCH_SA" --role roles/artifactregistry.reader >/dev/null
-gcloud storage buckets add-iam-policy-binding "gs://$GCS_BUCKET" \
+retry gcloud storage buckets add-iam-policy-binding "gs://$GCS_BUCKET" \
     --member "serviceAccount:$BATCH_SA" --role roles/storage.objectUser >/dev/null
 
 # Let docker push to Artifact Registry from this machine
