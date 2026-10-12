@@ -30,7 +30,12 @@ solver: steady          # steady (simpleFoam) | transient (pimpleFoam, time-aver
 flow_times: 15          # transient: simulated time in chord flow-throughs (c/U)
 average_times: 6        # transient: forces averaged over the last this many c/U
 max_co: 10              # transient: maximum Courant number (adaptive time step)
+snapshot_interval: 0    # transient: write fields every this many c/U (0 = final state only).
+                        # Enables time animations in `iomcfd viz` (~10 MB per snapshot, coarse)
 max_iter: 8000          # SIMPLE iteration budget
+relax_U: 0.8            # steady under-relaxation; lower (e.g. 0.6/0.5/0.5) if a case diverges,
+relax_turb: 0.7         # typically at very low Tu where the transition model is stiff
+relax_transition: 0.7
 conv_window: 500        # iterations per averaging window
 conv_tol: 1.0e-3        # stop when the window means of Cl and Cd change by less
                         # than this fraction between consecutive windows

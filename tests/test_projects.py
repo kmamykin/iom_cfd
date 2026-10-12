@@ -41,7 +41,7 @@ def test_render_smoke_study(tmp_path, name):
             text = re.sub(r"//[^\n]*", "", f.read_text(errors="ignore"))  # drop comments
             if '#include "$FOAM_CASE/system/caseParameters"' in text:
                 used |= set(re.findall(r"\$(\w+)", text))
-    used -= {"FOAM_CASE", "internalField", "turbulence", "p", "p_rgh", "kOmegaSSTCoeffs"}
+    used -= {"FOAM_CASE", "internalField", "turbulence", "p", "p_rgh", "U", "kOmegaSSTCoeffs"}  # dict-local refs
     assert used <= keys, sorted(used - keys)
     json.loads((case / "params.json").read_text())
 

@@ -54,8 +54,10 @@ class Case:
         return params_hash(self.params)
 
 
-# Parameters that change how a case runs but not its answer.
-EXECUTION_KEYS = {"np"}
+# Parameters that change how a case runs or what it writes, but not its
+# answer. They are left out of the cache hash, so adding or changing them
+# never forces finished cases to re-run (use --force for that).
+EXECUTION_KEYS = {"np", "relax_U", "relax_turb", "relax_transition", "snapshot_interval"}
 
 
 # Scientific notation PyYAML (YAML 1.1) leaves as a string, e.g. 6.0e6 or 1e5.

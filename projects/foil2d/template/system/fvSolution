@@ -11,6 +11,8 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+#include "$FOAM_CASE/system/caseParameters"
+
 solvers
 {
     p
@@ -56,8 +58,8 @@ relaxationFactors
 {
     equations
     {
-        U               0.8;
-        "(k|omega)"     0.7;
-        "(ReThetat|gammaInt)" 0.7;
+        U               $relaxU;          // study parameter relax_U
+        "(k|omega)"     $relaxTurb;       // study parameter relax_turb
+        "(ReThetat|gammaInt)" $relaxTransition;  // study parameter relax_transition
     }
 }

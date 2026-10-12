@@ -89,6 +89,9 @@ class Foil2D(Project):
             # solver control
             "maxIter": int(p["max_iter"]),
             "convWindow": int(p["conv_window"]),
+            "relaxU": float(p["relax_U"]),
+            "relaxTurb": float(p["relax_turb"]),
+            "relaxTransition": float(p["relax_transition"]),
             # mesh (not used by OpenFOAM, recorded for reference)
             "mesh_spec": mesh,
         }
@@ -124,7 +127,12 @@ class Foil2D(Project):
         set_entry(cd, "endTime", end)
         set_entry(cd, "deltaT", 1e-4 * t_ref)
         set_entry(cd, "writeControl", "adjustable")
-        set_entry(cd, "writeInterval", end)
+        snap = float(p.get("snapshot_interval") or 0.0)
+        if snap > 0:  # field snapshots for time animations
+            set_entry(cd, "writeInterval", snap * t_ref)
+            set_entry(cd, "purgeWrite", 0)
+        else:
+            set_entry(cd, "writeInterval", end)
         text = cd.read_text().replace(
             "writeControl    adjustable;",
             f"adjustTimeStep  yes;\nmaxCo           {float(p['max_co'])};\nmaxDeltaT       {0.05 * t_ref:.6g};\n"
