@@ -8,7 +8,7 @@ OPENFOAM_VERSION ?= 2512
 GIT_TAG := $(shell git describe --always --dirty 2>/dev/null || echo dev)
 REMOTE_IMAGE = $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT)/$(AR_REPO)/$(or $(IMAGE_NAME),iom-cfd)
 
-.PHONY: help setup image shell test test-docker smoke push clean-runs
+.PHONY: help setup image viz-image shell test test-docker smoke push push-viz clean-runs
 
 help:  ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -18,6 +18,9 @@ setup:  ## create the local Python env (uv) for planning, analysis and tests
 
 image:  ## build the solver image for this machine's architecture
 	docker build --build-arg OPENFOAM_VERSION=$(OPENFOAM_VERSION) -t $(IMAGE) -f docker/Dockerfile .
+
+viz-image:  ## build the visualisation image (ParaView 6.2, headless) for this machine
+	docker build -t iom-cfd-viz:latest -f docker/Dockerfile.viz .
 
 shell: image  ## interactive OpenFOAM shell with the repo at /work
 	uv run iomcfd shell
@@ -38,6 +41,12 @@ push:  ## build multi-arch image and push to Artifact Registry (tags: git descri
 	    -t $(REMOTE_IMAGE):$(GIT_TAG) -t $(REMOTE_IMAGE):latest \
 	    -f docker/Dockerfile --push .
 	@echo "pushed $(REMOTE_IMAGE):$(GIT_TAG)"
+
+push-viz:  ## build multi-arch visualisation image and push to Artifact Registry
+	@test -n "$(GCP_PROJECT)" || (echo "fill in cloud/gcp/config.env first" && exit 1)
+	docker buildx build --platform linux/amd64,linux/arm64 \
+	    -t $(REMOTE_IMAGE)-viz:$(GIT_TAG) -t $(REMOTE_IMAGE)-viz:latest \
+	    -f docker/Dockerfile.viz --push .
 
 clean-runs:  ## delete all local simulation output (runs/)
 	rm -rf runs

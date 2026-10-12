@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 DEFAULT_IMAGE = "iom-cfd:latest"
+DEFAULT_VIZ_IMAGE = "iom-cfd-viz:latest"
 
 
 def home() -> Path:
@@ -36,3 +37,11 @@ def in_container() -> bool:
 
 def image() -> str:
     return os.environ.get("IOMCFD_IMAGE", DEFAULT_IMAGE)
+
+
+def viz_image() -> str:
+    return os.environ.get("IOMCFD_VIZ_IMAGE", DEFAULT_VIZ_IMAGE)
+
+
+def in_viz_container() -> bool:
+    return bool(os.environ.get("IOMCFD_VIZ_CONTAINER"))

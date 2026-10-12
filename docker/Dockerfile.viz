@@ -1,0 +1,45 @@
+# IOM CFD visualisation image: ParaView 6.2 (conda-forge) with headless
+# software rendering (OSMesa), ffmpeg, and the iomcfd tooling.
+#
+# Separate from the solver image on purpose: rendering only reads finished
+# cases, so it can be rebuilt and re-run any number of times without
+# touching (or re-paying for) the CFD. No OpenFOAM inside; ParaView's
+# OpenFOAM reader reads the case files directly.
+#
+# Build:   make viz-image          (native arch)
+#          make push-viz           (linux/amd64 + linux/arm64 to Artifact Registry)
+FROM ubuntu:24.04
+
+ARG PARAVIEW_VERSION=6.2.0
+ARG TARGETARCH
+ENV DEBIAN_FRONTEND=noninteractive \
+    MAMBA_ROOT_PREFIX=/opt/conda \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# libosmesa6: software OpenGL for headless rendering (VTK loads it at runtime)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl bzip2 libosmesa6 ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN case "${TARGETARCH:-$(dpkg --print-architecture)}" in \
+        amd64) a=linux-64 ;; arm64) a=linux-aarch64 ;; *) echo "unsupported arch" && exit 1 ;; \
+    esac \
+ && curl -fsSL "https://micro.mamba.pm/api/micromamba/${a}/latest" | tar -xj -C /usr/local bin/micromamba \
+ && micromamba create -y -n pv -c conda-forge python=3.12 "paraview=${PARAVIEW_VERSION}" numpy scipy pyyaml \
+ && micromamba clean -a -y
+
+# Use OSMesa instead of trying X11/EGL first (no display, no GPU on cloud VMs).
+ENV PATH=/opt/conda/envs/pv/bin:$PATH \
+    VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
+
+COPY src /opt/iom-cfd/src
+COPY projects /opt/iom-cfd/projects
+RUN printf '#!/bin/sh\nexec python -m iomcfd "$@"\n' > /usr/local/bin/iomcfd && chmod +x /usr/local/bin/iomcfd
+
+ENV IOMCFD_HOME=/opt/iom-cfd \
+    PYTHONPATH=/opt/iom-cfd/src \
+    IOMCFD_VIZ_CONTAINER=1
+
+WORKDIR /work
+CMD ["bash"]

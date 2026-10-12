@@ -4,6 +4,10 @@
     project: foil2d                 # projects/<project>/
     description: free text
     reference: validation/data.csv  # optional, overlaid by `iomcfd report`
+    viz:                            # optional, for `iomcfd viz`
+      views: [velocity, separation] # default: the project's DEFAULT_VIEWS
+      animate: aoa                  # swept parameter for study animations
+      options: {q_level: 3}         # passed to the project's view functions
     defaults:                       # override the project's defaults.yaml
       speed: 1.0
     sweep:                          # full factorial (cartesian product)
@@ -93,7 +97,8 @@ class Study:
     def load(cls, path: str | Path, overrides: dict[str, Any] | None = None) -> "Study":
         path = Path(path)
         data = coerce_numbers(yaml.safe_load(path.read_text()) or {})
-        unknown = set(data) - {"study", "project", "description", "reference", "defaults", "sweep", "zip", "sample", "cases"}
+        unknown = set(data) - {"study", "project", "description", "reference", "defaults", "sweep", "zip", "sample", "cases",
+                               "viz"}
         if unknown:
             raise ValueError(f"{path}: unknown top-level keys {sorted(unknown)}")
         st = cls(

@@ -10,7 +10,9 @@ variation into a complete OpenFOAM case, meshes it, runs it in Docker
 and collects the results into one table and a set of plots.
 
 ```
-study YAML ──> iomcfd render ──> OpenFOAM cases ──> Allrun (Docker / Cloud Batch) ──> results.csv + plots
+study YAML ──> iomcfd run ──> OpenFOAM cases (Docker / Cloud Batch) ──> results.csv, report plots, mesh figures
+                                      │  (computed once)
+                                      └──> iomcfd viz (ParaView image, re-run any time) ──> images, movies, gallery
 ```
 
 ## Projects
@@ -42,6 +44,10 @@ uv run iomcfd projects                                   # list projects and stu
 uv run iomcfd plan foil2d/validation-naca0009-re1e5      # what a study expands to
 uv run iomcfd run  foil2d/validation-naca0009-re1e5 --set mesh=coarse -j 8
 uv run iomcfd report foil2d/validation-naca0009-re1e5    # plots + mesh figure in runs/<study>/report/
+
+make viz-image                                           # ParaView 6.2 visualisation image (once)
+uv run iomcfd viz foil2d/validation-naca0009-re1e5       # flow images, animations, gallery
+open runs/validation-naca0009-re1e5/viz/index.html
 ```
 
 `iomcfd run` on the host re-launches itself in the Docker image with the
@@ -60,7 +66,7 @@ iom_cfd/
 ├── README.md                 this file
 ├── Makefile                  setup, image, smoke, test, push
 ├── pyproject.toml            the iomcfd Python package (uv)
-├── docker/                   Dockerfile + entrypoint (OpenFOAM v2512 + Python)
+├── docker/                   Dockerfile (solver: OpenFOAM v2512 + Python), Dockerfile.viz (ParaView 6.2)
 ├── src/iomcfd/               tooling
 │   ├── cli.py                iomcfd command (plan/render/run/collect/report/shell/gcp)
 │   ├── study.py              study YAML -> cases (sweep, zip, LHS sample, explicit cases)
@@ -70,6 +76,7 @@ iom_cfd/
 │   ├── polymesh.py           read OpenFOAM meshes (ASCII/binary) and cut them with planes
 │   ├── meshplot.py           mesh figures for reports
 │   ├── verification.py       grid convergence (Richardson / GCI)
+│   ├── viz/                  ParaView visualisation: pvlib (scene helpers), render_case, study (animations, gallery)
 │   ├── physics.py            water/air properties, turbulence inflow, y+ sizing
 │   ├── forces.py             force/moment output readers
 │   ├── geometry/             foils, C-grid mesher, STL tools, fins/bulb/rudder, hulls, sails
@@ -78,6 +85,7 @@ iom_cfd/
 │   ├── README.md             physics, parameters, outputs, limitations
 │   ├── defaults.yaml         every parameter with its default (the schema)
 │   ├── project.py            derive / render / extract / report hooks
+│   ├── viz.py                ParaView views of finished cases (iomcfd viz)
 │   ├── template/             the OpenFOAM case (reads system/caseParameters)
 │   ├── studies/*.yaml        studies (smoke, validation, design sweeps)
 │   └── validation/           reference data (foil2d)
@@ -104,6 +112,8 @@ iom_cfd/
    with a surrogate model, or drive studies from your own optimiser.
 
 Details, naming, caching and statistics: [docs/workflow.md](docs/workflow.md).
+Visualisation of results (views per project, adding views, animations):
+[docs/visualization.md](docs/visualization.md).
 
 ## Running on Google Cloud
 

@@ -6,6 +6,7 @@
     iomcfd run     STUDY [-j N] [--np P]    render + mesh + solve + extract
     iomcfd collect STUDY                    gather results -> runs/<study>/results.csv
     iomcfd report  STUDY                    plots from results.csv (host, needs [analysis])
+    iomcfd viz     STUDY                    ParaView images, animations, gallery (viz image)
     iomcfd shell                            OpenFOAM shell in the container (host)
     iomcfd gcp ...                          Google Cloud Batch (see `iomcfd gcp -h`)
 
@@ -181,8 +182,31 @@ def cmd_report(args) -> None:
         print(f)
 
 
+def cmd_viz(args) -> None:
+    """Render ParaView views of finished cases (in the iom-cfd-viz image)."""
+    if not config.in_viz_container() and not args.no_docker:
+        _exec_in_docker(["viz", *sys.argv[sys.argv.index("viz") + 1 :]], args, image=config.viz_image())
+        return
+    import json as _json
+
+    from .runner import study_dir
+    from .viz.study import VizOptions, visualize_study
+
+    study, project, all_cases = _load(args)
+    cases = _select(all_cases, args)
+    opts = VizOptions(
+        views=args.views.split(",") if args.views else None,
+        animate=args.animate,
+        jobs=args.jobs or max(1, (os.cpu_count() or 2) // 2),
+        no_time=args.no_time,
+        options=_json.loads(args.options) if args.options else {},
+    )
+    visualize_study(project.name, study, cases, study_dir(study, _runs(args)), opts, all_cases=all_cases)
+
+
 def cmd_shell(args) -> None:
-    _exec_in_docker(args.command or [], args, interactive=True, raw=True)
+    _exec_in_docker(args.command or [], args, interactive=True, raw=True,
+                    image=config.viz_image() if args.viz else None)
 
 
 def _runs(args) -> Path:
@@ -211,7 +235,7 @@ def docker_base(interactive: bool = False, runs: Path | None = None) -> list[str
     return cmd
 
 
-def _exec_in_docker(argv: list[str], args, interactive: bool = False, raw: bool = False) -> None:
+def _exec_in_docker(argv: list[str], args, interactive: bool = False, raw: bool = False, image: str | None = None) -> None:
     repo = config.home()
     fixed = []
     for a in argv:  # rewrite host paths of study files to /work/...
@@ -225,7 +249,7 @@ def _exec_in_docker(argv: list[str], args, interactive: bool = False, raw: bool 
     if "--runs" in fixed:  # runs dir is passed via env instead
         i = fixed.index("--runs")
         del fixed[i : i + 2]
-    cmd = docker_base(interactive, _runs(args)) + [config.image()]
+    cmd = docker_base(interactive, _runs(args)) + [image or config.image()]
     cmd += (fixed or ["bash"]) if raw else ["iomcfd", *fixed]
     print("+ " + " ".join(cmd), file=sys.stderr)
     try:
@@ -262,6 +286,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--export", type=Path, help="copy finished cases to this directory")
     p.add_argument("--no-fields", action="store_true", help="with --export: skip the final field directory")
     p.add_argument("--no-docker", action="store_true", help="run with the local OpenFOAM installation")
+    p = study_cmd("viz", cmd_viz, "render ParaView views, study animations and a gallery (viz image)")
+    p.add_argument("--views", help="comma-separated view names (default: project/study defaults)")
+    p.add_argument("--animate", help="swept parameter for study animations (default: auto)")
+    p.add_argument("-j", "--jobs", type=int, help="cases rendered in parallel (default: cpus / 2)")
+    p.add_argument("--options", help='JSON options for the views, e.g. \'{"q_level": 3}\'')
+    p.add_argument("--no-time", action="store_true", help="skip time-series animations of transient cases")
+    p.add_argument("--no-docker", action="store_true", help="run with the local ParaView installation")
     p = sub.add_parser("collect", help="gather results into results.csv")
     p.add_argument("study")
     p.set_defaults(func=cmd_collect)
@@ -269,6 +300,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("study")
     p.set_defaults(func=cmd_report)
     p = sub.add_parser("shell", help="interactive shell (or a command) in the container")
+    p.add_argument("--viz", action="store_true", help="use the visualisation (ParaView) image")
     p.add_argument("command", nargs=argparse.REMAINDER)
     p.set_defaults(func=cmd_shell)
 

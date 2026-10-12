@@ -16,3 +16,7 @@
 - Boat frame: x aft, y port, z up, waterline z=0; + heel = to starboard,
   + leeway = bow to port (port tack).
 - Never edit files under runs/ to fix things; fix the template or project.py.
+- Visualisation is a separate, re-runnable layer: `uv run iomcfd viz <study>`
+  runs in the `iom-cfd-viz` image (ParaView 6.2, `make viz-image`) and only
+  reads finished cases. Views are functions in `projects/<name>/viz.py`
+  using `src/iomcfd/viz/pvlib.py`; no `|` in ParaView text.
