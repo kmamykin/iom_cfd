@@ -92,6 +92,12 @@ class Hull(Project):
             tf.append(s)
         return tf
 
+    def _boat_box(self, p: dict[str, Any]) -> list[float]:
+        """Upright hull bounding box (no heel/trim/leeway/sinkage)."""
+        hull = self.boat_surfaces({**p, "heel": 0, "trim": 0, "leeway": 0, "sinkage": 0, "appendages": False,
+                                   "extra_stl": []})[0]
+        return [float(v) for v in (*hull.bounds[0], *hull.bounds[1])]
+
     def render(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
         surfs = self.boat_surfaces(p)
         stl.write_multi(case_dir / "constant" / "triSurface" / "boat.stl", surfs)
@@ -145,6 +151,9 @@ class Hull(Project):
             "featureLevel": lv["feat"], "nLayers": lv["layers"],
             "locationInMesh": loc,
             "cog": [float(c) for c in cog],
+            "hullMin": [float(v) for v in lo],
+            "hullMax": [float(v) for v in hi],
+            "hullBoxBoat": self._boat_box(p),
             "wetted_area_m2": hulls.wetted_area_below(hull),  # whole hull at rest
             "components": [s.name for s in surfs],
             "maxIter": int(p["max_iter"]),
@@ -277,6 +286,31 @@ class Hull(Project):
             # rotation about +y; bow is at small x, so bow-down trim = -pitch
             out["trim_deg"] = -math.degrees(math.atan2(-E[6], E[0]))
         return out
+
+    def mesh_views(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]):
+        from iomcfd.meshplot import MeshSpec, MeshView, boat_view
+
+        L = float(d["Lwl"])
+        bb = d.get("hullBoxBoat") or [*(d.get("hullMin") or d["nearBoxMin"]), *(d.get("hullMax") or d["nearBoxMax"])]
+        eps = 0.00137 * L
+        xm = 0.5 * (bb[0] + bb[3])
+        kw = dict(heel=float(p["heel"]), pivot=(xm, 0.0, 0.0))
+        zs = 0.5 * bb[2]  # half draft
+        return MeshSpec(
+            [
+                boat_view("centre plane: hull profile and free-surface band", "side", -eps, (xm, 0.0),
+                          1.25 * (bb[3] - bb[0]), **kw),
+                MeshView("whole domain, plane y = 0", (0.0, -eps, 0.0), (0.0, 1.0, 0.0), (0, 2),
+                         ((d["xMin"] + d["xMax"]) / 2, (d["zMin"] + d["zMax"]) / 2), 1.02 * (d["xMax"] - d["xMin"]),
+                         ("x [m]", "z [m]"), lw=0.15),
+                boat_view("bow, centre plane", "side", -eps, (bb[0] + 0.08 * L, 0.0), 0.3 * L, **kw),
+                boat_view(f"horizontal section at half draft (z = {zs:.3f} m)", "section", zs - eps,
+                          (xm, -0.25 * (bb[4] - bb[1])), 1.25 * (bb[3] - bb[0]), **kw),
+            ],
+            walls="boat(_.*)?",
+            notes=[f"free-surface band: cells {d['zFracBand'] * (d['zMax'] - d['zMin']) / max(d['nzFracBand'] * d['nz'], 1) * 1000:.1f} mm "
+                   f"high before refinement; {'half' if d.get('halfDomain') else 'full'} domain"],
+        )
 
     def resources(self, p: dict[str, Any]) -> dict[str, Any]:
         cells = {"xcoarse": 0.15, "coarse": 0.4, "medium": 1.2, "fine": 4}[p.get("mesh", "medium")]

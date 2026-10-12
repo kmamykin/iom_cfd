@@ -100,6 +100,13 @@ class Appendage3D(Project):
             out = [s.rotated("x", float(p["heel"]), about=(0.0, 0.0, zr)) for s in out]
         return out
 
+    def _boat_box(self, p: dict[str, Any]) -> list[float]:
+        """Bounding box of the appendages before heel: [xmin, ymin, zmin, xmax, ymax, zmax]."""
+        up = self.surfaces({**p, "heel": 0.0})
+        lo = np.min([s.bounds[0] for s in up], axis=0)
+        hi = np.max([s.bounds[1] for s in up], axis=0)
+        return [float(v) for v in (*lo, *hi)]
+
     def render(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
         surfs = self.surfaces(p)
         tri = case_dir / "constant" / "triSurface"
@@ -138,6 +145,9 @@ class Appendage3D(Project):
             "locationInMesh": vec(loc),
             "components": [s.name for s in surfs],
             "wetted_area_m2": float(sum(s.area() for s in surfs)),
+            "bodyMin": vec(lo),
+            "bodyMax": vec(hi),
+            "bodyBoxBoat": self._boat_box(p),
         })
         if p["geometry"] == "parametric" and p["bulb"]:
             b = next(s for s in surfs if s.name == "bulb")
@@ -209,6 +219,31 @@ class Appendage3D(Project):
             rel = tot.std @ np.abs(dd) / max(abs(out["drag_N"]), 1e-9)
             out["_status"] = "ok" if rel < 0.01 else "not_converged"
         return out
+
+    def mesh_views(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]):
+        from iomcfd.meshplot import MeshSpec, MeshView, boat_view
+
+        bb = d.get("bodyBoxBoat") or [*(d.get("bodyMin") or d["nearBoxMin"]), *(d.get("bodyMax") or d["nearBoxMax"])]
+        h = float(d["baseCell"])
+        eps = 0.0137 * h  # keep cut planes off background-mesh planes
+        zt = -float(p["hull_depth"])
+        zm = zt - 0.5 * float(p["fin_span"])
+        chord = 0.5 * (float(p["fin_root_chord"]) + float(p["fin_tip_chord"]))
+        xf = float(p["fin_x"]) + 0.5 * chord
+        kw = dict(heel=float(p["heel"]), pivot=(0.0, 0.0, zt))
+        return MeshSpec(
+            [
+                boat_view("side, fin plane: fin, bulb, rudder", "side", eps, ((bb[0] + bb[3]) / 2, (bb[2] + zt) / 2),
+                          1.15 * (bb[3] - bb[0]), **kw),
+                MeshView("whole domain, plane y = 0", (0.0, eps, 0.0), (0.0, 1.0, 0.0), (0, 2),
+                         ((d["xMin"] + d["xMax"]) / 2, (d["zMin"] + d["zMax"]) / 2), 1.02 * (d["xMax"] - d["xMin"]),
+                         ("x [m]", "z [m]"), lw=0.15),
+                boat_view(f"fin section at mid-span ({abs(zm - zt):.2f} m below the root)", "section", zm + eps,
+                          (xf, 0.0), 2.2 * chord, **kw),
+                boat_view("fin trailing edge: prism layers", "section", zm + eps, (xf + 0.45 * chord, 0.0), 0.35 * chord, **kw),
+            ],
+            walls="appendages(_.*)?",
+        )
 
     def resources(self, p: dict[str, Any]) -> dict[str, Any]:
         cells = {"xcoarse": 0.3, "coarse": 0.8, "medium": 3, "fine": 12}[p.get("mesh", "medium")]  # millions

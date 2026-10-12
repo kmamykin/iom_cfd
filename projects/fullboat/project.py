@@ -84,6 +84,14 @@ class FullBoat(Project):
             out.append(s)
         return out
 
+    def _boat_boxes(self, p: dict[str, Any]) -> dict[str, list[float]]:
+        """Upright hull and rig bounding boxes (no heel/trim/leeway/sinkage)."""
+        up = self.surfaces({**p, "heel": 0, "trim": 0, "leeway": 0, "sinkage": 0})
+        box = lambda ss: [float(v) for v in (*np.min([s.bounds[0] for s in ss], axis=0),
+                                              *np.max([s.bounds[1] for s in ss], axis=0))]
+        rig = [s for s in up if s.name in ("main", "jib", "mast")]
+        return {"hullBoxBoat": box(up[:1]), "rigBoxBoat": box(rig)}
+
     def render(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
         surfs = self.surfaces(p)
         boat = [s for s in surfs if s.name not in ("main", "jib", "mast")]
@@ -141,6 +149,9 @@ class FullBoat(Project):
             "locationInMesh": [x0 + 0.0371 * (x1 - x0), y0 + 0.6123 * (y1 - y0), z0 + 0.3137 * (-z0)],
             "cog": [float(c) for c in cog],
             "components": [s.name for s in surfs],
+            "hullMin": [float(v) for v in hlo], "hullMax": [float(v) for v in hi_],
+            "rigMin": [float(v) for v in rlo], "rigMax": [float(v) for v in rhi],
+            **self._boat_boxes(p),
         })
         inc = case_dir / "system" / "include"
         inc.mkdir(parents=True, exist_ok=True)
@@ -218,6 +229,30 @@ class FullBoat(Project):
         if not out["converged"]:
             out["_status"] = "not_converged"
         return out
+
+    def mesh_views(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]):
+        from iomcfd.meshplot import MeshSpec, MeshView, boat_view
+
+        hb = d.get("hullBoxBoat") or [*(d.get("hullMin") or d["nearBoxMin"]), *(d.get("hullMax") or d["nearBoxMax"])]
+        rb = d.get("rigBoxBoat") or [*(d.get("rigMin") or d["rigBoxMin"]), *(d.get("rigMax") or d["rigBoxMax"])]
+        L, H = float(d["Lwl"]), float(rb[5])
+        eps = 0.00137 * L
+        xm = 0.5 * (hb[0] + hb[3])
+        zs = 0.45 * H
+        kw = dict(heel=float(p["heel"]), pivot=(xm, 0.0, 0.0))
+        return MeshSpec(
+            [
+                boat_view("centre plane: hull, keel and rig", "side", -eps, (xm, 0.5 * (hb[2] - 0.42 + rb[5])),
+                          1.15 * max(hb[3] - hb[0], rb[5] - hb[2] + 0.42), **kw),
+                boat_view("centre plane: hull and free-surface band", "side", -eps, (xm, 0.0), 1.2 * (hb[3] - hb[0]), **kw),
+                boat_view(f"section through the sails ({zs:.2f} m up)", "section", zs + eps,
+                          (0.5 * (rb[0] + rb[3]), 0.5 * (rb[1] + rb[4])), 1.3 * (rb[3] - rb[0]), **kw),
+                MeshView("whole domain, plane y = 0", (0.0, -eps, 0.0), (0.0, 1.0, 0.0), (0, 2),
+                         ((d["xMin"] + d["xMax"]) / 2, (d["zMin"] + d["zMax"]) / 2), 1.02 * (d["xMax"] - d["xMin"]),
+                         ("x [m]", "z [m]"), lw=0.15),
+            ],
+            walls="(boat(_.*)?|main.*|jib.*|mast)",
+        )
 
     def resources(self, p: dict[str, Any]) -> dict[str, Any]:
         cells = {"xcoarse": 0.5, "coarse": 1.5, "medium": 5}[p.get("mesh", "medium")]

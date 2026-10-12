@@ -69,6 +69,27 @@ class Project:
 
         return pd.read_csv(self.root / rel, comment="#")
 
+    def mesh_views(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any]):
+        """Views for the report's mesh figure (iomcfd.meshplot.MeshSpec).
+
+        Default: x-y and x-z cuts through the middle of a box domain
+        (xMin..zMax in the derived values), or None if there is none.
+        """
+        from .meshplot import MeshSpec, MeshView
+
+        d = derived
+        if not all(k in d for k in ("xMin", "xMax", "yMin", "yMax", "zMin", "zMax")):
+            return None
+        c = [(d["xMin"] + d["xMax"]) / 2, (d["yMin"] + d["yMax"]) / 2, (d["zMin"] + d["zMax"]) / 2]
+        w = 1.05 * (d["xMax"] - d["xMin"])
+        return MeshSpec(
+            [
+                MeshView("plane z = mid-domain", tuple(c), (0, 0, 1), (0, 1), (c[0], c[1]), w),
+                MeshView("plane y = mid-domain", tuple(c), (0, 1, 0), (0, 2), (c[0], c[2]), w, ("x [m]", "z [m]")),
+            ],
+            walls="^$",
+        )
+
     def resources(self, params: dict[str, Any]) -> dict[str, Any]:
         """Hints for cloud scheduling: cpus per case, memory, max runtime."""
         return {"cpus": int(params.get("np", 1)), "memory_gb": 2 * int(params.get("np", 1)), "max_hours": 2}

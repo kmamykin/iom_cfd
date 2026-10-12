@@ -77,6 +77,12 @@ class Sails(Project):
             out = [s.rotated("x", float(p["heel"])) for s in out]
         return out
 
+    def _boat_box(self, p: dict[str, Any]) -> list[float]:
+        up = self.rig_surfaces({**p, "heel": 0.0})
+        lo = np.min([s.bounds[0] for s in up], axis=0)
+        hi = np.max([s.bounds[1] for s in up], axis=0)
+        return [float(v) for v in (*lo, *hi)]
+
     def render(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
         surfs = self.rig_surfaces(p)
         tri = case_dir / "constant" / "triSurface"
@@ -108,6 +114,9 @@ class Sails(Project):
             "wakeBoxLevel": lv["wake"],
             "locationInMesh": loc,
             "sail_area_m2": float(sum(s.area() for s in surfs if s.name != "mast")),
+            "rigMin": [float(v) for v in lo],
+            "rigMax": [float(v) for v in hi],
+            "rigBoxBoat": self._boat_box(p),
         })
         inc = case_dir / "system" / "include"
         inc.mkdir(parents=True, exist_ok=True)
@@ -164,6 +173,29 @@ class Sails(Project):
         if not out["converged"]:
             out["_status"] = "not_converged"
         return out
+
+    def mesh_views(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]):
+        from iomcfd.meshplot import MeshSpec, MeshView, boat_view
+
+        bb = d.get("rigBoxBoat") or [*(d.get("rigMin") or d["nearBoxMin"]), *(d.get("rigMax") or d["nearBoxMax"])]
+        H = float(bb[5])
+        zs = 0.45 * H
+        eps = 0.00137 * H
+        xm, ym = 0.5 * (bb[0] + bb[3]), 0.5 * (bb[1] + bb[4])
+        kw = dict(heel=float(p["heel"]))
+        return MeshSpec(
+            [
+                boat_view(f"section through main and jib ({zs:.2f} m up the mast)", "section", zs + eps, (xm, ym),
+                          1.3 * (bb[3] - bb[0]), **kw),
+                boat_view("section close-up: jib leech, mast and main luff", "section", zs + eps, (xm, ym),
+                          0.3 * (bb[3] - bb[0]), **kw),
+                boat_view("mast plane: mast and luffs", "side", -eps, (xm, 0.5 * H), 1.3 * H, **kw),
+                MeshView("whole domain, plane y = 0", (0.0, -eps, 0.0), (0.0, 1.0, 0.0), (0, 2),
+                         ((d["xMin"] + d["xMax"]) / 2, (d["zMin"] + d["zMax"]) / 2), 1.02 * (d["xMax"] - d["xMin"]),
+                         ("x [m]", "z [m]"), lw=0.15),
+            ],
+            walls="(main|jib|mast).*",
+        )
 
     def resources(self, p: dict[str, Any]) -> dict[str, Any]:
         cells = {"xcoarse": 0.3, "coarse": 0.8, "medium": 3, "fine": 12}[p.get("mesh", "medium")]

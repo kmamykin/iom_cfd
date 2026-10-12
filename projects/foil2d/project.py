@@ -356,6 +356,26 @@ class Foil2D(Project):
         pd.DataFrame(rows).to_csv(path, index=False)
         return path
 
+    def mesh_views(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]):
+        from iomcfd.meshplot import MeshSpec, MeshView
+
+        c = float(p["chord"])
+        m = d["mesh_spec"]
+        zm = 0.5 * float(m["span"])
+        R = float(m["farfield"]) * c
+        cut = dict(origin=(0.0, 0.0, zm), normal=(0.0, 0.0, 1.0), axes=(0, 1))
+        return MeshSpec(
+            [
+                MeshView("whole domain: C-grid, wake cut to the outlet", center=(0.0, 0.0), width=3.4 * R, lw=0.15, **cut),
+                MeshView("foil", center=(0.55 * c, 0.0), width=1.45 * c, **cut),
+                MeshView("leading edge", center=(0.03 * c, 0.0), width=0.12 * c, **cut),
+                MeshView("trailing edge and start of the wake cut", center=(c, 0.0), width=0.12 * c, **cut),
+            ],
+            walls="foil",
+            notes=[f"structured C-grid: {m['n_surface'] + 1} points per surface, {m['n_normal']} wall-normal cells, "
+                   f"{m['n_wake']} wake cells, first cell {m['first_cell'] / c:.1e} c, far field {m['farfield']:.0f} c"],
+        )
+
     def resources(self, p: dict[str, Any]) -> dict[str, Any]:
         f = MESH_LEVELS.get(p.get("mesh", "medium"), 1.0)
         return {"cpus": int(p.get("np", 1)), "memory_gb": 2, "max_hours": 1 + 2 * f * f}

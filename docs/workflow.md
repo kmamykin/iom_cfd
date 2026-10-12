@@ -120,4 +120,14 @@ call `iomcfd run` (or `iomcfd gcp submit`), reading `results.csv` back.
   and metrics.
 * `runs/<study>/<case>/`: the full OpenFOAM case, logs, `postProcessing/`,
   `result.json`, and for foil2d `surface.csv` (Cp, Cf along the section).
-* `iomcfd report <study>`: plots in `runs/<study>/report/`.
+* `iomcfd report <study>`: plots in `runs/<study>/report/`:
+  * the project's result plots (foil2d: polar with reference data, and a
+    grid-convergence table `mesh_convergence.csv` when the study varies `mesh`);
+  * **a mesh figure for every study**, `mesh_<case>.png` (one per mesh level
+    when `mesh` varies): plane cuts through the actual `constant/polyMesh`
+    the solver used, with wall patches in red, zoomed on the regions that
+    matter (foil leading/trailing edge, fin section and prism layers, hull
+    profile and free-surface band, sail sections), plus checkMesh quality,
+    y+ and prism-layer coverage. Cuts follow the boat's heel. Each project
+    defines its views in `Project.mesh_views()`; drawing is pure Python
+    (`iomcfd.polymesh`, `iomcfd.meshplot`), no OpenFOAM or ParaView needed.

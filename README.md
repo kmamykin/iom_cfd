@@ -41,7 +41,7 @@ make smoke          # 2-case foil2d run end to end (~2 min)
 uv run iomcfd projects                                   # list projects and studies
 uv run iomcfd plan foil2d/validation-naca0009-re1e5      # what a study expands to
 uv run iomcfd run  foil2d/validation-naca0009-re1e5 --set mesh=coarse -j 8
-uv run iomcfd report foil2d/validation-naca0009-re1e5    # plots in runs/<study>/report/
+uv run iomcfd report foil2d/validation-naca0009-re1e5    # plots + mesh figure in runs/<study>/report/
 ```
 
 `iomcfd run` on the host re-launches itself in the Docker image with the
@@ -67,6 +67,9 @@ iom_cfd/
 │   ├── project.py            project plugin base class + loader
 │   ├── runner.py             renders and runs cases, convergence monitor, export
 │   ├── results.py            results.csv
+│   ├── polymesh.py           read OpenFOAM meshes (ASCII/binary) and cut them with planes
+│   ├── meshplot.py           mesh figures for reports
+│   ├── verification.py       grid convergence (Richardson / GCI)
 │   ├── physics.py            water/air properties, turbulence inflow, y+ sizing
 │   ├── forces.py             force/moment output readers
 │   ├── geometry/             foils, C-grid mesher, STL tools, fins/bulb/rudder, hulls, sails
