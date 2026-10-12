@@ -68,6 +68,16 @@ report:
   compare_at: {foil: naca0009, chord: 0.08, aoa: [2, 4, 6]}  # default: middle section, shortest chord
 ```
 
+Studies with `highlights:` (docs/workflow.md) also get
+`report/highlights.md` (Cl, Cd, friction drag and the separation and
+reattachment points of each highlighted case) and
+`report/highlight_<name>.png`: Cp and Cf along the chord from `surface.csv`,
+one line per compared value (e.g. per section), with Cf on the upper
+(suction) and lower surface in separate panels. Cf < 0 marks reversed flow:
+a laminar separation bubble where it is short and followed by reattachment,
+trailing-edge separation where it runs to the trailing edge. No field data
+is needed, so it works on a default (light) `gcp fetch`.
+
 Induced drag depends on side force and span, not on chord or section, so at
 equal side force it is the same for every candidate: it shows how much the
 section differences matter in the total, it does not reorder them. Questions

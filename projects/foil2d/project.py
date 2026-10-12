@@ -561,6 +561,93 @@ class Foil2D(Project):
         md_path.write_text("\n".join(md))
         return [csv_path, md_path]
 
+    highlight_columns = ["Cl", "Cd", "Cd_friction", "x_sep_upper", "x_reattach_upper", "x_te_sep_upper",
+                         "x_sep_lower", "x_reattach_lower", "unsteady"]
+
+    def highlight_report(self, run_dir: Path, df, highlights, out_dir: Path) -> list[Path]:
+        """report/highlights.md plus, per highlight, highlight_<name>.png:
+        pressure and skin friction along the chord from each case's
+        surface.csv (no field data needed), one line per compared value."""
+        files = super().highlight_report(run_dir, df, highlights, out_dir)
+        for h, lay in highlights:
+            f = self._surface_figure(Path(run_dir), df, h, lay, Path(out_dir) / f"highlight_{h.name}.png")
+            if f:
+                files.append(f)
+        return files
+
+    @staticmethod
+    def _surface_figure(run_dir: Path, df, h, lay, out: Path) -> Path | None:
+        """Rows: the highlight's rows. Columns: Cp (solid upper, dashed lower
+        surface), Cf on the upper and on the lower surface; Cf < 0 is reversed
+        flow (laminar separation bubble, trailing-edge separation). The upper
+        surface is the suction side at positive aoa."""
+        import textwrap
+
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import pandas as pd
+
+        unsteady = set(df.loc[df["unsteady"].astype(str) == "True", "case"]) if "unsteady" in df else set()
+        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+        nr = len(lay.rows)
+        head = [f"{h.name}: pressure and skin friction along the chord (Cf < 0: reversed flow)",
+                *textwrap.wrap(h.why, 170)]
+        fig, axs = plt.subplots(nr, 3, figsize=(17, 3.7 * nr + 0.3 + 0.2 * len(head)), squeeze=False)
+        cf_in = [[[], []] for _ in range(nr)]  # Cf away from the edges, for the axis limits
+        drew = False
+        for i, (label, cells) in enumerate(lay.rows):
+            for j, col in enumerate(lay.columns):
+                c = cells.get(col)
+                f = run_dir / c.name / "surface.csv" if c is not None else None
+                if f is None or not f.is_file():
+                    continue
+                s = pd.read_csv(f)
+                up = s[s["upper"].astype(str) == "True"].sort_values("x_c")
+                lo = s[s["upper"].astype(str) != "True"].sort_values("x_c")
+                name = (f"{lay.compare} {col:g}" if isinstance(col, float) else f"{lay.compare} {col}") \
+                    if lay.compare else c.name
+                name += " (unsteady)" if c.name in unsteady else ""
+                st = dict(color=colors[j % len(colors)], lw=1.3)
+                axs[i, 0].plot(up["x_c"], up["Cp"], "-", label=name, **st)
+                axs[i, 0].plot(lo["x_c"], lo["Cp"], "--", **{**st, "lw": 0.9})
+                axs[i, 1].plot(up["x_c"], up["Cf"], "-", label=name, **st)
+                axs[i, 2].plot(lo["x_c"], lo["Cf"], "-", label=name, **st)
+                for k, side in ((0, up), (1, lo)):
+                    cf_in[i][k] += list(side.loc[(side["x_c"] > 0.03) & (side["x_c"] < 0.97), "Cf"])
+                drew = True
+        if not drew:
+            plt.close(fig)
+            return None
+        for i, (label, _) in enumerate(lay.rows):
+            pre = f"{label}: " if label else ""
+            axs[i, 0].set_title(pre + "Cp (solid: upper, dashed: lower surface)", fontsize=10)
+            axs[i, 0].invert_yaxis()
+            axs[i, 0].set_ylabel("Cp")
+            if axs[i, 0].get_legend_handles_labels()[0]:  # a row can be empty while a run is unfinished
+                axs[i, 0].legend(fontsize=8)
+            for k, ax in ((0, axs[i, 1]), (1, axs[i, 2])):
+                ax.set_title(pre + f"Cf, {'upper (suction)' if k == 0 else 'lower'} surface", fontsize=10)
+                ax.axhline(0.0, color="k", lw=0.6)
+                vals = np.array(cf_in[i][k])
+                if len(vals):
+                    lo_, hi_ = np.percentile(vals, [1, 99])
+                    pad = 0.15 * (hi_ - min(lo_, 0.0))
+                    ax.set_ylim(min(lo_, 0.0) - pad, hi_ + pad)
+                ax.set_ylabel("Cf")
+            for ax in axs[i]:
+                ax.set_xlim(0.0, 1.0)
+                ax.set_xlabel("x/c")
+                ax.grid(alpha=0.3)
+        H = fig.get_figheight()
+        fig.suptitle("\n".join(head), x=0.01, y=1 - 0.08 / H, ha="left", va="top", fontsize=11)
+        fig.tight_layout(rect=(0, 0, 1, 1 - (0.15 + 0.2 * len(head)) / H))
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=110)
+        plt.close(fig)
+        return out
+
     def _mesh_convergence(self, df, out_dir: Path):  # pragma: no cover - host only
         """GCI table when a study runs the same case on three consecutive mesh levels."""
         from iomcfd.verification import grid_convergence

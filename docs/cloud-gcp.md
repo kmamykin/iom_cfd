@@ -3,9 +3,9 @@
 Each study becomes one [Cloud Batch](https://cloud.google.com/batch) job with
 one task per case. Every task runs the solver image, works on the VM's local
 disk, and copies the finished case (without processor directories and
-intermediate time steps) to a Cloud Storage bucket mounted with Cloud Storage
-FUSE. VMs are Spot by default, and preempted tasks retry automatically
-(exit code 50001).
+intermediate time steps; mesh and logs gzipped) to a Cloud Storage bucket
+mounted with Cloud Storage FUSE. VMs are Spot by default, and preempted tasks
+retry automatically (exit code 50001).
 
 ## One-time setup
 
@@ -68,10 +68,34 @@ uv run iomcfd gcp submit foil2d/keel-sections                # 2D sweep, default
 uv run iomcfd gcp submit appendage3d/leeway-sweep --machine h3-standard-88 --np 44
 uv run iomcfd gcp status                                     # recent jobs
 uv run iomcfd gcp status <job-name>                          # task counts + log query
-uv run iomcfd gcp fetch foil2d/keel-sections                 # latest run -> runs/<study>/<run id>/, then results.csv
+uv run iomcfd gcp fetch foil2d/keel-sections                 # latest run's results -> runs/<study>/<run id>/
 uv run iomcfd gcp fetch foil2d/keel-sections --run-id 20261012-045433   # a particular run
-uv run iomcfd gcp fetch foil2d/keel-sections --fields        # also final flow fields
+uv run iomcfd gcp fetch foil2d/keel-sections --logs          # + logs of failed / not-converged cases
+uv run iomcfd gcp fetch foil2d/keel-sections --fields        # + whole cases of the study's highlights (for viz)
+uv run iomcfd gcp fetch foil2d/keel-sections --only aoa4_foilnaca0008   # + these whole cases
 ```
+
+## Fetching: what comes to your machine
+
+The bucket keeps every run in full; `fetch` downloads only what you need
+(`gcloud storage rsync`, so repeating it only adds what is missing):
+
+| Fetched | What | Size (foil2d, medium mesh) | Needed by |
+|---|---|---|---|
+| always | `study.yaml`, `run.json`, each case's `params.json`, `result.json`, `surface.csv` | about 40 kB per case | collect, report, summary.md, findings |
+| always | mesh and checkMesh log of one case per mesh level | 6 MB gzipped (20 MB before compression) | the report's mesh figure |
+| `--logs` | solver logs of failed and not-converged cases | about 0.2 MB per case gzipped | diagnosing them |
+| `--fields` | whole cases of the study's `highlights:` (all cases if it has none) | about 15 MB per case | `iomcfd viz` |
+| `--only CASE...` | whole cases | about 15 MB per case | `iomcfd viz --only`, re-running a case |
+
+A whole medium foil2d case in the bucket is about 15 MB with the mesh and
+logs gzipped (31 MB before compression: mesh 20 MB, final fields 8 MB, log
+2 MB, postProcessing 1 MB), so a 450-case run is about 7 GB there and about
+20 MB on your machine after a default fetch. Cloud Storage costs about
+$0.02 per GB-month; delete old runs in the bucket with
+`gcloud storage rm -r gs://<bucket>/runs/<study>/<run id>` (soft delete
+keeps them recoverable for 7 days). `iomcfd slim` frees space locally
+(docs/workflow.md).
 
 Every submit is a new run of the study. The run id (UTC submit time,
 `YYYYMMDD-HHMMSS`) names the job (`iomcfd-<study>-<run id>`), is a job label

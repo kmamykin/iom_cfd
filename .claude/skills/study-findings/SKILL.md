@@ -21,7 +21,12 @@ uv run iomcfd report <project>/<study> [--run-id ID]  # plots, tables, report/su
 ```
 
 Results live in `runs/<study>/<run id>/`. If the run is on GCP and not yet
-local: `uv run iomcfd gcp fetch <project>/<study> --run-id ID`.
+local: `uv run iomcfd gcp fetch <project>/<study> --run-id ID`. That
+downloads only the results (a few MB), which is all the report and this
+analysis need. Never fetch whole runs (the laptop's disk is limited); for
+flow pictures of the highlighted cases add `--fields` and run
+`uv run iomcfd viz <project>/<study> --run-id ID`, and for the logs of
+failed cases add `--logs`.
 
 ## 2. Read, in this order
 
@@ -33,6 +38,10 @@ local: `uv run iomcfd gcp fetch <project>/<study> --run-id ID`.
    `projects/`, which may have changed since. Also read `run.json`: git
    version, image, `--set` overrides.
 3. The figures in `report/*.png` (open them with Read and look at them).
+   The highlights (the cases the study names for a close look) are in
+   `report/highlights.md` (separation and reattachment points, Cl, Cd) and
+   `report/highlight_<name>.png` (foil2d: Cp and Cf along the chord). If
+   `viz/highlights.md` exists, look at its montages too.
 4. Earlier context:
    * `projects/<project>/findings/<study>.md`, for earlier runs and
      decisions;
@@ -90,6 +99,8 @@ What was cut or accepted (mesh, steady solver, failed cases left, sweep resoluti
 About the physics, the solver, the workflow, and compute and cost.
 
 ### Open questions and next steps
+Including the highlights for the next run: which cases to look at closely,
+and why, given what this run showed.
 ```
 
 ## Rules
@@ -104,7 +115,10 @@ About the physics, the solver, the workflow, and compute and cost.
 * If the analysis contradicts something said earlier (in the log, the
   README or the study description), say so explicitly in the new entry.
 * Keep the study YAML and README as they are unless the user asks. Propose
-  the edits in your reply instead.
+  the edits in your reply instead, including a `highlights:` block (YAML,
+  docs/workflow.md): a few cases each, a `why` that names the finding or
+  question, `compare` along the parameter in question. Explain a surprise,
+  check a close call, show what drives a ranking; not every case.
 * Finish by telling the user, in a few lines, the main conclusions and any
   changes you suggest to the next run.
 

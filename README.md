@@ -47,7 +47,7 @@ uv run iomcfd report foil2d/validation-naca0009-re1e5    # plots, tables, summar
 uv run iomcfd runs foil2d/validation-naca0009-re1e5      # every run is kept, newest last
 
 make viz-image                                           # ParaView 6.2 visualisation image (once)
-uv run iomcfd viz foil2d/validation-naca0009-re1e5       # flow images, animations, gallery
+uv run iomcfd viz foil2d/validation-naca0009-re1e5       # flow images, animations, gallery (highlights only, if set)
 open runs/validation-naca0009-re1e5/*/viz/index.html
 ```
 
@@ -81,7 +81,8 @@ iom_cfd/
 │   ├── polymesh.py           read OpenFOAM meshes (ASCII/binary) and cut them with planes
 │   ├── meshplot.py           mesh figures for reports
 │   ├── verification.py       grid convergence (Richardson / GCI)
-│   ├── viz/                  ParaView visualisation: pvlib (scene helpers), render_case, study (animations, gallery)
+│   ├── highlights.py         the cases a study names for a close look (report, viz, fetch)
+│   ├── viz/                  ParaView visualisation: pvlib (scene helpers), render_case, study (montages, animations, gallery)
 │   ├── physics.py            water/air properties, turbulence inflow, y+ sizing
 │   ├── forces.py             force/moment output readers
 │   ├── geometry/             foils, C-grid mesher, STL tools, fins/bulb/rudder, hulls, sails
@@ -132,7 +133,8 @@ cloud/gcp/setup.sh                                     # APIs, registry, bucket,
 cloud/gcp/setup-github.sh                              # GitHub Actions pushes the image on every push to main
 uv run iomcfd gcp submit foil2d/keel-sections
 uv run iomcfd gcp status
-uv run iomcfd gcp fetch foil2d/keel-sections           # latest run -> runs/<study>/<run id>/results.csv
+uv run iomcfd gcp fetch foil2d/keel-sections           # latest run's results (MBs, not GBs) -> runs/<study>/<run id>/
+uv run iomcfd gcp fetch foil2d/keel-sections --fields  # + whole cases of the study's highlights, for viz
 ```
 
 ## Validation so far

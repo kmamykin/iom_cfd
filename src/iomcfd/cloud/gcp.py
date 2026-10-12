@@ -10,6 +10,13 @@ UTC submit time; the job is named after it.
     iomcfd gcp status [JOB]
     iomcfd gcp fetch  foil2d/keel-sections [--run-id ID]   # latest run -> runs/<study>/<run id>/ + collect
 
+`fetch` downloads only what the report and the findings need: each case's
+results (params.json, result.json, surface.csv) and one mesh per mesh level
+(for the report's mesh figure), a few MB per hundred cases. Everything else
+stays in the bucket and is fetched on demand: `--logs` (solver logs of
+failed and not-converged cases), `--fields` (whole cases, field data
+included, of the study's highlights), `--only CASE...` (whole cases).
+
 Configuration: cloud/gcp/config.env (copy config.env.example). One-time
 infrastructure: cloud/gcp/setup.sh. Image: `make push`.
 """
@@ -29,10 +36,32 @@ from .. import config
 
 MOUNT = "/mnt/disks/data"
 
-# Paths (relative to the run) of field directories: OpenFOAM time directories
-# directly inside a case, e.g. aoa4/1500/U. Not postProcessing/<fo>/0/*.dat.
-# gcloud storage rsync --exclude must match the whole relative path.
-FIELD_DIRS = r"[^/]+/[0-9.e+-]+/.*"
+def keep_pattern(full=(), mesh=(), logs=()) -> str:
+    """Regex of the run-relative paths `fetch` downloads: the run's own files
+    (study.yaml, run.json, report/, viz/), every case's results (LIGHT_FILES)
+    and images, all of the `full` cases, mesh and checkMesh log of the
+    `mesh` cases, logs of the `logs` cases."""
+    from ..runner import LIGHT_FILES
+
+    names = lambda cases: "|".join(re.escape(c) for c in cases)  # noqa: E731
+    alts = [r"[^/]+", r"(?:report|viz)/.*", r"[^/]+/(?:%s)" % "|".join(map(re.escape, LIGHT_FILES)), r"[^/]+/viz/.*"]
+    if full:
+        alts.append(rf"(?:{names(full)})/.*")
+    if mesh:
+        alts.append(rf"(?:{names(mesh)})/(?:constant/polyMesh/.*|log\.checkMesh(?:\.gz)?)")
+    if logs:
+        alts.append(rf"(?:{names(logs)})/log\.[^/]*")
+    return "|".join(alts)
+
+
+def exclude_pattern(keep: str) -> str:
+    """`gcloud storage rsync --exclude` regex for everything but `keep`.
+    gcloud applies re.match to the path relative to the source. The flag is a
+    gcloud list: a comma would split it and a leading '^' would be read as a
+    custom delimiter, hence no '^' (re.match anchors anyway)."""
+    if "," in keep:
+        raise ValueError("gcloud would split the exclude pattern at a comma")
+    return rf"(?!(?:{keep})$).*"
 
 # vCPUs per physical core. CFD is memory-bandwidth bound: give each MPI rank
 # a whole core, i.e. 2 vCPUs on SMT machine families.
@@ -229,11 +258,14 @@ def cmd_status(args) -> None:
 
 
 def cmd_fetch(args) -> None:
-    from ..cli import resolve_study_path
-    from ..results import collect
-    from ..study import Study
+    import argparse
 
+    from ..cli import _load_run, _runs, _select, resolve_study_path
+    from ..highlights import case_names, plan
+    from ..meshplot import has_mesh, mesh_candidates
+    from ..results import collect
     from ..runner import is_run_id
+    from ..study import Study
 
     cfg = load_config()
     study = Study.load(resolve_study_path(args.study))
@@ -250,12 +282,34 @@ def cmd_fetch(args) -> None:
         run_id = ids[-1]
     elif not is_run_id(run_id):
         raise SystemExit(f"--run-id {run_id}: expected YYYYMMDD-HHMMSS")
-    dst = config.runs_dir() / study.name / run_id
+    dst = _runs(args) / study.name / run_id
     dst.mkdir(parents=True, exist_ok=True)
-    excl = [] if args.fields else ["--exclude", FIELD_DIRS]
-    _gcloud("storage", "rsync", "-r", *excl, f"{base}/{run_id}", str(dst))
+    src = f"{base}/{run_id}"
+
+    def rsync(keep: str) -> None:
+        _gcloud("storage", "rsync", "-r", "--exclude", exclude_pattern(keep), src, str(dst))
+
+    rsync(keep_pattern())  # results of every case
     rows, out = collect(dst)
-    print(f"{out}: {len(rows)} cases (run {run_id})")
+    run_args = argparse.Namespace(study=args.study, runs=args.runs, run_id=run_id, only=args.only, index=None)
+    st, _, cases, _ = _load_run(run_args)
+    have = {r["case"] for r in rows}
+    full: list[str] = []
+    if args.only:
+        full = [c.name for c in _select(cases, run_args)]
+    elif args.fields:
+        planned = plan(st.highlights, cases)
+        full = case_names(planned) if planned else [c.name for c in cases]
+        print(f"fields of {len(full)} cases" + (f" (highlights from {st.highlights_from})" if planned else
+                                               " (all: the study has no highlights)"), file=sys.stderr)
+    full = [c for c in full if c in have]
+    mesh = [names[0] for names in mesh_candidates(rows) if names and not has_mesh(dst / names[0])]
+    logs = [r["case"] for r in rows if r["status"] in ("failed", "not_converged")] if args.logs else []
+    if full or mesh or logs:
+        rsync(keep_pattern(full, mesh, logs))
+    size = sum(f.stat().st_size for f in dst.rglob("*") if f.is_file())
+    print(f"{out}: {len(rows)} cases (run {run_id}); {len(full)} whole cases, mesh of {', '.join(mesh) or '-'}, "
+          f"logs of {len(logs)}; {size / 1e6:.0f} MB on disk")
 
 
 def add_parser(sub) -> None:
@@ -278,8 +332,11 @@ def add_parser(sub) -> None:
     s.add_argument("job", nargs="?")
     s.set_defaults(func=cmd_status)
 
-    s = gsub.add_parser("fetch", help="download a study's results from the bucket and collect them")
+    s = gsub.add_parser("fetch", help="download a run's results (not meshes, logs, fields) and collect them")
     s.add_argument("study")
     s.add_argument("--run-id", metavar="ID", help="which run (default: the latest in the bucket)")
-    s.add_argument("--fields", action="store_true", help="also download final field directories (large)")
+    s.add_argument("--logs", action="store_true", help="also the solver logs of failed and not-converged cases")
+    s.add_argument("--fields", action="store_true", help="also whole cases with field data, for `iomcfd viz`: "
+                   "the study's highlights (all cases if it has none)")
+    s.add_argument("--only", nargs="+", metavar="CASE", help="also these whole cases (names or indices)")
     s.set_defaults(func=cmd_fetch)

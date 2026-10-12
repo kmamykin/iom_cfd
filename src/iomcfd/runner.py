@@ -16,6 +16,7 @@ cases are skipped, failed ones run again.
 from __future__ import annotations
 
 import datetime as dt
+import gzip
 import json
 import os
 import re
@@ -36,6 +37,11 @@ from .study import Case, Study
 
 RESULT = "result.json"
 
+# Per-case files that carry a case's results: enough for collect, report
+# (except the mesh figure) and the findings. `gcp fetch` downloads only these
+# by default, and `iomcfd slim` keeps only these (plus viz/ images).
+LIGHT_FILES = ("params.json", RESULT, "surface.csv")
+
 
 @dataclass
 class RunOptions:
@@ -45,6 +51,7 @@ class RunOptions:
     render_only: bool = False
     export: Path | None = None  # copy finished cases here (e.g. a GCS mount)
     keep_fields: bool = True  # keep the final time directory when exporting
+    compress: bool = True  # gzip mesh and logs when exporting
     poll_seconds: float = 15.0  # convergence-monitor interval
 
 
@@ -165,7 +172,7 @@ def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
     if case_dir.exists():
         (case_dir / RESULT).write_text(json.dumps(result, indent=2, default=str) + "\n")
     if export_dir and result.get("status") != "rendered":
-        export_case(case_dir, Path(export_dir) / case_dir.name, opts.keep_fields)
+        export_case(case_dir, Path(export_dir) / case_dir.name, opts.keep_fields, opts.compress)
     return result
 
 
@@ -194,8 +201,17 @@ def _last_error(case_dir: Path) -> str:
     return tail_log(case_dir / "log.Allrun", 20)
 
 
-def export_case(src: Path, dst: Path, keep_fields: bool) -> None:
-    """Copy a finished case without processor dirs / intermediate times."""
+def _gzipped(rel: Path) -> bool:
+    """Exported files stored gzipped: the mesh (about 3.5x smaller) and the
+    logs (about 10x). OpenFOAM, ParaView and iomcfd read both forms. Binary
+    fields gain little (1.2x) and stay as they are."""
+    return rel.suffix != ".gz" and (rel.parts[:2] == ("constant", "polyMesh")
+                                    or (len(rel.parts) == 1 and rel.name.startswith("log.")))
+
+
+def export_case(src: Path, dst: Path, keep_fields: bool, compress: bool = True) -> None:
+    """Copy a finished case without processor dirs / intermediate times;
+    with `compress`, mesh and logs are written gzipped (see _gzipped)."""
     times = []
     for d in src.iterdir():
         try:
@@ -213,10 +229,44 @@ def export_case(src: Path, dst: Path, keep_fields: bool) -> None:
                 skip.add(name)
         return skip
 
+    def copy(s: str, d: str) -> None:
+        if compress and _gzipped(Path(s).relative_to(src)):
+            with open(s, "rb") as fi, gzip.open(d + ".gz", "wb", compresslevel=6) as fo:
+                shutil.copyfileobj(fi, fo)
+        else:
+            shutil.copy2(s, d)
+
     if dst.exists():
         shutil.rmtree(dst)
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(src, dst, ignore=ignore, symlinks=True)
+    shutil.copytree(src, dst, ignore=ignore, symlinks=True, copy_function=copy)
+
+
+def slim_run(rdir: Path, keep_mesh: set[str] = frozenset(), dry_run: bool = False) -> tuple[int, int]:
+    """Delete a local run's bulk data: in every case all but LIGHT_FILES and
+    viz/ (images); the mesh and log.checkMesh of the `keep_mesh` cases stay
+    for the report's mesh figure. Run-level files (results.csv, report/, viz/)
+    are kept. Returns (files, bytes) deleted, or that would be."""
+    n = size = 0
+    for case in sorted(p for p in Path(rdir).iterdir() if (p / "params.json").is_file()):
+        for f in sorted(case.rglob("*")):
+            if not (f.is_file() or f.is_symlink()):
+                continue
+            rel = f.relative_to(case)
+            if rel.parts[0] == "viz" or (len(rel.parts) == 1 and rel.name in LIGHT_FILES):
+                continue
+            if case.name in keep_mesh and (rel.parts[:2] == ("constant", "polyMesh")
+                                           or rel.name in ("log.checkMesh", "log.checkMesh.gz")):
+                continue
+            n += 1
+            size += f.lstat().st_size
+            if not dry_run:
+                f.unlink()
+        if not dry_run:  # empty directories left behind, deepest first
+            for d in sorted((d for d in case.rglob("*") if d.is_dir()), key=lambda d: -len(d.parts)):
+                if not any(d.iterdir()):
+                    d.rmdir()
+    return n, size
 
 
 def run_study(

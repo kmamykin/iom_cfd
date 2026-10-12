@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 
 from . import polymesh
+from .foam import read_text
 
 
 @dataclass
@@ -75,10 +76,10 @@ class MeshSpec:
 
 
 def checkmesh_stats(case: Path) -> dict[str, Any]:
-    log = case / "log.checkMesh"
-    if not log.is_file():
+    try:
+        t = read_text(case / "log.checkMesh")
+    except FileNotFoundError:
         return {}
-    t = log.read_text(errors="replace")
     pick = lambda pat: (re.findall(pat, t) or [None])[-1]
     out = {
         "cells": (re.findall(r"^\s+cells:\s+(\d+)", t, re.M) or [None])[0],
@@ -92,10 +93,10 @@ def checkmesh_stats(case: Path) -> dict[str, Any]:
 
 def layer_stats(case: Path) -> list[str]:
     """Prism-layer coverage table from snappyHexMesh (patch, faces, layers)."""
-    log = case / "log.snappyHexMesh"
-    if not log.is_file():
+    try:
+        lines = read_text(case / "log.snappyHexMesh").splitlines()
+    except FileNotFoundError:
         return []
-    lines = log.read_text(errors="replace").splitlines()
     for i, ln in enumerate(lines):
         if ln.strip().startswith("patch") and "layers" in ln:
             rows = []
@@ -171,19 +172,31 @@ def render(case: Path, spec: MeshSpec, out_png: Path, title: str) -> Path:
     return out_png
 
 
-def study_mesh_figures(project, run_dir: Path, df, out_dir: Path, max_figures: int = 4) -> list[Path]:
-    """One mesh figure per distinct mesh level in the study (or one in total)."""
-    from .project import Project  # noqa: F401  (type only)
+def mesh_candidates(rows: list[dict], max_figures: int = 4) -> list[list[str]]:
+    """Case names to draw the mesh of: one list per mesh level (or one in
+    total), finished cases first. The first of each list is what `gcp fetch`
+    downloads the mesh of, and what `slim` keeps."""
+    rows = sorted(rows, key=lambda r: r.get("status") != "ok")  # stable: study order otherwise
+    groups: dict[Any, list[str]] = {}
+    levels = {r.get("mesh") for r in rows}
+    for r in rows:
+        groups.setdefault(r.get("mesh") if len(levels) > 1 else None, []).append(r["case"])
+    return list(groups.values())[:max_figures]
 
-    candidates = df.copy()
-    if "status" in candidates:
-        candidates = candidates.sort_values("status", key=lambda s: s.ne("ok"))
-    groups = candidates.groupby("mesh", sort=False) if "mesh" in candidates and candidates["mesh"].nunique() > 1 else [(None, candidates)]
+
+def has_mesh(case: Path) -> bool:
+    d = Path(case) / "constant" / "polyMesh"
+    return (d / "points").exists() or (d / "points.gz").exists()
+
+
+def study_mesh_figures(project, run_dir: Path, df, out_dir: Path, max_figures: int = 4) -> list[Path]:
+    """One mesh figure per distinct mesh level in the study (or one in total),
+    from the first case of that level whose mesh is on disk."""
     files = []
-    for _, g in groups:
-        for case_name in g["case"]:
+    for names in mesh_candidates(df.to_dict("records"), max_figures):
+        for case_name in names:
             case = run_dir / case_name
-            if not (case / "constant" / "polyMesh" / "points").exists() and not (case / "constant" / "polyMesh" / "points.gz").exists():
+            if not has_mesh(case):
                 continue
             pj = json.loads((case / "params.json").read_text())
             spec = project.mesh_views(case, pj["params"], pj["derived"])
@@ -191,7 +204,5 @@ def study_mesh_figures(project, run_dir: Path, df, out_dir: Path, max_figures: i
                 break
             title = f"{run_dir.parent.name} / {run_dir.name} / {case_name}: mesh '{pj['params'].get('mesh', '')}'"
             files.append(render(case, spec, out_dir / f"mesh_{case_name}.png", title))
-            break
-        if len(files) >= max_figures:
             break
     return files

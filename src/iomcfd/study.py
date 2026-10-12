@@ -10,6 +10,12 @@
       options: {q_level: 3}         # passed to the project's view functions
     report:                         # optional, options for `iomcfd report` (no re-run needed)
       fin_span: 0.36                # e.g. foil2d: whole-fin forces in the selection figure
+    highlights:                     # optional: the cases worth a close look (iomcfd.highlights)
+      - name: thick-vs-thin
+        why: bubble and transition across thickness at working load
+        where: {speed: 1.0, aoa: [4, 6]}
+        compare: foil
+        views: [separation, transition]
     defaults:                       # override the project's defaults.yaml
       speed: 1.0
     sweep:                          # full factorial (cartesian product)
@@ -98,13 +104,15 @@ class Study:
     report: dict[str, Any] = field(default_factory=dict)  # options for Project.report
     raw: dict[str, Any] = field(default_factory=dict)
     overrides: dict[str, Any] = field(default_factory=dict)  # --set on the command line
+    highlights: list = field(default_factory=list)  # iomcfd.highlights.Highlight
+    highlights_from: str = ""  # the study file they came from
 
     @classmethod
     def load(cls, path: str | Path, overrides: dict[str, Any] | None = None) -> "Study":
         path = Path(path)
         data = coerce_numbers(yaml.safe_load(path.read_text()) or {})
         unknown = set(data) - {"study", "project", "description", "reference", "defaults", "sweep", "zip", "sample", "cases",
-                               "viz", "report"}
+                               "viz", "report", "highlights"}
         if unknown:
             raise ValueError(f"{path}: unknown top-level keys {sorted(unknown)}")
         st = cls(
@@ -123,6 +131,10 @@ class Study:
         )
         if not re.fullmatch(r"[A-Za-z0-9._-]+", st.name):
             raise ValueError(f"study name '{st.name}' must be [A-Za-z0-9._-]")
+        from .highlights import parse
+
+        st.highlights = parse(data.get("highlights"), str(path))  # fails early on a malformed entry
+        st.highlights_from = str(path) if st.highlights else ""
         if overrides:
             st.apply_overrides(overrides)
         return st

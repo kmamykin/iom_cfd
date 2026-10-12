@@ -7,7 +7,8 @@
     iomcfd runs    STUDY                    list the runs of a study
     iomcfd collect STUDY                    gather results -> runs/<study>/<run>/results.csv
     iomcfd report  STUDY                    plots, tables, summary.md (host, needs [analysis])
-    iomcfd viz     STUDY                    ParaView images, animations, gallery (viz image)
+    iomcfd viz     STUDY                    ParaView images, montages, gallery (viz image)
+    iomcfd slim    STUDY                    delete a local run's meshes, logs and fields, keep results
     iomcfd shell                            OpenFOAM shell in the container (host)
     iomcfd gcp ...                          Google Cloud Batch (see `iomcfd gcp -h`)
 
@@ -73,7 +74,10 @@ def _load(args):
 def _load_run(args):
     """Study, project, cases and directory of an existing run. The study comes
     from the run's own copy of the study file, so later edits to the study
-    (new parameters, report options) don't change what an old run means."""
+    (new parameters, report options) don't change what an old run means.
+    Exception: `highlights:` (what to look at) come from the current study
+    file if it has any; see iomcfd.highlights."""
+    from .highlights import resolve
     from .project import load_project
     from .runner import resolve_run
     from .study import Study
@@ -82,8 +86,20 @@ def _load_run(args):
     rdir = resolve_run(current, _runs(args), getattr(args, "run_id", None))
     snap = rdir / "study.yaml"
     study = Study.load(snap) if snap.is_file() else current
+    study.highlights, study.highlights_from = resolve(current, study)
     project = load_project(study.project)
     return study, project, study.expand(project.defaults), rdir
+
+
+def _highlights(study, cases, log=print):
+    """[(Highlight, Layout)] of this run (see iomcfd.highlights)."""
+    from .highlights import plan
+
+    hl = getattr(study, "highlights", [])
+    if not hl:
+        return []
+    log(f"highlights from {study.highlights_from}")
+    return plan(hl, cases, log)
 
 
 def _target_run(args, study) -> Path:
@@ -193,7 +209,9 @@ def cmd_runs(args) -> None:
             info = _json.loads((sdir / rid / "run.json").read_text())
         n_cases = sum(1 for p in (sdir / rid).iterdir() if (p / "params.json").is_file())
         report = "report" if (sdir / rid / "report").is_dir() else ""
-        print(f"{rid}  {n_cases:>4} cases  {info.get('backend', 'local'):<5} git {info.get('git') or '?':<16} {report}")
+        size = sum(f.lstat().st_size for f in (sdir / rid).rglob("*") if f.is_file())
+        print(f"{rid}  {n_cases:>4} cases  {size / 1e6:>7.0f} MB  {info.get('backend', 'local'):<5} "
+              f"git {info.get('git') or '?':<16} {report}")
 
 
 def cmd_collect(args) -> None:
@@ -221,11 +239,34 @@ def cmd_report(args) -> None:
     out = rdir / "report"
     out.mkdir(exist_ok=True)
     files = project.report(df, out, reference=project.load_reference(study.reference), options=study.report)
+    planned = _highlights(study, cases)
+    for old in out.glob("highlight*"):  # rebuilt from the current highlights
+        old.unlink()
+    files += project.highlight_report(rdir, df, planned, out) if planned else []
     files += study_mesh_figures(project, rdir, df, out)
     files.append(write_summary(rdir, study, cases, df, files))
     print(f"run {rdir.name}")
     for f in files:
         print(f)
+
+
+def cmd_slim(args) -> None:
+    """Free disk: keep each case's results (and viz images), drop its mesh,
+    logs and fields. The mesh of one case per mesh level stays for the
+    report's mesh figure."""
+    from .meshplot import mesh_candidates
+    from .results import collect
+    from .runner import slim_run
+
+    study, _, _, rdir = _load_run(args)
+    rows, _ = collect(rdir)
+    keep = {names[0] for names in mesh_candidates(rows) if names}
+    n, size = slim_run(rdir, keep, dry_run=not args.yes)
+    print(f"{study.name} run {rdir.name}: {n} files, {size / 1e9:.2f} GB "
+          + ("deleted" if args.yes else "would be deleted (run again with --yes)"))
+    if not args.yes and n:
+        print("Results (params.json, result.json, surface.csv), viz images, results.csv, report/ and the mesh of "
+              f"{', '.join(sorted(keep))} are kept. Anything not also in the bucket is gone for good.")
 
 
 def cmd_viz(args) -> None:
@@ -235,10 +276,16 @@ def cmd_viz(args) -> None:
         return
     import json as _json
 
+    from .highlights import case_names as highlight_case_names
     from .viz.study import VizOptions, visualize_study
 
     study, project, all_cases, rdir = _load_run(args)
-    cases = _select(all_cases, args)
+    planned = _highlights(study, all_cases)
+    if args.only or args.index is not None or args.all or not planned:
+        cases = _select(all_cases, args)
+    else:  # only the highlighted cases
+        names = set(highlight_case_names(planned))
+        cases = [c for c in all_cases if c.name in names]
     opts = VizOptions(
         views=args.views.split(",") if args.views else None,
         animate=args.animate,
@@ -246,7 +293,7 @@ def cmd_viz(args) -> None:
         no_time=args.no_time,
         options=_json.loads(args.options) if args.options else {},
     )
-    visualize_study(project.name, study, cases, rdir, opts, all_cases=all_cases)
+    visualize_study(project.name, study, cases, rdir, opts, all_cases=all_cases, highlights=planned)
 
 
 def cmd_shell(args) -> None:
@@ -342,7 +389,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-docker", action="store_true", help="run with the local OpenFOAM installation")
     p = study_cmd("viz", cmd_viz, "render ParaView views, study animations and a gallery (viz image)")
     existing_run(p)
-    p.add_argument("--views", help="comma-separated view names (default: project/study defaults)")
+    p.add_argument("--all", action="store_true", help="every case, not only the study's highlights")
+    p.add_argument("--views", help="comma-separated view names (default: those of the highlights, else "
+                   "project/study defaults)")
     p.add_argument("--animate", help="swept parameter for study animations (default: auto)")
     p.add_argument("-j", "--jobs", type=int, help="cases rendered in parallel (default: cpus / 2)")
     p.add_argument("--options", help='JSON options for the views, e.g. \'{"q_level": 3}\'')
@@ -359,6 +408,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("study")
     existing_run(p)
     p.set_defaults(func=cmd_report)
+    p = sub.add_parser("slim", help="delete a local run's meshes, logs and fields; keep its results")
+    p.add_argument("study")
+    existing_run(p)
+    p.add_argument("--yes", action="store_true", help="delete (default: only show what would go)")
+    p.set_defaults(func=cmd_slim)
     p = sub.add_parser("shell", help="interactive shell (or a command) in the container")
     p.add_argument("--viz", action="store_true", help="use the visualisation (ParaView) image")
     p.add_argument("command", nargs=argparse.REMAINDER)

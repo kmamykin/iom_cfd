@@ -133,8 +133,22 @@ def latest_time(case: Path) -> str | None:
     return max(times)[1] if times else None
 
 
+def read_text(path: Path) -> str:
+    """A text file, or its gzipped copy `<path>.gz` (exported cases have
+    gzipped logs and meshes). FileNotFoundError if neither exists."""
+    path = Path(path)
+    if path.is_file():
+        return path.read_text(errors="replace")
+    gz = path.with_name(path.name + ".gz")
+    if gz.is_file():
+        import gzip
+
+        return gzip.decompress(gz.read_bytes()).decode(errors="replace")
+    raise FileNotFoundError(path)
+
+
 def tail_log(path: Path, n: int = 30) -> str:
     try:
-        return "\n".join(Path(path).read_text(errors="replace").splitlines()[-n:])
+        return "\n".join(read_text(path).splitlines()[-n:])
     except FileNotFoundError:
         return ""

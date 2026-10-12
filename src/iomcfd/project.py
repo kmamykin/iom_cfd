@@ -62,6 +62,19 @@ class Project:
         """
         return []
 
+    # result columns of the highlights table (default: summary_keys)
+    highlight_columns: list[str] = []
+
+    def highlight_report(self, run_dir: Path, df, highlights, out_dir: Path) -> list[Path]:  # pragma: no cover - host only
+        """Figures and tables for the study's highlights that need no field
+        data (`highlights`: [(Highlight, Layout)], see iomcfd.highlights).
+        Default: report/highlights.md, one table per highlight. Projects add
+        figures (file names starting with 'highlight')."""
+        from .highlights import write_table
+
+        cols = self.highlight_columns or list(getattr(self, "summary_keys", []))
+        return [write_table(highlights, df, cols, Path(out_dir) / "highlights.md")]
+
     def load_reference(self, rel: str | None):
         """Read a study's `reference:` CSV (comment lines start with #)."""
         if not rel:

@@ -7,7 +7,7 @@ cases:
 ```
 iomcfd run   (solver image, once)  ->  runs/<study>/<run>/<case>/  (fields, results)
 iomcfd viz   (viz image, any time) ->  runs/<study>/<run>/<case>/viz/*.png, *.mp4
-                                       runs/<study>/<run>/viz/*_by_<param>.mp4, index.html
+                                       runs/<study>/<run>/viz/highlights/*.png, index.html
 
 (<run> = the run id, YYYYMMDD-HHMMSS. `viz` works on the latest run;
 `--run-id ID` picks another, see `iomcfd runs <study>`.)
@@ -21,17 +21,21 @@ re-solved.
 
 ```bash
 make viz-image                                     # ParaView 6.2 image (~4.8 GB, once)
-uv run iomcfd viz foil2d/validation-naca0009-re1e5 # all cases, default views
+uv run iomcfd viz foil2d/validation-naca0009-re1e5 # all cases (no highlights), default views
 open runs/validation-naca0009-re1e5/*/viz/index.html # gallery: report, animations, every view
 
-uv run iomcfd viz foil2d/fin-profile-selection --views separation --animate speed
+uv run iomcfd viz foil2d/fin-profile-selection     # its highlights only, with montages
+uv run iomcfd viz foil2d/fin-profile-selection --all --views separation --animate speed
 uv run iomcfd viz appendage3d/leeway --options '{"q_level": 5}' --only leeway4
 uv run iomcfd shell --viz                          # pvpython/pvbatch in the viz image
 ```
 
-`--only` and `--views` re-render just those; study animations and the
-gallery are rebuilt from everything already rendered, so partial updates
-stay consistent.
+Which cases: a study with `highlights:` (docs/workflow.md) renders only the
+highlighted cases, each with the views its highlights ask for; one without
+renders every case. `--all` renders every case anyway; `--only` just the
+named ones. `--only` and `--views` re-render just those; montages, study
+animations and the gallery are rebuilt from everything already rendered, so
+partial updates stay consistent.
 
 ## The image
 
@@ -49,13 +53,18 @@ Per case, `runs/<study>/<run>/<case>/viz/<view>.png` (1600x900 unless a view nee
 another shape) and a manifest `viz.json` (status per view, timings, errors).
 Per study, `runs/<study>/<run>/viz/`:
 
+* **highlight montages** `highlights/<name>_<view>.png`: the cases of one
+  highlight side by side, one column per value of its `compare` parameter
+  and one row per combination of the others, plus `highlights.md` (what each
+  highlight shows and why, for the findings);
 * **study animations** `<view>_by_<param>[_<group>].mp4/.gif`: one frame per
   case along the swept parameter (angle of attack, speed, leeway, Tu...),
-  one movie per combination of the other swept parameters;
+  one movie per combination of the other swept parameters. Made when the
+  study has no highlights, or with `--animate`;
 * **time animations** `<case>/viz/<view>_time.mp4` for transient runs with
   field snapshots (`snapshot_interval` in foil2d);
-* **index.html**: the report plots, all animations and every view of every
-  case with its key results.
+* **index.html**: the report plots, the montages, all animations and every
+  view of every rendered case with its key results.
 
 Colour ranges are fixed and use normalised quantities (speed / U, Cp,
 vorticity x chord / U), so frames and cases are directly comparable.
@@ -132,10 +141,13 @@ Python into a view function.
 
 ## Cloud results
 
-Rendering needs the final field directory of each case. `iomcfd gcp fetch`
-skips fields by default; use `iomcfd gcp fetch <study> --fields` before
-`iomcfd viz`. (Rendering inside the cloud task, so that only images come
-back, is a possible next step: `make push-viz` already publishes the image.)
+Rendering needs the whole case (mesh and final fields). `iomcfd gcp fetch`
+downloads only results by default; `iomcfd gcp fetch <study> --fields`
+downloads the whole cases of the study's highlights (about 15 MB each for
+medium foil2d), `--only CASE...` particular ones. ParaView reads the gzipped
+mesh of exported cases directly. (Rendering in the cloud, so that only
+images come back, is a possible next step if the highlights grow large:
+`make push-viz` already publishes the image.)
 
 ## Performance
 

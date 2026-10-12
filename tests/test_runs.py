@@ -4,6 +4,7 @@ is overwritten; --resume and --run-id continue a run (no OpenFOAM)."""
 import argparse
 import datetime as dt
 import json
+from pathlib import Path
 
 import pytest
 
@@ -113,14 +114,132 @@ def test_gcp_job_writes_into_its_run():
     assert len(name) <= 63 and name.endswith("-20261012-045433")
 
 
-@pytest.mark.parametrize("path, field", [
-    ("aoa4/1500/U", True), ("aoa4/0/U", True), ("aoa4/0.05/U", True), ("aoa4/1e-05/p", True),
-    ("aoa4/postProcessing/forces/0/force.dat", False), ("aoa4/constant/polyMesh/points", False),
-    ("aoa4/result.json", False), ("study.yaml", False), ("aoa4_chord0.08_foilnaca0007_speed1/log.simpleFoam", False),
+@pytest.mark.parametrize("path, kept", [
+    ("study.yaml", True), ("run.json", True), ("report/summary.md", True), ("viz/index.html", True),
+    ("aoa4/result.json", True), ("aoa4/params.json", True), ("aoa4/surface.csv", True), ("aoa4/viz/velocity.png", True),
+    ("aoa4/1500/U", False), ("aoa4/constant/polyMesh/points.gz", False), ("aoa4/log.simpleFoam.gz", False),
+    ("aoa4/postProcessing/forceCoeffs/0/coefficient.dat", False), ("aoa4/system/controlDict", False),
+    ("aoa0/constant/polyMesh/faces.gz", True), ("aoa0/log.checkMesh.gz", True), ("aoa0/log.simpleFoam", False),
+    ("aoa8/log.simpleFoam.gz", True), ("aoa8/1500/U", False), ("aoa2/1500/U", True), ("aoa2/system/controlDict", True),
+    ("aoa2x/1500/U", False),
 ])
-def test_fetch_skips_only_field_directories(path, field):
+def test_fetch_downloads_results_and_only_the_extras_asked_for(path, kept):
     import re
 
     from iomcfd.cloud import gcp
 
-    assert bool(re.fullmatch(gcp.FIELD_DIRS, path)) is field  # gcloud matches the whole relative path
+    pat = gcp.exclude_pattern(gcp.keep_pattern(full=["aoa2"], mesh=["aoa0"], logs=["aoa8"]))
+    assert not pat.startswith("^") and "," not in pat  # gcloud list-flag escapes
+    assert (re.match(pat, path) is None) is kept  # gcloud: re.match on the source-relative path
+
+
+def _fake_bucket(tmp_path, rid="20261012-045433"):
+    """A finished foil2d smoke run as `gcp submit` + the tasks leave it in the bucket."""
+    from iomcfd.runner import export_case
+
+    project, study, cases = _smoke()
+    work = tmp_path / "work" / study.name / rid
+    run_study(project, study, cases, RunOptions(render_only=True), work, log=lambda *a: None)
+    bucket = tmp_path / "bucket" / "runs" / study.name / rid
+    for i, c in enumerate(cases):
+        d = work / c.name
+        (d / "log.simpleFoam").write_text("Time = 1\n" * 1000)
+        (d / "log.checkMesh").write_text("    cells:            22528\nMesh OK.\n")
+        (d / "300").mkdir()
+        (d / "300" / "U").write_text("field")
+        (d / "surface.csv").write_text("upper,x_c,y_c,Cp,Cf\n")
+        (d / "result.json").write_text(json.dumps({"status": "ok" if i == 0 else "not_converged", "metrics": {}}))
+        export_case(d, bucket / c.name, keep_fields=True)
+    for f in ("study.yaml", "run.json"):
+        (bucket / f).write_bytes((work / f).read_bytes())
+    return study, cases, tmp_path / "bucket"
+
+
+def test_fetch_light_then_fields(tmp_path, monkeypatch):
+    import re
+    import shutil
+
+    from iomcfd.cloud import gcp
+
+    study, cases, bucket = _fake_bucket(tmp_path)
+    calls = []
+
+    def fake_gcloud(*args, capture=False, dry=False):
+        calls.append(args)
+        if args[:2] == ("storage", "ls"):
+            return "\n".join(f"gs://b/runs/{study.name}/{d.name}/" for d in (bucket / "runs" / study.name).iterdir())
+        assert args[:3] == ("storage", "rsync", "-r") and args[3] == "--exclude"
+        src = bucket / args[5].removeprefix("gs://b/")
+        for f in src.rglob("*"):
+            rel = f.relative_to(src).as_posix()
+            if f.is_file() and not re.match(args[4], rel):
+                (Path(args[6]) / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(f, Path(args[6]) / rel)
+        return ""
+
+    monkeypatch.setattr(gcp, "_gcloud", fake_gcloud)
+    monkeypatch.setattr(gcp, "load_config", lambda: {"GCS_BUCKET": "b"})
+    runs = tmp_path / "local"
+    ns = lambda **kw: argparse.Namespace(**{"study": "foil2d/smoke", "runs": str(runs), "run_id": None,  # noqa: E731
+                                            "logs": False, "fields": False, "only": None, **kw})
+    gcp.cmd_fetch(ns())
+    rdir = runs / study.name / "20261012-045433"
+    first, second = cases[0].name, cases[1].name
+    assert (rdir / "results.csv").is_file() and (rdir / second / "result.json").is_file()
+    assert (rdir / first / "constant" / "polyMesh" / "points.gz").is_file()  # mesh figure (the ok case)
+    assert (rdir / first / "log.checkMesh.gz").is_file()
+    assert not (rdir / second / "constant").exists() and not list(rdir.glob("*/log.simpleFoam*"))
+    assert not list(rdir.glob("*/300"))
+    gcp.cmd_fetch(ns(logs=True))
+    assert (rdir / second / "log.simpleFoam.gz").is_file() and not (rdir / first / "log.simpleFoam.gz").exists()
+    gcp.cmd_fetch(ns(only=[second]))
+    assert (rdir / second / "300" / "U").is_file() and not (rdir / first / "300").exists()
+    gcp.cmd_fetch(ns(fields=True))  # no highlights in the smoke study: every case
+    assert (rdir / first / "300" / "U").is_file()
+
+
+def test_export_gzips_mesh_and_logs(tmp_path):
+    import gzip
+
+    from iomcfd.foam import read_text, tail_log
+    from iomcfd.meshplot import checkmesh_stats, has_mesh
+    from iomcfd.polymesh import read as read_mesh
+
+    _, cases, bucket = _fake_bucket(tmp_path)
+    case = next(bucket.glob("runs/*/*")) / cases[0].name
+    assert has_mesh(case) and not (case / "constant" / "polyMesh" / "points").exists()
+    assert (case / "log.simpleFoam.gz").is_file() and not (case / "log.simpleFoam").exists()
+    assert (case / "300" / "U").read_text() == "field" and (case / "params.json").is_file()  # fields as they are
+    assert gzip.decompress((case / "log.checkMesh.gz").read_bytes()).startswith(b"    cells:")
+    assert "Mesh OK." in read_text(case / "log.checkMesh") and tail_log(case / "log.simpleFoam", 1) == "Time = 1"
+    assert checkmesh_stats(case)["cells"] == "22528"
+    assert read_mesh(case / "constant" / "polyMesh").n_faces > 0
+
+
+def test_slim_keeps_results_images_and_one_mesh(tmp_path):
+    from iomcfd.runner import slim_run
+
+    _, cases, bucket = _fake_bucket(tmp_path)
+    rdir = next(bucket.glob("runs/*/*"))
+    (rdir / cases[1].name / "viz").mkdir()
+    (rdir / cases[1].name / "viz" / "velocity.png").write_bytes(b"png")
+    before = sorted(p for p in rdir.rglob("*") if p.is_file())
+    n, size = slim_run(rdir, {cases[0].name}, dry_run=True)
+    assert n > 0 and size > 0 and sorted(p for p in rdir.rglob("*") if p.is_file()) == before
+    assert slim_run(rdir, {cases[0].name}) == (n, size)
+    left = sorted(p.relative_to(rdir).as_posix() for p in rdir.rglob("*") if p.is_file())
+    a, b = cases[0].name, cases[1].name
+    assert f"{b}/viz/velocity.png" in left and f"{b}/result.json" in left and "study.yaml" in left
+    assert f"{a}/constant/polyMesh/points.gz" in left and f"{a}/log.checkMesh.gz" in left
+    assert not any(x.startswith(f"{b}/constant") or "/300/" in x or "log.simpleFoam" in x for x in left)
+    assert not (rdir / b / "system").exists()  # empty directories go too
+    assert slim_run(rdir, {a}) == (0, 0)
+
+
+def test_mesh_candidates_one_per_level_finished_first():
+    from iomcfd.meshplot import mesh_candidates
+
+    rows = [{"case": "a", "status": "failed", "mesh": "coarse"}, {"case": "b", "status": "ok", "mesh": "coarse"},
+            {"case": "c", "status": "ok", "mesh": "medium"}]
+    assert mesh_candidates(rows) == [["b", "a"], ["c"]]
+    assert mesh_candidates([{"case": "x", "status": "ok"}]) == [["x"]]

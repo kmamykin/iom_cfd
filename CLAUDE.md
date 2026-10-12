@@ -14,6 +14,14 @@
   and run.json inside). Each `run`/`gcp submit` is a new run; `--resume`
   continues the latest. collect/report/viz take `--run-id` (default latest)
   and use the run's own study.yaml.
+- Highlights (`highlights:` in a study; iomcfd/highlights.py) name the few
+  cases worth a close look. They come from the current study file (else the
+  run's copy) and drive the report's highlight tables/figures, which cases
+  `viz` renders (plus montages), and `gcp fetch --fields`.
+- `gcp fetch` downloads only results (params/result.json, surface.csv) plus
+  one mesh per mesh level; `--logs`, `--fields`, `--only` add more. Exported
+  cases have gzipped mesh and logs. `iomcfd slim` frees a local run (dry run
+  unless `--yes`). Don't fetch whole runs: the laptop's disk is limited.
 - Findings: `projects/<project>/findings/<study>.md` (committed) logs
   conclusions, evidence tables, assumptions, compromises and decisions per
   run. `iomcfd report` writes report/summary.md; the `study-findings` skill

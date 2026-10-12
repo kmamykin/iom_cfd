@@ -1,5 +1,10 @@
-"""Study-level visualisation: render every finished case, build study
-animations (one frame per case along a swept parameter) and an HTML gallery.
+"""Study-level visualisation: render finished cases, then montages of the
+study's highlights (or, without highlights, study animations: one frame per
+case along a swept parameter) and an HTML gallery.
+
+Which cases: the study's `highlights:` (iomcfd.highlights) if it has any,
+else every case; `--only` / `--all` override that. A case gets the views of
+the highlights it belongs to.
 
 Reads only finished results (params.json, result.json, the final field
 directory); never modifies them. Re-run as often as you like.
@@ -7,7 +12,9 @@ directory); never modifies them. Re-run as often as you like.
 Outputs (in one run of the study, runs/<study>/<run id>/ = <run>)
     <run>/<case>/viz/<view>.png        per-case views
     <run>/<case>/viz/<view>_time.mp4   time series (transient runs with snapshots)
-    <run>/viz/<view>_by_<param>[_<group>].mp4/.gif   study animations
+    <run>/viz/highlights/<name>_<view>.png   montage per highlight and view
+    <run>/viz/highlights.md            what each highlight shows and why (for the findings)
+    <run>/viz/<view>_by_<param>[_<group>].mp4/.gif   study animations (no highlights, or --animate)
     <run>/viz/index.html               gallery of everything above + the report
 """
 
@@ -21,6 +28,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -114,15 +122,33 @@ def _encode_sequence(images: list[Path], out_mp4: Path, fps: float = 1.0) -> lis
     return [out_mp4, gif]
 
 
+def views_per_case(cases, highlights, default: list[str], forced: list[str] | None) -> dict[str, list[str]]:
+    """Views to render per case: `forced` (--views), else those of the
+    highlights the case belongs to, else `default`."""
+    out = {}
+    for c in cases:
+        vs: list[str] = []
+        if not forced:
+            for h, lay in highlights:
+                if any(x.name == c.name for x in lay.cases):
+                    vs += [v for v in (h.views or default) if v not in vs]
+        out[c.name] = list(forced or vs or default)
+    return out
+
+
 def visualize_study(project_name: str, study, cases, sdir: Path, opts: VizOptions, log=print,
-                    all_cases=None) -> Path:
-    """Render `cases`; animations and the gallery cover every rendered case of
-    the study (`all_cases`, default: `cases`), so partial re-renders
-    (--only, --views) update things in place."""
+                    all_cases=None, highlights=None) -> Path:
+    """Render `cases`; montages, animations and the gallery cover every
+    rendered case of the study (`all_cases`, default: `cases`), so partial
+    re-renders (--only, --views) update things in place. `highlights`:
+    [(Highlight, Layout)] from iomcfd.highlights.plan."""
     meta = load_viz_meta(project_name)
     sviz = dict(study.raw.get("viz") or {})
-    views = opts.views or sviz.get("views") or list(meta.DEFAULT_VIEWS)
-    unknown = set(views) - set(meta.VIEWS)
+    highlights = highlights or []
+    default = sviz.get("views") or list(meta.DEFAULT_VIEWS)
+    views_for = views_per_case(cases, highlights, default, opts.views)
+    wanted = set(default) | {v for h, _ in highlights for v in (h.views or [])} | set(opts.views or [])
+    unknown = wanted - set(meta.VIEWS)
     if unknown:
         raise SystemExit(f"unknown view(s) {sorted(unknown)}; {project_name} has: {sorted(meta.VIEWS)}")
     options = {**(sviz.get("options") or {}), **opts.options}
@@ -136,11 +162,12 @@ def visualize_study(project_name: str, study, cases, sdir: Path, opts: VizOption
             missing.append(c.name)
     if missing:
         log(f"  no field data (not run yet, or fetched without --fields): {', '.join(missing)}")
-    log(f"viz {study.name}: {len(ready)} cases, views: {', '.join(views)}")
+    all_v = sorted({v for c in ready for v in views_for[c.name]}, key=lambda v: list(meta.VIEWS).index(v))
+    log(f"viz {study.name}: {len(ready)} cases, views: {', '.join(all_v)}")
 
     def render(c):
         cmd = [sys.executable, "-m", "iomcfd.viz.render_case", "--case", str(sdir / c.name), "--project",
-               project_name, "--views", ",".join(views), "--options", json.dumps(options)]
+               project_name, "--views", ",".join(views_for[c.name]), "--options", json.dumps(options)]
         if opts.no_time:
             cmd.append("--no-time")
         r = subprocess.run(cmd, capture_output=True, text=True, env=dict(os.environ))
@@ -167,9 +194,12 @@ def visualize_study(project_name: str, study, cases, sdir: Path, opts: VizOption
     # study animations are rebuilt from the images every time (cheap, always consistent)
     for f in list(out.glob("*_by_*.mp4")) + list(out.glob("*_by_*.gif")):
         f.unlink()
+    montages = highlight_montages(study, sdir, highlights, all_views, log)
     animations = []
-    axis, others = animation_axis(rendered, sviz.get("animate_params") or list(getattr(meta, "ANIMATE_PARAMS", [])),
-                                  opts.animate or sviz.get("animate"))
+    axis, others = None, []
+    if not highlights or opts.animate:  # highlights: montages replace the automatic animations
+        axis, others = animation_axis(rendered, sviz.get("animate_params") or list(getattr(meta, "ANIMATE_PARAMS", [])),
+                                      opts.animate or sviz.get("animate"))
     if axis:
         anim_views = [v for v in all_views if v in getattr(meta, "ANIMATE_VIEWS", all_views)]
         for key, group in animation_groups(rendered, axis, others).items():
@@ -188,12 +218,53 @@ def visualize_study(project_name: str, study, cases, sdir: Path, opts: VizOption
             log(f"  study animations along '{axis}': {len(animations)}")
     (out / "viz.json").write_text(json.dumps({"views": all_views, "axis": axis, "animations": animations,
                                               "cases": [c.name for c in rendered]}, indent=2) + "\n")
-    index = write_gallery(study, sdir, rendered, all_views, animations)
+    index = write_gallery(study, sdir, rendered, all_views, animations, montages)
     log(f"gallery: {index}")
     return index
 
 
-def write_gallery(study, sdir: Path, cases, views: list[str], animations: list[dict]) -> Path:
+def highlight_montages(study, sdir: Path, highlights, views: list[str], log=print) -> list[dict]:
+    """One montage per highlight and view (cases in the highlight's grid),
+    from the per-case images on disk, plus viz/highlights.md. Rebuilt every
+    time."""
+    from .montage import montage
+
+    out = sdir / "viz" / "highlights"
+    shutil.rmtree(out, ignore_errors=True)
+    made: list[dict] = []
+    for h, lay in highlights:
+        files = []
+        for v in [v for v in views if v in (h.views or views)]:
+            grid = [[(sdir / cells[col].name / "viz" / f"{v}.png") if col in cells else None for col in lay.columns]
+                    for _, cells in lay.rows]
+            cols = [f"{lay.compare} {_fmt(col)}" if lay.compare else "" for col in lay.columns]
+            title = "\n".join([f"{h.name}: {v}", *textwrap.wrap(h.why, 160)])
+            f = montage(grid, cols, [label for label, _ in lay.rows], title, out / f"{h.name}_{v}.png")
+            if f:
+                files.append(f.name)
+        made.append({"name": h.name, "why": h.why, "where": h.where, "compare": lay.compare, "files": files,
+                     "cases": [c.name for c in lay.cases]})
+    if made:
+        L = [f"# {study.name}, run {sdir.name}: highlights", "",
+             "Montages of ParaView views: one column per value of the compared parameter, one row per "
+             "combination of the others. Selected in the study file (`highlights:`).", ""]
+        for m in made:
+            L += [f"## {m['name']}", ""] + ([m["why"], ""] if m["why"] else [])
+            L += [f"* selection: {m['where']}; compared along {m['compare'] or '-'}",
+                  f"* cases: {', '.join(m['cases'])}"]
+            L += [f"* viz/highlights/{f}" for f in m["files"]] or ["* no images (fields not fetched?)"]
+            L.append("")
+        (sdir / "viz" / "highlights.md").write_text("\n".join(L))
+        log(f"  highlight montages: {sum(len(m['files']) for m in made)} ({sdir / 'viz' / 'highlights.md'})")
+    return made
+
+
+def _fmt(v) -> str:
+    return f"{v:g}" if isinstance(v, float) else str(v)
+
+
+def write_gallery(study, sdir: Path, cases, views: list[str], animations: list[dict],
+                  montages: list[dict] | None = None) -> Path:
     """Static HTML page linking every image and animation (open it locally)."""
     e = html.escape
     parts = [
@@ -213,6 +284,10 @@ def write_gallery(study, sdir: Path, cases, views: list[str], animations: list[d
             parts += [f"<figure><a href='../report/{i.name}'><img src='../report/{i.name}'></a>"
                       f"<figcaption>{e(i.name)}</figcaption></figure>" for i in imgs]
             parts.append("</div>")
+    for m in montages or []:
+        parts.append(f"<h2>Highlight: {e(m['name'])}</h2><p>{e(m['why'])}</p>")
+        parts += [f"<figure><a href='highlights/{e(f)}'><img src='highlights/{e(f)}' style='max-width:100%'></a>"
+                  f"<figcaption>{e(f)}</figcaption></figure>" for f in m["files"]]
     if animations:
         parts.append("<h2>Study animations</h2><div class='grid'>")
         for a in animations:

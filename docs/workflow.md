@@ -14,6 +14,12 @@ report:                         # optional post-processing options for `iomcfd r
   fin_span: 0.36                # foil2d: whole-fin forces in selection.png
   compare_at: {foil: naca0008, chord: 0.085, aoa: [2, 4, 6]}  # foil2d: forces of the comparison table
 viz: {views: [velocity]}        # optional, for `iomcfd viz` (docs/visualization.md)
+highlights:                     # optional: the few cases worth a close look (see Highlights)
+  - name: thickness-at-working-load
+    why: Does the laminar bubble grow as the section thins?
+    where: {speed: 1.0, aoa: [4, 6]}
+    compare: foil
+    views: [separation, transition]
 defaults:                       # override projects/foil2d/defaults.yaml
   chord: 0.085
   speed: 1.0
@@ -35,11 +41,11 @@ cases:                          # extra one-off cases, appended
 
 * Every parameter must exist in the project's `defaults.yaml`; unknown names
   are errors.
-* `report:` and `viz:` only change how finished results are presented. They
-  are not case parameters, so editing them never re-runs a case: change them
-  and re-run `iomcfd report` / `iomcfd viz`. (Those read the study file
-  stored with the run, so to re-present an old run with new options, edit
-  `runs/<study>/<run id>/study.yaml` or start a new run.)
+* `report:`, `viz:` and `highlights:` only change how finished results are
+  presented. They are not case parameters, so editing them never re-runs a
+  case: change them and re-run `iomcfd report` / `iomcfd viz`. `report:` and
+  `viz:` are read from the study file stored with the run; `highlights:`
+  from the current study file (see Highlights).
 * `iomcfd plan <study> -v` prints the cases and every derived quantity
   (Reynolds number, inflow vectors, first-cell height...) without running
   anything.
@@ -60,10 +66,10 @@ runs/<study>/<YYYYMMDD-HHMMSS>/
     <case>/             one OpenFOAM case per parameter set
     results.csv         collected results
     report/             iomcfd report (plots, tables, summary.md)
-    viz/                iomcfd viz (animations, gallery)
+    viz/                iomcfd viz (montages, animations, gallery)
 ```
 
-* `iomcfd runs <study>` lists the runs.
+* `iomcfd runs <study>` lists the runs and their size on disk.
 * `collect`, `report` and `viz` work on the latest run, or `--run-id ID`.
   They use the run's own `study.yaml`, so editing the study afterwards (for
   the next run) does not change what an old run means.
@@ -78,9 +84,48 @@ runs/<study>/<YYYYMMDD-HHMMSS>/
 * A new run computes every case again, so each run reflects the code at
   its git version. Old runs are not reused; delete the ones you no longer
   need.
+* `iomcfd slim <study> [--run-id ID]` frees disk: it deletes each case's
+  mesh, logs, fields and the rest of the OpenFOAM case, and keeps its
+  results (`params.json`, `result.json`, `surface.csv`), its `viz/` images,
+  `results.csv`, `report/` and the mesh of one case per mesh level (for the
+  report's mesh figure). It shows what it would delete; `--yes` deletes.
+  What is not also in the bucket is gone for good.
 
 Case directories are named from the varied parameters (`aoa4_foilnaca0008`).
 Each case stores `params.json` and, when finished, `result.json`.
+
+## Highlights
+
+A run of a few hundred cases is too many to inspect, or download, case by
+case. A study's `highlights:` name the few cases worth a close look, chosen
+from earlier findings, and say why:
+
+```yaml
+highlights:
+  - name: chord-at-high-load                 # [A-Za-z0-9_-], used in file names
+    why: At the 6 deg force a 100 mm chord wins. How do the bubble and transition move with chord?
+    where: {foil: naca0009, speed: 1.0, aoa: 6}   # parameter: value or list (swept or fixed)
+    compare: chord                           # side by side (default: the parameter with most values)
+    views: [velocity, separation]            # ParaView views (default: the study's / project's)
+```
+
+The selected cases form a grid: one column per value of `compare`, one row
+per combination of the other parameters that still vary. They drive:
+
+* `iomcfd report`: `report/highlights.md` (a table per highlight: the
+  cases' key results, for foil2d including the separation and reattachment
+  points) and project figures that need no field data; foil2d draws
+  `report/highlight_<name>.png`, Cp and Cf along the chord from each case's
+  `surface.csv`, one line per compared value.
+* `iomcfd viz`: renders only these cases, each with its highlights' views,
+  and one montage per highlight and view (`viz/highlights/`).
+* `iomcfd gcp fetch --fields`: downloads field data only for these cases.
+
+Highlights come from the current study file (falling back to the run's own
+copy), because what to look at usually follows from a run's results: add
+them after a run and re-run `report`/`viz` on it. A highlight that selects
+nothing in a run (e.g. a parameter the run did not have) is skipped with a
+message. The `study-findings` skill proposes highlights for the next run.
 
 ## Findings
 
@@ -92,7 +137,9 @@ and next steps.
 
 `iomcfd report` writes `report/summary.md`: the facts of the run (setup,
 status, failures and their reasons, convergence and unsteadiness by
-parameter, compute used) plus the project's comparison tables. The
+parameter, compute used) plus the project's comparison tables and the
+highlights tables. None of it needs meshes, logs or fields, so it works on a
+run fetched with the default (light) `iomcfd gcp fetch`. The
 `study-findings` skill builds on it. In Claude Code, run
 `/study-findings <project>/<study> [run id]`, or headless
 `claude -p "/study-findings <project>/<study>"`. It reads the summary, the
@@ -170,11 +217,15 @@ All paths below are in one run, `runs/<study>/<run id>/` (`<run>`).
   metrics.
 * `<run>/<case>/`: the full OpenFOAM case, logs, `postProcessing/`,
   `result.json`, and for foil2d `surface.csv` (Cp, Cf along the section).
+  Cases run on GCP have their mesh and logs gzipped (`points.gz`,
+  `log.simpleFoam.gz`; read with `zless`), and locally hold only what was
+  fetched (see docs/cloud-gcp.md).
 * `iomcfd report <study>`: in `<run>/report/`:
   * `summary.md`: setup, status, failures, convergence, compute, tables
     (see Findings);
   * the project's result plots (foil2d: polar with reference data, and a
     grid-convergence table `mesh_convergence.csv` when the study varies `mesh`);
+  * `highlights.md` and the project's highlight figures (see Highlights);
   * **a mesh figure for every study**, `mesh_<case>.png` (one per mesh level
     when `mesh` varies): plane cuts through the actual `constant/polyMesh`
     the solver used, with wall patches in red, zoomed on the regions that

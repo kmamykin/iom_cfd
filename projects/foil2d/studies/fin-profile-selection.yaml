@@ -37,6 +37,28 @@ report:
   fin_span: 0.36        # m below the hull (appendage3d default; the class draught limit sets it)
   induced_drag: true    # lifting-line estimate, hull as a reflection plane, e = 0.9
   compare_at: {foil: naca0009, chord: 0.08, aoa: [2, 4, 6]}   # side forces of the comparison table (as run 1)
+highlights:   # the cases to look at closely (Cp/Cf in the report; ParaView montages; fields fetched only for these)
+  - name: thickness-at-working-load
+    why: >
+      Run 20261012-045433: 0006/80 has 22-36 % more drag than 0009/80 at the 4 deg force from 0.75 m/s up,
+      +50-142 % at 6 deg. Does the laminar bubble or trailing-edge separation grow as the section thins?
+    where: {speed: 1.0, chord: 0.08, aoa: [4, 6]}
+    compare: foil
+    views: [separation, transition]
+  - name: chord-at-high-load
+    why: >
+      At the 6 deg force a 100 mm chord wins (run 20261012-045433): lower Cl for the same force.
+      How do the bubble and transition move with chord at 1 m/s?
+    where: {foil: naca0009, speed: 1.0, aoa: 6}
+    compare: chord
+    views: [velocity, separation]
+  - name: low-speed-bubble
+    why: >
+      Below 0.5 m/s (Re < 45k) the method is unvalidated and the thin 0006 wins at light load.
+      Does the laminar bubble reattach at these speeds, or is the flow separated to the trailing edge?
+    where: {foil: [naca0006, naca0009], chord: 0.08, speed: [0.25, 0.5], aoa: 4}
+    compare: foil
+    views: [separation, transition]
 defaults:
   turbulence: kOmegaSSTLM
   Tu: 1.0
