@@ -19,8 +19,9 @@ projects/*/template/postProcessing/
 projects/*/template/log.*
 projects/*/template/constant/polyMesh/
 
-# Local cloud configuration (project ids, bucket names)
+# Local cloud configuration (project ids, bucket names) and submitted Batch job specs
 cloud/gcp/config.env
+cloud/gcp/jobs/
 
 # OS / editors
 .DS_Store
