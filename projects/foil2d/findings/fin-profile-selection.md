@@ -7,7 +7,333 @@ in `runs/fin-profile-selection/<run id>/` (not in git), so the numbers that
 support a conclusion are copied here. Entries are written by the
 `study-findings` skill (`/study-findings foil2d/fin-profile-selection`) or by
 hand, and are not rewritten later: a later run that changes a conclusion says
-so in its own entry.
+so in its own entry. The exception is "Where the selection stands" below: it
+is the current summary and is updated in place.
+
+## Where the selection stands (updated 2026-10-13)
+
+**Metric.** The current metric is the race time lost on a windward-leeward
+course with equal time upwind and downwind:
+* upwind: the fin's drag at equal side force, plus the leeway it needs;
+* downwind: the fin's drag at 0°.
+
+It was built up over runs 1-3 and the two analyses of 2026-10-13. The
+drag-only comparison of runs 1-3 favoured 80 mm chords. Counting leeway
+moves the balance back toward 90-100 mm, because a longer chord makes the
+same side force at a lower angle.
+
+**Settled (high confidence):**
+* The medium mesh resolves the differences that matter (`mesh-finalists`).
+* NACA 0012 is out. It is never the best at light or working load (at
+  least 5 % more drag than the best in run 2), and loses 2.2-5.1 % of race
+  time on average at Tu 1 %.
+
+**Leading, not settled:**
+* **NACA 0008 at 90 mm is the best-supported all-round choice.** Among the
+  four finalists, which have been checked at both Tu, it has the lowest mean
+  race-time loss over light, working and high load: 0.85 % with the
+  estimated resistance slope, 0.49 % with the slope doubled. At working load
+  it is never more than 0.54 % behind (0.5-1.5 m/s).
+* **Over all 15 run-2 candidates (Tu 1 % only), 0007/100, 0008/100 and
+  0007/90 lose 0.0-0.5 % less on average than 0008/90.** These are thinner
+  sections on longer chords, which run 2 dropped on drag alone. 0007/90 and
+  0007/100 rest on unsteady or not-converged points for 10 of their 12
+  upwind comparisons (0008/90: 5 of 12), and none of the three has been run
+  at Tu 0.1 %.
+* **0008/80 and 0009/80 stay close alternatives.**
+  * 0008/80 is the best finalist in light air and has the least downwind
+    drag.
+  * 0009/80 has the least working-load drag at Tu 0.1 %.
+  * Both need 0.2-1.0° more leeway than 0008/90.
+* **0009/100, and 0008/100 at Tu 1 %, are the heavy-air choices.**
+
+**How much is at stake.** The leading candidates are within about 0.5-1 % of
+race time of each other, roughly 0.6-1.2 s per 100 m beat. That is inside
+the uncertainty of:
+* the turbulence level on the water;
+* the steady answers of unsteady cases;
+* the boat's resistance curve, which is estimated;
+* the share of side force the hull and rudder carry, which is left out;
+* 3D effects, which haven't been checked.
+
+**What would settle it, in order (proposed, not agreed):**
+1. A hull resistance curve, `hull` project at 0.5-1.5 m/s (Wigley
+   validation first), to replace the resistance estimate.
+2. Leeway in the report's selection comparison, so runs rank by race time.
+3. 0007/90, 0007/100 and 0008/100 at Tu 0.1 %: 75 cases, to finish the
+   finalist set under the race-time metric.
+4. A 3D check of the leaders (`appendage3d`), including the hull and rudder
+   share of side force.
+5. A transient check of the unsteady working-load points.
+6. Fin stiffness, which CFD doesn't cover. 0008/90 and 0009/80 are the same
+   7.2 mm thick; 0008/80 is 6.4 mm.
+
+## Analysis 2026-10-13 (2): leeway and race time (runs 20261012-175146 and 20261013-045759, no new cases)
+
+**Setup.** No new cases. This puts numbers on a 100 m windward-leeward
+course: what a degree of leeway, a newton of side force and a newton of fin
+drag are worth. It uses published IOM figures (Inputs) and an estimate of
+the boat's resistance. It then adds each candidate's leeway to the race-time
+comparison of the previous analysis, which counted drag only.
+* The four finalists at Tu 1 % (run 2) and Tu 0.1 % (run 3).
+* All 15 run-2 candidates at Tu 1 %.
+* 0.5-1.5 m/s. 2.5 m/s is left out: there is no resistance estimate there
+  (Fn 0.80, far past hull speed).
+
+Why: the user's question, 2026-10-13. Equal-side-force comparisons hide that
+a longer chord makes the same force at a lower angle, i.e. with less leeway.
+
+### Inputs
+
+| quantity | value | source | status |
+|---|---|---|---|
+| best-VMG heading | 39° to the true wind, boat speed 1.13 m/s, VMG 0.88 m/s; pinching to 30° or footing to 50° drops VMG to 0.82 m/s | L. Gilbert, [VMG (AMYA MY 180)](https://www.onemetre.net/Design/VMG%20(AMYA%20MY%20180)/VMG%20(AMYA%20MY%20180).htm) | the polar is "our boat"; the page doesn't say it is measured IOM data (**not verified**) |
+| close-hauled angles | true wind about 45° off, apparent about 30°, at mid No.1 rig speed | L. Gilbert, [Apparent wind](https://onemetre.net/Design/AppWind/appwind.htm) | read from a graph |
+| leeway | about 3° in No.1 rig over much of the wind range | L. Gilbert, [Foil sections and forces](https://onemetre.net/Design/FinForce/FinForce.htm) | typical value, not measured |
+| sail force | about 6 N at 4 m/s wind and 1.1 m/s boat speed (0.6 m² No.1 rig, CL about 1.0) | same page | worked estimate |
+| side-force share | fin about 90 %, hull 10 % | L. Gilbert, [Fin area](https://onemetre.net/Design/FinArea/FinArea.htm) | an eyeball estimate for the Marblehead quoted there; not used in the numbers |
+| hull | wetted area 0.142 m² (practical minimum, 160 mm waterline beam), waterline length 990 mm; canoe body 3.62 kg, total 4.01 kg | G. Bantock, [The ISAF One Metre Class, Part 3](https://www.mya-uk.org.uk/wp-content/uploads/2025/11/Graham-Bantock-Development-of-the-IOM-class-updated-2025-Part-3.pdf) (MYA, 2006) | design data; a minimum, real hulls are larger |
+| bulb | 250-350 mm long (300 mm used); 2.4 kg lead | L. Gilbert, [IOM bulb drag (AMYA MY 184)](https://onemetre.net/Design/IOM%20bulb%20drag%20(AMYA%20MY%20184)/IOM%20bulb%20drag%20(AMYA%20MY%20184).htm); `docs/geometry.md` defaults | length chosen, not measured |
+| fin | span 360 mm, hull as a reflection plane, e = 0.9 | as runs 2 and 3 | as there |
+| course | 100 m windward-leeward; equal time upwind and downwind; same boat speed on both legs; downwind a dead run | user, 2026-10-13; previous analysis | assumptions |
+
+The user's 35° heading is closer to the apparent wind angle in these
+sources; 39° (plus 3° leeway) is used, with 35° and 45° as bounds.
+
+### Method
+
+* **Value of leeway.** The track through the water is heading + leeway (θ)
+  off the true wind. The distance sailed for D to windward is D / cos θ, so
+  dt / t = tan θ · Δλ.
+* **Leeway of each candidate.** At equal side force and span, the
+  lifting-line induced angle, F / (2π e q b²), doesn't depend on chord. So
+  the difference in leeway between candidates is the difference in 2D
+  section angle at that force. It is interpolated along the pre-stall branch
+  like the drag (`selection_compare.csv`). This assumes the fin carries all
+  the side force.
+* **Side-force slope.** a = a0 / (1 + a0 / (π e AR)) with AR = 2b / c = 9,
+  from the Cl of 0009/80 (`results.csv`).
+* **Drag to time.** δV = ΔD / (dR/dV), so the fraction of a leg's time lost
+  is ΔD / (V · dR/dV). The resistance R(V) is estimated, upright and in calm
+  water:
+  * hull: ITTC-57 friction × (1 + k), with 1 + k = 1.10 (assumed), on
+    0.142 m² and L = 0.99 m;
+  * fin at 0°: CFD (run 2, 0009/80);
+  * bulb: ITTC-57 × 1.2 on 0.0274 m² (2.4 kg lead, 300 mm long, prismatic
+    0.6 assumed);
+  * rudder: 0.010 m² planform, Cd 0.014 (assumed, like the fin at 0°).
+
+  Wave, heel, leeway and induced drag are left out, so this slope ("×1") is
+  a lower bound and the drag costs it gives are upper bounds. "×2" doubles
+  the slope, a stand-in for the missing parts (not computed).
+* **Race time.** The average of the upwind and downwind losses (equal time),
+  each in % of its leg's time:
+  * upwind = drag + leeway;
+  * downwind = drag at 0°.
+
+### Conclusions
+
+1. **1° of leeway costs 1.4-1.9 % of the beat.**
+   * Heading 39° + 3° leeway = a 42° track: 134.6 m sailed per 100 m to
+     windward. 1° more leeway adds 2.1 m, 1.6 % and 1.9 s at 1.13 m/s.
+   * At a 35° heading it adds 1.7 m (1.4 %); at 45°, 2.9 m (1.9 %).
+
+   Confidence: high for the geometry, given the heading.
+2. **1 N of side force is worth about 0.8° of leeway at 1 m/s**: 1.2 % of
+   the beat, 1.7 m per 100 m.
+   * Secant: 6.44 N at a 4° section angle plus 1.0° induced, i.e. 5.0°, so
+     1.29 N/°.
+   * The local slope is 0.7-1.9 N/° between 2 and 6° (both Tu) because of
+     the laminar bubble.
+   * It scales with 1/V²: about 0.35° at 1.5 m/s and 3° at 0.5 m/s.
+   * Carrying 1 N more also costs about 0.03 N of fin drag (0009/80, Tu 1 %,
+     1 m/s, between the 2° and 4° forces).
+
+   Confidence: medium. Fin only; the hull and rudder share is left out.
+3. **0.01 N of fin drag costs at most 0.74 % of speed at 1 m/s**, and 0.37 %
+   at 1.5 m/s.
+   * On a 100 m run: 0.74 s at 1 m/s, 0.25 s at 1.5 m/s. On the 100 m beat:
+     0.99 s at 1 m/s, 0.72 s at 1.13 m/s.
+   * 1 N is more than the boat's whole estimated resistance at 1 m/s
+     (0.75 N), so per-newton figures don't apply.
+   * So 1° of leeway is worth about 0.021 N of fin drag at 1 m/s, or
+     0.043 N with the slope doubled. The finalists' drag differences are
+     0.003-0.04 N.
+
+   Confidence: low. The resistance estimate is not verified.
+4. **At working load the finalists' leeway differs by up to 1.4°
+   (0.5-1.5 m/s; 1.9° at 2.5 m/s), as much as their drag differences are
+   worth.** Against 0009/80 (4.0°), over 5 speeds × 2 Tu: 0008/80 needs
+   +0.02 to +0.53°, 0008/90 −0.18 to −1.00°, and 0009/100 −0.47 to
+   −1.33°. The drag-only
+   comparisons of runs 1-3 and the previous analysis left this out.
+   Confidence: medium. Fin only; 3D effects unchecked.
+5. **Among the finalists, 0008/90 is the best all-round fin once leeway
+   counts.** Equal time, 0.5-1.5 m/s, both Tu; race time lost above the best
+   finalist, with the ×1 / ×2 resistance slope:
+   * working load: worst case 0008/90 0.54 / 0.13 %, 0008/80 1.18 / 1.00 %,
+     0009/80 2.44 / 1.61 %, 0009/100 2.54 / 1.25 %.
+     * The 80 mm worst cases are at 0.5 m/s, Tu 0.1 %, where their bubble
+       doesn't reattach (run 3, conclusion 7).
+     * From 0.75 m/s up: 0008/90 0.54 / 0.13 %, 0009/80 0.53 / 0.24 %,
+       0008/80 0.80 / 0.62 %, 0009/100 2.22 / 1.01 %.
+   * light load (2° force): 0008/80 is best in 7 of 8 (×1) / 6 of 8 (×2);
+     0008/90 is within 0.99 / 0.44 %.
+   * high load (6° force): 0009/100 is best in all 8. 0008/90 is second in
+     all 8, 0.1-3.1 % (×1) / 0.4-2.0 % (×2) behind; the 80 mm sections are
+     2.2-6.8 % / 1.7-4.3 % behind.
+   * all three loads weighted equally, mean: 0008/90 0.85 / 0.49 %, 0009/100
+     1.50 / 0.61 %, 0008/80 1.60 / 1.10 %, 0009/80 1.80 / 1.20 %.
+
+   0.5 % of race time is about 0.6 s per 100 m beat. Confidence: low to
+   medium. It rests on the resistance estimate, the fin-only side force and
+   the course assumptions, and the differences among 0008/80, 0009/80 and
+   0008/90 are within those uncertainties.
+6. **Over all 15 run-2 candidates (Tu 1 %), thinner sections on longer
+   chords lead.**
+   * Mean over the three loads (×1 / ×2): 0007/100 1.11 / 0.49 %, 0008/100
+     1.34 / 0.57 %, 0007/90 1.50 / 0.85 %, 0008/90 1.58 / 0.87 %.
+   * At working load 0007/90 is best: mean 0.21 / 0.07 %, worst
+     0.43 / 0.18 %.
+   * Run 2 dropped all three on drag alone.
+   * Their evidence is weaker. 10 of the 12 upwind comparison points of
+     0007/90 and 0007/100 are interpolated from unsteady or not-converged
+     cases (0008/100: 6, 0008/90: 5, 0008/80 and 0009/80: 2). None has been
+     run at Tu 0.1 %, where thin 80 mm sections lost ground (run 3).
+
+   Confidence: low.
+7. **This supersedes the previous analysis's proposals** to narrow to
+   0008/80 and 0009/80, and to try a 70 mm chord. A shorter chord needs more
+   leeway: 0008/80 already needs 0.35-1.04° more than 0008/90. It agrees
+   with run 3's proposal of 0008/90 as the all-round fin, for a different
+   reason.
+
+### Evidence
+
+Values on a 100 m leg (conclusions 1-3):
+
+| item | value |
+|---|---|
+| 1° leeway, track 38 / 42 / 48° (heading 35 / 39 / 45° + 3°) | +1.73 / +2.11 / +2.90 m; +1.36 / +1.57 / +1.94 % of the beat; +1.53 / +1.87 / +2.56 s at 1.13 m/s |
+| fin side-force slope, 0009/80, 1 m/s | 1.29 N/° (secant to 4°, with 1.01° induced); 0.73-1.93 N/° local, 2-6° |
+| 1 N of side force, 1 m/s | 0.78° of leeway; 1.2 % of the beat; 1.65 m |
+| 0.01 N of drag, ×1 slope | upwind: 0.74 % speed, 0.99 s at 1.0 m/s; 0.61 %, 0.72 s at 1.13 m/s. Downwind: 0.74 %, 0.74 s at 1.0 m/s; 0.37 %, 0.25 s at 1.5 m/s |
+| 1° of leeway as fin drag, 1 m/s | 0.021 N (×1), 0.043 N (×2) |
+
+Resistance estimate (method), N:
+
+| V [m/s] | hull | fin (0°) | bulb | rudder | total | V · dR/dV |
+|---|---|---|---|---|---|---|
+| 0.5 | 0.110 | 0.068 | 0.032 | 0.017 | 0.227 | 0.40 |
+| 0.75 | 0.226 | 0.126 | 0.064 | 0.039 | 0.456 | 0.81 |
+| 1.0 | 0.377 | 0.200 | 0.105 | 0.070 | 0.752 | 1.35 |
+| 1.13 | 0.469 | 0.247 | 0.130 | 0.089 | 0.935 | 1.65 |
+| 1.5 | 0.777 | 0.380 | 0.214 | 0.157 | 1.529 | 2.71 |
+
+Section angle at the working-load force (0009/80's 4° force), degrees:
+
+| Tu | speed [m/s] | 0008/80 | 0009/80 | 0008/90 | 0009/100 |
+|---|---|---|---|---|---|
+| 1 % | 0.5 | 4.02 | 4.0 | 3.64 | 3.43 |
+| 1 % | 0.75 | 4.07 | 4.0 | 3.72 | 3.34 |
+| 1 % | 1.0 | 4.07 | 4.0 | 3.67 | 3.15 |
+| 1 % | 1.5 | 4.10 | 4.0 | 3.54 | 2.97 |
+| 1 % | 2.5 | 4.11 | 4.0 | 3.55 | 3.19 |
+| 0.1 % | 0.5 | 4.04 | 4.0 | 3.00 | 2.95 |
+| 0.1 % | 0.75 | 4.34 | 4.0 | 3.78 | 3.53 |
+| 0.1 % | 1.0 | 4.24 | 4.0 | 3.82 | 3.44 |
+| 0.1 % | 1.5 | 4.35 | 4.0 | 3.78 | 2.97 |
+| 0.1 % | 2.5 | 4.53 | 4.0 | 3.80 | 2.67 |
+
+Race time lost at working load, finalists, % above the best finalist (×1 /
+×2 slope):
+
+| Tu | speed [m/s] | 0008/80 | 0009/80 | 0008/90 | 0009/100 |
+|---|---|---|---|---|---|
+| 1 % | 0.5 | best / best | 0.76 / 0.37 | 0.41 / 0.06 | 2.22 / 0.88 |
+| 1 % | 0.75 | best / best | 0.53 / 0.24 | 0.51 / 0.12 | 2.17 / 0.80 |
+| 1 % | 1.0 | best / best | 0.53 / 0.23 | 0.54 / 0.11 | 1.90 / 0.58 |
+| 1 % | 1.5 | best / 0.11 | 0.30 / 0.22 | 0.22 / best | 1.23 / 0.28 |
+| 0.1 % | 0.5 | 1.18 / 1.00 | 2.44 / 1.61 | best / best | 2.54 / 1.25 |
+| 0.1 % | 0.75 | 0.79 / 0.62 | 0.12 / 0.15 | best / best | 2.22 / 1.01 |
+| 0.1 % | 1.0 | 0.27 / 0.28 | best / 0.05 | 0.04 / best | 2.05 / 0.85 |
+| 0.1 % | 1.5 | 0.80 / 0.54 | best / best | 0.43 / 0.13 | 0.92 / 0.06 |
+
+All 15 run-2 candidates, Tu 1 %, 0.5-1.5 m/s, race time lost above the best
+of the 15, % (×1 / ×2 slope). Sorted by the ×2 mean over all loads.
+
+| candidate | mean, all loads | worst, all loads | mean, working load | worst, working load |
+|---|---|---|---|---|
+| 0007/100 | 1.11 / 0.49 | 2.42 / 1.18 | 0.91 / 0.29 | 1.01 / 0.30 |
+| 0008/100 | 1.34 / 0.57 | 3.42 / 1.76 | 1.41 / 0.51 | 2.19 / 0.89 |
+| 0007/90 | 1.50 / 0.85 | 3.49 / 2.10 | 0.21 / 0.07 | 0.43 / 0.18 |
+| 0008/90 | 1.58 / 0.87 | 2.62 / 1.52 | 0.78 / 0.32 | 1.49 / 0.63 |
+| 0009/100 | 2.08 / 0.90 | 4.76 / 2.53 | 2.23 / 0.88 | 3.30 / 1.45 |
+| 0009/90 | 2.08 / 1.08 | 3.84 / 2.15 | 1.58 / 0.70 | 2.47 / 1.13 |
+| 0006/100 | 2.40 / 1.18 | 5.05 / 2.67 | 2.08 / 0.93 | 2.79 / 1.30 |
+| 0009/80 | 2.08 / 1.31 | 3.78 / 2.56 | 0.88 / 0.51 | 1.84 / 0.95 |
+| 0008/80 | 2.10 / 1.36 | 4.95 / 3.18 | 0.35 / 0.28 | 1.08 / 0.58 |
+| 0006/90 | 2.82 / 1.55 | 7.10 / 3.96 | 1.62 / 0.84 | 2.39 / 1.23 |
+| 0007/80 | 2.94 / 1.81 | 9.00 / 5.28 | 0.47 / 0.38 | 1.05 / 0.75 |
+| 0012/100 | 5.06 / 2.24 | 8.92 / 4.28 | 5.04 / 2.11 | 6.98 / 3.16 |
+| 0012/90 | 4.70 / 2.24 | 7.79 / 3.82 | 4.51 / 2.02 | 6.27 / 2.98 |
+| 0012/80 | 4.35 / 2.30 | 6.91 / 3.65 | 3.85 / 1.91 | 5.27 / 2.65 |
+| 0006/80 | 5.25 / 3.02 | 17.00 / 9.40 | 2.87 / 1.70 | 3.83 / 2.19 |
+
+### Decisions
+
+Proposed, not agreed (see "Where the selection stands"):
+* Treat 0008/90 as the front-runner, with 0008/80 and 0009/80 as close
+  alternatives. Keep 0009/100 only for heavy air.
+* Run 0007/90, 0007/100 and 0008/100 at Tu 0.1 %: 3 candidates × 5 speeds
+  × 5 angles = 75 cases. That is about 53 case-hours, scaled from run 3's
+  70.7 case-hours for 100 cases (**estimate**).
+* Drop the 70 mm chord run.
+* Add leeway to the report's selection comparison: a heading angle and
+  resistance slope as `report:` options, ranking by race time.
+
+### Assumptions
+
+1. Heading 39° to the true wind and 3° leeway (Gilbert; **not verified**
+   for this boat).
+2. Equal time upwind and downwind (the user, 2026-10-13). On a 100 m course
+   at the same speed the beat takes 35 % longer than a dead run. If the beat
+   takes more of the race, upwind weighs more, and leeway with it.
+3. The same boat speed on both legs.
+4. The resistance slope: the viscous estimate in Method (**not
+   verified**), or double it.
+5. The fin carries all the side force, and leeway differences equal section
+   angle differences (**not verified**). If the hull and rudder carry
+   20-30 %, the leeway differences shrink roughly in proportion (not
+   computed).
+6. Sails trimmed to the same apparent wind, so less leeway means a closer
+   track at the same heading and speed.
+7. Downwind the fin is at 0° (as the previous analysis).
+
+### Compromises
+
+* 2.5 m/s is left out: no resistance estimate there.
+* Heel, hull upwash on the fin and the bulb's side force are ignored.
+* The race-time differences among the leaders (≤ about 1 %) are smaller than
+  the combined uncertainty of the inputs.
+
+### Learnings
+
+* Leeway is worth as much as fin drag. A longer chord buys leeway: 10 mm
+  more chord saves 0.2-0.6° at working load (up to 1.0° at 0.5 m/s and
+  Tu 0.1 %), worth 0.3-0.9 % of the beat.
+* 1 N of side force is about 15 % of the working-load force at 1 m/s, and
+  worth about 0.8° of leeway.
+* 0008/90 and 0009/80 are the same thickness in millimetres (7.2 mm). 0008/90
+  trades a thinner section for a longer chord at no loss of thickness.
+
+### Open questions and next steps
+
+* Hull resistance at 0.5-1.5 m/s (`hull` project) to replace the estimate.
+* The real split of race time between upwind, reach and downwind, and the
+  boat speed on each. GPS tracks of IOM races would settle assumptions 1-3.
+* The hull and rudder share of side force (`appendage3d` or `fullboat`).
+* The Tu 0.1 % check of 0007/90, 0007/100 and 0008/100 (Decisions).
 
 ## Analysis 2026-10-13: upwind and downwind legs (runs 20261012-175146 and 20261013-045759, no new cases)
 
