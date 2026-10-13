@@ -58,8 +58,8 @@ def test_plan_skips_what_does_not_fit_this_run():
 
 
 @pytest.mark.parametrize("name, sizes, unique", [
-    ("fin-profile-selection", {"tie-at-working-load": (4, "foil", 2), "light-air": (4, "foil", 2),
-                               "chord-at-high-load": (2, "chord", 1)}, 9),  # 0008/80, 1 m/s, 6 deg twice
+    ("fin-profile-selection", {"thin-at-working-load": (4, "chord", 2), "thickness-at-100mm": (4, "foil", 2),
+                               "light-air": (4, "foil", 2)}, 11),  # 0007/100, 1 m/s, 6 deg twice
     ("mesh-finalists", {"bubble-by-mesh": (12, "mesh", 4)}, 12),
 ])
 def test_study_highlights_select_the_intended_cases(name, sizes, unique):

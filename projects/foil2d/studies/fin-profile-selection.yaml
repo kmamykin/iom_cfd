@@ -13,12 +13,18 @@ description: >
   force 0009/80 makes at 4 deg, 0.75 m/s and up); 0008/80 is 1-10 % better in
   light air and 6-9 % worse at the 6 deg force, where 0009/100 wins and
   0008/90 sits in between.
-  This run checks the four finalists (0008/80, 0009/80, 0008/90, 0009/100)
-  at Tu 0.1 %: run 1 found that the lowest-drag candidate can change with Tu
-  (3-12 % penalties where it did), and the run 2 tie is smaller than that.
-  Compare with run 20261012-175146 (Tu 1 %, same mesh and cases) in the
-  findings log. 0.25 m/s is left out (open laminar separation, unvalidated).
-  The fine-mesh check of the tie is a separate study (mesh-finalists).
+  Run 20261013-045759 checked the four finalists (0008/80, 0009/80,
+  0008/90, 0009/100) at Tu 0.1 %. Counting leeway and an equal-time
+  downwind leg (findings log, analysis 2026-10-13 (2)) puts 0008/90 first
+  of the finalists, but at Tu 1 % three candidates run 2 dropped lose
+  0.0-0.5 % less race time on average: 0007/100, 0008/100 and 0007/90.
+  Their evidence is weak: 10 of 12 upwind points of each 0007 come from
+  unsteady or not-converged cases (0007 at 4 deg, 1-1.5 m/s, among them).
+  This run checks those three at Tu 0.1 %, the same speeds, angles, mesh
+  and image as run 20261013-045759, so the seven candidates can be ranked
+  together at Tu 0.1 %. Compare with run 20261012-175146 (Tu 1 %, same
+  cases) in the findings log. 0.25 m/s is left out (open laminar
+  separation, unvalidated).
   Speeds: 0.5 and 0.75 m/s light air; 1.0 m/s upwind in medium air (Fn
   0.32); 1.5 m/s above displacement hull speed; 2.5 m/s downwind surfing.
   Re = 35,000 to 220,000; below about 50,000 the method is unvalidated (the
@@ -33,34 +39,37 @@ report:
   induced_drag: true    # lifting-line estimate, hull as a reflection plane, e = 0.9
   compare_at: {foil: naca0009, chord: 0.08, aoa: [2, 4, 6]}   # side forces of the comparison table (as run 1)
 highlights:   # the cases to look at closely (Cp/Cf in the report; ParaView montages; fields fetched only for these)
-  - name: tie-at-working-load
+  - name: thin-at-working-load
     why: >
-      Run 20261012-175146 (Tu 1 %): 0008/80 and 0009/80 within 0-3 % at the 4 deg force from 0.75 m/s up.
-      At Tu 0.1 % does transition move differently on the two and break the tie? Compare with run 2's montage.
-    where: {chord: 0.08, speed: 1.0, aoa: [4, 6]}
+      Run 20261012-175146 (Tu 1 %): 0007/90 and 0007/100 at 4 deg and 1 m/s are unsteady and not
+      converged, yet 0007/90 has the least race-time loss at working load. Is the bubble steady at
+      Tu 0.1 %, and is the low drag real?
+    where: {foil: naca0007, speed: 1.0, aoa: [4, 6]}
+    compare: chord
+    views: [separation, transition]
+  - name: thickness-at-100mm
+    why: >
+      Run 20261012-175146 (Tu 1 %): 0007/100 has 4-6 % less drag than 0008/100 at the 2 deg force at
+      every speed, but 4-11 % more at the 6 deg force from 0.75 m/s up. What costs the thinner section
+      at high load (leading-edge bubble, earlier separation), and does it hold at Tu 0.1 %?
+    where: {chord: 0.1, speed: 1.0, aoa: [2, 6]}
     compare: foil
     views: [separation, transition]
   - name: light-air
     why: >
-      Run 20261012-175146 (Tu 1 %): 0008/80 has 2-8 % less drag than 0009/80 at the 2 and 4 deg forces
-      at 0.5-0.75 m/s. Does the longer laminar run at Tu 0.1 % keep that?
-    where: {chord: 0.08, speed: 0.5, aoa: [2, 4]}
+      Run 20261012-175146 (Tu 1 %): at 0.5 m/s 0007/100 has 5 % less drag than 0008/100 at the 2 and
+      4 deg forces. Run 20261013-045759 found longer laminar bubbles at Tu 0.1 %; does the thinner
+      section keep its light-air advantage? Compare with that run's light-air montage (80 mm).
+    where: {chord: 0.1, speed: 0.5, aoa: [2, 4]}
     compare: foil
-    views: [separation, transition]
-  - name: chord-at-high-load
-    why: >
-      Run 20261012-175146 (Tu 1 %): at the 6 deg force 0008/80 is 6-9 % above 0009/80 and 0008/90 is
-      1-5 % below it. Is it the leading-edge bubble, and does it hold at Tu 0.1 %?
-    where: {foil: naca0008, speed: 1.0, aoa: 6}
-    compare: chord
     views: [separation, transition]
 defaults:
   turbulence: kOmegaSSTLM
   Tu: 0.1
   mesh: medium
-zip:          # the four finalists (foil and chord varied together)
-  foil:  [naca0008, naca0009, naca0008, naca0009]
-  chord: [0.08,     0.08,     0.09,     0.10]
+zip:          # the three run-2 candidates that lead with leeway counted (foil and chord varied together)
+  foil:  [naca0007, naca0007, naca0008]
+  chord: [0.09,     0.10,     0.10]
 sweep:
   speed: [0.5, 0.75, 1.0, 1.5, 2.5]
   aoa: [0, 2, 4, 6, 8]
