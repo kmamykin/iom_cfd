@@ -351,7 +351,7 @@ class Foil2D(Project):
         and chords are compared at equal lift force, not equal Cl. One panel
         per speed (columns) and per turbulence model / Tu (rows, whichever the
         study varies); colour = section, line style = chord. Only for studies
-        that vary the section or chord.
+        that vary the section or chord (not the mesh).
 
         Study `report:` options: `fin_span` [m] turns the per-metre 2D forces
         into whole-fin forces [N]; `induced_drag: true` adds the lifting-line
@@ -372,6 +372,8 @@ class Foil2D(Project):
 
         need = {"foil", "chord", "aoa", "lift_N_per_m", "drag_N_per_m"}
         if not need <= set(df) or (df["foil"].nunique() < 2 and df["chord"].nunique() < 2):
+            return []
+        if "mesh" in df and df["mesh"].nunique() > 1:  # a mesh study: the GCI table, not a selection
             return []
         opts = dict(options or {})
         span = float(opts["fin_span"]) if opts.get("fin_span") else None

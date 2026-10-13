@@ -57,14 +57,17 @@ def test_plan_skips_what_does_not_fit_this_run():
     assert len(hl.case_names(planned * 2)) == 12  # each case once
 
 
-def test_study_highlights_select_the_intended_cases():
+@pytest.mark.parametrize("name, sizes, unique", [
+    ("fin-profile-selection", {"tie-at-working-load": (4, "foil", 2), "light-air": (4, "foil", 2),
+                               "chord-at-high-load": (2, "chord", 1)}, 9),  # 0008/80, 1 m/s, 6 deg twice
+    ("mesh-finalists", {"bubble-by-mesh": (12, "mesh", 4)}, 12),
+])
+def test_study_highlights_select_the_intended_cases(name, sizes, unique):
     project = load_project("foil2d")
-    study = Study.load(config.projects_dir() / "foil2d" / "studies" / "fin-profile-selection.yaml")
+    study = Study.load(config.projects_dir() / "foil2d" / "studies" / f"{name}.yaml")
     planned = hl.plan(study.highlights, study.expand(project.defaults), lambda m: pytest.fail(m))
-    sizes = {h.name: (len(lay.cases), lay.compare, len(lay.rows)) for h, lay in planned}
-    assert sizes == {"thickness-at-working-load": (10, "foil", 2), "chord-at-high-load": (3, "chord", 1),
-                     "low-speed-bubble": (4, "foil", 2)}
-    assert len(hl.case_names(planned)) == 16  # 0009/80, 1 m/s, 6 deg is in two of them
+    assert {h.name: (len(lay.cases), lay.compare, len(lay.rows)) for h, lay in planned} == sizes
+    assert len(hl.case_names(planned)) == unique
 
 
 def test_current_study_file_wins(tmp_path):

@@ -215,8 +215,9 @@ def cmd_submit(args) -> None:
     study, project, cases = _load(args)
     machine = args.machine or cfg["DEFAULT_MACHINE"]
     np_ = args.np or int(cases[0].params.get("np", 1))
-    res = project.resources({**cases[0].params, "np": np_})
-    max_hours = args.max_hours or float(res.get("max_hours", 4))
+    # the longest any case may need (a mesh study's fine cases, not the first)
+    max_hours = args.max_hours or max(float(project.resources({**c.params, "np": np_}).get("max_hours", 4))
+                                      for c in cases)
     run_id = new_run_id()
     job = build_job(cfg, study.name, len(cases), np_, machine, not args.standard, max_hours,
                     args.parallelism, args.set or [], args.tag, run_id)
