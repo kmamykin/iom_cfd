@@ -59,6 +59,6 @@ retry gcloud storage buckets add-iam-policy-binding "gs://$GCS_BUCKET" \
 gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
 
 echo
-echo "Done. Next: cloud/gcp/setup-github.sh   (image builds on push to main; or make push-amd64)"
+echo "Done. Next: cloud/gcp/setup-github.sh   (image builds on every branch push; or make push-amd64)"
 echo "      iomcfd gcp submit foil2d/smoke --dry-run"
 echo "Your own account also needs roles/batch.jobsEditor and roles/iam.serviceAccountUser on $BATCH_SA."

@@ -4,13 +4,15 @@
 # Federation. No service account keys are created.
 #
 #   - workload identity pool + GitHub OIDC provider, accepting only tokens from
-#     pushes to main of GITHUB_REPO
+#     pushes to (or manual runs on) branches of GITHUB_REPO: not pull_request
+#     events, not other repositories
 #   - service account CI_SA with push access (artifactregistry.writer) to the
 #     image repository only, which those tokens may impersonate
 #   - GitHub repository variables the workflow reads (via the gh CLI)
 #
 # Usage: cloud/gcp/setup-github.sh [-y]   (reads cloud/gcp/config.env; run setup.sh first)
-# Safe to re-run: existing resources are left as they are.
+# Safe to re-run: existing resources are left as they are, except the
+# provider's attribute condition, which is set to the one below.
 set -euo pipefail
 cd "$(dirname "$0")"
 # shellcheck disable=SC1091
@@ -23,7 +25,10 @@ WIF_POOL="${WIF_POOL:-github}"
 WIF_PROVIDER="${WIF_PROVIDER:-github-actions}"
 CI_SA="${CI_SA:-iom-cfd-ci@$GCP_PROJECT.iam.gserviceaccount.com}"
 
-echo "project=$GCP_PROJECT repo=$GITHUB_REPO (branch main) pool=$WIF_POOL provider=$WIF_PROVIDER sa=$CI_SA"
+# branch refs only: pull_request events carry refs/pull/<n>/merge
+CONDITION="assertion.repository == '$GITHUB_REPO' && assertion.ref.startsWith('refs/heads/')"
+
+echo "project=$GCP_PROJECT repo=$GITHUB_REPO (branches) pool=$WIF_POOL provider=$WIF_PROVIDER sa=$CI_SA"
 echo "account=$(gcloud config get account 2>/dev/null)"
 if [ "${1:-}" != "-y" ]; then
     if [ ! -t 0 ]; then
@@ -52,14 +57,19 @@ gcloud iam workload-identity-pools describe "$WIF_POOL" --location global >/dev/
     gcloud iam workload-identity-pools create "$WIF_POOL" --location global \
         --display-name "GitHub Actions"
 
-gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
-    --workload-identity-pool "$WIF_POOL" --location global >/dev/null 2>&1 || \
+if gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
+    --workload-identity-pool "$WIF_POOL" --location global >/dev/null 2>&1; then
+    gcloud iam workload-identity-pools providers update-oidc "$WIF_PROVIDER" \
+        --workload-identity-pool "$WIF_POOL" --location global \
+        --attribute-condition "$CONDITION"
+else
     gcloud iam workload-identity-pools providers create-oidc "$WIF_PROVIDER" \
         --workload-identity-pool "$WIF_POOL" --location global \
         --display-name "GitHub $GITHUB_REPO" \
         --issuer-uri "https://token.actions.githubusercontent.com" \
         --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
-        --attribute-condition "assertion.repository == '$GITHUB_REPO' && assertion.ref == 'refs/heads/main'"
+        --attribute-condition "$CONDITION"
+fi
 
 gcloud iam service-accounts describe "$CI_SA" >/dev/null 2>&1 || \
     gcloud iam service-accounts create "${CI_SA%%@*}" --display-name "iom-cfd GitHub image builds"
@@ -92,5 +102,5 @@ else
     printf '  %s\n' "${VARS[@]}"
 fi
 echo
-echo "Done. The next push to main builds and pushes the image (or run the workflow"
-echo "by hand: gh workflow run image.yml --repo $GITHUB_REPO)."
+echo "Done. The next push to a branch builds and pushes the image (or run the"
+echo "workflow by hand: gh workflow run image.yml --repo $GITHUB_REPO --ref <branch>)."

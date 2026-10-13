@@ -25,11 +25,15 @@ retry automatically (exit code 50001).
 
 ## Image
 
-Every push to `main` builds and pushes the solver image from GitHub Actions
-([.github/workflows/image.yml](../.github/workflows/image.yml)): fast tests
-first, then `docker/Dockerfile` for linux/amd64, tagged `<git describe>`
-(the short commit hash) and `latest`. Run it by hand with
-`gh workflow run image.yml`. Local builds (`make image`) are unaffected.
+Every push to a branch builds and pushes the solver image from GitHub
+Actions ([.github/workflows/image.yml](../.github/workflows/image.yml)):
+fast tests first, then `docker/Dockerfile` for linux/amd64, tagged
+`<git describe>` (the short commit hash). Pushes to `main` also move
+`latest`, the default `IMAGE_TAG`; a branch's image runs with
+`iomcfd gcp submit <study> --tag <git describe>` (e.g. a pull request's
+branch, before merging). Run the workflow by hand with
+`gh workflow run image.yml --ref <branch>`. Local builds (`make image`) are
+unaffected.
 
 One-time setup, after `setup.sh`:
 
@@ -38,8 +42,9 @@ cloud/gcp/setup-github.sh     # asks first; -y to skip the question
 ```
 
 It sets up Workload Identity Federation, so GitHub gets short-lived tokens
-and no service account key exists anywhere. Only workflow runs from pushes
-to `main` of this repository are accepted. They act as the `iom-cfd-ci`
+and no service account key exists anywhere. Only workflow runs on branches
+of this repository (pushes and manual runs, not `pull_request` events, so
+not forks) are accepted. They act as the `iom-cfd-ci`
 service account, which can push to the image repository and nothing else.
 The script also sets the repository variables the workflow reads
 (`GCP_PROJECT`, `GCP_REGION`, `AR_REPO`, `IMAGE_NAME`, `GCP_WIF_PROVIDER`,
@@ -55,7 +60,8 @@ make push-amd64  # x86 only (all Cloud Batch needs); much faster from an Apple S
 ```
 
 The image contains the code, templates and `geometry/`, so changes to
-templates or `src/` reach the cloud once they are pushed to `main`. Study YAMLs and `geometry/` are uploaded
+templates or `src/` reach the cloud once they are pushed (`latest`: to
+`main`). Study YAMLs and `geometry/` are uploaded
 at submit time, so new studies and new STL files don't need a rebuild. Set
 `IMAGE_TAG` in `config.env` to a git tag to pin a reproducible version; the
 tag is recorded in every `result.json` (`image`).

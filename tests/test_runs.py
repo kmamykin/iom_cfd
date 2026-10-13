@@ -114,6 +114,19 @@ def test_gcp_job_writes_into_its_run():
     assert len(name) <= 63 and name.endswith("-20261012-045433")
 
 
+def test_gcp_task_hours_fit_the_longest_case():
+    """stepped-checks starts with plain NACA 0009 on the coarse mesh; its
+    stair10 on the fine mesh needs far longer, and every task gets one limit."""
+    from iomcfd.cloud import gcp
+
+    project = load_project("foil2d")
+    study = Study.load(config.projects_dir() / "foil2d" / "studies" / "stepped-checks.yaml")
+    cases = study.expand(project.defaults)
+    first = float(project.resources({**cases[0].params, "np": 1})["max_hours"])
+    hours = gcp.task_hours(project, cases, 1)
+    assert hours == pytest.approx(1 + 2 * 2 * 4.0) and hours > 4 * first
+
+
 @pytest.mark.parametrize("path, kept", [
     ("study.yaml", True), ("run.json", True), ("report/summary.md", True), ("viz/index.html", True),
     ("aoa4/result.json", True), ("aoa4/params.json", True), ("aoa4/surface.csv", True), ("aoa4/viz/velocity.png", True),
