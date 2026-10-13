@@ -1,12 +1,198 @@
 # fin-profile-selection: findings log
 
-Newest run first. One entry per run: conclusions, the evidence for them,
+Newest run first. One entry per run (or per analysis that combines earlier
+runs without new cases): conclusions, the evidence for them,
 assumptions, compromises, learnings and next steps. Results themselves live
 in `runs/fin-profile-selection/<run id>/` (not in git), so the numbers that
 support a conclusion are copied here. Entries are written by the
 `study-findings` skill (`/study-findings foil2d/fin-profile-selection`) or by
 hand, and are not rewritten later: a later run that changes a conclusion says
 so in its own entry.
+
+## Analysis 2026-10-13: upwind and downwind legs (runs 20261012-175146 and 20261013-045759, no new cases)
+
+**Setup.** No new cases. Runs 2 and 3 compared the finalists upwind only:
+drag at equal side force. A race also has downwind legs (and reaches). This
+analysis adds a downwind leg, sailed for the same time as upwind. It uses
+the four finalists' cases at Tu 1 % (run 20261012-175146) and Tu 0.1 % (run
+20261013-045759), 0.5-2.5 m/s.
+* Upwind: whole-fin drag (section + induced) at the side force 0009/80
+  makes at 2, 4 and 6° (light, working and high load), as in
+  `selection_compare.csv`.
+* Downwind: whole-fin drag at aoa 0, with no side force.
+* Combined: upwind + downwind drag at the same speed. This treats a newton
+  of fin drag as costing the same time on either leg (assumption 2).
+
+Why: run 3 left the choice depending on how much of the sailing is at each
+load. The equal upwind/downwind time is the user's input.
+
+### Conclusions
+
+1. **Downwind, 0008/80 has the least drag of the finalists at every speed
+   and both Tu.**
+   * Above 0008/80: 0009/80 +3.3-9.3 %, 0008/90 +4.7-7.4 %, 0009/100
+     +14.5-25.0 % (10 speed × Tu points each).
+   * At 0° the drag is 55-72 % friction, so it follows chord and thickness.
+     0008/90 is 6.7-6.8 % above 0008/80 at 1 m/s, close to the 6 % laminar
+     friction (∝ √chord) gives for 90 against 80 mm.
+
+   Confidence: high on the ranking. 37 of the 40 0° points are flagged
+   unsteady, but their Cd oscillates by at most 0.5 %.
+2. **With equal time upwind and downwind, 0009/100 drops out and the choice
+   is between the 80 mm chords.** Mean drag above the best finalist,
+   upwind only → upwind + downwind:
+   * working load (4° force), 0.75-2.5 m/s, both Tu (8 comparisons):
+     0009/80 0.4 → 1.2 % (max 3.0), 0008/80 3.8 → 1.4 % (max 6.9), 0008/90
+     1.8 → 2.3 % (max 4.4), 0009/100 7.5 → 10.6 % (max 13.3);
+   * light load (2° force): 0008/80 is best in all 10 comparisons; the others
+     are 2.3 % or more above it;
+   * high load (6° force): 0009/100 is still best in 9 of 10. The exception
+     is Tu 0.1 %, 1.5 m/s, where 0008/90 is best and 0009/100 2.2 % above;
+   * all 30 comparisons: 0008/90 6.0 → 4.1 %, 0008/80 9.4 → 4.3 %, 0009/80
+     8.6 → 5.5 %, 0009/100 8.8 → 10.0 %. 0008/80 is best in 15 of 30.
+
+   Confidence: medium. It rests on assumptions 1-3.
+3. **This supersedes the reading of run 3 conclusion 5, that 0008/90 is the
+   all-round choice.**
+   * Downwind, 0008/90 and 0009/80 differ by 2.3 % or less, so the downwind
+     leg doesn't separate them.
+   * At working load 0008/90 is now behind both 80 mm sections. Its
+     all-30 mean (4.1 %) ties 0008/80's (4.3 %) only through the high-load
+     points.
+4. **Between 0008/80 and 0009/80, Tu decides, as it did upwind.**
+   * Tu 1 %: 0008/80 is best at light and working load at every speed (10 of
+     10). At working load 0009/80 is 0.8-3.4 % above it.
+   * Tu 0.1 %, working load:
+     * 0.75-1.5 m/s: 0009/80 is best, with 0008/80 0.4-2.5 % above;
+     * 2.5 m/s: 0008/90 is best, with 0009/80 +0.8 % and 0008/80 +6.9 %;
+     * 0.5 m/s: 0008/90 is best, with 0008/80 +1.6 % and 0009/80 +7.4 %.
+
+   Confidence: low to medium. Most Tu 0.1 % upwind points at 4° are unsteady
+   (run 3, conclusion 2).
+5. **At Tu 0.1 % the answer is sensitive to the weighting.** Weight the
+   downwind drag by w against the upwind drag; this analysis is w = 1.
+   * Tu 1 %, working load: 0008/80 wins at every w up to 1 m/s, and for
+     w ≥ 0.15 (1.5 m/s) or w ≥ 0.25 (2.5 m/s).
+   * Tu 0.1 %, working load: 0008/80 becomes best at w = 1.2 (1 m/s), 1.75
+     (0.5 m/s), 1.9 (0.75 m/s), 2.15 (1.5 m/s) and 4.5 (2.5 m/s, over
+     0008/90). At 1 m/s a downwind newton only has to count 20 % more than
+     an upwind one.
+
+   Break-even found on a 0.05 grid of w.
+
+### Evidence
+
+Computed from `report/selection.csv` of both runs: whole fin, 360 mm span,
+section drag + lifting-line induced drag (e = 0.9). Upwind drag is
+interpolated linearly along each candidate's pre-stall branch at the side
+force 0009/80 makes at that Tu, as `selection_compare.csv` does. Downwind
+drag is the aoa 0 case. Percentages are above the best of the four
+finalists; at Tu 1 % only the four finalists of run 2's 15 candidates are
+compared. Cd_std and Cd_friction come from `results.csv`.
+
+Downwind (aoa 0), % above 0008/80:
+
+| Tu | speed [m/s] | 0008/80 drag [N] | 0009/80 | 0008/90 | 0009/100 |
+|---|---|---|---|---|---|
+| 1 % | 0.5 | 0.0649 | +4.2 | +6.5 | +17.3 |
+| 1 % | 0.75 | 0.1205 | +5.0 | +6.4 | +19.6 |
+| 1 % | 1.0 | 0.1875 | +6.7 | +6.7 | +22.0 |
+| 1 % | 1.5 | 0.3560 | +6.8 | +7.0 | +20.6 |
+| 1 % | 2.5 | 0.7715 | +3.3 | +4.7 | +14.5 |
+| 0.1 % | 0.5 | 0.0632 | +5.5 | +6.3 | +20.1 |
+| 0.1 % | 0.75 | 0.1186 | +6.3 | +7.4 | +20.8 |
+| 0.1 % | 1.0 | 0.1872 | +6.2 | +6.8 | +21.6 |
+| 0.1 % | 1.5 | 0.3529 | +7.2 | +7.2 | +21.1 |
+| 0.1 % | 2.5 | 0.7746 | +9.3 | +6.8 | +25.0 |
+
+Working load (4° force). Cells: % above the best finalist, upwind only →
+upwind + downwind. The drag columns are 0009/80's on each leg.
+
+| Tu | speed [m/s] | up [N] | down [N] | 0008/80 | 0009/80 | 0008/90 | 0009/100 |
+|---|---|---|---|---|---|---|---|
+| 1 % | 0.5 | 0.122 | 0.068 | best → best | +2.9 → +3.4 | +1.3 → +3.1 | +8.7 → +11.8 |
+| 1 % | 0.75 | 0.224 | 0.126 | best → best | +1.6 → +2.8 | +2.3 → +3.7 | +9.4 → +13.0 |
+| 1 % | 1.0 | 0.349 | 0.200 | best → best | +1.0 → +3.0 | +3.1 → +4.4 | +8.7 → +13.3 |
+| 1 % | 1.5 | 0.694 | 0.380 | +0.5 → best | best → +2.0 | +2.1 → +3.4 | +6.4 → +10.9 |
+| 1 % | 2.5 | 1.773 | 0.797 | +0.3 → best | best → +0.8 | +2.1 → +2.6 | +9.2 → +10.5 |
+| 0.1 % | 0.5 | 0.124 | 0.067 | +6.2 → +1.6 | +12.4 → +7.4 | best → best | +10.8 → +11.6 |
+| 0.1 % | 0.75 | 0.252 | 0.126 | +5.8 → +1.7 | +0.2 → best | best → +0.2 | +9.2 → +10.6 |
+| 0.1 % | 1.0 | 0.391 | 0.199 | +3.5 → +0.4 | best → best | +0.9 → +0.8 | +9.8 → +11.4 |
+| 0.1 % | 1.5 | 0.752 | 0.378 | +7.2 → +2.5 | best → best | +4.3 → +2.9 | +5.9 → +8.3 |
+| 0.1 % | 2.5 | 1.799 | 0.847 | +13.1 → +6.9 | +0.1 → +0.8 | best → best | +1.4 → +6.4 |
+
+Upwind + downwind at the other loads, range over the 5 speeds (% above the
+best finalist):
+
+| load | Tu | 0008/80 | 0009/80 | 0008/90 | 0009/100 |
+|---|---|---|---|---|---|
+| light (2°) | 1 % | best | 2.8-6.9 | 3.8-6.5 | 16.6-19.4 |
+| light (2°) | 0.1 % | best | 2.3-9.9 | 2.5-7.2 | 14.1-23.6 |
+| high (6°) | 1 % | 7.6-11.6 | 3.1-6.6 | 2.5-4.3 | best |
+| high (6°) | 0.1 % | 6.1-20.0 | 9.2-18.4 | 0-15.4 | 0-2.2 |
+
+### Decisions
+
+Proposed, not agreed:
+* If the equal-time weighting is accepted, narrow the finalists to 0008/80
+  and 0009/80. 0009/100 then needs heavy-air upwind to dominate the race;
+  0008/90 has no load where it is clearly best.
+* Test a shorter chord. Downwind favours the shortest chord, and 80 mm is the
+  shortest tested (README: IOM fins are 65-90 mm). Candidate run: 0008 and
+  0009 at 70 mm, Tu 0.1 and 1 %, 0.5-2.5 m/s, aoa 0-8°. That is 100 cases,
+  about run 3's size.
+
+### Assumptions
+
+1. Equal time upwind and downwind (the user's input, 2026-10-13). Reaches are
+   left out.
+2. The same boat speed on both legs, and the same speed loss per newton of
+   fin drag, so the two legs' drag adds (**not verified**: there is no hull
+   resistance data yet, only a hull smoke run). Faster downwind sailing gives
+   more newtons of 0° drag (about U²). But each newton costs less speed where
+   the hull's resistance rises steeply. Which effect wins is unknown;
+   conclusion 5 shows how far the weighting can move before the answer
+   changes.
+3. Downwind the fin carries no side force (aoa 0) (**not verified**:
+   steering, running by the lee and sail asymmetry put small angles on it).
+4. Upwind loads are the 0009/80 forces at 2, 4 and 6°, as in runs 2 and 3.
+5. Only the fin differs. Hull, rudder and bulb are the same for every
+   candidate.
+
+### Compromises
+
+* The percentages are of fin drag, not of race time. Converting them needs
+  the fin's share of total boat resistance on each leg (assumption 2).
+* 2D sections + lifting line, steady solver, as in runs 2 and 3.
+
+### Learnings
+
+* At zero lift the section drag is 55-72 % friction (Cd_friction / Cd) and
+  oscillates by at most 0.5 % even where flagged unsteady, so the 0° ranking
+  is firmer than the upwind one.
+* For 0009/80, downwind drag is 45-57 % of the working-load upwind drag at
+  the same speed. So a 6 % downwind penalty weighs about as much as a 3 %
+  upwind one.
+* 0009/80 and 0008/90 have about the same 0° drag: one extra point of
+  thickness costs about as much as 10 mm of chord.
+
+### Open questions and next steps
+
+* Hull resistance at 0.5-2.5 m/s (`hull` project), to turn fin drag into
+  time per leg and to check assumption 2.
+* The real split of race time between upwind, reach and downwind, and the
+  boat speed on each.
+* Reaches, where the fin makes a moderate side force at higher speed. If a
+  reach is like the 2° force at 1.5-2.5 m/s (**not verified**), upwind-only
+  figures put 0008/80 within 1.8 % and 0009/80 within 4.3 % of the best
+  finalist there, which doesn't separate them.
+* 70 mm chords (Decisions). Highlights for that run: compare chord at aoa 0
+  and 1 m/s (downwind: friction against chord), and at the 4° force at
+  1 m/s and Tu 0.1 % (does the bubble grow on the shorter chord?).
+* The 3D and time-accurate checks from run 3, now for 0008/80 and 0009/80.
+* Fin stiffness under the bulb load, which CFD doesn't cover. 0008 at
+  80 mm has about 70 % of 0009's bending stiffness (estimate from thickness
+  cubed, **not verified**).
 
 ## Run 20261013-045759 (2026-10-13, git 19e49d8, GCP, 100 cases)
 
