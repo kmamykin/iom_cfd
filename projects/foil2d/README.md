@@ -39,7 +39,7 @@ far field, wake cut behind a sharp trailing edge.
 ## Parameters
 
 See [defaults.yaml](defaults.yaml); the main ones are `foil`
-(`naca0008` or `file:<name>.dat`), `chord`, `aoa`, `speed` or `Re`,
+(`naca0008`, `file:<name>.dat` or a stepped section such as `stair1:naca0009`), `chord`, `aoa`, `speed` or `Re`,
 `turbulence`, `Tu`, `mesh`.
 
 ## Outputs (per case, in results.csv)
@@ -83,6 +83,74 @@ equal side force it is the same for every candidate: it shows how much the
 section differences matter in the total, it does not reorder them. Questions
 where the span changes (equal-area fins, aspect ratio, tip and bulb effects)
 need the 3D `appendage3d` project.
+
+## Stepped sections (Kline-Fogleman)
+
+`foil: stair1:naca0009:x=0.5,d=0.3` cuts backward-facing steps into a smooth
+symmetric base section (`naca0009`, `file:<name>.dat`). Every step is cut
+into both surfaces at the same x/c: a fin works on both tacks, so the
+sections stay symmetric (the one-sided hobby KFm1/KFm2 are not offered). Behind a step
+the surface is the base with its thickness scaled down, so the shape is kept
+and the trailing edge stays sharp
+([src/iomcfd/geometry/stepped.py](../../src/iomcfd/geometry/stepped.py)).
+
+The number in the name is the steps per surface:
+
+| spec | steps |
+|---|---|
+| `stair1:<base>` | one on each surface at the same x/c (the layout the hobby calls KFm4) |
+| `stair5:<base>` | 5 steps of 0.2 mm on each surface, evenly spaced from x/c 0.3 to 0.9 |
+| `stair10:<base>` | 10 steps of 0.1 mm on each surface, evenly spaced from x/c 0.3 to 0.9 |
+
+The hobby KFm numbers are a catalogue (KFm1 a step below, KFm2 one on top,
+KFm3 two on top, KFm4 one on top and one below, ...), not step counts, so
+this project uses its own names. The mm are for an 80 mm chord.
+
+Options after a third `:`, comma separated. stair1: `x` (step x/c, 0.5), `d`
+(depth as a fraction of the local half-thickness, 0.3) or instead `h`.
+stair5/stair10: `h` (every step's height as a fraction of the chord: 0.0025
+and 0.00125), `x` and `x_end` (first and last step, 0.3 and 0.9).
+All: `angle` (face to chord line, 90 = vertical), `r_lip`, `r_foot` (fillet
+radii at the top and foot of the face, fractions of the step height: 0.05,
+0.25). On an 80 mm NACA 0009: `stair1` d=0.3 at x/c 0.5 is a 0.95 mm step,
+d=0.5 a 1.6 mm one; `stair10:naca0009` and `stair5:naca0009` each leave
+about half the thickness near the trailing edge, like the 1.6 mm step.
+Steps that would remove more than 90 % of the thickness are refused.
+
+Mesh: the same C-grid, with two changes for stepped sections only (smooth
+sections are meshed bit-for-bit as before). Wall points are refined to a
+fraction of the step height at the lip (2 %), at the foot (10 %) and over
+8 step heights behind it (10 %), and the first cell is kept below 5 % of
+the smallest step height (a 0.1 mm step would otherwise sit inside it at
+low speed). Near the steps the grid lines are marched outward layer
+by layer, hyperbolic-grid style, so they fan round the lip and spread out
+of the concave foot instead of crossing, and the points clustered at each
+step spread out with wall distance. Quality on the medium level (centroid
+non-orthogonality, as checkMesh): no inverted cells; stairs up to ~55 deg;
+stair1 60-79 deg in up to a few hundred faces, the most for the deepest step
+at x/c 0.35 at low speed (smooth sections ~20 deg), so stepped cases run one
+non-orthogonal corrector. Cells: stair1 ~1.3x the smooth section, stair5
+3x, stair10 5.5x. Extra mesh figures zoom on the first upper step; `iomcfd viz` has a
+`step` view (streamwise velocity, reversed flow in blue). Extra outputs:
+`step_reattach_upper/lower`, where the flow reattaches behind the most
+forward step on each side, in step heights (0: no reversed flow behind it).
+
+Section figures: `iomcfd report` on a study with stepped sections writes
+`report/sections.png` (every section of the study at true scale, stepped
+ones over the section they were cut from, with a close-up of the first
+step) and `report/section_<spec>.png` per stepped section (whole section,
+step close-up with height and fillet radii, both surfaces in mm, step
+table; [src/iomcfd/sectionplot.py](../../src/iomcfd/sectionplot.py)). To
+look at sections before running a study:
+
+```sh
+uv run python -m iomcfd.sectionplot /tmp/sections naca0009 stair1:naca0009:x=0.35 stair10:naca0009 stair5:naca0009
+```
+
+Status: the step flow is unvalidated (no open measurements of a symmetric
+stepped section at these Reynolds numbers were found; the studies that
+exist are mostly abstracts or closed access). Numerics checks:
+`stepped-checks`. Comparison with NACA sections: `stepped-vs-naca`.
 
 ## Validation: NACA 0009, Re = 1e5
 
@@ -129,7 +197,12 @@ Studies: `smoke` (pipeline check), `validation-naca0009-re1e5`,
 fully turbulent: a solver check independent of transition modelling),
 `fin-profile-selection` (NACA 0006/0007/0008/0009/0012, 80/90/100 mm chord,
 0.25-2.5 m/s, Tu 1 %, medium mesh: 450 cases; run 20261012-045433 had
-0006/0009/0012, 80/100 mm, Tu 0.1 and 1 %, coarse mesh).
+0006/0009/0012, 80/100 mm, Tu 0.1 and 1 %, coarse mesh), `stepped-smoke`
+(pipeline check for stair1, stair5 and stair10), `stepped-checks` (mesh
+convergence and steady vs transient for stepped sections: 11 cases),
+`stepped-vs-naca` (stair1 steps at x/c 0.35 and 0.5, 15/30/50 % deep, and
+stair5 and stair10, cut from NACA 0009, against plain 0009 and 0007;
+0.5-1.5 m/s: 150 cases).
 
 What the runs showed, and the assumptions behind them, is logged per study
 in [findings/](findings/), e.g.

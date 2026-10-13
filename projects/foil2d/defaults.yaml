@@ -2,7 +2,8 @@
 # Units SI unless stated. Anything not listed here is rejected (typo guard).
 
 # --- geometry -------------------------------------------------------------
-foil: naca0008          # 'nacaMPTT' (analytic 4-digit) or 'file:<name>.dat' in geometry/foils/
+foil: naca0008          # 'nacaMPTT' (analytic 4-digit), 'file:<name>.dat' in geometry/foils/, or a
+                        # stepped section 'stair1:<base>[:x=..,d=..]', 'stair5:<base>' or 'stair10:<base>' (README, stepped.py)
 chord: 0.080            # m. IOM fins are ~65-90 mm, rudders ~80 mm
 
 # --- flow -------------------------------------------------------------------

@@ -11,17 +11,21 @@ separation      streamwise velocity close-up of the laminar separation
                 x_sep/x_reattach, with streamlines through the bubble
 transition      intermittency of the transition model (0 laminar, 1 turbulent)
 eddy_viscosity  nut/nu, log scale (where the flow is turbulent)
+step            stepped sections: streamwise velocity close-up of the first
+                upper-surface step (blue = reversed flow), lip to ~15 step
+                heights behind it
 """
 
 from __future__ import annotations
 
 import math
+import re
 
 import numpy as np
 
 from iomcfd.viz import Skip
 
-DEFAULT_VIEWS = ["velocity", "pressure", "separation", "transition", "eddy_viscosity"]
+DEFAULT_VIEWS = ["velocity", "pressure", "separation", "transition", "eddy_viscosity", "step"]
 ANIMATE_VIEWS = ["velocity", "separation", "transition"]  # study animations, one frame per case
 ANIMATE_PARAMS = ["aoa", "Tu", "speed", "Re", "foil", "chord", "mesh", "turbulence"]
 TIME_VIEWS = ["velocity", "separation"]  # transient runs with snapshots
@@ -151,10 +155,42 @@ def eddy_viscosity(ctx):
     _title(ctx, "eddy viscosity ratio")
 
 
+def step(ctx):
+    """First step of a stepped (stair) section. Its position comes from the
+    spec string and its height from the case's derived stepHeight, so the
+    ParaView image needs no geometry code."""
+    m = re.match(r"(?i)(stair\d+):", str(ctx.p["foil"]))
+    if not m or "stepHeight" not in ctx.d:
+        raise Skip("not a stepped section")
+    preset = m.group(1).lower()
+    opts = dict(kv.split("=") for kv in str(ctx.p["foil"]).split(":")[-1].split(",") if "=" in kv)
+    xs = float(opts.get("x", 0.5 if preset == "stair1" else 0.3))  # stepped.STAIRS defaults
+    side, sgn = "upper", 1.0
+    c, span, a = _geom(ctx)
+    h = float(ctx.d["stepHeight"])
+    ys = _upper_surface(ctx)
+    x0, x1 = xs * c - 4 * h, xs * c + 16 * h
+    y_lip = ys(xs * c - 0.01 * h)
+    ctx.new_view(1600, 600)
+    us = ctx.calc(_base(ctx), "Us", f"(U_X*{math.cos(a)} + U_Y*{math.sin(a)})/{ctx.U}")
+    ctx.color(ctx.show(us), "Us", "Cool to Warm", (-0.25, 0.25), "U_s / U  (blue: reversed)")
+    xm = xs * c + 2 * h  # streamlines seeded across the recirculation behind the face
+    st = ctx.streamlines_line((xm, ys(xm) + sgn * 0.05 * h, 0.5 * span), (xm, y_lip + sgn * 1.5 * h, 0.5 * span),
+                              n=30, length=0.5 * c)
+    ctx.solid(ctx.show(st), (0.1, 0.1, 0.1), line_width=1.0)
+    _outline(ctx)
+    ctx.camera_2d(x0, x1, y_lip - sgn * 0.3 * h)
+    _title(ctx, f"step at x/c = {xs:g} ({side} surface, {h * 1000:.2f} mm): streamwise velocity")
+    rea = ctx.m.get(f"step_reattach_{side}")
+    ctx.note(f"reattaches {rea:.1f} step heights behind the step" if isinstance(rea, (int, float)) else
+             "no reattachment found behind the step", corner="Lower Right Corner")
+
+
 VIEWS = {
     "velocity": velocity,
     "pressure": pressure,
     "separation": separation,
     "transition": transition,
     "eddy_viscosity": eddy_viscosity,
+    "step": step,
 }

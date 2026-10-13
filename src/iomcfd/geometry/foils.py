@@ -4,6 +4,8 @@ A `Foil` is a closed, unit-chord section with the leading edge at (0, 0) and
 a sharp trailing edge at (1, 0). It is stored as one smooth parametric curve
 running TE -> upper surface -> LE -> lower surface -> TE, so it can be
 re-sampled at any point distribution (needed by the mesh generator).
+Sections with corners (stepped foils) are stored as several smooth pieces
+joined at `breaks`, so a spline never runs across a corner.
 
 Sources:
   naca4("2412")           analytic NACA 4-digit (closed TE variant)
@@ -11,13 +13,14 @@ Sources:
                           airfoiltools.com, XFoil exports, Fusion 360 sketches
                           exported as points...)
   load("naca0009") / load("file:my_section.dat")  string spec used by studies
+  load("stair1:naca0009:d=0.3")  stepped (Kline-Fogleman) section, see stepped.py
 """
 
 from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -30,35 +33,68 @@ class Foil:
     name: str
     x: np.ndarray  # closed contour TE->upper->LE->lower->TE, unit chord
     y: np.ndarray
+    # Indices (into x, y) where the contour has a corner or a curvature jump:
+    # each piece between breaks gets its own spline. Empty = one smooth curve.
+    breaks: tuple[int, ...] = ()
+    # Stepped sections: the smooth section they were cut from, and one
+    # StepInfo per step (filled in by stepped.py).
+    base: Foil | None = None
+    steps: list = field(default_factory=list)
 
     def __post_init__(self) -> None:
         x, y = np.asarray(self.x, float), np.asarray(self.y, float)
         # Chord-length parametrisation of the closed contour.
         ds = np.hypot(np.diff(x), np.diff(y))
         keep = np.concatenate([[True], ds > 1e-12])
+        new_index = np.cumsum(keep) - 1
         x, y = x[keep], y[keep]
         s = np.concatenate([[0.0], np.cumsum(np.hypot(np.diff(x), np.diff(y)))])
         self.x, self.y = x, y
-        self._sx = CubicSpline(s, x)
-        self._sy = CubicSpline(s, y)
+        self.s_nodes = s  # parameter value of every contour point
         self._s_total = s[-1]
+        brk = sorted({int(new_index[b]) for b in self.breaks} - {0, len(s) - 1})
+        self.breaks = tuple(brk)
+        if brk:
+            edges = [0, *brk, len(s) - 1]
+            self._seg_s0 = s[edges[:-1]]
+            self._segs = [(CubicSpline(s[a : b + 1], x[a : b + 1]), CubicSpline(s[a : b + 1], y[a : b + 1]))
+                          for a, b in zip(edges[:-1], edges[1:])]
+        else:
+            self._sx = CubicSpline(s, x)
+            self._sy = CubicSpline(s, y)
         # Leading edge = point of minimum x on the spline.
         i_le = int(np.argmin(x))
         lo, hi = s[max(i_le - 2, 0)], s[min(i_le + 2, len(s) - 1)]
-        self.s_le = float(minimize_scalar(lambda t: float(self._sx(t)), bounds=(lo, hi), method="bounded").x)
+        self.s_le = float(minimize_scalar(lambda t: float(self.point(t)[0]), bounds=(lo, hi), method="bounded").x)
 
     # -- evaluation --------------------------------------------------------
     @property
     def perimeter(self) -> float:
         return self._s_total
 
+    @property
+    def s_breaks(self) -> np.ndarray:
+        """Parameter values of the corners (empty for a smooth section)."""
+        return self.s_nodes[list(self.breaks)]
+
+    def _eval(self, s: np.ndarray, nu: int = 0) -> tuple[np.ndarray, np.ndarray]:
+        if not self.breaks:
+            return self._sx(s, nu), self._sy(s, nu)
+        s1 = np.atleast_1d(s)
+        k = np.clip(np.searchsorted(self._seg_s0, s1, side="right") - 1, 0, len(self._segs) - 1)
+        ox, oy = np.empty_like(s1), np.empty_like(s1)
+        for i in np.unique(k):
+            m = k == i
+            ox[m], oy[m] = self._segs[i][0](s1[m], nu), self._segs[i][1](s1[m], nu)
+        return ox.reshape(np.shape(s)), oy.reshape(np.shape(s))
+
     def point(self, s: np.ndarray) -> np.ndarray:
         s = np.asarray(s, float)
-        return np.stack([self._sx(s), self._sy(s)], axis=-1)
+        return np.stack(self._eval(s), axis=-1)
 
     def tangent(self, s: np.ndarray) -> np.ndarray:
         s = np.asarray(s, float)
-        t = np.stack([self._sx(s, 1), self._sy(s, 1)], axis=-1)
+        t = np.stack(self._eval(s, 1), axis=-1)
         return t / np.linalg.norm(t, axis=-1, keepdims=True)
 
     def normal(self, s: np.ndarray) -> np.ndarray:
@@ -71,12 +107,23 @@ class Foil:
         return float(np.sum(np.hypot(*np.diff(p, axis=0).T)))
 
     def surface(self, side: str, n: int = 200) -> np.ndarray:
-        """Points from LE to TE on 'upper' or 'lower' (cosine spacing)."""
+        """Points from LE to TE on 'upper' or 'lower' (cosine spacing).
+
+        On a section with corners every corner is included, with extra points
+        on short pieces (a step face, a fillet), so more than n points come
+        back."""
         u = 0.5 * (1 - np.cos(np.linspace(0, math.pi, n)))
         if side == "upper":
             s = self.s_le * (1 - u)
         else:
             s = self.s_le + (self._s_total - self.s_le) * u
+        if self.breaks:
+            lo, hi = sorted((s[0], s[-1]))
+            edges = np.concatenate([[0.0], self.s_breaks, [self._s_total]])
+            extra = [np.linspace(a, b, 9) for a, b in zip(edges[:-1], edges[1:]) if b - a < 0.05]
+            s = np.concatenate([s, self.s_breaks, *extra])
+            s = np.unique(s[(s >= lo) & (s <= hi)])
+            s = s[::-1] if side == "upper" else s
         return self.point(s)
 
     # -- properties --------------------------------------------------------
@@ -216,6 +263,10 @@ def load(spec: str, search_dirs: list[Path] | None = None) -> Foil:
     search_dirs (default: geometry/foils of the repository)
     """
     s = spec.strip()
+    if re.match(r"(?i)(?:stair|kfm)\d+:", s):  # kfm: renamed, stepped.py explains
+        from . import stepped
+
+        return stepped.from_spec(s, search_dirs)
     m = re.fullmatch(r"(?i)naca\s*(\d{4})", s)
     if m:
         return naca4(m.group(1))

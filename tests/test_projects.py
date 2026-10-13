@@ -64,3 +64,38 @@ def test_foil2d_smoke_in_docker():
     sdir = config.runs_dir() / "foil2d-smoke"
     res = json.loads((sdir / list_runs(sdir)[-1] / "aoa4" / "result.json").read_text())
     assert 0.2 < res["metrics"]["Cl"] < 0.6
+
+
+def test_render_stepped_smoke(tmp_path):
+    """Stepped sections: marched mesh, first cell below the step, one
+    non-orthogonal corrector, step height recorded."""
+    project = load_project("foil2d")
+    study = Study.load(config.projects_dir() / "foil2d" / "studies" / "stepped-smoke.yaml")
+    cases = study.expand(project.defaults)
+    run_study(project, study, cases, RunOptions(render_only=True), tmp_path / "run", log=lambda *a: None)
+    for c in cases:
+        case = tmp_path / "run" / c.name
+        assert (case / "constant" / "polyMesh" / "owner").is_file()
+        assert re.search(r"^stepHeight\s", (case / "system" / "caseParameters").read_text(), re.M)
+        assert "nNonOrthogonalCorrectors 1;" in (case / "system" / "fvSolution").read_text()
+        d = json.loads((case / "params.json").read_text())["derived"]
+        assert d["mesh_spec"]["first_cell"] <= 0.1 * d["stepHeight"]  # 5 % of h at 'medium', xcoarse is 2x
+
+
+def test_stepped_surface_order():
+    """Surface samples of a stepped section sort LE -> TE along the contour,
+    including the face, where x does not change."""
+    import numpy as np
+
+    from iomcfd.geometry import foils
+
+    contour_param = type(load_project("foil2d")).extract.__globals__["_contour_param"]
+    f = foils.load("stair1:naca0009")
+    s_true = np.random.default_rng(1).permutation(np.linspace(0.001, f.perimeter - 0.001, 3000))
+    pts = f.point(s_true)
+    s = contour_param(f, pts[:, 0], pts[:, 1])
+    assert np.allclose(s, s_true, atol=2e-4)
+    up = s < f.s_le
+    order = np.argsort(-s[up])  # upper surface LE -> TE
+    x = pts[up][order, 0]
+    assert x[0] < 0.01 and x[-1] > 0.99 and np.all(np.diff(x) > -1e-9)

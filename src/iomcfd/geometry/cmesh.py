@@ -18,6 +18,21 @@ coincide and are merged, so the cells either side are ordinary neighbours.
 Grid lines leave the wall exactly along the surface normal and bend smoothly
 (exponential blend) to their far-field point, so near-wall cells are
 orthogonal: important for transition (kOmegaSSTLM) and y+ ~ 1 meshes.
+
+Stepped sections (foils.Foil.steps) differ in two ways; smooth sections are
+meshed exactly as before.
+* Wall points come from a target spacing: the smooth-section distribution,
+  refined to a fraction of the step height at the step's corners, on its
+  face and over the recirculation zone behind it (`step_*` in CMeshSpec).
+* Wall normals turn by 90 degrees at the lip and back at the foot, so
+  straight normal lines would fan out at the lip and cross behind the foot.
+  Near the steps the lines are grown instead by marching the whole wall
+  front outward one layer at a time, hyperbolic-grid style: each point
+  moves along the normal of the current front by the layer height, scaled
+  up where the front is compressed (the foot's concave corner) and down
+  where it is stretched (the lip's fan), and the new front is smoothed so
+  compressed points spread out. Away from the steps the lines are the
+  straight wall normals of the smooth-section generator.
 """
 
 from __future__ import annotations
@@ -48,6 +63,17 @@ class CMeshSpec:
     normal_extent: float = 0.2  # chords: lines follow the wall normal ~this far
     te_blend: float = 0.1  # chords: normals turn vertical over this distance to the TE
     farfield_spread: float = 0.3  # 0 = far-field points follow the wall clustering, 1 = uniform
+    # stepped sections only (lengths as fractions of each step's height h)
+    step_corner: float = 0.02  # wall spacing at the lip (the separation point; at least first_cell)
+    step_foot: float = 0.1  # wall spacing at the foot (corner eddy; finer bunches the grid lines)
+    step_recirc: float = 0.1  # wall spacing over the recirculation zone behind the step
+    step_recirc_length: float = 8.0  # length of that zone (backward-facing steps reattach at ~6-8 h)
+    step_growth: float = 0.1  # spacing growth away from the step (d spacing / d arc length)
+    step_smoothing: float = 1.0  # front smoothing length / layer height near steps
+    step_smoothing_ramp: float = 0.1  # smoothing ramps in over this wall distance / h
+    step_area: float = 0.3  # exponent of the (wall spacing / front spacing) layer-height factor
+    step_spread: float = 2.0  # extra smoothing where the front is compressed
+    step_relax: float = 1.0  # spacing target: wall spacing averaged over this x wall distance
 
 
 @dataclass
@@ -96,12 +122,16 @@ def generate(foil: Foil, spec: CMeshSpec) -> tuple[np.ndarray, int]:
     R = spec.farfield * c
 
     # --- wall distribution: lower TE->LE then upper LE->TE ----------------
-    fr = vinokur(spec.n_surface, spec.ds_le / 1.0, spec.ds_te / 1.0)  # LE->TE fractions
-    # spacing is relative to each side's arc length (~1 chord); close enough
-    up_map, _ = _arc_param(foil, foil.s_le, 0.0)
-    lo_map, _ = _arc_param(foil, foil.s_le, foil.perimeter)
-    s_up = up_map(fr)  # LE -> TE
-    s_lo = lo_map(fr)  # LE -> TE
+    if foil.steps:
+        s_up = _stepped_wall(foil, spec, "upper")  # LE -> TE
+        s_lo = _stepped_wall(foil, spec, "lower")
+    else:
+        fr = vinokur(spec.n_surface, spec.ds_le / 1.0, spec.ds_te / 1.0)  # LE->TE fractions
+        # spacing is relative to each side's arc length (~1 chord); close enough
+        up_map, _ = _arc_param(foil, foil.s_le, 0.0)
+        lo_map, _ = _arc_param(foil, foil.s_le, foil.perimeter)
+        s_up = up_map(fr)  # LE -> TE
+        s_lo = lo_map(fr)  # LE -> TE
     s_wall = np.concatenate([s_lo[::-1], s_up[1:]])  # TE(lower) -> LE -> TE(upper)
     wall = foil.point(s_wall) * c
     nrm = foil.normal(s_wall)
@@ -109,11 +139,18 @@ def generate(foil: Foil, spec: CMeshSpec) -> tuple[np.ndarray, int]:
     # foil lines join the (vertical) wake lines without crossing them.
     b = _smoothstep((wall[:, 0] / c - (1.0 - spec.te_blend)) / spec.te_blend)[:, None]
     vert = np.zeros_like(nrm)
-    n_lo = spec.n_surface + 1
+    n_lo = len(s_lo)
     vert[:n_lo, 1], vert[n_lo:, 1] = -1.0, 1.0
     vert[n_lo - 1] = (-1.0, 0.0)  # LE (never blended, x/c = 0)
-    nrm = (1.0 - b) * nrm + b * vert
-    nrm /= np.linalg.norm(nrm, axis=1, keepdims=True)
+
+    def te_blend(n):
+        n = (1.0 - b) * n + b * vert
+        return n / np.linalg.norm(n, axis=1, keepdims=True)
+
+    nrm = te_blend(nrm)
+    # stepped: the unstepped section's normals, so the far-field points are
+    # laid out as for the smooth section (a step face's normal points aft)
+    nref = te_blend(_reference_normals(foil, s_wall, wall / c, foil.normal(s_wall))) if foil.steps else nrm
 
     # --- wake line ----------------------------------------------------------
     te = wall[-1]
@@ -128,10 +165,11 @@ def generate(foil: Foil, spec: CMeshSpec) -> tuple[np.ndarray, int]:
         [np.tile((0.0, -1.0), (n_w, 1)), nrm, np.tile((0.0, 1.0), (n_w, 1))]
     )
     NI = len(inner)
-    i_le = n_w + spec.n_surface
+    i_le = n_w + n_lo - 1
 
     # --- far-field point for each C-line point -----------------------------
-    theta = np.arctan2(normals[:, 1], normals[:, 0]) % (2 * math.pi)
+    n_ff = normals if nref is nrm else np.vstack([normals[:n_w], nref, normals[NI - n_w :]])
+    theta = np.arctan2(n_ff[:, 1], n_ff[:, 0]) % (2 * math.pi)
     # switch from circle to straight top/bottom where the normal is vertical
     up_idx = np.arange(i_le, NI - n_w)
     lo_idx = np.arange(i_le, n_w - 1, -1)  # LE -> TE on lower side
@@ -202,6 +240,8 @@ def generate(foil: Foil, spec: CMeshSpec) -> tuple[np.ndarray, int]:
     # --- grid lines ---------------------------------------------------------
     NJ = spec.n_normal + 1
     P = np.zeros((NI, NJ, 2))
+    stepped = bool(foil.steps)
+    T = {}
     for i in range(NI):
         p0, p1 = inner[i], outer[i]
         L = float(np.hypot(*(p1 - p0)))
@@ -213,10 +253,204 @@ def generate(foil: Foil, spec: CMeshSpec) -> tuple[np.ndarray, int]:
             w = abs(p0[0] - x_te) / (spec.wake_length * c)
             t_out = geometric(spec.n_normal, spec.wake_outlet_cell * c / L, 1.0)
             t = (1.0 - w) * t + w * t_out
+        elif stepped:
+            T[i] = (t, L)
+            continue
         P[i] = _grid_line(p0, normals[i], p1, t, spec.normal_extent * c)
+    if stepped:
+        idx = np.arange(n_w, NI - n_w)
+        D = np.array([T[i][0] * T[i][1] for i in idx])  # distance along each line, per layer
+        chi, hloc = _step_weight(foil, s_wall)
+        M = _marched_offsets(wall, nrm, chi, D, spec, spec.step_smoothing_ramp * hloc * c)
+        w = 1.0 - np.exp(-D / (spec.normal_extent * c))
+        e = (outer[idx] - inner[idx]) / np.array([T[i][1] for i in idx])[:, None]
+        P[idx] = inner[idx][:, None, :] + (1.0 - w)[..., None] * M + (w * D)[..., None] * e[:, None, :]
     # exact merge of the wake cut (upper-wake j=0 points == lower-wake ones)
     P[NI - 1 - np.arange(n_w + 1), 0] = P[np.arange(n_w + 1), 0]
     return P, n_w
+
+
+# ---------------------------------------------------------------------------
+# Stepped sections
+
+
+def _stepped_wall(foil: Foil, spec: CMeshSpec, side: str) -> np.ndarray:
+    """Wall parameters LE -> TE on one side of a stepped foil.
+
+    Equidistributes a target spacing (chords): the smooth-section Vinokur
+    distribution, refined around each step on this side (corners, face,
+    recirculation zone). Arc length ~ the foil's chord-length parameter.
+    """
+    s_le, s_end = foil.s_le, (0.0 if side == "upper" else foil.perimeter)
+    L = abs(s_end - s_le)
+    fr = vinokur(spec.n_surface, spec.ds_le, spec.ds_te)
+    base_mid, base_ds = 0.5 * (fr[1:] + fr[:-1]) * L, np.diff(fr) * L
+    min_corner = spec.first_cell / spec.chord
+    feats = []
+    for st in foil.steps:
+        if st.side != side:
+            continue
+        lip = sorted(abs(s - s_le) for s in st.s_lip)
+        foot = sorted(abs(s - s_le) for s in st.s_foot)
+        h = st.height
+        ds_c = max(spec.step_corner * h, min_corner)
+        ds_f = max(spec.step_foot * h, ds_c)
+        ds_r = max(spec.step_recirc * h, ds_c)
+        feats.append((lip, foot, ds_c, ds_f, ds_r, spec.step_recirc_length * h))
+    g = spec.step_growth
+
+    def spacing(l):
+        d = np.interp(l, base_mid, base_ds)
+        for lip, foot, ds_c, ds_f, ds_r, lr in feats:
+            for corners, ds in ((np.array(lip), ds_c), (np.array(foot), ds_f)):
+                d = np.minimum(d, ds + g * np.min(np.abs(l[:, None] - corners[None, :]), axis=1))
+            for a, b in (lip, foot):  # at least 6 intervals on each fillet
+                d = np.where((l >= a) & (l <= b), np.minimum(d, (b - a) / 6), d)
+            zone = np.clip(l - foot[1] - lr, 0.0, None)
+            d = np.where(l >= foot[1], np.minimum(d, ds_r + g * zone), d)
+        return d
+
+    # integration grid fine enough for the target spacing, then equidistribute
+    grid = np.unique(np.concatenate([np.linspace(0, L, 4001), *[[*lip, *foot] for lip, foot, *_ in feats]]))
+    for _ in range(40):
+        mid = 0.5 * (grid[1:] + grid[:-1])
+        coarse = np.diff(grid) > 0.25 * spacing(mid)
+        if not coarse.any():
+            break
+        grid = np.sort(np.concatenate([grid, mid[coarse]]))
+    mid = 0.5 * (grid[1:] + grid[:-1])
+    N = np.concatenate([[0.0], np.cumsum(np.diff(grid) / spacing(mid))])
+    n = max(int(math.ceil(N[-1])), spec.n_surface)
+    ell = np.interp(np.linspace(0.0, N[-1], n + 1), N, grid)
+    ell[0], ell[-1] = 0.0, L
+    return s_le + np.sign(s_end - s_le) * ell
+
+
+def _reference_normals(foil: Foil, s: np.ndarray, xy: np.ndarray, nrm: np.ndarray) -> np.ndarray:
+    """Normals of the unstepped base section at the same x on the same side.
+    Equal to the foil's own normals on the smooth forward piece."""
+    base = foil.base
+    s_fwd_lo = max([st.s_lip[1] for st in foil.steps if st.side == "upper"], default=0.0)
+    s_fwd_hi = min([st.s_lip[0] for st in foil.steps if st.side == "lower"], default=foil.perimeter)
+    out = nrm.copy()
+    u = 0.5 * (1 - np.cos(np.linspace(0, math.pi, 8000)))
+    for side, sb, m in (("upper", base.s_le * (1 - u), s < s_fwd_lo),
+                        ("lower", base.s_le + (base.perimeter - base.s_le) * u, s > s_fwd_hi)):
+        if not m.any():
+            continue
+        px, n = base.point(sb)[:, 0], base.normal(sb)
+        out[m] = np.column_stack([np.interp(xy[m, 0], px, n[:, 0]), np.interp(xy[m, 0], px, n[:, 1])])
+    return out / np.linalg.norm(out, axis=1, keepdims=True)
+
+
+def _step_weight(foil: Foil, s: np.ndarray, before: float = 4.0, after: float = 14.0,
+                 taper: float = 4.0) -> tuple[np.ndarray, np.ndarray]:
+    """chi = 1 near each step (from `before` step heights ahead of the lip to
+    `after` behind the foot, in arc length), cosine taper to 0 over `taper`
+    heights; and the height of the nearest step at each point."""
+    chi = np.zeros_like(s)
+    hloc = np.full_like(s, max(st.height for st in foil.steps))
+    near = np.full_like(s, np.inf)
+    for st in foil.steps:
+        h = st.height
+        if st.side == "upper":  # contour param decreases from LE to TE on the upper side
+            a, b = st.s_foot[0] - after * h, st.s_lip[1] + before * h
+        else:
+            a, b = st.s_lip[0] - before * h, st.s_foot[1] + after * h
+        dist = np.maximum(a - s, s - b) / (taper * h)  # <= 0 inside the core
+        chi = np.maximum(chi, np.where(dist <= 0, 1.0, 0.5 * (1 + np.cos(math.pi * np.clip(dist, 0, 1)))))
+        closer = np.abs(s - 0.5 * (a + b)) < near
+        near = np.where(closer, np.abs(s - 0.5 * (a + b)), near)
+        hloc = np.where(closer, h, hloc)
+    return chi, hloc
+
+
+def _marched_offsets(wall: np.ndarray, nrm: np.ndarray, chi: np.ndarray, D: np.ndarray,
+                     spec: CMeshSpec, ramp: np.ndarray) -> np.ndarray:
+    """Near-wall paths M[i, j] (offsets from wall point i at distance D[i, j])
+    by marching the whole wall front outward one layer at a time.
+
+    Each layer moves point i along (1 - chi) * wall normal + chi * normal of
+    the current front, by the layer height times
+    1 + chi * ((wall spacing / front spacing)^step_area - 1): compressed
+    points (a concave corner) move further and catch up, stretched ones (a
+    convex corner's fan) less. Where chi > 0 the new front is then smoothed
+    implicitly, (I - l^2 d2/ds2) r = r*, with l = step_smoothing * chi *
+    layer height (more where the front is compressed). Each segment's
+    'spring' length in d2/ds2 is max(target spacing, current spacing): it
+    spreads segments compressed below the target and otherwise only rounds
+    the front, so the lip's fan is not pulled back into a bundle. The target
+    is the wall spacing averaged (geometrically) along the wall over
+    step_relax x the wall distance, so the points clustered at a step's
+    corners spread out as the front moves away instead of running to the
+    far field as a band of very thin cells.
+    Smoothing never pulls a point back by more than half its step (a
+    convex corner would be dragged into the wall). The layer-height factor
+    and the smoothing ramp in over `ramp` metres of wall distance, starting
+    from zero on the first layer, so the wall cell keeps its y+ height.
+    chi = 0 gives straight wall-normal lines, identical to the
+    smooth-section generator.
+    """
+    from scipy.linalg import solve_banded
+
+    ni, nj = D.shape
+    g = np.hypot(*np.diff(wall, axis=0).T)  # wall spacing (reference)
+    gn = np.concatenate([[g[0]], 0.5 * (g[1:] + g[:-1]), [g[-1]]])
+    s_mid = np.cumsum(g) - 0.5 * g
+    chi_mid = 0.5 * (chi[1:] + chi[:-1])
+    r = wall.copy()
+    M = np.zeros((ni, nj, 2))
+    for j in range(1, nj):
+        dD = D[:, j] - D[:, j - 1]
+        seg = np.hypot(*np.diff(r, axis=0).T)
+        hc = np.concatenate([[seg[0]], 0.5 * (seg[1:] + seg[:-1]), [seg[-1]]])
+        tng = np.concatenate([[r[1] - r[0]], r[2:] - r[:-2], [r[-1] - r[-2]]])
+        nf = np.column_stack([-tng[:, 1], tng[:, 0]])
+        nf /= np.linalg.norm(nf, axis=1, keepdims=True)
+        d = (1.0 - chi)[:, None] * nrm + chi[:, None] * nf
+        d /= np.linalg.norm(d, axis=1, keepdims=True)
+        # corrections ramp in with the previous layer's distance: the first
+        # layer (the y+ cell) is always exactly wall-normal
+        on = chi * np.minimum(1.0, D[:, j - 1] / ramp)
+        squeeze = gn / hc
+        step = dD * (1.0 + on * (np.clip(squeeze, 0.5, 2.0) ** spec.step_area - 1.0))
+        q = r + step[:, None] * d
+        relax = spec.step_relax * chi_mid * 0.5 * (D[1:, j - 1] + D[:-1, j - 1])
+        target = np.exp(_smooth(np.log(g), s_mid, relax)) if spec.step_relax > 0 else g
+        m = np.maximum(target, seg)
+        mm = 0.5 * (m[1:] + m[:-1])
+        t_n = np.concatenate([[target[0]], 0.5 * (target[1:] + target[:-1]), [target[-1]]])
+        spread = 1.0 + spec.step_spread * np.clip((t_n / hc)[1:-1] - 1.0, 0.0, 3.0)
+        l2 = (spec.step_smoothing * on[1:-1] * spread * dD[1:-1]) ** 2
+        lo, up = l2 / (m[:-1] * mm), l2 / (m[1:] * mm)  # coefficients of r[i-1], r[i+1]
+        ab = np.zeros((3, ni))
+        ab[1] = 1.0
+        ab[1, 1:-1] += lo + up
+        ab[0, 2:] = -up
+        ab[2, :-2] = -lo
+        rs = solve_banded((1, 1), ab, q)
+        back = np.sum((rs - q) * d, axis=1)  # < 0: pulled back towards the wall
+        r = rs - np.minimum(back + 0.5 * step, 0.0)[:, None] * d
+        M[:, j] = r - wall
+    return M
+
+
+def _smooth(v: np.ndarray, s: np.ndarray, length: np.ndarray) -> np.ndarray:
+    """Implicit diffusion (I - length^2 d2/ds2) u = v on the nonuniform 1D
+    grid s: a smoothing of v over `length` (per point; 0 = unchanged)."""
+    from scipy.linalg import solve_banded
+
+    n = len(v)
+    ds = np.diff(s)
+    dm = 0.5 * (ds[1:] + ds[:-1])
+    L2 = length[1:-1] ** 2
+    lo, up = L2 / (ds[:-1] * dm), L2 / (ds[1:] * dm)
+    ab = np.zeros((3, n))
+    ab[1] = 1.0
+    ab[1, 1:-1] += lo + up
+    ab[0, 2:] = -up
+    ab[2, :-2] = -lo
+    return solve_banded((1, 1), ab, v)
 
 
 # ---------------------------------------------------------------------------
@@ -359,8 +593,17 @@ def write_polymesh(P: np.ndarray, n_w: int, span: float, mesh_dir: Path) -> Mesh
 
 
 def quality(P: np.ndarray) -> dict:
-    """2D non-orthogonality (deg) and aspect ratio, as checkMesh measures them."""
-    C = 0.25 * (P[:-1, :-1] + P[1:, :-1] + P[1:, 1:] + P[:-1, 1:])
+    """2D non-orthogonality (deg) and aspect ratio, as checkMesh measures them
+    (cell centres are area centroids: on thin, tapered cells the vertex
+    average can be far off)."""
+    a, b, c, d = P[:-1, :-1], P[1:, :-1], P[1:, 1:], P[:-1, 1:]
+
+    def tri(p, q, r):
+        area = 0.5 * ((q[..., 0] - p[..., 0]) * (r[..., 1] - p[..., 1]) - (r[..., 0] - p[..., 0]) * (q[..., 1] - p[..., 1]))
+        return area[..., None], (p + q + r) / 3.0
+
+    (A1, c1), (A2, c2) = tri(a, b, c), tri(a, c, d)
+    C = (A1 * c1 + A2 * c2) / (A1 + A2)
 
     def ang(fa, fb, c0, c1):
         t = fb - fa

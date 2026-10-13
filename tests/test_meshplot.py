@@ -79,3 +79,18 @@ def test_render_foil_mesh_figure(tmp_path):
     out = meshplot.render(case, spec, tmp_path / "mesh.png", "test")
     assert out.is_file() and out.stat().st_size > 20_000
     assert derived["Reynolds"] > 0
+
+
+def test_section_figures(tmp_path):
+    """sections.png for every section, one sheet per stepped section."""
+    from iomcfd.sectionplot import describe, study_sections
+
+    files = study_sections(["naca0009", "stair1:naca0009:x=0.35,d=0.3", "stair10:naca0009", "naca0009"], tmp_path,
+                           0.08)
+    names = sorted(p.name for p in files)
+    assert names == ["section_stair10_naca0009.png", "section_stair1_naca0009_x_0.35_d_0.3.png", "sections.png"]
+    assert all(p.stat().st_size > 10_000 for p in files)
+    from iomcfd.geometry import foils
+
+    assert describe(foils.load("stair10:naca0009"), 0.08).startswith("10 steps per surface of 0.10 mm")
+    assert "KFm4" in describe(foils.load("stair1:naca0009"), 0.08)

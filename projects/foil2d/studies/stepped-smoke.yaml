@@ -1,0 +1,13 @@
+study: foil2d-stepped-smoke
+project: foil2d
+description: >
+  Fast end-to-end check of stepped (Kline-Fogleman) sections: one step per
+  side (stair1) and the stair5 and stair10 stairs, coarsest mesh, a few
+  hundred iterations. Checks the marched mesh passes checkMesh and the
+  solver and extraction run. Not for engineering use.
+defaults:
+  mesh: xcoarse
+  aoa: 4
+  max_iter: 300
+sweep:
+  foil: [stair1:naca0009, stair5:naca0009, stair10:naca0009]

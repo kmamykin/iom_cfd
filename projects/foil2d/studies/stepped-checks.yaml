@@ -1,0 +1,28 @@
+study: stepped-checks
+project: foil2d
+description: >
+  Numerics checks for stepped sections before trusting stepped-vs-naca, at
+  its typical upwind point (1 m/s, 4 deg, Tu 1 %, kOmegaSSTLM).
+  (a) Mesh convergence, coarse / medium / fine, for plain NACA 0009, a
+  mid-chord stair1 step (30 % depth) and stair10, 10 x 0.1 mm (its fine
+  mesh is ~1M cells). report/mesh_convergence.csv has the grid convergence
+  index. The step meshes are new (marched near the
+  steps, cmesh.py), so this is their first check.
+  (b) Steady vs transient on the medium mesh for NACA 0009 and the stair1 step:
+  the flow behind a step can shed, and the steady solver then only gives an
+  iteration average. If the two differ by more than the differences between
+  candidates in stepped-vs-naca, its working-load points need re-running
+  transient. stair10 is left out of (b): its ~5 um corner cells hold the
+  transient time step near 5e-5 s, days per case.
+defaults:
+  chord: 0.08
+  speed: 1.0
+  aoa: 4
+  turbulence: kOmegaSSTLM
+  Tu: 1.0
+sweep:
+  foil: [naca0009, "stair1:naca0009:x=0.5,d=0.3", "stair10:naca0009"]
+  mesh: [coarse, medium, fine]
+cases:
+  - {foil: naca0009, mesh: medium, solver: transient}
+  - {foil: "stair1:naca0009:x=0.5,d=0.3", mesh: medium, solver: transient}
