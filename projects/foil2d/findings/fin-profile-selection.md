@@ -8,6 +8,243 @@ support a conclusion are copied here. Entries are written by the
 hand, and are not rewritten later: a later run that changes a conclusion says
 so in its own entry.
 
+## Run 20261013-045759 (2026-10-13, git 19e49d8, GCP, 100 cases)
+
+**Setup.** The four finalists of run 2 at Tu 0.1 %:
+* 0008/80 and 0009/80, tied at working load in run 2;
+* 0008/90, the best balance over loads;
+* 0009/100, best at high load.
+
+Swept at 0.5, 0.75, 1.0, 1.5 and 2.5 m/s × aoa 0-8° (step 2); foil and
+chord are zipped. kOmegaSSTLM, steady, medium mesh (90,112 cells), whole fin
+as before. Image `iom-cfd:19e49d8` (same solver as run 2, gzipped export),
+3 × c3d-standard-16 Spot.
+
+Why: run 1 found the winner can change with Tu, with 3-12 % penalties where
+it did, and run 2's tie is smaller than that. 0.25 m/s was dropped (open
+laminar separation, unvalidated). The fine-mesh check of the tie ran
+alongside as study `mesh-finalists`, run 20261013-045811
+([findings/mesh-finalists.md](mesh-finalists.md)).
+
+**Outcome.** 90 ok, 9 not converged, 1 failed. 59 of the 99 finished cases
+are flagged unsteady; the same 99 cases at Tu 1 % (run 2) had 23.
+* The failure is 0008/90 at 1 m/s and 8°: a floating-point exception at
+  iteration 234. It doesn't affect the comparisons at the 2/4/6° forces.
+* The not-converged cases are at 4-8°, 7 of 9 at 1.5 m/s or above.
+
+### Conclusions
+
+1. **The medium mesh resolves the 0008/0009 difference** (`mesh-finalists`).
+   * At the Cl 0009/80 makes at 4°, 0008/80 has 0.9 % (coarse), 1.6 %
+     (medium) and 1.9 % (fine) less drag than 0009/80. The sign is the same
+     on all three meshes, and medium to fine moves it by 0.3 points.
+   * Cd itself changes by under 0.2 % at 4° and 0.8-1.7 % at 6° from medium
+     to fine.
+
+   Confidence: high, for 1 m/s, 80 mm, Tu 1 %.
+2. **At Tu 0.1 % the working-load tie breaks toward 0009/80, from 1.5 m/s
+   up.**
+   * At the 4° force, 0009/80 is within 0-0.2 % of the best finalist at
+     0.75-2.5 m/s. 0008/80 is 3.5-13 % worse (+13 % at 2.5 m/s).
+   * At Tu 1 % (run 2) the two were within 0-1.6 %.
+   * Taking both Tu levels together, 0009/80 is the most robust working-load
+     choice: at most 1.6 % above the best finalist at 0.75 m/s and up (mean
+     0.4 %). 0008/90 is at most 4.3 % (mean 1.8 %), 0008/80 at most 13 %.
+
+   Confidence: medium. 0008/80's 4° points are unsteady at Tu 0.1 % at
+   0.75, 1.5 and 2.5 m/s, and the unsteady Tu 0.1 % points oscillate by up
+   to 17 % (conclusion 6).
+3. **0008/80 keeps its light-air advantage at Tu 0.1 %.**
+   * At the 2° force it is the best finalist at both Tu up to 1 m/s, and at
+     most 1.8 % above the best at any speed.
+   * 0009/80 is 8-13 % above it at Tu 0.1 % (0.5-1 m/s), 0008/90 about 7 %.
+4. **0009/100 is the best finalist at high load (the 6° force) at both Tu
+   and all speeds.** 0008/90 comes next: 2-28 % above at Tu 0.1 %, 6-12 % at
+   Tu 1 %. 0009/80 is 19-31 % above at Tu 0.1 %. Confidence: medium; most
+   Tu 0.1 % points at 6° are unsteady.
+5. **A single all-round fin: 0008/90 has the smallest average penalty,
+   0009/80 the best working load.** Over all 30 comparisons among the four
+   finalists (5 speeds × 3 forces × 2 Tu), the mean drag above the best
+   finalist is:
+   * 0008/90: 6.0 %;
+   * 0009/80: 8.6 %;
+   * 0009/100: 8.8 %;
+   * 0008/80: 9.4 %.
+
+   The worst cases are all at the 6° force (28-37 %), except 0009/100's
+   26 %, which is at the 2° force. Which to choose still depends on how much
+   of the sailing is at each load (open question).
+   Confidence: low to medium. The averages weight every speed and load
+   equally.
+6. **Tu 0.1 % gives more drag than Tu 1 % at 4-8°, not less.**
+   * Same cases, run 3 against run 2, median ΔCd by angle: −0.5 % at 0°,
+     +1.2 % at 2°, +13 % at 4°, +16 % at 6°, +27 % at 8°.
+   * Friction drag is 11 % lower and pressure drag 29 % higher (medians).
+   * In the highlights at 1 m/s and 4°, the reversed-flow region on the
+     suction side grows from x/c 0.25-0.68 to 0.09-0.58 (0008) and from
+     0.28-0.68 to 0.16-0.70 (0009). Cf oscillates inside it, and the
+     extracted `x_te_sep` (about 0.52-0.54) is an artefact of those
+     oscillations.
+   * The steady solver struggles more: 59 of 99 cases unsteady against 23,
+     and the Cd oscillation of the unsteady cases above 0° is 1.7 % (median)
+     and 17 % (90th percentile), against 0.6 % and 4.6 % at Tu 1 %.
+
+   Confidence: medium on the direction, low on the size at 4° and above.
+7. **At 0.5 m/s (Re 35k) and Tu 0.1 %, the laminar separation of the 80 mm
+   finalists does not reattach.**
+   * 0008/80 and 0009/80 separate at x/c 0.27-0.28 at 4° (0.60-0.67 at 2°),
+     with reversed flow to the trailing edge.
+   * Cl at 4° is 0.31-0.32, against 0.44 at Tu 1 %.
+   * 0008/90 (Re 39.6k) still reattaches: Cl 0.46 at 4°. That cliff between
+     Re 35k and 40k is why 0008/90 wins the 0.5 m/s, 4° comparison by
+     6-20 %.
+
+   At Tu 1 % the same open separation appeared only at 0.25 m/s (run 2).
+   Unvalidated; read as a trend. Confidence: low.
+
+Run 2's conclusions 2-3 (0008/80 and 0009/80 tied at working load; 0008
+ahead in light air, 0009 at high load) hold at Tu 1 % only. At Tu 0.1 % the
+working-load tie breaks toward 0009/80, while the light- and high-load
+statements hold.
+
+### Evidence
+
+Drag at equal side force at Tu 0.1 %, from this run's
+`report/selection_compare.md` (forces: what 0009/80 makes at 2/4/6° at
+Tu 0.1 %; `*` = interpolated from an unsteady or not-converged point):
+
+| speed [m/s] | aoa ref | side force [N] | lowest drag [N] | 0008/80 | 0008/90 | 0009/80 | 0009/100 |
+|---|---|---|---|---|---|---|---|
+| 0.5 | 2° | 0.288 | 0.0675 | **best*** | +7%* | +8%* | +23%* |
+| 0.5 | 4° | 1.15 | 0.111 | +6%* | **best*** | +12%* | +11%* |
+| 0.5 | 6° | 2.04 | 0.164 | +20%* | +6% | +19% | **best*** |
+| 0.75 | 2° | 0.563 | 0.128 | **best*** | +7%* | +11%* | +26%* |
+| 0.75 | 4° | 3.78 | 0.252 | +6%* | **best*** | +0%* | +9%* |
+| 0.75 | 6° | 4.65 | 0.306 | +26% | +12%* | +21%* | **best*** |
+| 1 | 2° | 1.15 | 0.207 | **best*** | +7%* | +13%* | +23%* |
+| 1 | 4° | 6.69 | 0.391 | +3% | +1%* | **best*** | +10%* |
+| 1 | 6° | 8.33 | 0.488 | +37% | +18%* | +21%* | **best*** |
+| 1.5 | 2° | 7.31 | 0.512 | +1%* | +2%* | **best*** | +10%* |
+| 1.5 | 4° | 14.9 | 0.752 | +7%* | +4%* | **best*** | +6%* |
+| 1.5 | 6° | 16.6 | 0.873 | +14%* | +2%* | +28%* | **best*** |
+| 2.5 | 2° | 27.6 | 1.22 | +2%* | +2%* | **best*** | +16%* |
+| 2.5 | 4° | 41.8 | 1.8 | +13%* | **best*** | +0%* | +1%* |
+| 2.5 | 6° | 52.2 | 2.34 | +37%* | +28%* | +31%* | **best*** |
+
+**Working-load force (4°), % above the best finalist at each Tu, at that
+Tu's own forces.** The Tu 1 % rows are run 2 restricted to the four
+finalists; interpolation as in the report, recomputed from both runs'
+`report/selection.csv`.
+
+| Tu | 0.5 | 0.75 | 1.0 | 1.5 | 2.5 m/s |
+|---|---|---|---|---|---|
+| 1 %, 0008/80 | 0.0 | 0.0 | 0.0 | 0.5 | 0.3 |
+| 1 %, 0009/80 | 2.9 | 1.6 | 1.0 | 0.0 | 0.0 |
+| 1 %, 0008/90 | 1.3 | 2.3 | 3.1 | 2.1 | 2.1 |
+| 0.1 %, 0008/80 | 6.2 | 5.8 | 3.5 | 7.2 | 13.1 |
+| 0.1 %, 0009/80 | 12.4 | 0.2 | 0.0 | 0.0 | 0.1 |
+| 0.1 %, 0008/90 | 0.0 | 0.0 | 0.9 | 4.3 | 0.0 |
+
+**Tu sensitivity of the winner** (as in run 1). Each candidate's drag was
+compared at the same 15 forces (5 speeds × 3 force levels) under both Tu
+values:
+* the best finalist is the same at both Tu in 13 of 15 points with the
+  forces from Tu 1 %, and 9 of 15 with the forces from Tu 0.1 %;
+* where it differs, the Tu 1 % pick has 0.1-6 % more drag at Tu 0.1 %. The
+  exception is 17.7 %: 0008/80 against 0008/90 at 0.5 m/s at the 1.57 N
+  force (conclusion 7).
+
+**Highlights** (1 m/s, 80 mm, Tu 0.1 %; reversed flow = where Cf < 0 on the
+suction side in `surface.csv`, gaps under 0.05 c merged; run 2's Tu 1 %
+values in brackets):
+
+| aoa | foil | Cl | Cd | Cd_pressure | Cd_friction | reversed flow (x/c) | unsteady |
+|---|---|---|---|---|---|---|---|
+| 4 | 0008 | 0.450 (0.443) | 0.0180 (0.0157) | 0.0114 (0.0089) | 0.0066 (0.0068) | 0.09-0.58 (0.25-0.68) | no |
+| 4 | 0009 | 0.465 (0.448) | 0.0187 (0.0164) | 0.0122 (0.0093) | 0.0065 (0.0071) | 0.16-0.70 (0.28-0.68) | no |
+| 6 | 0008 | 0.572 (0.580) | 0.0307 (0.0270) | 0.0235 (0.0185) | 0.0072 (0.0084) | 0.01-0.20 (0.01-0.14) | no |
+| 6 | 0009 | 0.579 (0.588) | 0.0280 (0.0250) | 0.0205 (0.0163) | 0.0075 (0.0087) | 0.01-0.25 (0.02-0.17) | yes |
+
+Figures: `report/highlight_*.png` and `viz/highlights/*.png` of this run;
+compare with run 2's.
+
+### Decisions
+
+None taken yet. Proposed (**not agreed**):
+* Narrow to 0009/80 (working load, most robust over Tu) and 0008/90 (all
+  round). Drop 0008/80 unless light air dominates, and 0009/100 unless heavy
+  air does.
+* Before choosing, settle the sailing-load weighting (open question).
+* Check the two in 3D (`appendage3d`): tip, bulb and junction effects could
+  be larger than these 1-6 % differences.
+* A transient (`solver: transient`) check of 0009/80 and 0008/90 at 1 m/s,
+  4° and 6°, Tu 0.1 %: the steady points there oscillate (conclusion 6).
+  4 cases, roughly 4-8 case-hours (**not estimated from data**; no transient
+  foil2d run so far).
+
+### Assumptions
+
+* As run 2: span, planform, lifting-line induced drag, reference forces,
+  speeds (**not verified**, see run 1).
+* Tu 0.1 % and 1 % bracket the pond (**not verified**; run 1 thought
+  0.1-2 % plausible).
+* The mesh check at 1 m/s, 80 mm, Tu 1 % (conclusion 1) stands for the
+  other speeds, chords and Tu 0.1 % (**not verified**).
+* Below Re ≈ 50,000 (0.5 m/s at every chord here) the transition model is
+  **not validated**.
+
+### Compromises
+
+* Steady solver at Tu 0.1 %: 59 of 99 cases unsteady, with drag
+  oscillations up to 17 % (90th percentile). Most Tu 0.1 % comparison
+  points carry `*`.
+* 9 not converged and 1 failed, none re-run.
+* Same 2° aoa steps and interpolation as before. At Tu 0.1 % the drag curve
+  between 2° and 4° is less linear (Cl at 2° is low: 0.08-0.10 at 1 m/s),
+  so 4° force interpolations carry more error (not quantified).
+
+### Learnings
+
+* **Physics:**
+  * lowering Tu lengthens the laminar separation bubble and raises pressure
+    drag more than it saves in friction, from 4° up;
+  * at Re 35k (0.5 m/s, 80 mm) Tu 0.1 % gives open separation where Tu 1 %
+    did not.
+* **Mesh:** medium and fine agree on bubble positions within 0.02 c
+  (coarse within 0.03 c), and medium to fine moves Cd by ≤ 1.7 %
+  (mesh-finalists).
+* **Determinism:** the 4 medium cases in mesh-finalists repeat run 2's to
+  3e-5 in Cd with a newer image.
+* **Compute:**
+  * 70.7 case-hours in 3.5 h on 3 VMs; the estimate was about 90;
+  * Tu 0.1 % cases took 1.32× the Tu 1 % time on the same cases (1.31×
+    iterations), not the 2× run 1 measured on the coarse mesh;
+  * mesh-finalists: 5.9 case-hours in 1.0 h on 1 VM, with fine cases at 53
+    min against 26 for medium;
+  * about $2 for both jobs, from the ~$0.18/h Spot list price, not billing;
+  * gzipped exports: the 9 highlight cases plus a mesh and 10 logs came to
+    164 MB, about 16 MB per case against about 37 MB before.
+
+### Open questions and next steps
+
+* How the sailing divides between light, working and heavy air (side force
+  by wind strength). It decides between 0009/80 and 0008/90.
+* 3D check of 0009/80 and 0008/90 in `appendage3d`.
+* Transient check of the unsteady working-load points at Tu 0.1 %.
+* Highlights for a transient check:
+
+  ```yaml
+  highlights:
+    - name: steady-vs-transient
+      why: >
+        Run 20261013-045759: at Tu 0.1 % the steady solution at 1 m/s has an oscillating Cf inside a
+        long bubble (x/c 0.09-0.70 at 4 deg) and 13-16 % more drag than at Tu 1 %. Does a time-accurate
+        run agree with the steady average?
+      where: {speed: 1.0, aoa: [4, 6]}
+      compare: solver
+      views: [separation, transition]
+  ```
+
 ## Run 20261012-175146 (2026-10-13, git 19a3176, GCP, 450 cases)
 
 **Setup.** NACA 0006 / 0007 / 0008 / 0009 / 0012 × chord 80 / 90 / 100 mm ×
