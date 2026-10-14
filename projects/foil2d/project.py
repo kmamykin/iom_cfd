@@ -3,7 +3,8 @@
 Pipeline per case:
   derive()  fluid properties, Re, inflow vector, turbulence inflow, mesh sizes
   render()  structured C-grid -> constant/polyMesh, system/caseParameters
-  Allrun    checkMesh + simpleFoam (stops on converged Cl/Cd averages)
+  Allrun    checkMesh + simpleFoam (stops on converged Cl/Cd averages);
+            solver: transient restarts its steady start with pimpleFoam
   extract() Cl, Cd (pressure/friction split), Cm, y+, Cp/Cf, separation points
 """
 
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import math
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +34,10 @@ BASE_MESH = dict(n_surface=256, ds_le=1.0e-3, ds_te=2.0e-3, n_wake=96, n_normal=
 # its height (cmesh.CMeshSpec.step_*); a stair1 step adds ~120 points per side
 STEP_MESH = dict(step_corner=0.02, step_foot=0.1, step_recirc=0.1, step_growth=0.1)
 STEP_FIRST_CELL = 0.05  # first cell at most this fraction of the smallest step height ('medium')
+
+# solver: transient
+TRANSIENT_FILES = ("controlDict", "fvSchemes", "fvSolution")  # system/ files that differ from steady
+MIN_DT_FLOW_TIMES = 1e-6  # abort below this time step, in c/U (at Co 10: stair1 2e-3, NACA 0009 8e-3)
 
 
 class Foil2D(Project):
@@ -130,17 +136,31 @@ class Foil2D(Project):
         if foil.steps:
             # the cells fanning round a step reach 60-78 deg non-orthogonality
             # (smooth sections ~20 deg): one corrector per pressure solve
-            set_entry(case_dir / "system" / "fvSolution", "nNonOrthogonalCorrectors", 1)
+            # (also in a transient case's fvSolution.transient)
+            for fs in sorted((case_dir / "system").glob("fvSolution*")):
+                set_entry(fs, "nNonOrthogonalCorrectors", 1)
         self.write_parameters(case_dir, {k: v for k, v in d.items() if k != "mesh_spec"}, inputs=p)
 
     def _make_transient(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
         """Switch the copied (steady) case to pimpleFoam with an adaptive time
-        step. The template itself stays steady."""
+        step. The template itself stays steady.
+
+        With start_iter > 0 the steady setup stays in place for that many
+        SIMPLE iterations and the time-accurate one goes to system/*.transient;
+        Allrun then restarts the steady solution as time 0 of the transient
+        run. Started from the uniform inflow instead, NACA 0009 drifted for
+        more than 15 c/U and a stair1 step diverged (stepped-checks run 1).
+        """
         t_ref = float(p["chord"]) / d["magUInf"]  # one chord flow-through
         end = float(p["flow_times"]) * t_ref
         d["flowTime"] = t_ref
         d["simEndTime"] = end
-        cd = case_dir / "system" / "controlDict"
+        sysd = case_dir / "system"
+        n_start = int(p.get("start_iter") or 0)
+        if n_start > 0:  # keep the steady setup for the start
+            for name in TRANSIENT_FILES:
+                shutil.copy(sysd / name, sysd / f"{name}.steady")
+        cd = sysd / "controlDict"
         set_entry(cd, "application", "pimpleFoam")
         set_entry(cd, "endTime", end)
         set_entry(cd, "deltaT", 1e-4 * t_ref)
@@ -157,9 +177,20 @@ class Foil2D(Project):
             "writeControl    adjustable;",
             1,
         )
+        # a diverged run's time step collapses towards 0 (stair1 crawled for
+        # 4 h at dt ~1e-67 s): stop it with an error instead
+        text = text.replace("functions\n{\n", (
+            "functions\n{\n"
+            "    timeStepGuard\n    {\n"
+            "        type            runTimeControl;\n"
+            "        libs            (utilityFunctionObjects);\n"
+            "        satisfiedAction abort;\n"
+            "        conditions\n        {\n"
+            f"            minTimeStep {{ type minTimeStep; minValue {MIN_DT_FLOW_TIMES * t_ref:.6g}; }}\n"
+            "        }\n    }\n\n"), 1)
         cd.write_text(text)
-        set_entry(case_dir / "system" / "fvSchemes", "default", "backward")  # first 'default' = ddtSchemes
-        fs = case_dir / "system" / "fvSolution"
+        set_entry(sysd / "fvSchemes", "default", "backward")  # first 'default' = ddtSchemes
+        fs = sysd / "fvSolution"
         text = fs.read_text()
         # looser linear-solver tolerances: each time step is converged by the
         # PIMPLE outer loop, not by driving every solve to 1e-10
@@ -179,6 +210,12 @@ class Foil2D(Project):
             "relaxationFactors\n{\n    equations\n    {\n        \".*\"          0.9;\n        \".*Final\"     1;\n    }\n}\n"
         )
         fs.write_text(text)
+        if n_start > 0:
+            for name in TRANSIENT_FILES:
+                (sysd / name).rename(sysd / f"{name}.transient")
+                (sysd / f"{name}.steady").rename(sysd / name)
+            set_entry(sysd / "controlDict", "endTime", n_start)
+            set_entry(sysd / "controlDict", "writeInterval", n_start)
 
     # ------------------------------------------------------------------
     def _coeffs(self, case_dir: Path):
@@ -410,7 +447,7 @@ class Foil2D(Project):
         and chords are compared at equal lift force, not equal Cl. One panel
         per speed (columns) and per turbulence model / Tu (rows, whichever the
         study varies); colour = section, line style = chord. Only for studies
-        that vary the section or chord.
+        that vary the section or chord (not the mesh).
 
         Study `report:` options: `fin_span` [m] turns the per-metre 2D forces
         into whole-fin forces [N]; `induced_drag: true` adds the lifting-line
@@ -431,6 +468,8 @@ class Foil2D(Project):
 
         need = {"foil", "chord", "aoa", "lift_N_per_m", "drag_N_per_m"}
         if not need <= set(df) or (df["foil"].nunique() < 2 and df["chord"].nunique() < 2):
+            return []
+        if "mesh" in df and df["mesh"].nunique() > 1:  # a mesh study: the GCI table, not a selection
             return []
         opts = dict(options or {})
         span = float(opts["fin_span"]) if opts.get("fin_span") else None
@@ -773,9 +812,17 @@ class Foil2D(Project):
         f = MESH_LEVELS.get(p.get("mesh", "medium"), 1.0)
         # stepped sections have more cells: stair1 ~1.3x, stair5 3x, stair10 5.5x
         k = 1.0
-        if stepped.is_stepped(p.get("foil", "")):
-            k = {"stair5": 3.0, "stair10": 4.0}.get(stepped.parse_spec(str(p["foil"]))[0], 2.0)
-        return {"cpus": int(p.get("np", 1)), "memory_gb": 2, "max_hours": 1 + 2 * f * f * k}
+        preset = stepped.parse_spec(str(p["foil"]))[0] if stepped.is_stepped(p.get("foil", "")) else None
+        if preset:
+            k = {"stair5": 3.0, "stair10": 4.0}.get(preset, 2.0)
+        hours = 2 * f * f * k
+        if p.get("solver") == "transient":
+            # 15 c/U at Co 10 on the medium mesh took 1.3 h for NACA 0009 (4
+            # ranks); a stair1 step's cells cut the time step 3.6x and add
+            # cells (~5x). stair5/stair10 are guesses from their smallest cells.
+            kt = {"stair5": 20.0, "stair10": 60.0}.get(preset, 5.0) if preset else 1.0
+            hours += 2 * f**3 * kt * float(p.get("flow_times", 15)) / 15 * 10 / float(p.get("max_co", 10))
+        return {"cpus": int(p.get("np", 1)), "memory_gb": 2, "max_hours": 1 + hours}
 
 
 def _find_raw(d: Path, field: str) -> Path | None:

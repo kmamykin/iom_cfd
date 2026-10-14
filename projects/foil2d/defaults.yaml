@@ -30,7 +30,10 @@ farfield: 50            # chords, radius of the C-domain and wake length
 solver: steady          # steady (simpleFoam) | transient (pimpleFoam, time-averaged forces)
 flow_times: 15          # transient: simulated time in chord flow-throughs (c/U)
 average_times: 6        # transient: forces averaged over the last this many c/U
-max_co: 10              # transient: maximum Courant number (adaptive time step)
+max_co: 10              # transient: maximum Courant number (adaptive time step); stepped
+                        # sections 5 (stair1 diverged at 10 from a uniform start)
+start_iter: 2000        # transient: start from this many steady (simpleFoam) iterations,
+                        # 0 = from the uniform inflow (slow to settle, and stair1 diverged)
 snapshot_interval: 0    # transient: write fields every this many c/U (0 = final state only).
                         # Enables time animations in `iomcfd viz` (~10 MB per snapshot, coarse)
 max_iter: 8000          # SIMPLE iteration budget

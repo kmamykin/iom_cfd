@@ -199,7 +199,8 @@ fully turbulent: a solver check independent of transition modelling),
 0.25-2.5 m/s, Tu 1 %, medium mesh: 450 cases; run 20261012-045433 had
 0006/0009/0012, 80/100 mm, Tu 0.1 and 1 %, coarse mesh), `stepped-smoke`
 (pipeline check for stair1, stair5 and stair10), `stepped-checks` (mesh
-convergence and steady vs transient for stepped sections: 11 cases),
+convergence and steady vs transient for stepped sections; run 20261013-190301:
+11 cases, run 2: the two transient cases again, from a steady start),
 `stepped-vs-naca` (stair1 steps at x/c 0.35 and 0.5, 15/30/50 % deep, and
 stair5 and stair10, cut from NACA 0009, against plain 0009 and 0007;
 0.5-1.5 m/s: 150 cases).

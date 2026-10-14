@@ -82,6 +82,38 @@ def test_render_stepped_smoke(tmp_path):
         assert d["mesh_spec"]["first_cell"] <= 0.1 * d["stepHeight"]  # 5 % of h at 'medium', xcoarse is 2x
 
 
+def test_render_transient_steady_start(tmp_path):
+    """solver: transient starts from start_iter steady iterations: the steady
+    setup stays active (endTime = start_iter), the time-accurate one waits in
+    system/*.transient with a guard against a collapsing time step."""
+    from iomcfd.study import params_hash
+
+    project = load_project("foil2d")
+    study = Study.load(config.projects_dir() / "foil2d" / "studies" / "stepped-checks.yaml")
+    cases = study.expand(project.defaults)
+    run_study(project, study, cases, RunOptions(render_only=True), tmp_path / "run", log=lambda *a: None)
+    sysd = tmp_path / "run" / cases[1].name / "system"  # the stair1 step, maxCo 5
+    cd, cdt = (sysd / "controlDict").read_text(), (sysd / "controlDict.transient").read_text()
+    assert re.search(r"^application\s+simpleFoam;", cd, re.M) and re.search(r"^endTime\s+2000;", cd, re.M)
+    assert re.search(r"^writeInterval\s+2000;", cd, re.M) and "timeStepGuard" not in cd
+    assert re.search(r"^application\s+pimpleFoam;", cdt, re.M) and re.search(r"^maxCo\s+5(\.0)?;", cdt, re.M)
+    assert "satisfiedAction abort;" in cdt and "minValue 8e-08;" in cdt  # 1e-6 c/U at 80 mm, 1 m/s
+    fs, fst = (sysd / "fvSolution").read_text(), (sysd / "fvSolution.transient").read_text()
+    assert "SIMPLE" in fs and "PIMPLE" in fst and "SIMPLE" not in fst
+    assert "nNonOrthogonalCorrectors 1;" in fs and "nNonOrthogonalCorrectors 1;" in fst  # stepped
+    assert "backward" in (sysd / "fvSchemes.transient").read_text()
+    assert "backward" not in (sysd / "fvSchemes").read_text()
+
+    # start_iter 0: the uniform start, the time-accurate setup active
+    p0 = {**cases[0].params, "start_iter": 0}
+    assert params_hash(p0) == cases[0].params_hash  # how a case starts is not part of its answer
+    case = tmp_path / "zero"
+    project.prepare_case(case, p0)
+    assert not list((case / "system").glob("*.transient"))
+    cd = (case / "system" / "controlDict").read_text()
+    assert re.search(r"^application\s+pimpleFoam;", cd, re.M) and "timeStepGuard" in cd
+
+
 def test_stepped_surface_order():
     """Surface samples of a stepped section sort LE -> TE along the contour,
     including the face, where x does not change."""
