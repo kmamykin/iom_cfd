@@ -466,19 +466,30 @@ class Foil2D(Project):
         side force where it rises with aoa (a dip near 0°, the low-Re lift
         reversal of thick sections, is skipped); '-' = that force is outside
         it. '*' = interpolated from an unsteady or not-converged point.
+        Only the (foil, chord) pairs the run has are candidates (a study may
+        zip them). If the reference is not one of them (a study's later run
+        that drops it), the nearest candidate is used instead: the same foil
+        if there is one, then the closest chord; the table says so.
         """
         import pandas as pd
 
         foils, chords = sorted(t["foil"].unique()), sorted(t["chord"].unique())
+        cands = sorted({(f, float(c)) for f, c in zip(t["foil"], t["chord"])})
         ref = dict(opts.get("compare_at") or {})
         ref_foil = ref.get("foil", foils[len(foils) // 2])
         ref_chord = float(ref.get("chord", chords[0]))
         angles = ref.get("aoa", [2, 4, 6])
-        if ref_foil not in foils or not np.isclose(chords, ref_chord).any():
-            raise ValueError(f"report: compare_at {ref_foil} / {ref_chord} is not one of the study's candidates")
 
         def label(foil, chord):
             return f"{str(foil).removeprefix('naca')}/{chord * 1000:g}"
+
+        note = ""
+        if not any(f == ref_foil and np.isclose(c, ref_chord) for f, c in cands):
+            asked = label(ref_foil, ref_chord)
+            ref_foil, ref_chord = min(cands, key=lambda fc: (fc[0] != ref_foil, abs(fc[1] - ref_chord), fc[0]))
+            note = (f" The reference {asked} (report.compare_at) is not in this run; {label(ref_foil, ref_chord)} "
+                    "is used instead, so the forces differ from runs that had it.")
+            print(f"report: compare_at {asked} is not in this run; using {label(ref_foil, ref_chord)}")
 
         def drag_at(g, force):
             g = g.sort_values("aoa")
@@ -513,10 +524,9 @@ class Foil2D(Project):
                         continue
                     force = float(r.loc[a, "side_force"])
                     got = {}
-                    for foil in foils:
-                        for chord in chords:
-                            g = sub[(sub["foil"] == foil) & np.isclose(sub["chord"], chord)]
-                            got[(foil, chord)] = drag_at(g, force) if not g.empty else (None, False)
+                    for foil, chord in cands:
+                        g = sub[(sub["foil"] == foil) & np.isclose(sub["chord"], chord)]
+                        got[(foil, chord)] = drag_at(g, force) if not g.empty else (None, False)
                     valid = [d for d, _ in got.values() if d is not None]
                     best = min(valid) if valid else None
                     for (foil, chord), (d, shaky) in got.items():
@@ -531,10 +541,9 @@ class Foil2D(Project):
         csv_path = out_dir / "selection_compare.csv"
         cmp.to_csv(csv_path, index=False)
 
-        cands = [(f, c) for f in foils for c in chords]
         md = [f"## Drag at equal side force ({what})", "",
-              f"Side forces: what {label(ref_foil, ref_chord)} makes at aoa {', '.join(f'{a:g}' for a in angles)}°. "
-              "Cells: % drag above the lowest at that force; **best** = lowest; '-' = force outside that "
+              f"Side forces: what {label(ref_foil, ref_chord)} makes at aoa {', '.join(f'{a:g}' for a in angles)}°."
+              f"{note} Cells: % drag above the lowest at that force; **best** = lowest; '-' = force outside that "
               "candidate's pre-stall range; '*' = interpolated from an unsteady or not-converged point.", ""]
         for row in rows:
             if row_cols:

@@ -10,7 +10,7 @@ hand, and are not rewritten later: a later run that changes a conclusion says
 so in its own entry. The exception is "Where the selection stands" below: it
 is the current summary and is updated in place.
 
-## Where the selection stands (updated 2026-10-13)
+## Where the selection stands (updated 2026-10-13, after run 20261013-200643)
 
 **Metric.** The current metric is the race time lost on a windward-leeward
 course with equal time upwind and downwind:
@@ -27,46 +27,397 @@ same side force at a lower angle.
 * NACA 0012 is out. It is never the best at light or working load (at
   least 5 % more drag than the best in run 2), and loses 2.2-5.1 % of race
   time on average at Tu 1 %.
+* Seven candidates remain: 0007/90, 0007/100, 0008/80, 0008/90, 0008/100,
+  0009/80 and 0009/100. All seven now have results at both Tu, 1 % and
+  0.1 %.
 
 **Leading, not settled:**
-* **NACA 0008 at 90 mm is the best-supported all-round choice.** Among the
-  four finalists, which have been checked at both Tu, it has the lowest mean
-  race-time loss over light, working and high load: 0.85 % with the
-  estimated resistance slope, 0.49 % with the slope doubled. At working load
-  it is never more than 0.54 % behind (0.5-1.5 m/s).
-* **Over all 15 run-2 candidates (Tu 1 % only), 0007/100, 0008/100 and
-  0007/90 lose 0.0-0.5 % less on average than 0008/90.** These are thinner
-  sections on longer chords, which run 2 dropped on drag alone. 0007/90 and
-  0007/100 rest on unsteady or not-converged points for 10 of their 12
-  upwind comparisons (0008/90: 5 of 12), and none of the three has been run
-  at Tu 0.1 %.
-* **0008/80 and 0009/80 stay close alternatives.**
-  * 0008/80 is the best finalist in light air and has the least downwind
-    drag.
-  * 0009/80 has the least working-load drag at Tu 0.1 %.
-  * Both need 0.2-1.0° more leeway than 0008/90.
-* **0009/100, and 0008/100 at Tu 1 %, are the heavy-air choices.**
+* **NACA 0008 at 90 mm is the safest choice.** I compared the seven eight
+  ways: Tu 1 % or 0.1 %, the estimated resistance slope or double it, and
+  with or without the unreliable 4° points.
+  * 0008/90 is never more than 0.47 % of race time behind the best.
+  * Every other candidate is up to 0.85-1.59 % behind in at least one of
+    the eight.
+  * At working load alone 0008/90 is at most 0.62 behind; the next best is
+    1.07.
+* **Taking the steady 4° points at face value, 0008/100 and 0007/100
+  lead.**
+  * At Tu 0.1 % the mean losses (estimated slope / doubled) are:
+    * 0008/100: 1.06 / 0.50;
+    * 0007/100: 1.21 / 0.65;
+    * 0007/90: 1.25 / 0.77;
+    * 0008/90: 1.25 / 0.74.
+  * At Tu 1 % the same four lead, with 0007/100 first.
+* **By load:**
+  * 0007/90 is best at light and working load and has almost the least
+    downwind drag, but is 3.7 % behind at high load.
+  * 0008/100 is best at high load, then 0009/100.
+* **0008/80 and 0009/80** trail the four leaders at Tu 0.1 % (mean 2.2 /
+  2.7 % with the estimated slope). Without the 4° points one of them is
+  first in 3 of the 4 variants, so they hinge on the same points.
 
-**How much is at stake.** The leading candidates are within about 0.5-1 % of
-race time of each other, roughly 0.6-1.2 s per 100 m beat. That is inside
-the uncertainty of:
-* the turbulence level on the water;
-* the steady answers of unsteady cases;
-* the boat's resistance curve, which is estimated;
-* the share of side force the hull and rudder carry, which is left out;
-* 3D effects, which haven't been checked.
+**Why it isn't settled.** At Tu 0.1 % the 4° cases of 0007/90, 0007/100
+and 0008/100 oscillate. Their drag swings by up to 14-22 % around its
+mean, and 11 of their 15 cases hit the iteration limit. The steady solver
+can't give a reliable average for that flow, and the working-load ranking
+rests on those points.
+
+**How much is at stake.**
+* The four leaders are within 0.2-0.3 % of race time of each other. In any
+  of the eight variants, no candidate's mean is more than 1.6 % behind the
+  best.
+* That is inside the uncertainty of:
+  * the steady answers of shedding cases;
+  * the turbulence level on the water;
+  * the boat's resistance curve, which is estimated;
+  * the hull and rudder share of side force, which is left out;
+  * 3D effects, which haven't been checked.
 
 **What would settle it, in order (proposed, not agreed):**
-1. A hull resistance curve, `hull` project at 0.5-1.5 m/s (Wigley
+1. A transient check of the 4° points: all seven at 1 m/s, Tu 0.1 %, plus
+   0009/80 and 0009/100 at 6° (9 cases). Start with one case to measure the
+   cost.
+2. A hull resistance curve, `hull` project at 0.5-1.5 m/s (Wigley
    validation first), to replace the resistance estimate.
-2. Leeway in the report's selection comparison, so runs rank by race time.
-3. 0007/90, 0007/100 and 0008/100 at Tu 0.1 %: 75 cases, to finish the
-   finalist set under the race-time metric.
+3. Leeway in the report's selection comparison, so runs rank by race time.
 4. A 3D check of the leaders (`appendage3d`), including the hull and rudder
    share of side force.
-5. A transient check of the unsteady working-load points.
-6. Fin stiffness, which CFD doesn't cover. 0008/90 and 0009/80 are the same
-   7.2 mm thick; 0008/80 is 6.4 mm.
+5. Fin stiffness, which CFD doesn't cover. 0007/90 is the thinnest of the
+   leaders (6.3 mm), then 0007/100 (7.0), 0008/90 (7.2) and 0008/100 (8.0).
+
+## Run 20261013-200643 (2026-10-13, git 44a27af, GCP, 75 cases)
+
+**Setup.** 0007/90, 0007/100 and 0008/100 at Tu 0.1 %: the three run-2
+candidates that lead under the race-time metric at Tu 1 % (analysis
+2026-10-13 (2)). 0.5, 0.75, 1.0, 1.5 and 2.5 m/s × aoa 0-8° (step 2); foil
+and chord zipped. kOmegaSSTLM, steady, medium mesh (90,112 cells). Image
+`iom-cfd:19e49d8`, the one run 3 used, so all seven candidates have Tu 0.1 %
+results from the same solver. c3d-standard-16 Spot.
+
+Why: these three had no Tu 0.1 % results, and most of their Tu 1 % upwind
+points were unsteady or not converged.
+
+How this entry compares runs:
+* All seven candidates are ranked together at Tu 0.1 % (runs 3 and 4) and
+  at Tu 1 % (run 2), using the same 0009/80 forces at 2, 4 and 6° as before
+  (run 3's for Tu 0.1 %).
+* The numbers come from `report/selection.csv`, with the race-time metric
+  and pre-stall interpolation of analysis 2026-10-13 (2).
+* This run's own `selection_compare.md` uses 0007/90's forces, so it can't
+  be compared with other runs (Learnings).
+
+**Outcome.** 57 ok, 17 not converged, 1 failed. 43 of the 74 finished cases
+are flagged unsteady; the same 75 cases at Tu 1 % (run 2) had 22 unsteady and
+4 not converged.
+* The failure is 0007/90 at 0.5 m/s and 8°: a floating-point exception at
+  iteration 333. It doesn't affect the comparisons at the 2/4/6° forces.
+* 11 of the 17 not-converged cases are at 4°: every speed of 0007/100,
+  every speed but 0.75 m/s of 0007/90, and 0008/100 at 1.5 and 2.5 m/s.
+
+### Conclusions
+
+1. **At Tu 0.1 %, as at Tu 1 %, the four thinner or longer sections lose
+   the least race time: 0008/100, 0007/100, 0007/90 and 0008/90.**
+   * Mean loss over 0.5-1.5 m/s and the three loads, with the estimated
+     resistance slope / with it doubled (% of race time above the best
+     candidate at each point):
+     * 0008/100: 1.06 / 0.50;
+     * 0007/100: 1.21 / 0.65;
+     * 0007/90: 1.25 / 0.77;
+     * 0008/90: 1.25 / 0.74.
+   * The other three finalists:
+     * 0009/100: 2.05 / 0.94;
+     * 0008/80: 2.22 / 1.47;
+     * 0009/80: 2.66 / 1.71.
+   * The four leaders are within 0.19 / 0.27 points of each other. At Tu 1 %
+     the same four lead, in the order 0007/100, 0008/100, 0007/90, 0008/90.
+
+   Confidence: low, because the ranking rests on 4° points the steady solver
+   can't settle (conclusion 4).
+2. **Each load has a different leader, as at Tu 1 %.**
+   * **Light load (2° force): 0007/90.** Mean loss 0.00 / 0.04. It is best
+     at every speed with the estimated slope (3 of 4 with it doubled), with
+     0008/80 next at 0.25 / 0.31.
+   * **Working load (4° force): 0007/90.**
+     * Mean loss 0.03 / 0.02, never more than 0.13 / 0.06.
+     * Next are 0008/90 (0.65 / 0.26) and 0007/100 (0.67 / 0.27).
+   * **High load (6° force): 0008/100.**
+     * Mean loss 0.16 / 0.11, with 0009/100 next at 0.61 / 0.25.
+     * 0007/90 is 3.70 / 2.25 behind; its upwind drag there is 18-30 %
+       above the best.
+   * **Downwind (0°):** 0008/80 has the least drag, and 0007/90 is within
+     0-2.9 % of it. The others are higher:
+     * 0007/100: +6-9 %;
+     * 0008/90: +6-7 %;
+     * 0008/100: +12-14 %;
+     * 0009/100: +20-25 %.
+3. **Lowering Tu from 1 % to 0.1 % raises drag by about the same amount for
+   all seven, so it barely changes the ranking.**
+   * The change in Cd (same cases, 0.5-1.5 m/s):
+     * at 4°: +8 to +20 % for 0007/90, −1 to +21 % for 0007/100 and +7 to
+       +16 % for 0008/100, against +8 to +18 % for the finalists;
+     * at 6°: +7 to +22 % for all seven.
+   * Lift at 2° falls for all seven: by 8-59 % in 26 of 28 comparisons
+     (0008/90 −7.6 % and 0009/100 +2.9 %, at one speed each). This is the
+     low-Re lift deficit near 0°.
+   * The same four candidates lead at both Tu (conclusion 1).
+4. **The steady solver can't settle the 4° points, and the working-load
+   ranking rests on them.**
+   * **Oscillation of the forces.** At Tu 0.1 % the largest Cd oscillation
+     at 4° (standard deviation over the averaging window, as % of Cd,
+     0.5-1.5 m/s) is:
+     * 14 % for 0007/90;
+     * 18 % for 0007/100;
+     * 22 % for 0008/100;
+     * 3-8 % for the finalists.
+
+     Cl oscillates by up to 10-17 % for the three new candidates.
+   * **Highlight `thin-at-working-load` (0007, 1 m/s).**
+     * At 4°: laminar separation at 0.03 c on both chords, then Cp and Cf
+       oscillate along the whole suction side. The shapes suggest vortices
+       shed from the bubble; the flow fields haven't been opened to check.
+       Both cases hit the iteration limit.
+     * At 6°: a short leading-edge bubble, reattaching at 0.049 c (90 mm)
+       and 0.038 c (100 mm), then steady attached flow.
+   * **Sensitivity check.** I dropped every candidate's 4° point and
+     interpolated linearly between 2° and 6°. This is crude, because it
+     overstates the drag in between for every candidate. Even so, it
+     reorders the Tu 0.1 % ranking. Mean loss with the estimated slope:
+     * 0008/80: 0.66;
+     * 0009/80: 0.90;
+     * 0008/90: 0.97;
+     * 0007/90: 1.20;
+     * 0008/100: 1.42;
+     * 0007/100: 1.49;
+     * 0009/100: 2.04.
+
+   Confidence: high that the 4° points are unreliable; the size of the
+   error is unknown.
+5. **0008/90 is the safest choice: it stays closest to the best whichever
+   way the comparison is done.**
+   * I compared the candidates eight ways:
+     * Tu 1 % or 0.1 %;
+     * the estimated resistance slope or double it;
+     * with or without the 4° points.
+   * In each, a candidate's regret is its mean race-time loss minus the
+     best candidate's. The largest regret over the eight is:
+     * 0008/90: 0.47;
+     * 0008/100: 0.85;
+     * 0007/90: 0.87;
+     * 0007/100: 1.08;
+     * 0008/80: 1.16;
+     * 0009/100: 1.38;
+     * 0009/80: 1.59.
+   * At working load alone 0008/90's largest regret is 0.62; the next
+     smallest is 1.07.
+   * Taking the 4° points at face value (the four variants that keep them),
+     0007/100 (0.15) and 0008/100 (0.23) lead, ahead of 0008/90 (0.47).
+
+   Confidence:
+   * medium that 0008/90 is a safe choice;
+   * low on which candidate is best.
+6. **0007/100 keeps its light-air advantage over 0008/100 at Tu 0.1 %**
+   (highlight `light-air`, 0.5 m/s).
+   * It has 5.6 % less drag at the 2° force and 6.5 % less at the 4° force
+     (5 % at Tu 1 %).
+   * At 4° the two sections behave differently:
+     * 0008/100 separates at 0.08 c and reattaches at 0.95 c, a bubble over
+       most of the chord; Cl 0.468.
+     * 0007/100 separates at 0.30 c and reattaches at 0.86 c; Cl 0.378,
+       oscillating and not converged.
+7. **At 6° and 1 m/s, 0007/100 has 11 % more drag than 0008/100 at almost
+   the same lift** (highlight `thickness-at-100mm`).
+   * Cl 0.570 against 0.573; Cd 0.0313 against 0.0281.
+   * Friction is lower on 0007 (0.0065 against 0.0070), but pressure drag
+     is 18 % higher (0.0247 against 0.0210).
+   * Both have a short leading-edge bubble: 0007 from 0.025 to 0.038 c,
+     0008 from 0.035 to 0.051 c.
+   * The surface plots don't show why the pressure drag is higher.
+
+### Evidence
+
+**Race-time loss at Tu 0.1 %**, % of race time above the best candidate at
+each point, with the estimated resistance slope / doubled. Means are over
+0.5, 0.75, 1.0 and 1.5 m/s; "worst" is the largest over all 12 points.
+Thickness is at the 2D section's maximum.
+
+| candidate | thickness [mm] | all loads | light (2°) | working (4°) | high (6°) | worst |
+|---|---|---|---|---|---|---|
+| 0008/100 | 8.0 | 1.06 / 0.50 | 1.70 / 0.86 | 1.34 / 0.52 | 0.16 / 0.11 | 2.19 / 1.17 |
+| 0007/100 | 7.0 | 1.21 / 0.65 | 0.71 / 0.35 | 0.67 / 0.27 | 2.25 / 1.35 | 3.37 / 2.03 |
+| 0007/90 | 6.3 | 1.25 / 0.77 | 0.00 / 0.04 | 0.03 / 0.02 | 3.70 / 2.25 | 4.59 / 2.79 |
+| 0008/90 | 7.2 | 1.25 / 0.74 | 1.01 / 0.60 | 0.65 / 0.26 | 2.11 / 1.35 | 3.08 / 1.97 |
+| 0009/100 | 9.0 | 2.05 / 0.94 | 3.08 / 1.56 | 2.46 / 1.03 | 0.61 / 0.25 | 3.95 / 2.19 |
+| 0008/80 | 6.4 | 2.22 / 1.47 | 0.25 / 0.31 | 1.29 / 0.84 | 5.13 / 3.27 | 6.83 / 4.26 |
+| 0009/80 | 7.2 | 2.66 / 1.71 | 1.47 / 1.00 | 1.17 / 0.68 | 5.33 / 3.45 | 6.11 / 3.87 |
+
+**Regret over the eight variants.** Mean race-time loss over all loads,
+minus the best candidate's mean. "×1" is the estimated resistance slope,
+"×2" double it.
+
+| Tu | 4° points | slope | 0007/90 | 0007/100 | 0008/100 | 0008/90 | 0008/80 | 0009/80 | 0009/100 |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.1 % | kept | ×1 | 0.18 | 0.14 | **0** | 0.19 | 1.16 | 1.59 | 0.98 |
+| 0.1 % | kept | ×2 | 0.27 | 0.15 | **0** | 0.24 | 0.97 | 1.21 | 0.44 |
+| 0.1 % | dropped | ×1 | 0.55 | 0.83 | 0.76 | 0.32 | **0** | 0.24 | 1.38 |
+| 0.1 % | dropped | ×2 | 0.11 | 0.12 | 0.08 | **0** | 0.01 | 0.19 | 0.41 |
+| 1 % | kept | ×1 | 0.39 | **0** | 0.23 | 0.47 | 1.00 | 0.97 | 0.97 |
+| 1 % | kept | ×2 | 0.37 | **0** | 0.08 | 0.38 | 0.87 | 0.83 | 0.42 |
+| 1 % | dropped | ×1 | 0.87 | 1.08 | 0.85 | 0.47 | 0.42 | **0** | 0.99 |
+| 1 % | dropped | ×2 | 0.29 | 0.23 | 0.09 | 0.06 | 0.25 | **0** | 0.11 |
+| largest | | | 0.87 | 1.08 | 0.85 | **0.47** | 1.16 | 1.59 | 1.38 |
+
+**Upwind drag at equal side force, Tu 0.1 %** (whole fin; % above the
+lowest of the seven; * = interpolated from an unsteady or not-converged
+point):
+
+| load | speed [m/s] | 0007/90 | 0007/100 | 0008/100 | 0008/90 | 0008/80 | 0009/80 | 0009/100 |
+|---|---|---|---|---|---|---|---|---|
+| 2° | 0.5 | +1.0* | +6.7* | +13.0* | +7.1* | best* | +8.4* | +22.7* |
+| 2° | 0.75 | best* | +5.6* | +13.8* | +7.2* | +0.1* | +10.7 | +26.3* |
+| 2° | 1.0 | best* | +6.2* | +16.3* | +9.4* | +2.1* | +15.6* | +26.0* |
+| 2° | 1.5 | +0.3* | +1.9* | +2.9* | +2.4* | +1.0* | best* | +10.4* |
+| 2° | 2.5 | +4.5* | +2.8* | +7.6* | +1.7* | +1.8* | best* | +15.8* |
+| 4° | 0.5 | +0.2* | best* | +7.0* | +4.7* | +11.1* | +17.7 | +16.0* |
+| 4° | 0.75 | +1.1* | best* | +7.8* | +3.8* | +9.7* | +4.0* | +13.3* |
+| 4° | 1.0 | best* | +8.4* | +6.1* | +2.1* | +4.7 | +1.2 | +11.1* |
+| 4° | 1.5 | +4.4* | +6.9* | +5.1* | +4.3* | +7.2* | best | +5.9* |
+| 4° | 2.5 | +4.8* | +5.0* | +0.8* | best* | +13.1* | +0.1* | +1.4* |
+| 6° | 0.5 | +18.2* | +15.3* | best* | +10.9 | +25.7* | +24.8 | +4.9* |
+| 6° | 0.75 | +22.3* | +14.2* | best* | +12.5* | +26.5 | +21.5 | +0.2* |
+| 6° | 1.0 | +28.3* | +19.6* | +5.3* | +18.1* | +36.8 | +21.3* | best* |
+| 6° | 1.5 | +17.8* | +2.7* | best* | +4.7* | +16.7* | +31.1* | +2.1* |
+| 6° | 2.5 | +29.5* | +27.5* | +9.6* | +27.7* | +36.6* | +31.2* | best* |
+
+At Tu 0.1 %, 11-12 of the 12 upwind points at 0.5-1.5 m/s are marked * for
+every candidate except 0008/80 (9) and 0009/80 (6). At Tu 1 % the counts are
+10 (each 0007), 6 (0008/100), 5 (0008/90, 0009/100) and 2 (0008/80,
+0009/80).
+
+**Downwind drag at 0°, Tu 0.1 %** (% above 0008/80):
+
+| speed [m/s] | 0007/90 | 0007/100 | 0008/100 | 0008/90 | 0009/80 | 0009/100 |
+|---|---|---|---|---|---|---|
+| 0.5 | +2.9 | +8.5 | +12.4 | +6.3 | +5.5 | +20.1 |
+| 0.75 | +1.1 | +6.9 | +14.2 | +7.4 | +6.3 | +20.8 |
+| 1.0 | +0.0 | +6.4 | +13.2 | +6.8 | +6.2 | +21.6 |
+| 1.5 | +0.1 | +6.1 | +13.7 | +7.2 | +7.2 | +21.1 |
+| 2.5 | +1.3 | +6.9 | +13.4 | +6.8 | +9.3 | +25.0 |
+
+At 0° the Cd oscillation is at most 0.7 % at Tu 0.1 %.
+
+**Section angle at the working-load force, Tu 0.1 %** [°]. The differences
+are the differences in leeway:
+
+| speed [m/s] | 0007/90 | 0007/100 | 0008/100 | 0008/90 | 0008/80 | 0009/80 | 0009/100 |
+|---|---|---|---|---|---|---|---|
+| 0.5 | 3.03 | 3.03 | 2.83 | 3.00 | 4.04 | 4.00 | 2.95 |
+| 0.75 | 3.97 | 3.87 | 3.56 | 3.78 | 4.34 | 4.00 | 3.53 |
+| 1.0 | 3.99 | 3.74 | 3.60 | 3.82 | 4.24 | 4.00 | 3.44 |
+| 1.5 | 3.99 | 3.70 | 3.53 | 3.78 | 4.35 | 4.00 | 2.97 |
+| 2.5 | 3.88 | 3.57 | 3.17 | 3.80 | 4.53 | 4.00 | 2.67 |
+
+**Force oscillation** (largest Cd standard deviation over the averaging
+window as % of Cd, 0.5-1.5 m/s, from `results.csv` of runs 2-4):
+
+| Tu | aoa | 0007/90 | 0007/100 | 0008/100 | 0008/90 | 0008/80 | 0009/80 | 0009/100 |
+|---|---|---|---|---|---|---|---|---|
+| 0.1 % | 2° | 0.5 | 0.5 | 1.7 | 0.7 | 0.8 | 1.2 | 2.0 |
+| 0.1 % | 4° | 14.4 | 18.0 | 22.3 | 3.3 | 8.1 | 3.2 | 3.0 |
+| 0.1 % | 6° | 0.6 | 1.1 | 0.9 | 1.5 | 2.1 | 25.1 | 24.0 |
+| 1 % | 4° | 6.9 | 4.9 | 0.1 | 0.0 | 0.0 | 0.1 | 0.0 |
+
+The finalists' 6° points at Tu 0.1 % oscillate too: 0009/80 and 0009/100
+by up to 24-25 %. That makes their high-load numbers just as uncertain.
+
+**Highlights** (Tu 0.1 %; reversed flow = where Cf < 0 on the suction
+side, from `report/highlights.md`):
+
+| case | status | Cl | Cd | Cd friction | separation, reattachment (x/c) |
+|---|---|---|---|---|---|
+| 0007/90, 1 m/s, 4° | not converged, unsteady | 0.415 | 0.0163 | 0.0061 | 0.035, oscillating |
+| 0007/100, 1 m/s, 4° | not converged, unsteady | 0.408 | 0.0167 | 0.0042 | 0.032, oscillating |
+| 0007/90, 1 m/s, 6° | ok | 0.569 | 0.0324 | 0.0067 | 0.033-0.049 |
+| 0007/100, 1 m/s, 6° | ok | 0.570 | 0.0313 | 0.0065 | 0.025-0.038 |
+| 0008/100, 1 m/s, 6° | ok | 0.573 | 0.0281 | 0.0070 | 0.035-0.051 |
+| 0007/100, 1 m/s, 2° | ok, unsteady | 0.124 | 0.0121 | 0.0077 | 0.66, open to the trailing edge |
+| 0008/100, 1 m/s, 2° | ok | 0.105 | 0.0134 | 0.0077 | 0.59, open to the trailing edge |
+| 0007/100, 0.5 m/s, 4° | not converged, unsteady | 0.378 | 0.0228 | 0.0078 | 0.30-0.86 |
+| 0008/100, 0.5 m/s, 4° | ok, unsteady | 0.468 | 0.0248 | 0.0069 | 0.08-0.95 |
+
+Figures: `report/highlight_*.png` of this run.
+
+### Decisions
+
+Proposed, not agreed:
+* Keep 0008/90 as the front-runner, now as the safest choice
+  (conclusion 5).
+* Drop none of the other six on this run. The 80 mm finalists lose with the
+  4° points. Without them, 0008/80 or 0009/80 is first in 3 of the 4
+  variants, so they hinge on the same unreliable points as the new three.
+* Next, a transient (`solver: transient`) check of the 4° points:
+  * all seven candidates at 1 m/s, Tu 0.1 %;
+  * 0009/80 and 0009/100 at 6° as well;
+  * 9 cases.
+
+  No transient foil2d case has been run, so the cost is unknown. Start with
+  one case to measure it.
+* Drop "0007/90, 0007/100 and 0008/100 at Tu 0.1 %" from the list of what
+  would settle it: done here.
+
+### Assumptions
+
+* As analysis 2026-10-13 (2):
+  * a 39° heading and 3° leeway;
+  * equal time upwind and downwind, at the same boat speed;
+  * the estimated resistance slope, or double it;
+  * the fin carries all the side force;
+  * the 0009/80 forces stand for light, working and high load.
+
+  These are **not verified**.
+* That results from runs 3 and 4 can be combined. Same image, mesh, model
+  and settings, so the solver is identical (verified from the two
+  `run.json` and `study.yaml` files).
+* That the window average of an oscillating steady solution approximates
+  the time-averaged flow (**not verified**; conclusion 4).
+
+### Compromises
+
+* **Steady solver for shedding flow at 4°.** At Tu 0.1 % most of the
+  working-load comparison rests on it.
+* **The regret check** treats the crude no-4° variant as equal to the
+  others.
+* **2.5 m/s is left out of the race-time metric**, as before (no resistance
+  estimate). It is in the upwind and downwind tables.
+* **One failed case** (8°, 0.5 m/s), left as it is.
+
+### Learnings
+
+* **Thin sections at Tu 0.1 % shed at 4°.** That is the steady solver's
+  limit: 0007 at 4° is unsteady at both Tu, and at Tu 0.1 % 0008/100 joins
+  it.
+* **Compute.**
+  * 63.4 case-hours against the 53 estimated (+20 %): median 35 min per
+    case, mean 51, with 17 cases at the 8,000-iteration limit.
+  * Wall time was 5¾ h. Spot capacity gave 8, then 16, tasks at once (24
+    allowed), after 15-30 minutes in the queue.
+* **The report's `compare_at` reference must be one of the run's
+  candidates.** The run's `study.yaml` still named 0009/80 (an oversight
+  when setting up the run), and the report stopped with an error. The
+  report now falls back to the nearest candidate, 0007/90 here, and says
+  so in the table. It also lists only the (foil, chord) pairs a run has, so
+  a zipped study no longer shows empty columns.
+
+### Open questions and next steps
+
+* The transient check of the 4° points (Decisions).
+* A hull resistance curve, to replace the estimated slope.
+* How the sailing divides between light, working and high load. With
+  0007/90 best at light and working load and 0008/100 best at high load,
+  the load mix decides between them if the 4° points hold up.
+* Fin stiffness: 0007/90 is the thinnest at 6.3 mm.
+* Highlights for the transient run: each candidate's 4° case at 1 m/s,
+  steady against transient.
 
 ## Analysis 2026-10-13 (2): leeway and race time (runs 20261012-175146 and 20261013-045759, no new cases)
 

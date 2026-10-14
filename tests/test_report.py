@@ -85,3 +85,16 @@ def test_compare_at_equal_side_force(tmp_path):
     assert pd.notna(thick.drag)
     md = (tmp_path / "selection_compare.md").read_text()
     assert "**best**" in md and "| 0009/80 |" in md
+
+
+def test_compare_at_falls_back_when_the_reference_is_not_in_the_run(tmp_path):
+    # a zipped study (foil and chord varied together) without the configured reference
+    df = pd.concat([_results(["naca0007"], [0.09, 0.10], [1.0], ["kOmegaSSTLM"]),
+                    _results(["naca0008"], [0.10], [1.0], ["kOmegaSSTLM"])])
+    opts = {"fin_span": 0.36, "compare_at": {"foil": "naca0009", "chord": 0.08, "aoa": [2, 4, 6]}}
+    load_project("foil2d").report(df, tmp_path, options=opts)
+    cmp = pd.read_csv(tmp_path / "selection_compare.csv")
+    assert len(cmp) == 3 * 3  # only the pairs the run has, not 0008/90
+    md = (tmp_path / "selection_compare.md").read_text()
+    assert "what 0007/90 makes" in md and "0009/80 (report.compare_at) is not in this run" in md
+    assert "| 0008/90 |" not in md
