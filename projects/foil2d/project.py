@@ -829,8 +829,10 @@ class Foil2D(Project):
             # 15 c/U at Co 10 on the medium mesh took 1.3 h for NACA 0009 (4
             # ranks); a stair1 step's cells cut the time step 3.6x and add
             # cells (~5x). stair5/stair10 are guesses from their smallest cells.
+            # One rank is ~2.7x slower than 4 (transient-check's local probe).
             kt = {"stair5": 20.0, "stair10": 60.0}.get(preset, 5.0) if preset else 1.0
-            hours += 2 * f**3 * kt * float(p.get("flow_times", 15)) / 15 * 10 / float(p.get("max_co", 10))
+            ranks = max(1.0, 4 / max(int(p.get("np", 1)), 1)) ** 0.72
+            hours += 2 * f**3 * kt * float(p.get("flow_times", 15)) / 15 * 10 / float(p.get("max_co", 10)) * ranks
         return {"cpus": int(p.get("np", 1)), "memory_gb": 2, "max_hours": 1 + hours}
 
 
