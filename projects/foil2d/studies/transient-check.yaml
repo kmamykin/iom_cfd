@@ -1,0 +1,58 @@
+study: transient-check
+project: foil2d
+description: >
+  Transient check of the steady points the fin-profile-selection ranking
+  rests on. At Tu 0.1 % the steady solver's 4 deg cases of 0007/90,
+  0007/100 and 0008/100 oscillate by up to 14-22 % in Cd, and 11 of their 15
+  hit the iteration limit (run 20261013-200643). The working-load ranking of
+  the seven candidates flips when those points are left out. 0009/80 and
+  0009/100 oscillate as much at 6 deg (24-25 %). This study runs the same
+  cases with pimpleFoam (solver: transient, adaptive time step) and compares
+  the time-averaged forces with the steady window averages of runs
+  20261013-045759 and 20261013-200643 (same mesh, model and Tu). All seven
+  candidates at 1 m/s and 4 deg, Tu 0.1 %, medium mesh; plus 0009/80 and
+  0009/100 at 6 deg. Findings: projects/foil2d/findings/transient-check.md.
+  No transient foil2d case has been run before: flow_times, average_times
+  and max_co are the project defaults and are part of what this checks.
+  One case repeats 0007/100 at 4 deg with max_co 5 (half the time step).
+  A local probe (0.5 flow-throughs) gave a Courant-limited step of about
+  0.0083 c/U, 7 s per step on one core: about 3.5 h per case (estimate).
+report:
+  fin_span: 0.36        # m below the hull, as fin-profile-selection
+  induced_drag: true
+highlights:   # fields fetched for these; Cp/Cf at the final time step
+  - name: thin-at-4deg
+    why: >
+      Steady 0007/90 and 0007/100 at 4 deg, 1 m/s, Tu 0.1 % shed along the whole suction side
+      (fin-profile-selection run 20261013-200643). What does the time-accurate flow look like?
+    where: {foil: naca0007, aoa: 4, max_co: 10}
+    compare: chord
+    views: [separation, transition]
+  - name: time-step
+    why: >
+      No transient foil2d case has been run before. Does halving the time step (max_co 10 -> 5) change
+      the mean forces or the shedding on the most oscillating case, 0007/100 at 4 deg?
+    where: {foil: naca0007, chord: 0.1}
+    compare: max_co
+    views: [separation]
+  - name: chord-at-4deg
+    why: >
+      0008 at 80, 90 and 100 mm: the steady 4 deg points oscillate by 3 % (90 mm), 8 % (80 mm) and
+      22 % (100 mm) in Cd. Does the transient mean keep the steady order?
+    where: {foil: naca0008, aoa: 4}
+    compare: chord
+    views: [separation, transition]
+defaults:
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+  speed: 1.0
+  aoa: 4
+  solver: transient
+zip:          # the seven fin-profile-selection candidates (foil and chord varied together)
+  foil:  [naca0007, naca0007, naca0008, naca0008, naca0008, naca0009, naca0009]
+  chord: [0.09,     0.10,     0.08,     0.09,     0.10,     0.08,     0.10]
+cases:
+  - {foil: naca0009, chord: 0.08, aoa: 6}   # the 6 deg points that oscillate as much
+  - {foil: naca0009, chord: 0.10, aoa: 6}
+  - {foil: naca0007, chord: 0.10, max_co: 5}   # time-step check: half the default step on the most oscillating case

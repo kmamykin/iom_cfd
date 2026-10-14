@@ -1,0 +1,30 @@
+study: mesh-finalists
+project: foil2d
+description: >
+  Mesh check of the fin-profile-selection tie. Run 20261012-175146 (Tu 1 %,
+  medium mesh) found NACA 0008 and 0009 at 80 mm chord within 0-3 % of each
+  other at the working-load side force, about the size of the coarse-medium
+  change (Cd -0.6 % median, |dCd| up to 2.6 % in 90 % of the shared cases);
+  medium-fine was not known. This study runs both at 1 m/s (Re 70,400), 4
+  and 6 deg, Tu 1 %, on the coarse, medium and fine meshes (each level 2x
+  the cells): report/ has the grid-convergence (GCI) table. If the 0008-0009
+  difference is the same on the fine mesh, the medium mesh resolves it. The
+  medium cases repeat run 20261012-175146's (same settings; a newer image
+  that only changes the export).
+defaults:
+  turbulence: kOmegaSSTLM
+  Tu: 1.0
+  speed: 1.0
+  chord: 0.08
+sweep:
+  foil: [naca0008, naca0009]
+  mesh: [coarse, medium, fine]
+  aoa: [4, 6]
+highlights:
+  - name: bubble-by-mesh
+    why: >
+      Does the mid-chord laminar bubble (x/c 0.25-0.68 at 4 deg on the medium mesh) and the
+      leading-edge bubble at 6 deg move with mesh refinement?
+    where: {}
+    compare: mesh
+    views: [separation]

@@ -195,9 +195,12 @@ good enough to rank sections, with absolute drag uncertain by roughly
 Studies: `smoke` (pipeline check), `validation-naca0009-re1e5`,
 `validation-naca0012-tmr` (NASA Turbulence Modeling Resource case, Re 6e6,
 fully turbulent: a solver check independent of transition modelling),
-`fin-profile-selection` (NACA 0006/0007/0008/0009/0012, 80/90/100 mm chord,
-0.25-2.5 m/s, Tu 1 %, medium mesh: 450 cases; run 20261012-045433 had
-0006/0009/0012, 80/100 mm, Tu 0.1 and 1 %, coarse mesh), `stepped-smoke`
+`fin-profile-selection` (now the four finalists 0008/80, 0009/80, 0008/90,
+0009/100 at 0.5-2.5 m/s, Tu 0.1 %, medium mesh: 100 cases; run
+20261012-175146 had NACA 0006-0012 × 80/90/100 mm at Tu 1 %, 450 cases; run
+20261012-045433 0006/0009/0012 × 80/100 mm at Tu 0.1 and 1 %, coarse mesh),
+`mesh-finalists` (0008/80 and 0009/80 at 1 m/s, 4 and 6°, coarse / medium /
+fine: is the medium mesh enough to separate them?), `stepped-smoke`
 (pipeline check for stair1, stair5 and stair10), `stepped-checks` (mesh
 convergence and steady vs transient for stepped sections; run 20261013-190301:
 11 cases, run 2: the two transient cases again, from a steady start),
