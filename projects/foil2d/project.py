@@ -10,7 +10,10 @@ Pipeline per case:
 from __future__ import annotations
 
 import csv
+import gzip
+import json
 import math
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +28,12 @@ from iomcfd.project import Project
 # Mesh levels: each level doubles the cell count (factor sqrt(2) per direction),
 # which is the refinement ratio used for grid-convergence (GCI) studies.
 MESH_LEVELS = {"xcoarse": 0.5, "coarse": 1 / math.sqrt(2), "medium": 1.0, "fine": math.sqrt(2), "xfine": 2.0}
+
+# Inputs that must match for a case to start from another case's fields
+# (start_from): the same flow and the same mesh.
+START_MATCH = ("foil", "chord", "aoa", "speed", "Re", "fluid", "temperature", "turbulence", "Tu",
+               "viscosity_ratio", "decay_control", "mesh", "yplus", "farfield")
+START_FIELDS = ("U", "p", "k", "omega", "nut", "gammaInt", "ReThetat")
 
 # 'medium' (factor 1) resolution. ~90k cells.
 BASE_MESH = dict(n_surface=256, ds_le=1.0e-3, ds_te=2.0e-3, n_wake=96, n_normal=128)
@@ -113,6 +122,8 @@ class Foil2D(Project):
             self._make_transient(case_dir, p, d)
         elif p["solver"] != "steady":
             raise ValueError("solver must be 'steady' or 'transient'")
+        if p.get("start_from"):
+            self._start_from(case_dir, p, d)
         self.write_parameters(case_dir, {k: v for k, v in d.items() if k != "mesh_spec"}, inputs=p)
 
     def _make_transient(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
@@ -161,6 +172,84 @@ class Foil2D(Project):
             "relaxationFactors\n{\n    equations\n    {\n        \".*\"          0.9;\n        \".*Final\"     1;\n    }\n}\n"
         )
         fs.write_text(text)
+
+    @staticmethod
+    def find_start_case(runs: list[str] | str, p: dict[str, Any]) -> tuple[Path, str, dict[str, Any]] | None:
+        """The first finished case in `runs` ('<study>/<run id>', looked up in
+        config.source_runs_dirs()) with the same flow and mesh as `p`, and
+        the same max_co if both are transient, that has final fields.
+        Returns (case dir, final time directory name, its params)."""
+        def same(a, b) -> bool:
+            if isinstance(a, (int, float)) and isinstance(b, (int, float)) and not isinstance(a, bool):
+                return math.isclose(float(a), float(b), rel_tol=1e-9, abs_tol=1e-12)
+            return a == b
+
+        for run in [runs] if isinstance(runs, str) else runs:
+            for root in config.source_runs_dirs():
+                rdir = Path(root) / run
+                if not rdir.is_dir():
+                    continue
+                for cdir in sorted(rdir.iterdir()):
+                    try:
+                        sp = json.loads((cdir / "params.json").read_text())["params"]
+                        status = json.loads((cdir / "result.json").read_text()).get("status")
+                    except (OSError, ValueError, KeyError):
+                        continue
+                    if status not in ("ok", "not_converged") or not all(same(sp.get(k), p.get(k)) for k in START_MATCH):
+                        continue
+                    if sp.get("solver") == p["solver"] == "transient" and not same(sp.get("max_co"), p.get("max_co")):
+                        continue
+                    times = []
+                    for t in cdir.iterdir():
+                        try:
+                            if float(t.name) > 0 and t.is_dir():
+                                times.append((float(t.name), t.name))
+                        except ValueError:
+                            pass
+                    if times:
+                        return cdir, max(times)[1], sp
+        return None
+
+    def _start_from(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
+        """Initial fields from an earlier case's final time (see start_from in
+        defaults.yaml). The mesh is rebuilt from the same inputs, so the fields
+        fit it. A transient source is continued: its final time directory
+        (fields, old-time fields, time step) is copied and the solver starts
+        there (startFrom latestTime) and runs to flow_times. Otherwise the
+        source's fields replace those in 0/. The source is recorded in
+        start_from.json."""
+        found = self.find_start_case(p["start_from"], p)
+        if found is None:
+            raise ValueError(f"start_from {p['start_from']}: no finished case with the same flow and mesh and final "
+                             "fields in " + ", ".join(str(r) for r in config.source_runs_dirs())
+                             + " (fetch its fields: gcp fetch --only CASE)")
+        src, t, sp = found
+        n_src = json.loads((src / "params.json").read_text()).get("derived", {}).get("n_cells")
+        if n_src is not None and n_src != d["n_cells"]:
+            raise ValueError(f"start_from {src}: its mesh has {n_src} cells, this case's {d['n_cells']}")
+        continued = sp.get("solver") == p["solver"] == "transient"
+        if continued:
+            if float(t) >= d["simEndTime"] * (1 - 1e-9):
+                raise ValueError(f"start_from {src}: it already ran to t = {t} s; flow_times "
+                                 f"{p['flow_times']} ends at {d['simEndTime']:.6g} s")
+            shutil.copytree(src / t, case_dir / t, symlinks=True)
+            d["restartTime"] = float(t)
+        else:
+            for name in START_FIELDS:
+                for f in (src / t / name, src / t / f"{name}.gz"):
+                    if f.is_file():
+                        for old in (case_dir / "0" / name, case_dir / "0" / f"{name}.gz"):
+                            old.unlink(missing_ok=True)
+                        if f.suffix == ".gz":
+                            with gzip.open(f, "rb") as fi, open(case_dir / "0" / name, "wb") as fo:
+                                shutil.copyfileobj(fi, fo)
+                        else:
+                            shutil.copy2(f, case_dir / "0" / name)
+                        break
+                else:
+                    raise ValueError(f"start_from {src}: no field '{name}' in {t}/")
+        (case_dir / "start_from.json").write_text(json.dumps(
+            {"case": str(src), "time": t, "solver": sp.get("solver"), "continued": continued}, indent=2) + "\n")
 
     # ------------------------------------------------------------------
     def _coeffs(self, case_dir: Path):

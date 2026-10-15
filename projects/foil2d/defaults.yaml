@@ -32,6 +32,11 @@ average_times: 6        # transient: forces averaged over the last this many c/U
 max_co: 10              # transient: maximum Courant number (adaptive time step)
 snapshot_interval: 0    # transient: write fields every this many c/U (0 = final state only).
                         # Enables time animations in `iomcfd viz` (~10 MB per snapshot, coarse)
+start_from: []          # earlier runs ('<study>/<run id>', first match wins) to take the initial
+                        # fields from: the finished case with the same flow and mesh (and max_co
+                        # if both are transient). A transient source is continued from its final
+                        # time (flow_times is then the total); a steady source gives the fields
+                        # at time 0. Empty: uniform free stream.
 max_iter: 8000          # SIMPLE iteration budget
 relax_U: 0.8            # steady under-relaxation; lower (e.g. 0.6/0.5/0.5) if a case diverges,
 relax_turb: 0.7         # typically at very low Tu where the transition model is stiff

@@ -17,6 +17,16 @@ description: >
   One case repeats 0007/100 at 4 deg with max_co 5 (half the time step).
   A local probe (0.5 flow-throughs) gave a Courant-limited step of about
   0.0083 c/U, 7 s per step on one core: about 3.5 h per case (estimate).
+  Run 20261014-040114 (15 flow-throughs; findings log) took 4.3-11.7 h per
+  case. At 6 deg the flow is steady and agrees with the steady solver. At
+  4 deg every section sheds (Cl oscillates about 10 %), but after 15
+  flow-throughs Cl was still rising 0.3-2 % and Cd falling 2-4 % per 3
+  flow-throughs (the slow build-up of circulation after an impulsive
+  start), and 0009/100 diverged at 4.7 flow-throughs. This run continues
+  the eight 4 deg cases from where they stopped to 30 flow-throughs
+  (start_from: their final time step, fields and time step), averaging over
+  the last 6. 0009/100 starts from the steady solution of
+  fin-profile-selection run 20261013-045759 instead.
 report:
   fin_span: 0.36        # m below the hull, as fin-profile-selection
   induced_drag: true
@@ -25,7 +35,7 @@ highlights:   # fields fetched for these; Cp/Cf at the final time step
     why: >
       Steady 0007/90 and 0007/100 at 4 deg, 1 m/s, Tu 0.1 % shed along the whole suction side
       (fin-profile-selection run 20261013-200643). What does the time-accurate flow look like?
-    where: {foil: naca0007, aoa: 4, max_co: 10}
+    where: {foil: naca0007, max_co: 10}
     compare: chord
     views: [separation, transition]
   - name: time-step
@@ -39,7 +49,7 @@ highlights:   # fields fetched for these; Cp/Cf at the final time step
     why: >
       0008 at 80, 90 and 100 mm: the steady 4 deg points oscillate by 3 % (90 mm), 8 % (80 mm) and
       22 % (100 mm) in Cd. Does the transient mean keep the steady order?
-    where: {foil: naca0008, aoa: 4}
+    where: {foil: naca0008}
     compare: chord
     views: [separation, transition]
 defaults:
@@ -49,10 +59,12 @@ defaults:
   speed: 1.0
   aoa: 4
   solver: transient
+  flow_times: 30      # in total: the continued cases run from 15 to 30
+  start_from:         # the same case's final state; for 0009/100 (diverged there) the steady solution
+    - transient-check/20261014-040114
+    - fin-profile-selection/20261013-045759
 zip:          # the seven fin-profile-selection candidates (foil and chord varied together)
   foil:  [naca0007, naca0007, naca0008, naca0008, naca0008, naca0009, naca0009]
   chord: [0.09,     0.10,     0.08,     0.09,     0.10,     0.08,     0.10]
 cases:
-  - {foil: naca0009, chord: 0.08, aoa: 6}   # the 6 deg points that oscillate as much
-  - {foil: naca0009, chord: 0.10, aoa: 6}
   - {foil: naca0007, chord: 0.10, max_co: 5}   # time-step check: half the default step on the most oscillating case
