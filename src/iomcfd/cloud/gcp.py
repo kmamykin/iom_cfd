@@ -163,6 +163,7 @@ def build_job(
                     "environment": {
                         "variables": {
                             "IOMCFD_GEOMETRY": f"{MOUNT}/geometry",
+                            "IOMCFD_SOURCE_RUNS": f"{MOUNT}/runs",  # earlier runs, for start_from
                             "IOMCFD_IMAGE_REF": image_uri(cfg, tag),
                         }
                     },

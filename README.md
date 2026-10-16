@@ -98,6 +98,7 @@ iom_cfd/
 ├── geometry/                 your CAD exports (Fusion 360 STL) and foil .dat files
 ├── cloud/gcp/                config.env.example, setup.sh
 ├── docs/                     workflow, OpenFOAM notes, cloud, geometry conventions
+│   └── research/             literature notes (e.g. surface-roughness.md)
 ├── tests/                    pytest (pure Python; `-m docker` runs OpenFOAM)
 └── runs/                     simulation output (git-ignored)
 ```

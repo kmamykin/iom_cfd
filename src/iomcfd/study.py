@@ -67,6 +67,10 @@ class Case:
 # never forces finished cases to re-run (use --force for that).
 EXECUTION_KEYS = {"np", "relax_U", "relax_turb", "relax_transition", "snapshot_interval", "start_iter"}
 
+# Parameters added after runs existed, left out of the hash while empty
+# (their default), so finished cases of earlier runs keep their hash.
+OPTIONAL_KEYS = {"start_from"}
+
 
 # Scientific notation PyYAML (YAML 1.1) leaves as a string, e.g. 6.0e6 or 1e5.
 _SCI = re.compile(r"^[-+]?(\d+\.?\d*|\.\d+)[eE][-+]?\d+$")
@@ -84,7 +88,8 @@ def coerce_numbers(v: Any) -> Any:
 
 
 def params_hash(params: dict) -> str:
-    phys = {k: v for k, v in params.items() if k not in EXECUTION_KEYS}
+    phys = {k: v for k, v in params.items()
+            if k not in EXECUTION_KEYS and not (k in OPTIONAL_KEYS and v in (None, "", []))}
     blob = json.dumps(phys, sort_keys=True, default=str).encode()
     return hashlib.sha256(blob).hexdigest()[:16]
 

@@ -32,6 +32,13 @@ def runs_dir() -> Path:
     return Path(env).resolve() if env else home() / "runs"
 
 
+def source_runs_dirs() -> list[Path]:
+    """Where earlier runs are looked up (foil2d `start_from`): $IOMCFD_SOURCE_RUNS
+    first (on GCP the results bucket, where tasks export), then runs_dir()."""
+    env = os.environ.get("IOMCFD_SOURCE_RUNS")
+    return ([Path(env)] if env else []) + [runs_dir()]
+
+
 def in_container() -> bool:
     return bool(os.environ.get("IOMCFD_IN_CONTAINER") or os.environ.get("WM_PROJECT_DIR"))
 
