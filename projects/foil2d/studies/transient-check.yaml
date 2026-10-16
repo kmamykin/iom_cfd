@@ -27,44 +27,62 @@ description: >
   (start_from: their final time step, fields and time step), averaging over
   the last 6. 0009/100 starts from the steady solution of
   fin-profile-selection run 20261013-045759 instead.
+  Run 20261015-161112 settled the 4 deg forces (findings log): with them
+  0007/100 ranks first at 1 m/s, but the equal-force comparison still uses
+  steady 2 and 6 deg points, and other speeds keep steady 4 deg points.
+  This run (16 cases) checks the top four (0007/100, 0007/90, 0008/100,
+  0008/90): 2 and 6 deg at 1 m/s, and 4 deg at 0.75 and 1.5 m/s. Each case
+  starts from its own steady solution (fin-profile-selection runs
+  20261013-200643 and 20261013-045759), which settles in about 10
+  flow-throughs (0009/100 in run 20261015-161112); 20 flow-throughs,
+  averaged over the last 8.
 report:
   fin_span: 0.36        # m below the hull, as fin-profile-selection
   induced_drag: true
 highlights:   # fields fetched for these; Cp/Cf at the final time step
-  - name: thin-at-4deg
+  - name: light-load-2deg
     why: >
-      Steady 0007/90 and 0007/100 at 4 deg, 1 m/s, Tu 0.1 % shed along the whole suction side
-      (fin-profile-selection run 20261013-200643). What does the time-accurate flow look like?
-    where: {foil: naca0007, max_co: 10}
+      The steady 2 deg points were smooth (Cd oscillation 0.5-2 %), but at 4 deg smooth steady solutions
+      were 10-16 % off in lift (run 20261015-161112). Does the flow shed at 2 deg, and does 0007 at 90 and
+      100 mm keep its light-air lead?
+    where: {foil: naca0007, aoa: 2, speed: 1.0}
     compare: chord
     views: [separation, transition]
-  - name: time-step
+  - name: high-load-6deg
     why: >
-      No transient foil2d case has been run before. Does halving the time step (max_co 10 -> 5) change
-      the mean forces or the shedding on the most oscillating case, 0007/100 at 4 deg?
-    where: {foil: naca0007, chord: 0.1}
-    compare: max_co
+      At 6 deg the 0009 sections were steady and the steady drag held (run 20261014-040114). Is that true
+      for 0008 at 90 and 100 mm, which decide the high-load ranking?
+    where: {foil: naca0008, aoa: 6, speed: 1.0}
+    compare: chord
+    views: [separation, transition]
+  - name: speed-at-4deg
+    why: >
+      At 1 m/s every section sheds at 4 deg. Does 0007/100 shed the same way at 0.75 and 1.5 m/s?
+    where: {foil: naca0007, chord: 0.1, aoa: 4}
+    compare: speed
     views: [separation]
-  - name: chord-at-4deg
-    why: >
-      0008 at 80, 90 and 100 mm: the steady 4 deg points oscillate by 3 % (90 mm), 8 % (80 mm) and
-      22 % (100 mm) in Cd. Does the transient mean keep the steady order?
-    where: {foil: naca0008}
-    compare: chord
-    views: [separation, transition]
 defaults:
   turbulence: kOmegaSSTLM
   Tu: 0.1
   mesh: medium
   speed: 1.0
-  aoa: 4
   solver: transient
-  flow_times: 30      # in total: the continued cases run from 15 to 30
-  start_from:         # the same case's final state; for 0009/100 (diverged there) the steady solution
-    - transient-check/20261014-040114
+  flow_times: 20
+  average_times: 8
+  start_from:         # each case's own steady solution
+    - fin-profile-selection/20261013-200643
     - fin-profile-selection/20261013-045759
-zip:          # the seven fin-profile-selection candidates (foil and chord varied together)
-  foil:  [naca0007, naca0007, naca0008, naca0008, naca0008, naca0009, naca0009]
-  chord: [0.09,     0.10,     0.08,     0.09,     0.10,     0.08,     0.10]
-cases:
-  - {foil: naca0007, chord: 0.10, max_co: 5}   # time-step check: half the default step on the most oscillating case
+zip:          # the top four (foil and chord varied together)
+  foil:  [naca0007, naca0007, naca0008, naca0008]
+  chord: [0.10,     0.09,     0.10,     0.09]
+sweep:
+  aoa: [2, 6]         # at 1 m/s
+cases:                # 4 deg at the other speeds
+  - {foil: naca0007, chord: 0.10, aoa: 4, speed: 0.75}
+  - {foil: naca0007, chord: 0.09, aoa: 4, speed: 0.75}
+  - {foil: naca0008, chord: 0.10, aoa: 4, speed: 0.75}
+  - {foil: naca0008, chord: 0.09, aoa: 4, speed: 0.75}
+  - {foil: naca0007, chord: 0.10, aoa: 4, speed: 1.5}
+  - {foil: naca0007, chord: 0.09, aoa: 4, speed: 1.5}
+  - {foil: naca0008, chord: 0.10, aoa: 4, speed: 1.5}
+  - {foil: naca0008, chord: 0.09, aoa: 4, speed: 1.5}
