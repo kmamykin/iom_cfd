@@ -7,6 +7,10 @@ with laminar-turbulent transition.
 refinement, turbulence-intensity sensitivity and the NASA NACA 0012
 benchmark are next).
 
+How fin sections are ranked by race time (equal side force, leeway, upwind
+and downwind legs): [methodology.md](methodology.md). Results and decisions:
+[findings/](findings/).
+
 ## Physics
 
 * IOM fins: chord 65-90 mm, 6-8 % thick, boat speed 0.5-2 m/s, so

@@ -17,7 +17,8 @@ course with equal time upwind and downwind:
 * upwind: the fin's drag at equal side force, plus the leeway it needs;
 * downwind: the fin's drag at 0°.
 
-It was built up over runs 1-3 and the two analyses of 2026-10-13. The
+It was built up over runs 1-3 and the two analyses of 2026-10-13; the
+method is written up in [../methodology.md](../methodology.md). The
 drag-only comparison of runs 1-3 favoured 80 mm chords. Counting leeway
 moves the balance back toward 90-100 mm, because a longer chord makes the
 same side force at a lower angle.
@@ -99,7 +100,7 @@ Over a 2-lap, 90 m course that is roughly 2-4 boat lengths
    validation first), to replace the resistance estimate.
 4. A 3D check of 0007/100 and 0008/100 (`appendage3d`).
 5. Fin stiffness in practice (layup, deflection under the working-load
-   side force, 6.4 N at 1 m/s).
+   side force, 6.7 N at 1 m/s and Tu 0.1 %).
 
 **On hold.** A trip-strip study on the fin (forcing transition at a chosen
 chord position; [docs/research/surface-roughness.md](../../../docs/research/surface-roughness.md))
