@@ -6,7 +6,141 @@ assumptions, compromises, learnings and next steps. Results live in
 conclusion are copied here. This study checks the numerics of stepped
 (Kline-Fogleman) sections before [stepped-vs-naca](../studies/stepped-vs-naca.yaml)
 is trusted; the plain-section mesh check is
-[mesh-finalists](mesh-finalists.md) (on `main`).
+[mesh-finalists](mesh-finalists.md).
+
+## Run 20261014-043413 (2026-10-14, git 0227c8c, GCP, 2 cases)
+
+**Setup.** Check (b) of run 20261013-190301 again: transient (pimpleFoam)
+on the medium mesh, 15 c/U, forces averaged over the last 6. The operating
+point is unchanged (1 m/s, 4°, Tu 1 %). Changes since that run:
+* Each case starts from 2000 steady iterations (`start_iter`), not from the
+  uniform inflow.
+* The stair1 step (x/c 0.5, 30 % deep) runs at maxCo 5 instead of 10.
+* NACA 0009 stays at maxCo 10, so its change shows the effect of the start
+  alone.
+
+Image `iom-cfd:0227c8c`, one c3d-standard-16 Spot VM, 4 ranks per case.
+
+**Outcome.** 2 ok, no preemption. NACA 0009 is flagged unsteady.
+
+### Conclusions
+
+1. **The stair1 flow is steady, and the steady solver's answer is its
+   answer.**
+   * Transient against steady (medium mesh, run 20261013-190301): Cl
+     +0.04 %, Cd −0.04 %.
+   * Every flow-through from the first to the fifteenth has the same mean to
+     four digits: Cl 0.4346, Cd 0.01856. The ripple is ±0.2 %.
+   * Separation ahead of the step (x/c 0.407) and reattachment behind it
+     (13.1 step heights) match the steady case.
+
+   Confidence: high, at this operating point.
+2. **The steady NACA 0009 solution is unstable in time.**
+   * Started from it, an oscillation grows from ±0.6 % in Cl (1-2 c/U) to
+     ±6.2 % (14-15 c/U), and the mean drifts down.
+   * The last flow-through averages Cl 0.4354 and Cd 0.01591. The reported
+     6 c/U window (Cl 0.4436, Cd 0.0162) mixes that growth with the drift,
+     so it is not a stationary mean either.
+
+   Confidence: high that the steady solution isn't the time-accurate one.
+   Low on where it ends.
+3. **The time-averaged NACA 0009 state is bracketed, not known.**
+   * Run 20261013-190301 approached it from below (from rest): at 15 c/U, Cl
+     0.416 and Cd 0.0167, with Cd still falling.
+   * This run approaches it from above (from the steady solution): Cl 0.435,
+     Cd 0.0159, both still moving.
+   * Against the steady result (Cl 0.4479, Cd 0.01636), the bracket is Cl
+     −7 to −3 % and Cd −3 to +2 %.
+
+   This supersedes run 20261013-190301's reading that "the lift gap looks
+   real" at −7 %: −7 % is one end of the bracket. Confidence: medium (two
+   runs that haven't converged, approaching from opposite sides).
+4. **stair1's drag penalty survives the unsteadiness.**
+   * Against NACA 0009's bracket, stair1 has 11-17 % more drag. Its lift is
+     0 to +4.5 % higher at the same aoa, so the comparison is roughly at
+     equal side force.
+   * The steady comparison said +13 % Cd and −3 % Cl. So the ranking of
+     stair1 below plain 0009 holds; the steady lift deficit was mostly
+     NACA 0009's steady over-prediction.
+
+   Confidence: medium (one operating point; the NACA end-state unknown).
+
+### Evidence
+
+Means per flow-through, from `postProcessing/forceCoeffs/0/coefficient.dat`
+in the bucket (not fetched; streamed). The other numbers are from
+`results.csv` of this run and of run 20261013-190301.
+
+| c/U | NACA 0009 Cl [min, max] | NACA 0009 Cd | stair1 Cl | stair1 Cd |
+|---|---|---|---|---|
+| 1-2 | 0.4479 [0.4451, 0.4501] | 0.01636 | 0.4345 | 0.01856 |
+| 5-6 | 0.4476 [0.4431, 0.4520] | 0.01635 | 0.4346 | 0.01856 |
+| 9-10 | 0.4480 [0.4388, 0.4580] | 0.01642 | 0.4346 | 0.01855 |
+| 12-13 | 0.4423 [0.4194, 0.4638] | 0.01609 | 0.4346 | 0.01855 |
+| 13-14 | 0.4441 [0.4191, 0.4634] | 0.01634 | 0.4346 | 0.01855 |
+| 14-15 | 0.4354 [0.4080, 0.4619] | 0.01591 | 0.4346 | 0.01855 |
+
+| NACA 0009, medium mesh | Cl | Cd | vs steady |
+|---|---|---|---|
+| steady (run 20261013-190301) | 0.4479 | 0.01636 | |
+| transient from rest, 14-15 c/U (run 20261013-190301) | 0.4159 | 0.01672 | Cl −7.1 %, Cd +2.2 % |
+| transient from steady, 14-15 c/U (this run) | 0.4354 | 0.01591 | Cl −2.8 %, Cd −2.8 % |
+| transient from steady, last-6-c/U window (`results.csv`) | 0.4436 | 0.01621 | Cl −1.0 %, Cd −0.9 % |
+
+At the final time step, the NACA 0009 surface (an instantaneous snapshot)
+shows the bubble split. It separates at x/c 0.292 and reattaches at 0.489,
+then separates again from 0.528 to the trailing edge. The steady bubble
+spans 0.276-0.689.
+
+### Decisions
+
+* For the stair1 candidates, the steady solver is adequate at this point.
+* For the plain sections it isn't exact: steady overstates NACA 0009's lift
+  by 3-7 % here. That doesn't change stair1 against 0009 (conclusion 4),
+  but it does matter wherever plain sections a few percent apart are
+  ranked. That is fin-profile-selection's case, which used steady results.
+  `main`'s transient-check study looks at this at Tu 0.1 %, starting from
+  rest for 15 c/U, which run 20261013-190301 found too short at Tu 1 %.
+* Not decided: the scope of stepped-vs-naca. The proposal stands: steady
+  for plain and stair1; stair5 and stair10 flagged or left out.
+
+### Assumptions
+
+* That the growing NACA 0009 oscillation is the laminar bubble shedding,
+  not a numerical artefact of maxCo 10. Halving the time step wasn't tried
+  on NACA 0009. **Not verified.**
+* That runs from rest and from steady converge to the same state, between
+  their 15 c/U values. **Not verified.**
+
+### Compromises
+
+* 15 c/U wasn't enough for NACA 0009 from either start. No longer run was
+  made.
+* One operating point (1 m/s, 4°, Tu 1 %).
+
+### Learnings
+
+* **The steady start works.**
+  * It cost 3.8 min (NACA 0009) and 5.3 min (stair1) of steady iterations.
+  * Both runs continued smoothly from it: the first flow-through has the
+    steady means. There is one start-up spike in its first steps, to Cl 0.51
+    for NACA 0009 and 0.49 for stair1.
+  * The time-step guard didn't trigger.
+* **stair1 at maxCo 5** ran 8,974 steps: mean dt 1.34e-4 s, 3.1 s per step,
+  7.9 h. That is less than the 9 h estimated.
+* **NACA 0009 ran 2,012 steps at 4.2 s per step,** 2.4 h. Run
+  20261013-190301 managed 2.5 s per step on the same VM type. The difference
+  wasn't investigated.
+* 10.3 case-hours in all; the job took 7.9 h.
+
+### Open questions and next steps
+
+* **Where does NACA 0009 settle?** A 40 c/U transient from the steady start
+  (about 6.5 h at 4 ranks, estimated from this run) would show whether the
+  oscillation saturates and what the mean is. A maxCo 5 repeat would show
+  whether the growth depends on the time step.
+* **Highlights,** if that run is made: NACA 0009 from rest and from steady
+  with the `separation` view. Where does the bubble sit, and does it shed?
 
 ## Run 20261013-190301 (2026-10-13, git 6a82393, GCP, 11 cases)
 
