@@ -303,8 +303,9 @@ lengths. This is a rough conversion.
 
 * **The fin-section comparison stands** for well-finished fins. It does not
   cover fins with leading-edge damage or a blunt trailing edge.
-* **Next: a trip study in `foil2d`**, to be set up after `transient-check`
-  reports, since that run decides whether the trip study can be steady.
+* **A trip study in `foil2d`**, on hold until a section is recommended
+  (user, 2026-10-15). The transient check decides whether it can use the
+  steady solver.
   * Force transition at a chosen chord position on the suction side, both
     sides, or neither.
   * Run the leading sections at 0-6° and 0.5-1.5 m/s, and compare by race

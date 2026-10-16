@@ -10,7 +10,7 @@ hand, and are not rewritten later: a later run that changes a conclusion says
 so in its own entry. The exception is "Where the selection stands" below: it
 is the current summary and is updated in place.
 
-## Where the selection stands (updated 2026-10-13, after run 20261013-200643)
+## Where the selection stands (updated 2026-10-16, after transient-check run 20261015-161112)
 
 **Metric.** The current metric is the race time lost on a windward-leeward
 course with equal time upwind and downwind:
@@ -27,63 +27,83 @@ same side force at a lower angle.
 * NACA 0012 is out. It is never the best at light or working load (at
   least 5 % more drag than the best in run 2), and loses 2.2-5.1 % of race
   time on average at Tu 1 %.
-* Seven candidates remain: 0007/90, 0007/100, 0008/80, 0008/90, 0008/100,
-  0009/80 and 0009/100. All seven now have results at both Tu, 1 % and
-  0.1 %.
+* At 6° the flow is steady, and the steady results stand. Checked for
+  0009/80 and 0009/100: drag within 0.5 % ([transient-check.md](transient-check.md)).
+* At 4° every section sheds. The steady 4° points are wrong by 4-16 % in
+  lift and 5-14 % in drag (time-accurate, 30 flow-throughs, settled to
+  about 1 %).
 
-**Leading, not settled:**
-* **NACA 0008 at 90 mm is the safest choice.** I compared the seven eight
-  ways: Tu 1 % or 0.1 %, the estimated resistance slope or double it, and
-  with or without the unreliable 4° points.
-  * 0008/90 is never more than 0.47 % of race time behind the best.
-  * Every other candidate is up to 0.85-1.59 % behind in at least one of
-    the eight.
-  * At working load alone 0008/90 is at most 0.62 behind; the next best is
-    1.07.
-* **Taking the steady 4° points at face value, 0008/100 and 0007/100
-  lead.**
-  * At Tu 0.1 % the mean losses (estimated slope / doubled) are:
-    * 0008/100: 1.06 / 0.50;
-    * 0007/100: 1.21 / 0.65;
-    * 0007/90: 1.25 / 0.77;
-    * 0008/90: 1.25 / 0.74.
-  * At Tu 1 % the same four lead, with 0007/100 first.
-* **By load:**
-  * 0007/90 is best at light and working load and has almost the least
-    downwind drag, but is 3.7 % behind at high load.
-  * 0008/100 is best at high load, then 0009/100.
-* **0008/80 and 0009/80** trail the four leaders at Tu 0.1 % (mean 2.2 /
-  2.7 % with the estimated slope). Without the 4° points one of them is
-  first in 3 of the 4 variants, so they hinge on the same points.
+**Proposed recommendation: NACA 0007 at 100 mm chord.** Confidence:
+medium. Not agreed.
+* **First at 1 m/s, with the time-accurate 4° points.** Race-time loss, %
+  above the best (estimated resistance slope / doubled):
 
-**Why it isn't settled.** At Tu 0.1 % the 4° cases of 0007/90, 0007/100
-and 0008/100 oscillate. Their drag swings by up to 14-22 % around its
-mean, and 11 of their 15 cases hit the iteration limit. The steady solver
-can't give a reliable average for that flow, and the working-load ranking
-rests on those points.
+  | section | light | working | high | mean |
+  |---|---|---|---|---|
+  | 0007/100 | 0.81 / 0.36 | best | 0.48 / 0.26 | 0.43 / 0.21 |
+  | 0007/90 | best | 0.32 / 0.30 | 2.54 / 1.52 | 0.95 / 0.61 |
+  | 0008/100 | 2.18 / 1.12 | 0.87 / 0.43 | best | 1.02 / 0.52 |
+  | 0008/90 | 1.37 / 0.79 | 0.92 / 0.60 | 1.77 / 1.13 | 1.35 / 0.84 |
 
-**How much is at stake.**
-* The four leaders are within 0.2-0.3 % of race time of each other. In any
-  of the eight variants, no candidate's mean is more than 1.6 % behind the
-  best.
-* That is inside the uncertainty of:
-  * the steady answers of shedding cases;
-  * the turbulence level on the water;
-  * the boat's resistance curve, which is estimated;
-  * the hull and rudder share of side force, which is left out;
-  * 3D effects, which haven't been checked.
+  The other three trail by 1.6-2.8 % on average.
+* **First or second in every comparison still valid.** Those are steady at
+  Tu 1 % and Tu 0.1 % over 0.5-1.5 m/s, and time-accurate at 1 m/s, each
+  with both resistance slopes. 0007/100 is never more than 0.15 % behind the
+  best mean. The next best is 0007/90 at 0.52, then 0008/100 at 0.59 and
+  0008/90 at 0.92.
+* **Its weakest points are mild.**
+  * Light air: 0.81 / 0.36 behind 0007/90.
+  * High load: 0.48 / 0.26 behind 0008/100.
+  * Downwind drag at 0° is 6-9 % above 0008/80's (counted in the metric).
+* **About as stiff as 0008/90.** Bending stiffness ∝ c t³ for sections of
+  the same shape family and material, relative to 0008/90 (**estimate**;
+  ignores construction and taper):
 
-**What would settle it, in order (proposed, not agreed):**
-1. A transient check of the 4° points: all seven at 1 m/s, Tu 0.1 %, plus
-   0009/80 and 0009/100 at 6° (9 cases). Start with one case to measure the
-   cost.
-2. A hull resistance curve, `hull` project at 0.5-1.5 m/s (Wigley
+  | section | stiffness |
+  |---|---|
+  | 0007/100 | 1.02 |
+  | 0008/100 | 1.52 |
+  | 0007/90 | 0.67 |
+
+* **Alternative: 0008/100**, if heavy air or stiffness matters more.
+  * It is best at high load and 50 % stiffer than 0007/100.
+  * It is 0.6 / 0.3 behind 0007/100 on average at 1 m/s, and 2.2 / 1.1
+    behind the best in light air.
+* **Superseded.** "0008/90 is the safest choice" (2026-10-13, run
+  20261013-200643). It rested on comparisons that included dropping the
+  unreliable 4° points. The time-accurate 4° points replace that proxy, and
+  with them 0008/90 is fourth at 1 m/s.
+
+**Why medium, not high.** The recommendation rests on:
+* **One speed.** The time-accurate points are at 1 m/s only; the other
+  speeds keep their steady 4° points.
+* **Steady 2° points.** At 4° a smooth steady solution did not mean steady
+  flow, so the light-air ranking (where 0007/90 leads) is unverified.
+* **Steady 6° points for the 0007 and 0008 sections**, unchecked; they
+  oscillated by at most 2 %.
+* **2D.** Tip, bulb, junction and heel effects are not modelled.
+* **Estimated inputs.** The resistance slope and Tu on the water are
+  estimates; the hull and rudder share of side force is left out.
+
+**How much is at stake.** At 1 m/s, the top four are within 0.9 % of race
+time of each other on average, and 0007/100 leads 0008/90 by 0.9 / 0.6.
+Over a 2-lap, 90 m course that is roughly 2-4 boat lengths
+(docs/research/surface-roughness.md; **estimate**).
+
+**What would confirm it, in order (proposed, not agreed):**
+1. Time-accurate 2° and 6° points at 1 m/s for the top four (0007/100,
+   0007/90, 0008/100, 0008/90). That is 8 cases from the steady solutions
+   (`start_from`), about 7 h each (**estimate**).
+2. Time-accurate 4° points at 0.75 and 1.5 m/s for the top four (8 cases).
+3. A hull resistance curve, `hull` project at 0.5-1.5 m/s (Wigley
    validation first), to replace the resistance estimate.
-3. Leeway in the report's selection comparison, so runs rank by race time.
-4. A 3D check of the leaders (`appendage3d`), including the hull and rudder
-   share of side force.
-5. Fin stiffness, which CFD doesn't cover. 0007/90 is the thinnest of the
-   leaders (6.3 mm), then 0007/100 (7.0), 0008/90 (7.2) and 0008/100 (8.0).
+4. A 3D check of 0007/100 and 0008/100 (`appendage3d`).
+5. Fin stiffness in practice (layup, deflection under the working-load
+   side force, 6.4 N at 1 m/s).
+
+**On hold.** A trip-strip study on the fin (forcing transition at a chosen
+chord position; [docs/research/surface-roughness.md](../../../docs/research/surface-roughness.md))
+waits until a section is recommended (user, 2026-10-15).
 
 ## Run 20261013-200643 (2026-10-13, git 44a27af, GCP, 75 cases)
 
