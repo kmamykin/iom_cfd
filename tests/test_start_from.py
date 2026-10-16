@@ -1,6 +1,7 @@
 """foil2d start_from: initial fields from an earlier case (pure Python, no OpenFOAM)."""
 
 import json
+import re
 
 import pytest
 
@@ -51,6 +52,9 @@ def test_transient_case_continues_from_the_final_time(tmp_path, project):
     info = json.loads((case / "start_from.json").read_text())
     assert info["case"] == str(src) and info["continued"] and info["time"] == "1.2"
     assert "restartTime" in (case / "system" / "caseParameters").read_text()
+    # write times count from the start time (1.2 s): the end, 2.4 s, must be one, or no final fields
+    m = re.search(r"^writeInterval\s+([0-9.eE+-]+);", (case / "system" / "controlDict").read_text(), re.M)
+    assert float(m.group(1)) == pytest.approx(1.2)
 
 
 def test_falls_back_to_a_steady_run(tmp_path, project):

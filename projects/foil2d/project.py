@@ -234,6 +234,9 @@ class Foil2D(Project):
                                  f"{p['flow_times']} ends at {d['simEndTime']:.6g} s")
             shutil.copytree(src / t, case_dir / t, symlinks=True)
             d["restartTime"] = float(t)
+            if not float(p.get("snapshot_interval") or 0.0) > 0:
+                # adjustable write times count from the start time: make the end one
+                set_entry(case_dir / "system" / "controlDict", "writeInterval", d["simEndTime"] - float(t))
         else:
             for name in START_FIELDS:
                 for f in (src / t / name, src / t / f"{name}.gz"):
