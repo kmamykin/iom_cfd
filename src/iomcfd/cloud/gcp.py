@@ -154,11 +154,13 @@ def build_job(
                     "computeResource": {"cpuMilli": task_vcpus * 1000, "memoryMib": mem_mib},
                     "maxRunDuration": f"{int(max_hours * 3600)}s",
                     "maxRetryCount": 3,
-                    # Batch allows a single lifecycle policy. iomcfd exits 1 (failed case,
-                    # error) or 2 (usage): don't retry those. Everything else, notably
-                    # 50001 (Spot VM preempted), is retried up to maxRetryCount.
+                    # Batch allows a single lifecycle policy. Don't retry: iomcfd's exit
+                    # 1 (failed case, error) or 2 (usage), nor 50005 (over maxRunDuration:
+                    # a retry starts the case from scratch and hits the limit again).
+                    # Everything else, notably 50001 (Spot VM preempted), is retried up
+                    # to maxRetryCount.
                     "lifecyclePolicies": [
-                        {"action": "FAIL_TASK", "actionCondition": {"exitCodes": [1, 2]}},
+                        {"action": "FAIL_TASK", "actionCondition": {"exitCodes": [1, 2, 50005]}},
                     ],
                     "environment": {
                         "variables": {
