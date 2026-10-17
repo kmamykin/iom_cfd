@@ -283,10 +283,98 @@ within 1.3\ %. Halving the time step changes lift and drag by about 1\ %.
 ::: {#fig-shedding}
 {{< video assets/shedding-video.mp4 >}}
 
-Flow speed and streamlines around NACA 0009 at 4° and Re 10⁵ (time-accurate, coarse mesh). The
-laminar boundary layer on the suction side separates and rolls up into vortices that travel over the
-rear half and into the wake.
+Flow speed and streamlines around NACA 0009 at 4° and Re 10⁵ (time-accurate, coarse mesh; 12
+snapshots, about one and a half shedding cycles). The laminar boundary layer on the suction side
+separates and rolls up into vortices that travel over the rear half and into the wake.
 :::
+
+### How the flow changes with angle
+
+::: {#fig-angle-sweep}
+{{< video assets/flow-angle-sweep.mp4 >}}
+
+NACA 0009 at 80 mm, 1 m/s, Tu 1\ %, steady solutions at 0°, 2°, 4°, 6° and 8°, one frame per angle (the
+colours are explained below). As the angle rises, separation moves forward: near the trailing edge at
+0–2°; a bubble at mid-chord that reattaches at 4° (from 28\ % to 69\ % of the chord); a short bubble at
+the leading edge with turbulent flow behind it at 6–8°. Drag rises from C~d~ 0.014 to 0.040.
+:::
+
+### A gallery of flows {#sec-gallery}
+
+Each picture is the suction side of one simulation, coloured by the flow speed along the surface:
+
+* **pale:** the free stream;
+* **amber:** faster than the free stream;
+* **dark:** the slow layer next to the wall (the boundary layer);
+* **blue:** flow going backwards.
+
+Pictures from time-accurate runs show a single instant. Captions give the section and chord, the
+angle, the boat speed, the water turbulence (Tu) and the solver.
+
+**Healthy: attached flow.**
+
+![NACA 0007, 100 mm, 2°, 1 m/s, Tu 0.1\ %, time-accurate. The boundary layer stays laminar and
+attached over most of the chord. The flow reverses only near the trailing edge, from about 69\ % of the
+chord. C~d~ 0.0122, among the lowest of all cases.](assets/flow-attached.png){#fig-flow-attached}
+
+**A laminar separation bubble, and what calm water does to it.**
+
+![NACA 0009, 80 mm, 4°, 1 m/s, Tu 1\ %, steady. The laminar boundary layer separates at 28\ % of the
+chord, turns turbulent in the separated layer and reattaches at 69\ %: a laminar separation bubble.
+C~d~ 0.0164.](assets/flow-bubble-tu1.png){#fig-flow-bubble-tu1}
+
+![The same section in calmer water (Tu 0.1\ %). The bubble starts earlier, at 16\ %, and the flow
+separates again from 54\ % to the trailing edge. Drag is 14\ % higher (C~d~ 0.0187). Calm water delays
+the turbulence that closes the bubble, so it is not faster.](assets/flow-bubble-tu01.png){#fig-flow-bubble-tu01}
+
+**Vortex shedding.**
+
+![NACA 0007, 100 mm, 4°, 0.75 m/s, Tu 0.1\ %, time-accurate, one instant. The separated layer doesn't
+form a steady bubble. It rolls up into vortices (the blue pockets) that travel along the rear half.
+Lift fluctuates by about 10\ % of its mean.](assets/flow-shedding.png){#fig-flow-shedding}
+
+![The same instant as vorticity (the spin of the flow). The shear layer on the suction side (blue)
+rolls up into vortices, which leave the trailing edge as a wake of alternating
+vortices.](assets/flow-shedding-vorticity.png){#fig-flow-shedding-vorticity}
+
+**Irregular shedding at a small angle.**
+
+![NACA 0008, 100 mm, 2°, 1 m/s, Tu 0.1\ %, time-accurate, one instant (vorticity). Near the trailing
+edge the flow separates and sheds irregularly. Lift fluctuates by about 40\ % of its mean, and the mean
+had not settled after 20 flow-throughs. The steady solver showed a smooth, steady flow
+here.](assets/flow-irregular-2deg.png){#fig-flow-irregular-2deg}
+
+**A leading-edge bubble, then turbulent flow.**
+
+![NACA 0006, 80 mm, 4°, 1 m/s, Tu 1\ %, steady. The thinnest section separates right at the leading
+edge (1\ % of the chord) and reattaches at 8\ %. Behind the bubble the boundary layer is turbulent all
+the way to the trailing edge. Friction drag is 31\ % higher than on NACA 0009 (C~d~ 0.0195 against
+0.0164).](assets/flow-le-bubble-0006.png){#fig-flow-le-bubble}
+
+![A close-up of the same kind of bubble on NACA 0007 at 100 mm, 4° and 1.5 m/s (time-accurate).
+Reversed flow runs from 1.6\ % to 17\ % of the chord, and attached turbulent flow follows. This is why
+that fin loses at 1.5 m/s (@sec-by-speed).](assets/flow-le-bubble-zoom.png){#fig-flow-le-bubble-zoom}
+
+**Too slow: separation without reattachment.**
+
+![NACA 0009, 80 mm, 4°, 0.25 m/s (Re 17,600), Tu 1\ %, steady. At very low speed the separated laminar
+layer never reattaches: the flow is reversed from 39\ % of the chord to the trailing edge. C~d~ 0.0336,
+twice the drag at 1 m/s.](assets/flow-no-reattachment.png){#fig-flow-no-reattachment}
+
+**On the edge of stall.**
+
+![NACA 0006, 80 mm, 8°, 0.25 m/s, Tu 1\ %, steady. The flow separates at the leading edge and is
+reversed over almost the whole suction side, from 0.6\ % to 99.5\ % of the chord. Lift still holds up
+(C~l~ 0.66), but the drag is very high (C~d~ 0.089). At 8° the thinnest
+section is close to stall at every speed: C~d~ 0.067–0.089 from 0.25 to 2.5 m/s, against 0.040 for
+NACA 0009 at 1 m/s.](assets/flow-stall.png){#fig-flow-stall}
+
+**Lift lost near 0°.**
+
+![NACA 0009, 80 mm, 2°, 0.75 m/s, Tu 0.1\ %, steady. The suction side separates at 56\ % of the chord
+and never reattaches, while the other side stays attached. The section makes only a third of the lift
+that thin-aerofoil theory predicts (C~l~ 0.070 against 0.22). This is how thicker sections lose lift
+near 0° at low speed, and why light air is hard for them.](assets/flow-lift-loss.png){#fig-flow-lift-loss}
 
 ### What the steady solver got wrong
 
@@ -431,6 +519,9 @@ this page are under CC BY 4.0. Reference data from other sources keeps its own t
 
 ## Revision history {.appendix .unnumbered}
 
+* **17 October 2026 (later).** A gallery of flow types (attached flow, separation bubbles, shedding,
+  leading-edge bubbles, separation without reattachment, the edge of stall, lift lost near 0°) and an
+  animation of the flow from 0° to 8°.
 * **17 October 2026.** Time-accurate check 3: the four best fins at 2° and 6°, and at 0.75 and
   1.5 m/s. The answer now depends on the wind: 0007/100 is best in light and medium air, 0008/100 at
   1.5 m/s. Added the ranking by wind strength, the leading-edge-bubble figure, and research on fin

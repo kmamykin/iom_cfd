@@ -1,4 +1,136 @@
 {
+  "flow-angle-sweep": {
+    "kind": "file",
+    "file": "assets/flow-angle-sweep.mp4",
+    "study": "fin-profile-selection",
+    "runs": [
+      "20261012-175146"
+    ],
+    "source": "viz/boundary_layer_by_aoa_chord0.08foilnaca0009speed1.0.mp4",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-attached": {
+    "kind": "file",
+    "file": "assets/flow-attached.png",
+    "study": "transient-check",
+    "runs": [
+      "20261017-000816"
+    ],
+    "source": "aoa2_chord0.1_foilnaca0007_speed1/viz/boundary_layer.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-bubble-tu01": {
+    "kind": "file",
+    "file": "assets/flow-bubble-tu01.png",
+    "study": "fin-profile-selection",
+    "runs": [
+      "20261013-045759"
+    ],
+    "source": "aoa4_chord0.08_foilnaca0009_speed1/viz/boundary_layer.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-bubble-tu1": {
+    "kind": "file",
+    "file": "assets/flow-bubble-tu1.png",
+    "study": "fin-profile-selection",
+    "runs": [
+      "20261012-175146"
+    ],
+    "source": "aoa4_chord0.08_foilnaca0009_speed1/viz/boundary_layer.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-irregular-2deg": {
+    "kind": "file",
+    "file": "assets/flow-irregular-2deg.png",
+    "study": "transient-check",
+    "runs": [
+      "20261017-000816"
+    ],
+    "source": "aoa2_chord0.1_foilnaca0008_speed1/viz/vorticity.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-le-bubble-0006": {
+    "kind": "file",
+    "file": "assets/flow-le-bubble-0006.png",
+    "study": "fin-profile-selection",
+    "runs": [
+      "20261012-175146"
+    ],
+    "source": "aoa4_chord0.08_foilnaca0006_speed1/viz/boundary_layer.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-le-bubble-zoom": {
+    "kind": "file",
+    "file": "assets/flow-le-bubble-zoom.png",
+    "study": "transient-check",
+    "runs": [
+      "20261017-000816"
+    ],
+    "source": "aoa4_chord0.1_foilnaca0007_speed1.5/viz/separation.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-lift-loss": {
+    "kind": "file",
+    "file": "assets/flow-lift-loss.png",
+    "study": "fin-profile-selection",
+    "runs": [
+      "20261013-045759"
+    ],
+    "source": "aoa2_chord0.08_foilnaca0009_speed0.75/viz/boundary_layer.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-no-reattachment": {
+    "kind": "file",
+    "file": "assets/flow-no-reattachment.png",
+    "study": "fin-profile-selection",
+    "runs": [
+      "20261012-175146"
+    ],
+    "source": "aoa4_chord0.08_foilnaca0009_speed0.25/viz/boundary_layer.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-shedding": {
+    "kind": "file",
+    "file": "assets/flow-shedding.png",
+    "study": "transient-check",
+    "runs": [
+      "20261017-000816"
+    ],
+    "source": "aoa4_chord0.1_foilnaca0007_speed0.75/viz/boundary_layer.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-shedding-vorticity": {
+    "kind": "file",
+    "file": "assets/flow-shedding-vorticity.png",
+    "study": "transient-check",
+    "runs": [
+      "20261017-000816"
+    ],
+    "source": "aoa4_chord0.1_foilnaca0007_speed0.75/viz/vorticity.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
+  "flow-stall": {
+    "kind": "file",
+    "file": "assets/flow-stall.png",
+    "study": "fin-profile-selection",
+    "runs": [
+      "20261012-175146"
+    ],
+    "source": "aoa8_chord0.08_foilnaca0006_speed0.25/viz/boundary_layer.png",
+    "exported": "2026-10-17",
+    "git": "68fed47-dirty"
+  },
   "force-history-4deg": {
     "kind": "force_history",
     "file": "data/force-history-4deg.csv",

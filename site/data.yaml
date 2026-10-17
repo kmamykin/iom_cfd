@@ -77,3 +77,66 @@ shedding-video:
   study: demo-transient-snapshots
   runs: [20261012-023115]
   file: aoa4/viz/velocity_time.mp4   # NACA 0009, Re 1e5, 4 deg, Tu 0.1 %, coarse mesh, transient
+
+# Flow gallery: ParaView renders (projects/foil2d/viz.py, views boundary_layer, separation, vorticity),
+# from cases fetched whole (`gcp fetch --only`) and rendered with `iomcfd viz --views ...`.
+flow-attached:
+  kind: file
+  study: transient-check
+  runs: [20261017-000816]
+  file: aoa2_chord0.1_foilnaca0007_speed1/viz/boundary_layer.png   # 0007/100, 2 deg, 1 m/s, time-accurate
+flow-bubble-tu1:
+  kind: file
+  study: fin-profile-selection
+  runs: [20261012-175146]
+  file: aoa4_chord0.08_foilnaca0009_speed1/viz/boundary_layer.png   # 0009/80, 4 deg, 1 m/s, Tu 1 %, steady
+flow-bubble-tu01:
+  kind: file
+  study: fin-profile-selection
+  runs: [20261013-045759]
+  file: aoa4_chord0.08_foilnaca0009_speed1/viz/boundary_layer.png   # the same at Tu 0.1 %
+flow-shedding:
+  kind: file
+  study: transient-check
+  runs: [20261017-000816]
+  file: aoa4_chord0.1_foilnaca0007_speed0.75/viz/boundary_layer.png   # 0007/100, 4 deg, 0.75 m/s, final instant
+flow-shedding-vorticity:
+  kind: file
+  study: transient-check
+  runs: [20261017-000816]
+  file: aoa4_chord0.1_foilnaca0007_speed0.75/viz/vorticity.png
+flow-irregular-2deg:
+  kind: file
+  study: transient-check
+  runs: [20261017-000816]
+  file: aoa2_chord0.1_foilnaca0008_speed1/viz/vorticity.png   # 0008/100, 2 deg, 1 m/s, final instant
+flow-le-bubble-0006:
+  kind: file
+  study: fin-profile-selection
+  runs: [20261012-175146]
+  file: aoa4_chord0.08_foilnaca0006_speed1/viz/boundary_layer.png   # 0006/80, 4 deg, 1 m/s, Tu 1 %
+flow-le-bubble-zoom:
+  kind: file
+  study: transient-check
+  runs: [20261017-000816]
+  file: aoa4_chord0.1_foilnaca0007_speed1.5/viz/separation.png   # 0007/100, 4 deg, 1.5 m/s, close-up
+flow-no-reattachment:
+  kind: file
+  study: fin-profile-selection
+  runs: [20261012-175146]
+  file: aoa4_chord0.08_foilnaca0009_speed0.25/viz/boundary_layer.png   # 0009/80, 4 deg, 0.25 m/s
+flow-stall:
+  kind: file
+  study: fin-profile-selection
+  runs: [20261012-175146]
+  file: aoa8_chord0.08_foilnaca0006_speed0.25/viz/boundary_layer.png   # 0006/80, 8 deg, 0.25 m/s
+flow-lift-loss:
+  kind: file
+  study: fin-profile-selection
+  runs: [20261013-045759]
+  file: aoa2_chord0.08_foilnaca0009_speed0.75/viz/boundary_layer.png   # 0009/80, 2 deg, 0.75 m/s, Tu 0.1 %
+flow-angle-sweep:
+  kind: file
+  study: fin-profile-selection
+  runs: [20261012-175146]
+  file: viz/boundary_layer_by_aoa_chord0.08foilnaca0009speed1.0.mp4   # 0009/80, 1 m/s, Tu 1 %, 0-8 deg
