@@ -176,7 +176,9 @@ class Ctx:
         return disp
 
     def color(self, disp, array: str, preset: str, rng: tuple[float, float], title: str,
-              component: str | None = None, bar: bool = True, log: bool = False, assoc: str = "POINTS"):
+              component: str | None = None, bar: bool = True, log: bool = False, assoc: str = "POINTS",
+              bar_position: tuple[float, float] = (0.92, 0.12), bar_length: float = 0.72,
+              horizontal: bool = False):
         pv.ColorBy(disp, (assoc, array) if component is None else (assoc, array, component))
         lut = pv.GetColorTransferFunction(array)
         if not lut.ApplyPreset(preset, True):
@@ -190,9 +192,9 @@ class Ctx:
             sb = pv.GetScalarBar(lut, self.view)
             sb.Title, sb.ComponentTitle = title, ""
             sb.WindowLocation = "Any Location"
-            sb.Orientation = "Vertical"
-            sb.Position = [0.92, 0.12]
-            sb.ScalarBarLength = 0.72
+            sb.Orientation = "Horizontal" if horizontal else "Vertical"
+            sb.Position = [float(v) for v in bar_position]
+            sb.ScalarBarLength = bar_length
             sb.TitleFontSize = sb.LabelFontSize = 16
         return lut
 
