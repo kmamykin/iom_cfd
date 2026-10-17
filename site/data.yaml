@@ -31,6 +31,20 @@ transient-4deg-1ms:
   file: results.csv
   columns: [foil, chord, aoa, speed, max_co, rhoInf, Cl, Cd, Cl_std, Cd_friction, Cd_pressure, status]
 
+transient-run3:
+  study: transient-check
+  runs: [20261017-000816]   # top four: 2 and 6 deg at 1 m/s, 4 deg at 0.75 and 1.5 m/s; averaged over 12-20
+  file: results.csv
+  columns: [foil, chord, aoa, speed, rhoInf, Cl, Cd, Cl_std, Cd_friction, Cd_pressure, status]
+
+surface-0007-100-4deg:
+  study: transient-check
+  runs: [20261017-000816]   # final instant, not a time average
+  file:
+    - aoa4_chord0.1_foilnaca0007_speed0.75/surface.csv
+    - aoa4_chord0.1_foilnaca0007_speed1.5/surface.csv
+  digits: 5
+
 force-history-4deg:
   kind: force_history
   study: transient-check
@@ -44,10 +58,19 @@ force-history-4deg:
 race-time-1ms:
   kind: manual
   source: >-
-    projects/foil2d/findings/transient-check.md, run 20261015-161112, conclusion 4.
-    Race-time loss, % behind the best, at 1 m/s and Tu 0.1 % with the time-accurate
-    4 deg points; loss_x1 with the estimated resistance slope, loss_x2 with it doubled.
-    Computed by an analysis script that is not yet in the repository (methodology.md).
+    projects/foil2d/findings/transient-check.md, run 20261017-000816, conclusion 5.
+    Race-time loss, % behind the best, at 1 m/s and Tu 0.1 %, time-accurate 2, 4 and
+    6 deg points (0008/90 at 6 deg steady); loss_x1 with the estimated resistance
+    slope, loss_x2 with it doubled. Computed by an analysis script that is not yet in
+    the repository (methodology.md).
+
+race-time-by-speed:
+  kind: manual
+  source: >-
+    projects/foil2d/findings/transient-check.md, run 20261017-000816, conclusion 6.
+    Top four, race-time loss, % behind the best of the four, mean over the light,
+    working and high loads, at 0.75, 1 and 1.5 m/s with time-accurate 4 deg points;
+    loss_x1 / loss_x2 as above.
 
 shedding-video:
   kind: file

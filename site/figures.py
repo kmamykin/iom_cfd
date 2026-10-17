@@ -30,6 +30,9 @@ SPAN, SPAN_EFF = 0.36, 0.9
 REF = "0009/80"  # its steady forces at 2, 4 and 6 deg are the loads
 LOAD_AOA = {"light": 2, "working": 4, "high": 6}
 TOP_FOUR = ["0007/100", "0007/90", "0008/100", "0008/90"]
+# 2 laps of 90 m windward-leeward legs, about 420 m sailed (42 deg track upwind), 1 m boat:
+# 1 % of race time is about 4 boat lengths (docs/research/surface-roughness.md; an estimate)
+BOAT_LENGTHS_PER_PCT = 4.2
 
 # Personal palette (site/styles.scss uses the same): ink on warm paper, a
 # signal red for the recommended section, greens and earth tones for the rest.
@@ -276,15 +279,23 @@ def steady_vs_transient(data: Path, out: Path) -> Path:
     return _save(fig, out)
 
 
+def time_accurate_1ms(data: Path) -> pd.DataFrame:
+    """Time-accurate points at 1 m/s: 4 deg of all seven (transient-check run 2), 2 and 6 deg of the top four
+    (run 3)."""
+    a = pd.read_csv(data / "transient-4deg-1ms.csv").query("max_co == 10")
+    b = pd.read_csv(data / "transient-run3.csv").query("speed == 1.0")
+    return _whole_fin(pd.concat([a, b], ignore_index=True))
+
+
 def equal_force(data: Path, out: Path) -> Path:
     st = _whole_fin(pd.read_csv(data / "steady-1ms.csv"))
-    tr = _whole_fin(pd.read_csv(data / "transient-4deg-1ms.csv").query("max_co == 10"))
+    tr = time_accurate_1ms(data)
     L = loads(st)
     fig, (a, b) = plt.subplots(1, 2, figsize=(9.6, 3.9))
     for section in TOP_FOUR:
         s = st[st.section == section].sort_values("aoa")
         t = tr[tr.section == section]
-        used = pd.concat([s[s.aoa != 4], t]).sort_values("aoa")
+        used = pd.concat([s[~s.aoa.isin(t.aoa)], t]).sort_values("aoa")
         c = COLOURS[section]
         a.plot(s.aoa, s.F, color=c, lw=1, alpha=0.4, ls=(0, (3, 2)))
         b.plot(s.F, s.D, color=c, lw=1, alpha=0.4, ls=(0, (3, 2)))
@@ -303,7 +314,7 @@ def equal_force(data: Path, out: Path) -> Path:
     b.set(title="2. Its drag at that side force", xlabel="side force F [N]", ylabel="fin drag D [N]",
           xlim=(-0.2, 9.2), ylim=(0.15, 0.62))
     a.legend(loc="upper left", title="1 m/s, Tu 0.1 %", title_fontsize=8)
-    b.text(0.02, 0.8, "◆ time-accurate 4° point\n- - steady curve it replaces", transform=b.transAxes, fontsize=8,
+    b.text(0.02, 0.8, "◆ time-accurate points\n- - steady curve they replace", transform=b.transAxes, fontsize=8,
            color=MUTED)
     fig.tight_layout()
     return _save(fig, out)
@@ -319,10 +330,57 @@ def race_time(data: Path, out: Path) -> Path:
     for yi, v in zip(y, r.loss_x1["mean"]):
         ax.text(max(v, r.loss_x2["mean"].iloc[yi]) + 0.06, yi, f"{v:.2f}", va="center", fontsize=8.5)
     ax.set_yticks(y, r.index)
-    ax.set(xlabel="race time behind the best fin [%]", title="Race-time loss at 1 m/s (time-accurate 4° points)")
+    ax.set(xlabel="race time behind the best fin [%]", title="Race-time loss at 1 m/s (time-accurate points)")
     ax.grid(axis="y", visible=False)
     ax.set_xlim(0, 3.3)
     ax.legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def _by_speed(data: Path):
+    """Per-speed rows, and the means over the speeds (from the unrounded analysis, as in the findings)."""
+    r = pd.read_csv(data / "race-time-by-speed.csv", dtype={"speed": str})
+    mean = r[r.speed == "mean"].set_index("section")
+    r = r[r.speed != "mean"].assign(speed=lambda d: d.speed.astype(float))
+    return r, sorted(r.speed.unique()), mean
+
+
+def race_time_by_speed(data: Path, out: Path) -> Path:
+    r, speeds, _ = _by_speed(data)
+    fig, ax = plt.subplots(figsize=(8.6, 3.6))
+    w = 0.2
+    for i, section in enumerate(TOP_FOUR):
+        g = r[r.section == section].set_index("speed").loc[speeds]
+        x = np.arange(len(speeds)) + (i - 1.5) * w
+        ax.bar(x, g.loss_x1, width=w * 0.92, color=COLOURS[section], label=section)
+        ax.scatter(x, g.loss_x2, marker="_", s=120, color=INK, lw=2, zorder=3)
+    ax.scatter([], [], marker="_", s=120, color=INK, lw=2, label="resistance slope doubled")
+    ax.set_xticks(np.arange(len(speeds)), [f"{v:g} m/s" for v in speeds])
+    ax.set(ylabel="race time behind the best fin [%]", title="Race-time loss by boat speed (time-accurate 4° points)")
+    sec = ax.secondary_yaxis("right", functions=(lambda v: v * BOAT_LENGTHS_PER_PCT, lambda v: v / BOAT_LENGTHS_PER_PCT))
+    sec.set_ylabel("boat lengths per race (estimate)")
+    ax.grid(axis="x", visible=False)
+    ax.legend(loc="upper left", ncols=5, fontsize=7.8)
+    ax.set_ylim(0, 2.1)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def leading_edge_bubble(data: Path, out: Path) -> Path:
+    s = pd.read_csv(data / "surface-0007-100-4deg.csv")
+    s = s[s.upper.astype(str) == "True"]
+    fig, (a, b) = plt.subplots(1, 2, figsize=(9.4, 3.3))
+    for name, colour, label in (("speed0.75", "#2f5d50", "0.75 m/s: sheds from mid-chord"),
+                                ("speed1.5", ACCENT, "1.5 m/s: leading-edge bubble, then attached")):
+        g = s[s.file.str.contains(name)].sort_values("x_c")
+        a.plot(g.x_c, -g.Cp, color=colour, label=label)
+        b.plot(g.x_c, g.Cf, color=colour)
+    b.axhline(0, color=INK, lw=0.8)
+    b.text(0.99, -0.0115, "Cf < 0: reversed flow", ha="right", fontsize=8, color=MUTED)
+    a.set(title="Suction side: −Cp", xlabel="x / c", ylabel="−C$_p$", xlim=(0, 1))
+    b.set(title="Suction side: skin friction", xlabel="x / c", ylabel="C$_f$", xlim=(0, 1), ylim=(-0.014, 0.014))
+    a.legend(loc="upper right", fontsize=8)
     fig.tight_layout()
     return _save(fig, out)
 
@@ -341,6 +399,40 @@ def race_time_table(data: Path, out: Path) -> Path:
 
     rows = ["| section | light (1.15 N) | working (6.69 N) | high (8.33 N) | mean |", "|---|---|---|---|---|"]
     rows += [f"| {s} | " + " | ".join(cell(s, ld) for ld in ("light", "working", "high", "mean")) + " |" for s in order]
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def race_time_by_speed_table(data: Path, out: Path) -> Path:
+    r, speeds, mean = _by_speed(data)
+    head = "| section | " + " | ".join(f"{v:g} m/s" for v in speeds) + " | mean | worst |"
+    rows = [head, "|---" * (len(speeds) + 3) + "|"]
+    for section in TOP_FOUR:
+        g = r[r.section == section].set_index("speed").loc[speeds]
+        cells = [f"{a:.2f} / {b:.2f}" for a, b in zip(g.loss_x1, g.loss_x2)]
+        cells += [f"{mean.loss_x1[section]:.2f} / {mean.loss_x2[section]:.2f}",
+                  f"{g.loss_x1.max():.2f} / {g.loss_x2.max():.2f}"]
+        rows.append(f"| {section} | " + " | ".join(cells) + " |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def fin_choice_table(data: Path, out: Path) -> Path:
+    """What one fin for every wind costs: each fin's loss at each speed minus the best fin's there (the
+    fin you'd fit if you could change keels), in % of race time and boat lengths."""
+    r, speeds, _ = _by_speed(data)
+    names = {0.75: "light air (0.75 m/s)", 1.0: "medium (1 m/s)", 1.5: "fresh (1.5 m/s)"}
+    rows = ["| fin | " + " | ".join(names.get(v, f"{v:g} m/s") for v in speeds) + " | average | average, boat lengths |",
+            "|---" * (len(speeds) + 3) + "|"]
+    best = {(v, k): r[r.speed == v][k].min() for v in speeds for k in ("loss_x1", "loss_x2")}
+    for section in TOP_FOUR:
+        g = r[r.section == section].set_index("speed")
+        d1 = [g.loss_x1[v] - best[(v, "loss_x1")] for v in speeds]
+        d2 = [g.loss_x2[v] - best[(v, "loss_x2")] for v in speeds]
+        cells = ["best" if a < 0.005 and b < 0.005 else f"{a:.2f} / {b:.2f}" for a, b in zip(d1, d2)]
+        m1, m2 = np.mean(d1), np.mean(d2)
+        cells += [f"{m1:.2f} / {m2:.2f}", f"{m1 * BOAT_LENGTHS_PER_PCT:.1f} / {m2 * BOAT_LENGTHS_PER_PCT:.1f}"]
+        rows.append(f"| {section} | " + " | ".join(cells) + " |")
     out.write_text("\n".join(rows) + "\n")
     return out
 
@@ -370,6 +462,10 @@ def make_all(data: Path, out: Path) -> list[Path]:
         force_history(data, out / "force-history.svg"),
         steady_vs_transient(data, out / "steady-vs-transient.svg"),
         race_time(data, out / "race-time.svg"),
+        race_time_by_speed(data, out / "race-time-by-speed.svg"),
+        leading_edge_bubble(data, out / "leading-edge-bubble.svg"),
         race_time_table(data, out / "race-time.md"),
+        race_time_by_speed_table(data, out / "race-time-by-speed.md"),
+        fin_choice_table(data, out / "fin-choice.md"),
         sources_table(data, out / "sources.md"),
     ]

@@ -3,6 +3,7 @@ title: "Which fin section for an IOM?"
 subtitle: "2D CFD of symmetric NACA sections at model-yacht Reynolds numbers, ranked by race time"
 author: Kliment Mamykin
 date: 2026-10-16
+date-modified: 2026-10-17
 date-format: "D MMMM YYYY"
 license: "CC BY"
 language:
@@ -16,29 +17,32 @@ abstract: |
   Langtry–Menter transition model). Sections are ranked not by their drag coefficient but by the race
   time they cost: drag and leeway at equal side force upwind, and drag at zero angle downwind.
   Time-accurate simulations showed that at 4° every section sheds vortices, and that the steady
-  solver had overestimated lift there by 4–16\ %. That changed the ranking. On current evidence
-  NACA 0007 at 100 mm chord loses the least race time (medium confidence), with NACA 0008 at 100 mm
-  as the stiffer alternative. The leading sections are within 1\ % of race time of each other, about
-  what keeping the boat clean and fair is worth.
+  solver had overestimated lift there by 4–16\ %. That changed the ranking. Different winds favour
+  different fins: NACA 0007 at 100 mm chord is best in light and medium air, and NACA 0008 at 100 mm
+  is best at 1.5 m/s, by about 1\ % of race time (a result still being checked). For one fin in all
+  winds, NACA 0007 at 100 mm is the best all-round choice on current evidence: on average it gives
+  away about 0.3\ % of race time, roughly 1.4 boat lengths per race, against changing fins for each
+  wind.
 ---
 
 ::: {.callout-warning appearance="simple" icon=false}
-[**Provisional.** The checks that would raise confidence in the recommendation are running: time-accurate
-points at 2° and 6°, and at 0.75 and 1.5 m/s. This page will be updated with their results.]{.status}
+[**One check is running.** At 1.5 m/s NACA 0007 at 100 mm switched to a different, higher-drag flow in
+a single simulation. Two more cases test whether that is real: the same case started from rest, and
+1.25 m/s. This page will be updated with their results.]{.status}
 :::
 
 ::: {.key-results}
 ::: {}
 [0007/100]{.big-number}<br>
-NACA 0007, 100 mm chord: the least race time lost (medium confidence)
+NACA 0007, 100 mm chord: the best all-round fin, and the best in light and medium air
 :::
 ::: {}
-[4–16\ %]{.big-number}<br>
-how much the steady solver overestimated lift at 4°, where every section sheds
+[0008/100]{.big-number}<br>
+NACA 0008, 100 mm chord: best at 1.5 m/s (being checked), and 30–50\ % stiffer
 :::
 ::: {}
-[< 1\ %]{.big-number}<br>
-of race time between the four best fins at 1 m/s
+[1.4]{.big-number}<br>
+boat lengths per race that one 0007/100 fin gives away, on average, against changing fins for each wind
 :::
 ::: {}
 [1,000+]{.big-number}<br>
@@ -49,31 +53,55 @@ of race time between the four best fins at 1 m/s
 ## Previous state of the art {#sec-prior}
 
 ::: {.callout-note}
-## Draft outline
-This section is still to be written. The bullets list what it should cover and the sources already
-in hand. Each source has to be checked before this page is published. Numbers on this page come from
-this project unless a source is cited.
+## Partly drafted
+The fins-in-use and stiffness parts summarise two research notes,
+[iom-fins-on-the-market.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/iom-fins-on-the-market.md)
+and [fin-stiffness.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/fin-stiffness.md).
+The aerofoil and transition parts are still short. Numbers on this page come from this project unless a
+source is cited; product figures are the makers' own claims.
 :::
 
-**Fin sections in the IOM class.** What sections and chords do current designs use, and why?
-Practitioner writing: Lester Gilbert's design notes on onemetre.net [@gilbert-finforce; @gilbert-vmg]
-and Graham Bantock's history of the class [@bantock-iom3]. *To find out:* published comparisons of
-fin sections for model yachts, if there are any.
+**Fins in use.** The class rules leave the fin almost free [@iom-rules-2026]:
 
-**Low-Reynolds-number aerofoils.** Wind-tunnel polars at Re ≈ 10⁵ [@selig1989], and how laminar
+* any material no denser than lead, so carbon is legal in the fin (though not in the hull);
+* no minimum thickness, and at most 20 mm thick above the bottom 60 mm;
+* a keel of 2.2–2.5 kg and a draft of 370–420 mm.
+
+Every fin on the market with stated dimensions is a tapered carbon blade, about 80–100 mm in chord at
+the hull and 63–75 mm at the bulb, 350–360 mm below the hull, 6–7\ % thick (about 5–6 mm).
+
+* SAILSetc sells a 7\ % fin, 90 → 75 mm [@sailsetc-370iom].
+* Craig Smith sells a 6\ % fin, 90 → 75 mm [@cs-cf1].
+* Rob Nelson sells a fin of 100 → 70 mm, thickness not stated [@rn-gp].
+
+No maker names its section. Graham Bantock's fins have used custom low-Reynolds-number sections by
+David Hollom since 1992 [@hollom2008]. The designs winning world championships (V12, VISS, Venti, K2)
+come with their own fins, whose dimensions aren't published [@iomica-hof]. Designers agree that thin
+is fast: "the thinnest is best, around 6\ %", with a longer chord if the fin needs strength
+(Bantock, as recalled in a forum). Proposals for a minimum fin thickness were defeated in the 1990s
+[@bantock-iom1]. The typical leeway in the No. 1 rig is about 3° [@gilbert-finforce]. *Not found:*
+any published comparison of fin sections or chords for IOMs in terms of race time.
+
+**Low-Reynolds-number aerofoils.** Wind-tunnel polars at Re ≈ 10⁵ [@selig1989] show how laminar
 separation bubbles set the drag of thin sections. This project validates against those polars
 (@sec-validation).
 
-**Predicting transition.** RANS turbulence models with a transition model [@menter1994; @langtry2009],
-and their known weak spot, separation bubbles.
+**Predicting transition.** RANS turbulence models can be combined with a transition model
+[@menter1994; @langtry2009]. Their known weak spot is separation bubbles.
 
-**Surface finish and trips.** Roughness on model yachts [@klaka2022]; boundary-layer trips on
-low-Reynolds-number aerofoils [@lyon1997]. The project's research note
+**Surface finish and trips.** Roughness on model yachts is covered by @klaka2022, and
+boundary-layer trips on low-Reynolds-number aerofoils by @lyon1997. The project's research note
 [surface-roughness.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/surface-roughness.md)
 has the details.
 
-**What this project adds.** A ranking by race time rather than drag coefficient, with leeway and the
-downwind leg counted, and a check of the steady solutions against time-accurate ones.
+**Fin stiffness.** It matters mainly for holding the bulb, by limiting sag at high heel and
+oscillation in waves. Its value in race time hasn't been measured (@sec-conclusion).
+
+**What this project adds:**
+
+* a ranking by race time rather than drag coefficient, with leeway and the downwind leg counted;
+* a check of the steady solutions against time-accurate ones;
+* the ranking at three boat speeds.
 
 ## Methodology {#sec-method}
 
@@ -178,10 +206,13 @@ An example at working load: 0008/90 is 0.92\ % behind 0007/100. Its extra upwind
 
 ### Robustness
 
-A fin can win on average and still lose badly somewhere. So the ranking is repeated for each
-combination of water turbulence (Tu 0.1\ % and 1\ %), resistance slope (×1 and ×2) and solver (steady or
-time-accurate 4° points). A fin's **regret** in each case is how far its mean is behind the best fin's;
-the largest regret over all cases says how badly the choice could turn out.
+A fin can win on average and still lose badly somewhere. So the ranking is repeated for each boat speed
+(0.75, 1 and 1.5 m/s) and each combination of water turbulence (Tu 0.1\ % and 1\ %), resistance slope
+(×1 and ×2) and solver (steady or time-accurate points). A fin's **regret** in each case is how far it
+is behind the best fin there; the largest regret says how badly the choice could turn out.
+
+Boat speed stands in for the wind: light air at about 0.75 m/s, medium at 1 m/s, fresh at 1.5 m/s.
+That mapping is an assumption; the boat's actual speeds depend on the rig and the conditions.
 
 ### The workflow
 
@@ -215,9 +246,10 @@ The work went in small steps, each a study with a question. Its answer set up th
 | 13\ Oct | selection run 3: four finalists at Tu 0.1\ %; 100 cases | Does calmer water change the order? | Calmer water means *more* drag at 4–8°: the laminar bubble grows. |
 | 13\ Oct | analysis: leeway and both legs | What does the drag difference cost on the race course? | Counting leeway favours longer chords again; 0008/90 looked like the safest all-rounder. |
 | 13\ Oct | selection run 4: 0007/90, 0007/100, 0008/100; 75 cases | Are the thinner, longer sections better still? | Possibly, but the steady 4° solutions oscillated too much to tell. |
-| 14\ Oct | time-accurate check 1: 10 cases | Are the oscillating steady points right? | At 6° yes, within 0.5\ %. At 4° every section sheds vortices, and 15 flow-throughs were too few to settle. |
+| 14\ Oct | time-accurate check 1: 10 cases | Are the oscillating steady points right? | At 6° yes for the 0009 sections, within 0.5\ %. At 4° every section sheds vortices, and 15 flow-throughs were too few to settle. |
 | 15\ Oct | time-accurate check 2: 8 cases continued to 30 flow-throughs | Where do the 4° forces settle? | Lift 4–16\ % below steady. 0007/100 moves to first, 0008/90 to fourth. |
-| running | time-accurate check 3: 16 cases | Does that hold at 2°, 6°, and other speeds? | Pending. |
+| 17\ Oct | time-accurate check 3: the top four at 2° and 6°, and at 0.75 and 1.5 m/s; 15 of 16 cases | Does that hold at other angles and speeds? | At 0.75 and 1 m/s, yes. At 1.5 m/s 0007/100 switches to a leading-edge bubble and drops to last of the four. The steady 6° drag of the 0007 and 0008 sections was 4–6\ % high. |
+| running | time-accurate check 4: 2 cases | Is that 1.5 m/s result real? | Pending. |
 
 The studies so far. Each has a dated findings log in the repository.
 :::
@@ -262,14 +294,16 @@ rear half and into the wake.
 the same time-accurate lift, C~l~ 0.39–0.40; the steady solver spread them from 0.41 to 0.47, and the
 thick sections were the most wrong.](_generated/steady-vs-transient.svg){#fig-steady-vs-transient}
 
-At 6° the flow is steady, and the steady drag agrees with the time-accurate one within 0.5\ %. At 4°
-the steady points were too optimistic about lift and too pessimistic about drag, and not by the same
-amount for every section. That reordered the fins.
+At 6° the flow is steady, but the steady drag was still 4–6\ % high for the 0007 and 0008 sections
+(within 0.5\ % for 0009). At 4° the steady points were too optimistic about lift and too pessimistic
+about drag, at 0.75, 1 and 1.5 m/s, and not by the same amount for every section. That reordered the
+fins. At 2° the 0008 sections, which looked perfectly steady in the steady solver, shed strongly.
 
-### The ranking
+### The ranking at 1 m/s
 
-![Race-time loss at 1 m/s, Tu 0.1\ %, with the time-accurate 4° points: the mean over the light,
-working and high loads (bars, estimated resistance slope) and with the slope doubled (ticks). Less is
+![Race-time loss at 1 m/s, Tu 0.1\ %, with time-accurate points at 2°, 4° and 6° for the four best
+fins (0008/90 at 6° is still steady) and at 4° for the rest: the mean over the light, working and high
+loads (bars, estimated resistance slope) and with the slope doubled (ticks). Less is
 better.](_generated/race-time.svg){#fig-race-time}
 
 ::: {#tbl-race-time}
@@ -279,42 +313,107 @@ Race-time loss at 1 m/s, Tu 0.1\ %, % behind the best fin at each load: estimate
 doubled. Loads are the side forces of 0009/80 at 2°, 4° and 6°.
 :::
 
-0007/100 is first or second in every combination of water turbulence, resistance slope and solver,
-and never more than 0.15\ % of race time behind the best mean. The next best, 0007/90, can be up to
-0.52\ % behind.
+### The ranking by wind strength {#sec-by-speed}
+
+![Race-time loss of the four best fins at three boat speeds, % behind the best of the four at each
+load, averaged over the loads (bars: estimated resistance slope; ticks: doubled). The right axis
+converts to boat lengths per race: 2 laps of 90 m legs, about 4 boat lengths per 1\ % (an
+estimate).](_generated/race-time-by-speed.svg){#fig-race-time-by-speed}
+
+::: {#tbl-race-time-by-speed}
+{{< include _generated/race-time-by-speed.md >}}
+
+Race-time loss of the four best fins by boat speed, % behind the best of the four: estimated
+resistance slope / doubled. Time-accurate 4° points at every speed; at 1 m/s also 2° and 6°.
+"Worst" is the largest loss at any of the three speeds.
+:::
+
+**Different winds favour different fins.** NACA 0007 at 100 mm is best at 0.75 and 1 m/s, by about
+0.5\ % of race time (2 boat lengths). At 1.5 m/s it is last of the four, 1\ % (about 4 boat lengths)
+behind NACA 0008 at 100 mm. The reason is a change in the flow (@fig-leading-edge-bubble): at 0.75
+and 1 m/s its boundary layer separates near mid-chord and sheds vortices, like every other section; at
+1.5 m/s it separates right at the leading edge, reattaches turbulent and stays attached, with twice
+the skin friction. The same thing made the thinnest section, NACA 0006, lose at working load in
+selection run 2. This rests on one simulation, and a check is running.
+
+![NACA 0007 at 100 mm, 4°: pressure and skin friction on the suction side at 0.75 and 1.5 m/s (the
+final instant of time-accurate runs). Negative skin friction is reversed flow.](_generated/leading-edge-bubble.svg){#fig-leading-edge-bubble}
 
 ## Conclusion {#sec-conclusion}
 
-**Recommendation: NACA 0007 at 100 mm chord.** Confidence: medium.
+**Different winds favour different fins.**
 
-* It loses the least race time at 1 m/s with the time-accurate points: 0.43\ % behind a perfect
-  fin-for-every-load on average, against 0.95\ % for 0007/90 and 1.02\ % for 0008/100.
-* Its weakest points are mild: 0.8\ % behind 0007/90 in light air, 0.5\ % behind 0008/100 at high
-  load.
-* Its bending stiffness is about that of 0008/90 (stiffness scales with c·t³, an estimate that ignores
-  construction).
+* **Light and medium air (0.75–1 m/s boat speed): NACA 0007 at 100 mm.** It is about 0.5\ % of race time
+  (2 boat lengths per race) ahead of the next best, NACA 0007 at 90 mm, and 0.7–0.8\ % (3 boat lengths)
+  ahead of NACA 0008 at 100 mm.
+* **Fresh air (1.5 m/s): NACA 0008 at 100 mm.** It is about 1\ % (4 boat lengths) ahead of
+  0007/100, whose flow switches to a high-drag leading-edge bubble at that speed
+  (@fig-leading-edge-bubble). This rests on one simulation; the check is running.
 
-**The alternative: NACA 0008 at 100 mm**, if heavy air or stiffness matter more. It is best at high
-load and about 50\ % stiffer, and 0.6\ % behind 0007/100 on average.
+Few sailors change fins with the wind, so the question is what one fin for every wind gives away
+(@tbl-fin-choice).
 
-**How much is at stake.** The four best fins are within 0.9\ % of race time of each other at 1 m/s.
-On a 2-lap, 90 m windward–leeward course that is roughly 2–4 boat lengths (an estimate). By
+::: {#tbl-fin-choice}
+{{< include _generated/fin-choice.md >}}
+
+What each fin gives away against the best fin for each wind (the one you'd fit if you could change
+fins), % of race time: estimated resistance slope / doubled. "Average" weights the three winds
+equally; boat lengths per race at about 4 per 1\ % (an estimate).
+:::
+
+**Best all-round: NACA 0007 at 100 mm**, on current evidence.
+
+* It gives away the least on average: 0.33\ % of race time, about 1.4 boat lengths per race. NACA 0007
+  at 90 mm gives away 0.42\ % and NACA 0008 at 100 mm 0.49\ %.
+* All of its cost is in fresh air. If the running check confirms the leading-edge bubble, and finds it
+  already at 1.25 m/s, it loses over a wider range of winds, and NACA 0008 at 100 mm would likely become
+  the better all-round fin (an estimate).
+* NACA 0007 at 90 mm is the most even (never more than 0.55\ % behind), but it is the least stiff of
+  the three.
+
+**Stiffness.** At IOM speeds the bulb loads the fin more than the water does: at 30° heel the part of
+a 2.4 kg bulb's weight across the fin is about 12\ N, against about 7\ N of side force. A soft fin lets
+the bulb sag to leeward at high heel, which costs righting moment, and lets fin and bulb oscillate in
+waves. One designer describes a boat (a Ten Rater, a larger radio class) that "would slow and spurt
+unpredictably in waves" until a stiffer fin was fitted [@gilbert-finpos]. Nobody has published how much stiffness is worth in race time, and the
+leading designers put thinness first, getting stiffness from the chord and the layup. A fin's bending
+stiffness scales roughly with chord × thickness³, so at 100 mm NACA 0007 is about 50\ % stiffer at the
+root than a 7\ % fin with a 90 mm chord, and NACA 0008 at 100 mm is another 30–50\ % stiffer (estimates
+for the same construction). Stiffness doesn't rule out 0007/100; if the boat sails a lot in waves at
+high heel, or the bulb sits well aft of the fin, 0008/100 is the safer side. The details and the
+sources are in the research note
+[fin-stiffness.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/fin-stiffness.md).
+
+**How much is at stake.** The right fin for the wind is worth up to about 1\ % of race time (4 boat
+lengths); between the three best all-round choices, about 0.2\ % on average (under a boat length). By
 comparison, sanding finer than 400–600 grit gains less than half a boat length, but a dirty, slimy or
 unfair hull can cost as much as a poor section choice or more [@klaka2022]. Choose the section, *and*
 keep the boat clean and fair.
 
-**Why medium, not high confidence:**
+**Why the order is not certain:**
 
-* The time-accurate points are at 1 m/s only, and at 4° only; the 2° and 6° points of most sections
-  are still steady ones. Both are being checked.
-* The simulations are 2D. Tip, bulb, hull junction and heel are not modelled.
-* The resistance slope and the water turbulence are estimates, and the hull and rudder are assumed to
-  make no side force.
-* The shedding at 4° has not been validated against measurements at these Reynolds numbers.
+* The fresh-air result for 0007/100 rests on one simulation (being checked).
+* At 0.75 and 1.5 m/s only the 4° points are time-accurate; 0.5 m/s has none.
+* The simulations are 2D, with a constant chord. Tip, bulb, hull junction, heel and taper are not
+  modelled.
+* The resistance slope and the water turbulence are estimates, the hull and rudder are assumed to make no
+  side force, and every wind is weighted equally.
+* The shedding has not been validated against measurements at these Reynolds numbers.
 
-**What would change it.** In order: time-accurate points at 2° and 6° and at other speeds (running);
-a hull resistance curve to replace the estimate; a 3D check of 0007/100 against 0008/100; and the
-stiffness of a real fin under the working load.
+**Against what is sold.** The recommended thickness, 7\ %, is what the market sells and what designers
+recommend. The chord is not: the simulations favour 90–100 mm, because a longer chord needs less leeway,
+while commercial fins taper from 80–100 mm at the hull to 63–75 mm at the bulb (a mean of about
+75–85 mm). The 2D model can't weigh taper, which moves lift and bending moment towards the root and
+saves weight at the tip. In practice, "NACA 0007 at 100 mm" means a 7\ % fin at the long end of what is
+sold; a 3D comparison of a tapered fin is the open question.
+
+**What would change it:**
+
+* the running check of 0007/100 at 1.25 and 1.5 m/s;
+* a hull resistance curve, to replace the estimate;
+* a 3D check of 0007/100 against 0008/100, and of a tapered 7\ % fin (for example 100 → 70 mm) against
+  a constant 100 mm chord;
+* a bench test of a real fin's stiffness: the tip drop with the keel held horizontal and the bulb on.
 
 ## Reproducing this {.appendix .unnumbered}
 
@@ -332,4 +431,8 @@ this page are under CC BY 4.0. Reference data from other sources keeps its own t
 
 ## Revision history {.appendix .unnumbered}
 
+* **17 October 2026.** Time-accurate check 3: the four best fins at 2° and 6°, and at 0.75 and
+  1.5 m/s. The answer now depends on the wind: 0007/100 is best in light and medium air, 0008/100 at
+  1.5 m/s. Added the ranking by wind strength, the leading-edge-bubble figure, and research on fin
+  stiffness and on the fins sold for IOMs. References checked.
 * **16 October 2026.** First version: steady results of selection runs 1–4 and time-accurate checks 1–2.

@@ -16,7 +16,12 @@
   "race-time-1ms": {
     "kind": "manual",
     "file": "data/race-time-1ms.csv",
-    "source": "projects/foil2d/findings/transient-check.md, run 20261015-161112, conclusion 4. Race-time loss, % behind the best, at 1 m/s and Tu 0.1 % with the time-accurate 4 deg points; loss_x1 with the estimated resistance slope, loss_x2 with it doubled. Computed by an analysis script that is not yet in the repository (methodology.md)."
+    "source": "projects/foil2d/findings/transient-check.md, run 20261017-000816, conclusion 5. Race-time loss, % behind the best, at 1 m/s and Tu 0.1 %, time-accurate 2, 4 and 6 deg points (0008/90 at 6 deg steady); loss_x1 with the estimated resistance slope, loss_x2 with it doubled. Computed by an analysis script that is not yet in the repository (methodology.md)."
+  },
+  "race-time-by-speed": {
+    "kind": "manual",
+    "file": "data/race-time-by-speed.csv",
+    "source": "projects/foil2d/findings/transient-check.md, run 20261017-000816, conclusion 6. Top four, race-time loss, % behind the best of the four, mean over the light, working and high loads, at 0.75, 1 and 1.5 m/s with time-accurate 4 deg points; loss_x1 / loss_x2 as above."
   },
   "shedding-video": {
     "kind": "file",
@@ -41,6 +46,20 @@
     "exported": "2026-10-17",
     "git": "1ce5be2-dirty"
   },
+  "surface-0007-100-4deg": {
+    "kind": "table",
+    "file": "data/surface-0007-100-4deg.csv",
+    "study": "transient-check",
+    "runs": [
+      "20261017-000816"
+    ],
+    "source": [
+      "aoa4_chord0.1_foilnaca0007_speed0.75/surface.csv",
+      "aoa4_chord0.1_foilnaca0007_speed1.5/surface.csv"
+    ],
+    "exported": "2026-10-17",
+    "git": "1ca7ce7-dirty"
+  },
   "transient-4deg-1ms": {
     "kind": "table",
     "file": "data/transient-4deg-1ms.csv",
@@ -51,6 +70,17 @@
     "source": "results.csv",
     "exported": "2026-10-17",
     "git": "1ce5be2-dirty"
+  },
+  "transient-run3": {
+    "kind": "table",
+    "file": "data/transient-run3.csv",
+    "study": "transient-check",
+    "runs": [
+      "20261017-000816"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-17",
+    "git": "1ca7ce7-dirty"
   },
   "validation-naca0009": {
     "kind": "table",
