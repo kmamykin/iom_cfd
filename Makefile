@@ -9,7 +9,7 @@ GIT_TAG := $(shell git describe --always --dirty 2>/dev/null || echo dev)
 REMOTE_IMAGE = $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT)/$(AR_REPO)/$(or $(IMAGE_NAME),iom-cfd)
 PLATFORMS ?= linux/amd64,linux/arm64
 
-.PHONY: help setup image viz-image shell test test-docker smoke push push-amd64 push-viz clean-runs
+.PHONY: help setup image viz-image shell test test-docker smoke push push-amd64 push-viz site site-preview clean-runs
 
 help:  ## list targets
 	@grep -hE '^[a-z0-9-]+:.*##' $(firstword $(MAKEFILE_LIST)) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -51,6 +51,12 @@ push-viz:  ## build multi-arch visualisation image and push to Artifact Registry
 	docker buildx build --platform linux/amd64,linux/arm64 \
 	    -t $(REMOTE_IMAGE)-viz:$(GIT_TAG) -t $(REMOTE_IMAGE)-viz:latest \
 	    -f docker/Dockerfile.viz --push .
+
+site:  ## build the website (site/ -> site/_site/): figures, then Quarto
+	uv run iomcfd site build
+
+site-preview:  ## serve the website locally and rebuild it on save
+	uv run iomcfd site build --preview
 
 clean-runs:  ## delete all local simulation output (runs/)
 	rm -rf runs

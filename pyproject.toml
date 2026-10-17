@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "OpenFOAM-based CFD toolkit for International One Metre (IOM) RC yachts"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
 # Runtime deps needed inside the solver container (installed there via apt).
 dependencies = [
     "numpy>=1.26",

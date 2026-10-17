@@ -1,0 +1,335 @@
+---
+title: "Which fin section for an IOM?"
+subtitle: "2D CFD of symmetric NACA sections at model-yacht Reynolds numbers, ranked by race time"
+author: Kliment Mamykin
+date: 2026-10-16
+date-format: "D MMMM YYYY"
+license: "CC BY"
+language:
+  title-block-published: "First published"
+  title-block-modified: "Updated"
+abstract: |
+  The fin of an International One Metre (IOM) radio-controlled yacht makes the side force that lets it
+  sail upwind. It works at Reynolds numbers of 3×10⁴ to 2×10⁵, where laminar separation bubbles set
+  much of the drag. This project compares symmetric NACA sections 6–12\ % thick at chords of 80–100 mm
+  with 2D simulations that model laminar–turbulent transition (OpenFOAM, k-ω SST with the
+  Langtry–Menter transition model). Sections are ranked not by their drag coefficient but by the race
+  time they cost: drag and leeway at equal side force upwind, and drag at zero angle downwind.
+  Time-accurate simulations showed that at 4° every section sheds vortices, and that the steady
+  solver had overestimated lift there by 4–16\ %. That changed the ranking. On current evidence
+  NACA 0007 at 100 mm chord loses the least race time (medium confidence), with NACA 0008 at 100 mm
+  as the stiffer alternative. The leading sections are within 1\ % of race time of each other, about
+  what keeping the boat clean and fair is worth.
+---
+
+::: {.callout-warning appearance="simple" icon=false}
+[**Provisional.** The checks that would raise confidence in the recommendation are running: time-accurate
+points at 2° and 6°, and at 0.75 and 1.5 m/s. This page will be updated with their results.]{.status}
+:::
+
+::: {.key-results}
+::: {}
+[0007/100]{.big-number}<br>
+NACA 0007, 100 mm chord: the least race time lost (medium confidence)
+:::
+::: {}
+[4–16\ %]{.big-number}<br>
+how much the steady solver overestimated lift at 4°, where every section sheds
+:::
+::: {}
+[< 1\ %]{.big-number}<br>
+of race time between the four best fins at 1 m/s
+:::
+::: {}
+[1,000+]{.big-number}<br>
+2D simulations, on a laptop and on Google Cloud
+:::
+:::
+
+## Previous state of the art {#sec-prior}
+
+::: {.callout-note}
+## Draft outline
+This section is still to be written. The bullets list what it should cover and the sources already
+in hand. Each source has to be checked before this page is published. Numbers on this page come from
+this project unless a source is cited.
+:::
+
+**Fin sections in the IOM class.** What sections and chords do current designs use, and why?
+Practitioner writing: Lester Gilbert's design notes on onemetre.net [@gilbert-finforce; @gilbert-vmg]
+and Graham Bantock's history of the class [@bantock-iom3]. *To find out:* published comparisons of
+fin sections for model yachts, if there are any.
+
+**Low-Reynolds-number aerofoils.** Wind-tunnel polars at Re ≈ 10⁵ [@selig1989], and how laminar
+separation bubbles set the drag of thin sections. This project validates against those polars
+(@sec-validation).
+
+**Predicting transition.** RANS turbulence models with a transition model [@menter1994; @langtry2009],
+and their known weak spot, separation bubbles.
+
+**Surface finish and trips.** Roughness on model yachts [@klaka2022]; boundary-layer trips on
+low-Reynolds-number aerofoils [@lyon1997]. The project's research note
+[surface-roughness.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/surface-roughness.md)
+has the details.
+
+**What this project adds.** A ranking by race time rather than drag coefficient, with leeway and the
+downwind leg counted, and a check of the steady solutions against time-accurate ones.
+
+## Methodology {#sec-method}
+
+### Simulating a fin section
+
+Each simulation is a 2D slice of the fin: one section at one angle of attack and one boat speed, in
+fresh water at 15 °C. It uses OpenFOAM v2512 [@openfoam] with the k-ω SST turbulence model
+[@menter1994] and the γ-Re~θ~ transition model of Langtry and Menter [@langtry2009]. The transition
+model predicts where the boundary layer stays laminar, separates, reattaches or turns turbulent,
+which at these Reynolds numbers decides most of the drag. It needs the turbulence of the incoming
+water, Tu. Nobody has measured Tu on a model-yacht pond, so it is a parameter (0.1\ % and 1\ %), not a
+constant.
+
+Two solvers are used:
+
+* **Steady** (simpleFoam) finds a flow that doesn't change in time. It is cheap enough to sweep
+  hundreds of cases per run, but where the real flow is unsteady its answer can be wrong
+  (@sec-transient).
+* **Time-accurate** (pimpleFoam) follows the flow in time, here for 30 chord flow-throughs (the time
+  the water takes to pass the chord 30 times). The forces are averaged over the last 6. It costs
+  8–13 hours per case on one core.
+
+The mesh (@fig-mesh) is a structured C-grid written directly by the project's own generator: 90,112
+hexahedral cells, wall-normal grid lines, the first cell sized for y⁺ ≈ 0.5 so that the viscous
+sublayer is resolved, and a far field 50 chords away. Doubling the cell count changes drag by 0.1–0.2\ %
+at 4° and 0.8–1.7\ % at 6°, and lift by under 0.4\ % (study `mesh-finalists`).
+
+![The medium C-grid for NACA 0007 at 100 mm chord: the whole domain (every 4th grid line), the
+section, and the leading edge. Drawn by the same code that writes the simulation
+mesh.](_generated/mesh.png){#fig-mesh}
+
+### Validation {#sec-validation}
+
+NACA 0009 at Re = 10⁵ against wind-tunnel data from Princeton [@selig1989]:
+
+![NACA 0009 at Re 10⁵, coarse mesh, Tu 0.1\ %, steady solver. The transition model (used for every
+result on this page) gets lift within 6\ % up to 8°; drag is 10\ % high at 4° and 25\ % high at 8°, where
+a laminar separation bubble dominates. The fully turbulent model has too much drag at low angles
+because it misses the laminar flow.](_generated/validation.svg){#fig-validation}
+
+At upwind angles of 2–5° the transition model is good enough to *rank* sections. Absolute drag is
+uncertain by roughly 10–25\ %. Likely causes, roughly in order: the transition model's handling of
+separation bubbles; the tunnel's effective turbulence; steady solutions of an unsteady flow at 4°; mesh
+resolution; and scatter in the experiment itself.
+
+### From a section to a fin
+
+Each simulation gives a lift and drag coefficient, C~l~ and C~d~. They are scaled to the whole fin,
+with span b = 0.36 m below the hull, chord c and dynamic pressure q = ½ρV²:
+
+$$
+\begin{aligned}
+F &= C_l\, q\, c\, b \\
+D &= C_d\, q\, c\, b + \frac{F^2}{2\pi\, q\, e\, b^2}
+\end{aligned}
+$$
+
+The second term of D is the induced drag of a lifting line, with the hull as a reflection plane and
+span efficiency e = 0.9. All fins have the same span, so at equal side force their induced drag is the
+same: it adds to the total but doesn't reorder the fins.
+
+### Compare at equal side force
+
+The sails decide how much side force the fin must make, not the fin. So every fin is compared at the
+same three forces, the **loads**: what one reference section (0009/80) makes at 2°, 4° and 6°. At
+1 m/s these are 1.15 N (light), 6.69 N (working) and 8.33 N (high). For each fin, interpolating along
+its lift curve gives the angle it needs, and along its drag curve its drag, at that force
+(@fig-equal-force).
+
+![The two steps of the comparison at 1 m/s, Tu 0.1\ %, for the four best fins. Left: the angle each
+fin needs to make the load. Right: its drag at that load. Diamonds are the time-accurate 4° points
+that replaced the steady ones (dashed); the steady points overestimated lift, so every fin needs more
+angle than the steady curves suggested.](_generated/equal-force.svg){#fig-equal-force}
+
+A longer chord makes the same force at a lower angle. The difference in angle is the difference in
+**leeway**, because the 3D part of the angle depends on span and force, not chord.
+
+### Race time
+
+Two costs upwind, and one downwind (@fig-course):
+
+![Left: upwind, the boat heads 39° off the true wind [@gilbert-vmg] and slides 3° sideways, so it tracks
+at 42° [@gilbert-finforce]. Right: the fin's angle of attack α is the leeway; its side force balances the sails and its
+drag slows the boat. Downwind the fin makes no side force and sits at α = 0.](_generated/course.svg){#fig-course}
+
+* **Drag slows the boat.** Extra drag ΔD costs a fraction of the leg's time of
+  $$\text{drag loss} = \frac{\Delta D}{V\,\mathrm{d}R/\mathrm{d}V},$$
+  where dR/dV is the slope of the boat's total resistance with speed. V dR/dV ≈ 1.35 N at 1 m/s,
+  estimated from hull, fin, bulb and rudder friction. At that slope 0.01 N of extra drag costs 0.74\ %
+  of the leg.
+* **Leeway lengthens the path.** Sailing D metres to windward takes D / cos θ metres of track, with
+  θ = 42°. One more degree of leeway costs tan θ · Δα ≈ **1.57\ %** of the leg.
+* **Downwind** the fin's drag at 0° counts, at the same boat speed.
+
+With equal time upwind and downwind, a fin's loss is half the sum of the three, measured against the
+best fin and averaged over the three loads. The resistance slope is the least certain input, so every
+result is also computed with it doubled; tables show both as "×1 / ×2".
+
+An example at working load: 0008/90 is 0.92\ % behind 0007/100. Its extra upwind drag (0.016 N) costs
+0.60\ %, its extra 0.36° of leeway 0.29\ %, and its extra downwind drag 0.03\ %. The full method is in
+[methodology.md](https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/methodology.md).
+
+### Robustness
+
+A fin can win on average and still lose badly somewhere. So the ranking is repeated for each
+combination of water turbulence (Tu 0.1\ % and 1\ %), resistance slope (×1 and ×2) and solver (steady or
+time-accurate 4° points). A fin's **regret** in each case is how far its mean is behind the best fin's;
+the largest regret over all cases says how badly the choice could turn out.
+
+### The workflow
+
+```{mermaid}
+%%| label: fig-pipeline
+%%| fig-cap: "From a study file to this page. Every run is kept with its inputs; conclusions go into a dated findings log, and this page summarises the latest."
+flowchart TB
+  subgraph sim ["Simulate"]
+    direction LR
+    A["Study file<br/>what to sweep"] --> B["Cases<br/>one OpenFOAM case each"] --> C["Run<br/>Docker on a laptop,<br/>or Spot VMs on Google Cloud"] --> D["Results<br/>forces, Cp and Cf,<br/>force histories"]
+  end
+  subgraph ana ["Analyse"]
+    direction LR
+    E["Report<br/>polars, equal-force tables"] --> F["Race-time<br/>ranking"] --> G["Findings log<br/>dated conclusions"] --> H["This page"]
+  end
+  sim --> ana
+```
+
+## Process and studies {#sec-studies}
+
+The work went in small steps, each a study with a question. Its answer set up the next one
+(@tbl-studies).
+
+::: {#tbl-studies}
+| when | study | question | answer |
+|:----|:----------------|:----------------|:------------------------|
+| 11\ Oct | validation | Does the transition model match wind-tunnel data at Re 10⁵? | Well enough to rank sections (@sec-validation). |
+| 12\ Oct | selection run 1: 0006, 0009, 0012 × 80, 100 mm; 360 cases | How do thickness and chord trade off? | A thin, short fin wins at light load and a longer chord at high load. At working load the optimum lies between 6\ % and 9\ % thick. |
+| 13\ Oct | selection run 2: 0006–0012 × 80, 90, 100 mm; 450 cases | Where between 6\ % and 9\ %? | Thin sections lose at working load because their laminar boundary layer separates at the leading edge. NACA 0012 is out. |
+| 13\ Oct | mesh check | Is the mesh fine enough to separate the finalists? | Yes: medium is within 0.2\ % of fine at 4°. |
+| 13\ Oct | selection run 3: four finalists at Tu 0.1\ %; 100 cases | Does calmer water change the order? | Calmer water means *more* drag at 4–8°: the laminar bubble grows. |
+| 13\ Oct | analysis: leeway and both legs | What does the drag difference cost on the race course? | Counting leeway favours longer chords again; 0008/90 looked like the safest all-rounder. |
+| 13\ Oct | selection run 4: 0007/90, 0007/100, 0008/100; 75 cases | Are the thinner, longer sections better still? | Possibly, but the steady 4° solutions oscillated too much to tell. |
+| 14\ Oct | time-accurate check 1: 10 cases | Are the oscillating steady points right? | At 6° yes, within 0.5\ %. At 4° every section sheds vortices, and 15 flow-throughs were too few to settle. |
+| 15\ Oct | time-accurate check 2: 8 cases continued to 30 flow-throughs | Where do the 4° forces settle? | Lift 4–16\ % below steady. 0007/100 moves to first, 0008/90 to fourth. |
+| running | time-accurate check 3: 16 cases | Does that hold at 2°, 6°, and other speeds? | Pending. |
+
+The studies so far. Each has a dated findings log in the repository.
+:::
+
+### Steady and time-accurate {#sec-transient}
+
+The steady solver's 4° solutions for the most promising thin sections never settled: their drag
+oscillated by up to 22\ %. Time-accurate runs showed why: the flow itself is unsteady. A laminar boundary layer runs to
+about a third of the chord, separates, and rolls up into vortices that travel over the rear half.
+
+Getting a reliable time average took two lessons (@fig-force-history):
+
+* **An impulsive start leaves a slow lift build-up.** Lift approaches its final value as the Wagner
+  function predicts [@wagner1925; @jones1938]: about 95\ % after 15 flow-throughs, 99\ % after 30. The
+  first runs stopped at 15 and were still drifting. They were continued to 30 from where they stopped.
+* **Starting from the steady solution settles in about 10 flow-throughs.** The mean is the same either
+  way.
+
+![Lift at 4° and 1 m/s. Left: 0007/100 started from rest, continued at 15 flow-throughs; the
+dash-dot line is the Wagner build-up scaled to the final mean. Right: 0009/100 started from the steady
+solution. Thin lines are the instantaneous lift, which oscillates by about 10\ % as vortices are shed;
+the forces are averaged over flow-throughs 24–30 (shaded).](_generated/force-history.svg){#fig-force-history}
+
+The settled means are checked by comparing the two halves of the averaging window: they agree to
+within 1.3\ %. Halving the time step changes lift and drag by about 1\ %.
+
+## Visualisations of the findings {#sec-findings}
+
+### What the flow does at 4°
+
+::: {#fig-shedding}
+{{< video assets/shedding-video.mp4 >}}
+
+Flow speed and streamlines around NACA 0009 at 4° and Re 10⁵ (time-accurate, coarse mesh). The
+laminar boundary layer on the suction side separates and rolls up into vortices that travel over the
+rear half and into the wake.
+:::
+
+### What the steady solver got wrong
+
+![Lift and drag coefficients at 4° and 1 m/s, steady against time-accurate. Every section makes about
+the same time-accurate lift, C~l~ 0.39–0.40; the steady solver spread them from 0.41 to 0.47, and the
+thick sections were the most wrong.](_generated/steady-vs-transient.svg){#fig-steady-vs-transient}
+
+At 6° the flow is steady, and the steady drag agrees with the time-accurate one within 0.5\ %. At 4°
+the steady points were too optimistic about lift and too pessimistic about drag, and not by the same
+amount for every section. That reordered the fins.
+
+### The ranking
+
+![Race-time loss at 1 m/s, Tu 0.1\ %, with the time-accurate 4° points: the mean over the light,
+working and high loads (bars, estimated resistance slope) and with the slope doubled (ticks). Less is
+better.](_generated/race-time.svg){#fig-race-time}
+
+::: {#tbl-race-time}
+{{< include _generated/race-time.md >}}
+
+Race-time loss at 1 m/s, Tu 0.1\ %, % behind the best fin at each load: estimated resistance slope /
+doubled. Loads are the side forces of 0009/80 at 2°, 4° and 6°.
+:::
+
+0007/100 is first or second in every combination of water turbulence, resistance slope and solver,
+and never more than 0.15\ % of race time behind the best mean. The next best, 0007/90, can be up to
+0.52\ % behind.
+
+## Conclusion {#sec-conclusion}
+
+**Recommendation: NACA 0007 at 100 mm chord.** Confidence: medium.
+
+* It loses the least race time at 1 m/s with the time-accurate points: 0.43\ % behind a perfect
+  fin-for-every-load on average, against 0.95\ % for 0007/90 and 1.02\ % for 0008/100.
+* Its weakest points are mild: 0.8\ % behind 0007/90 in light air, 0.5\ % behind 0008/100 at high
+  load.
+* Its bending stiffness is about that of 0008/90 (stiffness scales with c·t³, an estimate that ignores
+  construction).
+
+**The alternative: NACA 0008 at 100 mm**, if heavy air or stiffness matter more. It is best at high
+load and about 50\ % stiffer, and 0.6\ % behind 0007/100 on average.
+
+**How much is at stake.** The four best fins are within 0.9\ % of race time of each other at 1 m/s.
+On a 2-lap, 90 m windward–leeward course that is roughly 2–4 boat lengths (an estimate). By
+comparison, sanding finer than 400–600 grit gains less than half a boat length, but a dirty, slimy or
+unfair hull can cost as much as a poor section choice or more [@klaka2022]. Choose the section, *and*
+keep the boat clean and fair.
+
+**Why medium, not high confidence:**
+
+* The time-accurate points are at 1 m/s only, and at 4° only; the 2° and 6° points of most sections
+  are still steady ones. Both are being checked.
+* The simulations are 2D. Tip, bulb, hull junction and heel are not modelled.
+* The resistance slope and the water turbulence are estimates, and the hull and rudder are assumed to
+  make no side force.
+* The shedding at 4° has not been validated against measurements at these Reynolds numbers.
+
+**What would change it.** In order: time-accurate points at 2° and 6° and at other speeds (running);
+a hull resistance curve to replace the estimate; a 3D check of 0007/100 against 0008/100; and the
+stiffness of a real fin under the working load.
+
+## Reproducing this {.appendix .unnumbered}
+
+Everything is in [the repository](https://github.com/kmamykin/iom_cfd): the simulation setup
+(`projects/foil2d/`), every study file, and a findings log per study with the numbers behind each
+conclusion. Simulations run in Docker (`uv run iomcfd run foil2d/<study>`) or on Google Cloud Batch.
+This page is built from `site/` with Quarto; its charts are drawn from the small data files below,
+which `iomcfd site export` copies out of the runs. The code is under the
+[MIT licence](https://github.com/kmamykin/iom_cfd/blob/main/LICENSE); the text, figures and data on
+this page are under CC BY 4.0. Reference data from other sources keeps its own terms.
+
+## Data behind the figures {.appendix .unnumbered}
+
+{{< include _generated/sources.md >}}
+
+## Revision history {.appendix .unnumbered}
+
+* **16 October 2026.** First version: steady results of selection runs 1–4 and time-accurate checks 1–2.

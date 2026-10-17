@@ -1,0 +1,48 @@
+# Quarto project for the website: one page, site/index.qmd, published to
+# GitHub Pages by .github/workflows/site.yml. Build locally with
+# `uv run iomcfd site build` (figures, then `quarto render`), or
+# `uv run iomcfd site build --preview` to serve it and rebuild on save.
+project:
+  type: default
+  output-dir: _site
+  render: [index.qmd]
+  resources: [assets/*.mp4]
+
+lang: en-GB
+language:
+  code-links-title: Links
+bibliography: references.bib
+link-citations: true
+
+format:
+  html:
+    theme: [default, styles.scss]
+    title-block-banner: true
+    toc: true
+    toc-location: left
+    toc-depth: 2
+    toc-title: Contents
+    number-sections: true
+    number-depth: 2
+    html-math-method: katex
+    lightbox: true
+    fig-cap-location: bottom
+    tbl-cap-location: top
+    reference-location: margin
+    citation-location: document
+    anchor-sections: true
+    smooth-scroll: true
+    link-external-newwindow: true
+    page-layout: article
+    grid:
+      body-width: 760px
+      margin-width: 280px
+    code-links:
+      - text: Source on GitHub
+        icon: github
+        href: https://github.com/kmamykin/iom_cfd
+      - text: Findings logs
+        icon: journal-text
+        href: https://github.com/kmamykin/iom_cfd/tree/main/projects/foil2d/findings
+    mermaid:
+      theme: neutral

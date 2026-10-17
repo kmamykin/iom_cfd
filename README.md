@@ -97,6 +97,7 @@ iom_cfd/
 │   └── validation/           reference data (foil2d)
 ├── geometry/                 your CAD exports (Fusion 360 STL) and foil .dat files
 ├── cloud/gcp/                config.env.example, setup.sh
+├── site/                     the website (Quarto, GitHub Pages): page, data, figures
 ├── docs/                     workflow, OpenFOAM notes, cloud, geometry conventions
 │   └── research/             literature notes (e.g. surface-roughness.md)
 ├── tests/                    pytest (pure Python; `-m docker` runs OpenFOAM)
@@ -121,6 +122,8 @@ iom_cfd/
 Details, runs, findings and statistics: [docs/workflow.md](docs/workflow.md).
 Visualisation of results (views per project, adding views, animations):
 [docs/visualization.md](docs/visualization.md).
+The project website, a one-page summary of the findings built from `site/`
+and published on GitHub Pages: [docs/website.md](docs/website.md).
 
 ## Running on Google Cloud
 
@@ -169,3 +172,20 @@ benchmark are the next validation steps. Discussion:
   not a silently ignored setting.
 * Generated case files are outputs. Edit the template or the study, not
   `runs/`.
+
+## Licence
+
+* **Code** (Python, OpenFOAM case templates, Docker and workflow files,
+  `site/figures.py`): [MIT](LICENSE).
+* **Writing, figures and results** (the website in `site/` apart from its
+  code, the Markdown in `docs/` and `projects/` such as the findings logs and
+  methodology, and the data in `site/data/`):
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Credit
+  "Kliment Mamykin, iom_cfd" with a link to this repository.
+* **Not covered:** third-party reference data keeps its own terms.
+  * `projects/foil2d/validation/naca0009_re1e5_princeton.csv`: Selig,
+    Donovan & Fraser (1989), from the UIUC airfoil data archive.
+  * `projects/foil2d/validation/naca0012_re6e6_tmr.csv`: NASA Turbulence
+    Modeling Resource.
+
+  Each file's header gives its source.

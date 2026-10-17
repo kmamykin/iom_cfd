@@ -1,0 +1,66 @@
+{
+  "force-history-4deg": {
+    "kind": "force_history",
+    "file": "data/force-history-4deg.csv",
+    "study": "transient-check",
+    "runs": [
+      "20261015-161112"
+    ],
+    "source": [
+      "chord0.1_foilnaca0007_max_co10",
+      "chord0.1_foilnaca0009_max_co10"
+    ],
+    "exported": "2026-10-17",
+    "git": "1ce5be2-dirty"
+  },
+  "race-time-1ms": {
+    "kind": "manual",
+    "file": "data/race-time-1ms.csv",
+    "source": "projects/foil2d/findings/transient-check.md, run 20261015-161112, conclusion 4. Race-time loss, % behind the best, at 1 m/s and Tu 0.1 % with the time-accurate 4 deg points; loss_x1 with the estimated resistance slope, loss_x2 with it doubled. Computed by an analysis script that is not yet in the repository (methodology.md)."
+  },
+  "shedding-video": {
+    "kind": "file",
+    "file": "assets/shedding-video.mp4",
+    "study": "demo-transient-snapshots",
+    "runs": [
+      "20261012-023115"
+    ],
+    "source": "aoa4/viz/velocity_time.mp4",
+    "exported": "2026-10-17",
+    "git": "1ce5be2-dirty"
+  },
+  "steady-1ms": {
+    "kind": "table",
+    "file": "data/steady-1ms.csv",
+    "study": "fin-profile-selection",
+    "runs": [
+      "20261013-045759",
+      "20261013-200643"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-17",
+    "git": "1ce5be2-dirty"
+  },
+  "transient-4deg-1ms": {
+    "kind": "table",
+    "file": "data/transient-4deg-1ms.csv",
+    "study": "transient-check",
+    "runs": [
+      "20261015-161112"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-17",
+    "git": "1ce5be2-dirty"
+  },
+  "validation-naca0009": {
+    "kind": "table",
+    "file": "data/validation-naca0009.csv",
+    "study": "validation-naca0009-re1e5",
+    "runs": [
+      "20261011-212549"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-17",
+    "git": "1ce5be2-dirty"
+  }
+}

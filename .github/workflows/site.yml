@@ -1,0 +1,58 @@
+# Website (site/, Quarto) to GitHub Pages: on pushes to main that change the
+# page, its data, or the code its figures use, draw the figures, render the
+# page and deploy it. `workflow_dispatch` republishes by hand.
+#
+# One-time setup: repository Settings -> Pages -> Source: "GitHub Actions".
+# The Quarto version matches iomcfd.site.QUARTO_VERSION (used locally via uvx).
+name: site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "src/iomcfd/site.py"
+      - "src/iomcfd/physics.py"
+      - "src/iomcfd/geometry/**"
+      - "projects/foil2d/project.py"
+      - "projects/foil2d/defaults.yaml"
+      - "projects/foil2d/validation/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - uses: quarto-dev/quarto-actions/setup@v2.2.0
+        with:
+          version: 1.10.19
+      - run: uv run iomcfd site build
+      - uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: site/_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-26.04
+    permissions:
+      pages: write
+      id-token: write  # OIDC token for the Pages deployment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5.0.1

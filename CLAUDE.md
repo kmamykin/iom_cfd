@@ -22,6 +22,11 @@
   force_history.csv) plus one mesh per mesh level; `--logs`, `--fields`,
   `--only` add more. Exported cases have gzipped mesh and logs. `iomcfd slim` frees a local run (dry run
   unless `--yes`). Don't fetch whole runs: the laptop's disk is limited.
+- Website: `site/` (Quarto, one page, GitHub Pages on push to main; see
+  docs/website.md). Its charts come from committed CSVs in `site/data/`
+  (`iomcfd site export`, sources in `site/data.yaml`), not from runs/.
+  After findings change, the `site-update` skill updates it. Pushing to
+  main publishes it, so commit and push only when asked.
 - Findings: `projects/<project>/findings/<study>.md` (committed) logs
   conclusions, evidence tables, assumptions, compromises and decisions per
   run. `iomcfd report` writes report/summary.md; the `study-findings` skill

@@ -31,3 +31,9 @@ cloud/gcp/jobs/
 *.swp
 .idea/
 .vscode/
+
+# Website build output (`iomcfd site build`); site/data and site/assets are source
+/site/_site/
+/site/_generated/
+/site/.quarto/
+/site/index_files/

@@ -10,6 +10,7 @@
     iomcfd viz     STUDY                    ParaView images, montages, gallery (viz image)
     iomcfd slim    STUDY                    delete a local run's meshes, logs and fields, keep results
     iomcfd shell                            OpenFOAM shell in the container (host)
+    iomcfd site export|build                the website: data from runs, figures, Quarto build
     iomcfd gcp ...                          Google Cloud Batch (see `iomcfd gcp -h`)
 
 STUDY is a path to a study YAML or the short form <project>/<study>
@@ -353,6 +354,16 @@ def _exec_in_docker(argv: list[str], args, interactive: bool = False, raw: bool 
 # ---------------------------------------------------------------------------
 
 
+def cmd_site(args) -> None:
+    from . import site
+
+    if args.action == "export":
+        for f in site.export(args.names or None):
+            print(f.relative_to(site.site_dir()))
+    else:
+        site.build(preview=args.preview)
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="iomcfd", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--runs", help="runs directory (default: <repo>/runs or $IOMCFD_RUNS)")
@@ -417,6 +428,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--viz", action="store_true", help="use the visualisation (ParaView) image")
     p.add_argument("command", nargs=argparse.REMAINDER)
     p.set_defaults(func=cmd_shell)
+    p = sub.add_parser("site", help="the website (site/): export data from runs, build with Quarto")
+    p.add_argument("action", choices=["export", "build"])
+    p.add_argument("names", nargs="*", help="export: entries of site/data.yaml (default: all)")
+    p.add_argument("--preview", action="store_true", help="build: serve and rebuild on change")
+    p.set_defaults(func=cmd_site)
 
     from .cloud import gcp
 

@@ -1,0 +1,56 @@
+# Data behind the website (site/index.qmd). Each entry is one file: a table
+# in site/data/<name>.csv, or a picture or video in site/assets/<name>.<ext>.
+#
+#   uv run iomcfd site export [NAME ...]
+#
+# copies it out of the local runs (a light `gcp fetch` is enough for tables)
+# and records the study, run, date and git version in site/data/sources.json.
+# To update a figure with a newer run, change `runs` and export again.
+#
+# kind: table (default)  `file` of each run, concatenated; rows matching `where`; `columns`
+#       force_history    foil2d force coefficients of `cases`, joined across continuations
+#       file             one file copied as is (ParaView renders: they can't be rebuilt online)
+#       manual           a table written by hand; `source` says where its numbers come from
+
+validation-naca0009:
+  study: validation-naca0009-re1e5
+  runs: [20261011-212549]
+  file: results.csv
+  columns: [turbulence, aoa, Cl, Cd, status, unsteady]
+
+steady-1ms:
+  study: fin-profile-selection
+  runs: [20261013-045759, 20261013-200643]   # run 3: 0008/80, 0008/90, 0009/80, 0009/100; run 4: 0007/90, 0007/100, 0008/100
+  file: results.csv
+  where: {speed: 1.0, Tu: 0.1}
+  columns: [foil, chord, aoa, speed, rhoInf, Cl, Cd, Cl_std, Cd_std, Cd_friction, Cd_pressure, unsteady, status]
+
+transient-4deg-1ms:
+  study: transient-check
+  runs: [20261015-161112]   # 30 flow-throughs, averaged over 24-30
+  file: results.csv
+  columns: [foil, chord, aoa, speed, max_co, rhoInf, Cl, Cd, Cl_std, Cd_friction, Cd_pressure, status]
+
+force-history-4deg:
+  kind: force_history
+  study: transient-check
+  runs: [20261015-161112]
+  cases:
+    - chord0.1_foilnaca0007_max_co10   # from rest, continued at 15 flow-throughs
+    - chord0.1_foilnaca0009_max_co10   # from the steady solution
+  every: 3   # of about 150 time steps per flow-through
+  digits: 5
+
+race-time-1ms:
+  kind: manual
+  source: >-
+    projects/foil2d/findings/transient-check.md, run 20261015-161112, conclusion 4.
+    Race-time loss, % behind the best, at 1 m/s and Tu 0.1 % with the time-accurate
+    4 deg points; loss_x1 with the estimated resistance slope, loss_x2 with it doubled.
+    Computed by an analysis script that is not yet in the repository (methodology.md).
+
+shedding-video:
+  kind: file
+  study: demo-transient-snapshots
+  runs: [20261012-023115]
+  file: aoa4/viz/velocity_time.mp4   # NACA 0009, Re 1e5, 4 deg, Tu 0.1 %, coarse mesh, transient

@@ -1,7 +1,7 @@
-# Solver image for Cloud Batch: on every push to main, run the fast tests,
-# then build docker/Dockerfile for linux/amd64 (what Batch VMs run) and push
-# it to Artifact Registry as :<git describe> and :latest, the same tags
-# `make push` uses.
+# Solver image for Cloud Batch: on every push to main (except website-only
+# ones), run the fast tests, then build docker/Dockerfile for linux/amd64
+# (what Batch VMs run) and push it to Artifact Registry as :<git describe>
+# and :latest, the same tags `make push` uses.
 #
 # GCP access is keyless (Workload Identity Federation, limited to pushes to
 # main of this repository); one-time setup: cloud/gcp/setup-github.sh, which
@@ -12,6 +12,9 @@ name: solver image
 on:
   push:
     branches: [main]
+    paths-ignore:  # the website alone doesn't change the image
+      - "site/**"
+      - ".github/workflows/site.yml"
   workflow_dispatch:
 
 concurrency:
