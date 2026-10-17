@@ -55,6 +55,16 @@ reattachment and trailing-edge separation, x/c, per side); `yplus_max`;
 `converged`, `unsteady`. Each case also has `surface.csv` (Cp and Cf along
 both surfaces). `iomcfd report` draws polars with any reference data.
 
+Transient cases (`solver: transient`) add:
+* `flow_times_done`;
+* the drift check, `Cl_drift`, `Cd_drift` and `drifting` (docs/workflow.md,
+  "Convergence and statistics");
+* `force_history.csv`: t, flow-throughs, Cl, Cd, Cm, joined with the case
+  it continued, if any (`start_from`).
+
+The report adds `report/transient.md` and `report/force_history.png`.
+`surface.csv` of a transient case is the final instant, not a time average.
+
 Studies that vary the section or chord also get `report/selection.png`
 (and the numbers in `selection.csv`): drag against side force, one panel per
 speed and turbulence setting. Sections and chords are compared at equal side

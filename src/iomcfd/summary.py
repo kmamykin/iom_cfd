@@ -93,6 +93,12 @@ def write_summary(rdir: Path, study, cases, df, report_files: list[Path]) -> Pat
               "steady answers of unsteady flow are less certain):", ""]
         L += [f"* {x}" for x in _by_param(df, uns, varied)]
 
+    drift = _flag(df, "drifting") & df["status"].isin(["ok", "not_converged"])
+    if drift.any():
+        L += ["", f"Drifting ({int(drift.sum())}: transient cases whose Cl or Cd mean still changes across the "
+              "averaging window; run them longer, see report/transient.md):", ""]
+        L += [f"* {x}" for x in _by_param(df, drift, varied)]
+
     if "wall_time_s" in df and df["wall_time_s"].notna().any():
         w = df["wall_time_s"].dropna() / 60
         L += ["", "## Compute", "",

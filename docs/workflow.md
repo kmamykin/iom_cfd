@@ -162,6 +162,36 @@ is unsteady (laminar separation bubbles shedding vortices, stall). A steady
 solver's average over iterations is then only an estimate; use a transient
 run for those cases.
 
+**Transient runs** (foil2d `solver: transient`) don't stop on convergence.
+They run a fixed simulated time, `flow_times` chord flow-throughs, and
+average the forces over the last `average_times`. "ok" only means the run
+reached that time, so each result also has a drift check:
+* `Cl_drift` and `Cd_drift`: the change of the mean from the first to the
+  second half of the averaging window, relative to the window mean;
+* `drifting`: either drift above 1 % (`DRIFT_TOL` in
+  `projects/foil2d/project.py`). The time average has not settled; run
+  longer.
+
+`summary.md` lists the drifting cases.
+
+A run started from rest needs about 30 flow-throughs for the lift to build
+up; one started from a steady solution (`start_from`) needs about 10.
+
+**Continued runs.** A case continued from another (`start_from` with a
+transient source) has its force history joined to the source's, so the two
+read as one run: `force_history()` in foil2d, recorded in each case's
+`force_history.csv`. The light `gcp fetch` downloads that file.
+
+`iomcfd report` adds `report/transient.md`, included in `summary.md`:
+* per case: where it started, flow-throughs, the averaging window, mean
+  Cl and Cd, the Cl oscillation, the drift, and 3-flow-through block
+  means;
+* `report/force_history.png`: the joined histories, block means, the
+  averaging window and the restart point.
+
+It reads `force_history.csv`, or `postProcessing/` for cases fetched whole,
+so it also works for runs made before the drift check existed.
+
 ## Verification: mesh refinement
 
 Mesh levels are named (`xcoarse`, `coarse`, `medium`, `fine`, `xfine`) and

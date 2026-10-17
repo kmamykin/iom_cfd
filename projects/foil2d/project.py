@@ -35,6 +35,12 @@ START_MATCH = ("foil", "chord", "aoa", "speed", "Re", "fluid", "temperature", "t
                "viscosity_ratio", "decay_control", "mesh", "yplus", "farfield")
 START_FIELDS = ("U", "p", "k", "omega", "nut", "gammaInt", "ReThetat")
 
+# Transient runs: the Cl and Cd means of the two halves of the averaging
+# window may differ by at most this fraction of the window mean; above it the
+# case is flagged `drifting` (its time average has not settled: run longer).
+DRIFT_TOL = 0.01
+BLOCK_FLOW_TIMES = 3  # block length for the block means in report/transient.md
+
 # 'medium' (factor 1) resolution. ~90k cells.
 BASE_MESH = dict(n_surface=256, ds_le=1.0e-3, ds_te=2.0e-3, n_wake=96, n_normal=128)
 
@@ -251,8 +257,76 @@ class Foil2D(Project):
                         break
                 else:
                     raise ValueError(f"start_from {src}: no field '{name}' in {t}/")
+        rel = next((src.relative_to(r).as_posix() for r in map(Path, config.source_runs_dirs())
+                    if src.is_relative_to(r)), None)  # <study>/<run id>/<case>, wherever the runs live
         (case_dir / "start_from.json").write_text(json.dumps(
-            {"case": str(src), "time": t, "solver": sp.get("solver"), "continued": continued}, indent=2) + "\n")
+            {"case": str(src), "source": rel, "time": t, "solver": sp.get("solver"), "continued": continued},
+            indent=2) + "\n")
+
+    # ------------------------------------------------------------------
+    # transient force histories: joined across continuations, drift check
+    @staticmethod
+    def source_case(case_dir: Path) -> Path | None:
+        """The case a continued transient case started from (its
+        start_from.json), looked up in config.source_runs_dirs(); None if the
+        case was not continued or its source is not here."""
+        f = Path(case_dir) / "start_from.json"
+        if not f.is_file():
+            return None
+        info = json.loads(f.read_text())
+        if not info.get("continued"):
+            return None
+        rel = info.get("source") or "/".join(Path(info["case"]).parts[-3:])  # <study>/<run id>/<case>
+        for root in config.source_runs_dirs():
+            if (Path(root) / rel / "params.json").is_file():
+                return Path(root) / rel
+        return None
+
+    def force_history(self, case_dir: Path) -> np.ndarray | None:
+        """Force coefficients against time, shape (n, 4): t [s], Cl, Cd, Cm.
+
+        A transient case continued from another (start_from) is joined to the
+        history of the case it continued, recursively, so the two read as one
+        run. Read from postProcessing/forceCoeffs (every restart; a later start
+        replaces what it overlaps), else from force_history.csv (written by
+        extract, already joined, and downloaded by a light fetch)."""
+        case_dir = Path(case_dir)
+        h = None
+        for f in find_dat(case_dir, "forceCoeffs", "coefficient.dat"):
+            names, data = read_dat(f)
+            if data.size == 0:
+                continue
+            col = {n: i for i, n in enumerate(names)}
+            part = np.c_[data[:, 0], data[:, col["Cl"]], data[:, col["Cd"]], data[:, col["CmPitch"]]]
+            h = part if h is None else np.vstack([h[h[:, 0] < part[0, 0]], part])
+        if h is None:
+            saved = case_dir / "force_history.csv"
+            if saved.is_file():
+                return np.loadtxt(saved, delimiter=",", skiprows=1, usecols=(0, 2, 3, 4), ndmin=2)
+            return None
+        src = self.source_case(case_dir)
+        if src is not None:
+            earlier = self.force_history(src)
+            if earlier is not None:
+                h = np.vstack([earlier[earlier[:, 0] < h[0, 0]], h])
+        return h
+
+    @staticmethod
+    def window_stats(t, cl, cd, window: float) -> dict[str, Any]:
+        """Drift over the averaging window (the last `window`, in t's units):
+        the change of the Cl and Cd means from its first to its second half,
+        relative to the window mean (Cl relative to at least 0.1, as for
+        `unsteady`). `drifting` if either exceeds DRIFT_TOL."""
+        t, cl, cd = map(np.asarray, (t, cl, cd))
+        sel = t > t[-1] - window
+        late = t > t[-1] - window / 2
+        out: dict[str, Any] = {}
+        for key, s, floor in (("Cl", cl, 0.1), ("Cd", cd, 0.0)):
+            a, b = s[sel & ~late], s[sel & late]
+            ref = max(abs(float(s[sel].mean())), floor)
+            out[f"{key}_drift"] = float((b.mean() - a.mean()) / ref) if a.size and b.size and ref else float("nan")
+        out["drifting"] = bool(max(abs(out["Cl_drift"]), abs(out["Cd_drift"])) > DRIFT_TOL)
+        return out
 
     # ------------------------------------------------------------------
     def _coeffs(self, case_dir: Path):
@@ -285,12 +359,21 @@ class Foil2D(Project):
         it, cl, cd, cm = c
         transient = p["solver"] == "transient"
         if transient:
+            n_iter = len(it)  # this run's time steps
+            # the whole history, joined with the case this one continued
+            h = self.force_history(case_dir)
+            it, cl, cd, cm = h.T
+            ft = it / d["flowTime"]
+            with open(case_dir / "force_history.csv", "w", newline="") as f:
+                w = csv.writer(f)
+                w.writerow(["t", "flow_times", "Cl", "Cd", "Cm"])
+                w.writerows(zip(*(np.char.mod("%.8g", a) for a in (it, ft, cl, cd, cm))))
             # time-average over the last average_times flow-throughs
             t_avg = float(p["average_times"]) * d["flowTime"]
             sel = it > it[-1] - t_avg
-            n_iter = len(it)
             out["time_s"] = float(it[-1])
             out["flow_times_done"] = float(it[-1] / d["flowTime"])
+            out.update(self.window_stats(it, cl, cd, t_avg))
         else:
             n_iter = int(it[-1])
             win = max(10, min(int(d["convWindow"]), len(it) // 4))
@@ -433,6 +516,98 @@ class Foil2D(Project):
         gci = self._mesh_convergence(df, out_dir)
         if gci:
             files.append(gci)
+        files += self._transient_report(Path(out_dir).parent, df, out_dir)
+        return files
+
+    def _transient_report(self, run_dir: Path, df, out_dir: Path) -> list[Path]:
+        """report/transient.md and force_history.png for the transient cases:
+        time averages over the averaging window, the oscillation and drift in
+        it, and 3-flow-through block means, from each case's joined force
+        history (postProcessing, else force_history.csv). Cases whose history
+        is not here are listed as such (fetch them with --only)."""
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        if "solver" not in df or not (df["solver"] == "transient").any():
+            return []
+        tr = df[df["solver"] == "transient"].sort_values("case")
+        md = ["## Transient statistics", "",
+              f"Over each case's averaging window (the last `average_times` flow-throughs, c/U). Osc: standard "
+              f"deviation of Cl / mean. Drift: change of the mean from the first to the second half of the window, "
+              f"relative to the window mean; **drifting** above {DRIFT_TOL:.0%} (run longer). Blocks: means over "
+              f"successive {BLOCK_FLOW_TIMES} flow-throughs, the last four. Continued cases are joined to the case "
+              f"they continued (start_from).", "",
+              "| case | start | flow-throughs | window | Cl | Cl osc | Cd | Cl drift | Cd drift | Cl blocks | Cd blocks |",
+              "|---|---|---|---|---|---|---|---|---|---|---|"]
+        hists = []
+        for _, r in tr.iterrows():
+            cdir = Path(run_dir) / r["case"]
+            try:
+                pdict = json.loads((cdir / "params.json").read_text())
+            except OSError:
+                continue
+            p, d = pdict["params"], pdict["derived"]
+            start = "rest"
+            sf = cdir / "start_from.json"
+            if sf.is_file():
+                info = json.loads(sf.read_text())
+                src = info.get("source") or "/".join(Path(info["case"]).parts[-3:])
+                start = (f"continued: {src} at {info['time']} s" if info.get("continued")
+                         else f"{info.get('solver', '')} {src}")
+            h = self.force_history(cdir)
+            if h is None:
+                md.append(f"| {r['case']} | {start} | no force history here (gcp fetch --only) | | | | | | | | |")
+                continue
+            ft = h[:, 0] / d["flowTime"]
+            win = float(p["average_times"])
+            sel = ft > ft[-1] - win
+            st = self.window_stats(ft, h[:, 1], h[:, 2], win)
+            cl, cdm = h[sel, 1].mean(), h[sel, 2].mean()
+            edges = np.arange(ft[-1], 0, -BLOCK_FLOW_TIMES)[:5][::-1]
+            blocks = [(h[(ft > a) & (ft <= b), 1].mean(), h[(ft > a) & (ft <= b), 2].mean())
+                      for a, b in zip(edges[:-1], edges[1:])]
+            drift = lambda v: f"**{v:+.1%}**" if abs(v) > DRIFT_TOL else f"{v:+.1%}"  # noqa: E731
+            md.append(f"| {r['case']} | {start} | {ft[-1]:.1f} | {ft[-1] - win:.0f}-{ft[-1]:.0f} | {cl:.4f} | "
+                      f"{h[sel, 1].std() / max(abs(cl), 0.1):.1%} | {cdm:.5f} | {drift(st['Cl_drift'])} | "
+                      f"{drift(st['Cd_drift'])} | {', '.join(f'{b[0]:.4f}' for b in blocks)} | "
+                      f"{', '.join(f'{b[1]:.5f}' for b in blocks)} |")
+            restart = None
+            if sf.is_file() and json.loads(sf.read_text()).get("continued"):
+                restart = float(json.loads(sf.read_text())["time"]) / d["flowTime"]
+            hists.append((r["case"], ft, h, win, restart))
+        md_path = Path(out_dir) / "transient.md"
+        md_path.write_text("\n".join(md) + "\n")
+        files = [md_path]
+        if hists:
+            fig, axs = plt.subplots(len(hists), 2, figsize=(14, 2.2 * len(hists) + 0.6), squeeze=False)
+            for (name, ft, h, win, restart), row in zip(hists, axs):
+                for ax, k, lab in ((row[0], 1, "Cl"), (row[1], 2, "Cd")):
+                    ax.plot(ft, h[:, k], lw=0.4, color="0.6")
+                    edges = np.arange(ft[-1], 0, -BLOCK_FLOW_TIMES)[::-1]
+                    for a, b in zip(edges[:-1], edges[1:]):
+                        m = (ft > a) & (ft <= b)
+                        if m.any():
+                            ax.hlines(h[m, k].mean(), a, b, color="C0", lw=1.5)
+                    ax.axvspan(ft[-1] - win, ft[-1], color="C1", alpha=0.12)
+                    if restart:
+                        ax.axvline(restart, color="C3", lw=0.8, ls="--")
+                    tail = h[ft > ft[-1] - 2 * win, k]
+                    pad = 0.6 * (tail.max() - tail.min()) + 1e-9
+                    ax.set_ylim(tail.min() - pad, tail.max() + pad)
+                    ax.set_ylabel(lab)
+                    ax.set_title(f"{name}: {lab}", fontsize=8)
+                    ax.grid(alpha=0.3)
+            for ax in axs[-1]:
+                ax.set_xlabel("flow-throughs (c/U)")
+            fig.suptitle(f"Force histories (grey), {BLOCK_FLOW_TIMES}-flow-through block means (blue), averaging "
+                         "window (orange), restart of a continued case (red)", fontsize=10)
+            fig.tight_layout(rect=(0, 0, 1, 1 - 0.45 / fig.get_figheight()))
+            png = Path(out_dir) / "force_history.png"
+            fig.savefig(png, dpi=100)
+            plt.close(fig)
+            files.append(png)
         return files
 
     def _selection(self, df, out_dir: Path, options=None):
