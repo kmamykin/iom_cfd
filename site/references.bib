@@ -1,8 +1,10 @@
 @comment{Sources for site/index.qmd. gilbert-*, bantock-iom3, selig1989,
   tmr-naca0012, klaka2022 and lyon1997 come from the project's own notes
-  (docs/research/, projects/foil2d/). menter1994, langtry2009, wagner1925 and
-  jones1938 are standard references entered from memory: confirm volume,
-  pages and titles before publishing.}
+  (docs/research/, projects/foil2d/). menter1994, langtry2009 and wagner1925
+  were checked against Crossref, and jones1938 against NASA NTRS, on
+  2026-10-17. Jones's TN 667 gives the Wagner-function approximation the page
+  uses: (2 pi - 0.330 pi e^(-0.0455 s) - 0.670 pi e^(-0.300 s)), s in
+  half-chords.}
 
 @misc{gilbert-vmg,
   author = {Gilbert, Lester},
@@ -44,7 +46,7 @@
 
 @misc{openfoam,
   author = {{OpenCFD Ltd}},
-  title = {{OpenFOAM} v2512},
+  title = {{OpenFOAM v2512}},
   year = {2025},
   url = {https://www.openfoam.com}
 }
@@ -56,7 +58,8 @@
   volume = {32},
   number = {8},
   pages = {1598--1605},
-  year = {1994}
+  year = {1994},
+  doi = {10.2514/3.12149}
 }
 
 @article{langtry2009,
@@ -66,26 +69,31 @@
   volume = {47},
   number = {12},
   pages = {2894--2906},
-  year = {2009}
+  year = {2009},
+  doi = {10.2514/1.42362}
 }
 
 @article{wagner1925,
   author = {Wagner, Herbert},
-  title = {{\"U}ber die {E}ntstehung des dynamischen {A}uftriebes von {T}ragfl{\"u}geln},
-  journal = {Zeitschrift f{\"u}r Angewandte Mathematik und Mechanik},
+  title = {{{\"U}ber die Entstehung des dynamischen Auftriebes von Tragfl{\"u}geln}},
+  journal = {{Zeitschrift f{\"u}r Angewandte Mathematik und Mechanik}},
+  langid = {german},
   volume = {5},
   number = {1},
   pages = {17--35},
-  year = {1925}
+  year = {1925},
+  doi = {10.1002/zamm.19250050103}
 }
 
 @techreport{jones1938,
   author = {Jones, Robert T.},
   title = {Operational treatment of the nonuniform-lift theory in airplane dynamics},
   institution = {NACA},
-  type = {Report},
+  type = {Technical Note},
   number = {667},
-  year = {1938}
+  month = oct,
+  year = {1938},
+  url = {https://ntrs.nasa.gov/citations/19930081472}
 }
 
 @misc{klaka2022,
