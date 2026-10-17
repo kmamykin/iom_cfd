@@ -9,6 +9,260 @@ This study checks, with the transient solver (pimpleFoam), the steady points
 the fin-profile-selection ranking rests on
 ([fin-profile-selection.md](fin-profile-selection.md)).
 
+## Run 20261017-000816 (2026-10-17, git 1ce5be2, GCP, 16 cases, 15 finished)
+
+**Setup.** The top four of the 1 m/s ranking (0007/100, 0007/90, 0008/100,
+0008/90):
+* at 1 m/s, 2° and 6°;
+* at 4°, 0.75 and 1.5 m/s.
+
+Settings as before: Tu 0.1 %, kOmegaSSTLM, medium mesh, `solver: transient`,
+max_co 10.
+* Each case starts from its own steady solution (`start_from`:
+  fin-profile-selection runs 20261013-200643 and 20261013-045759), copied
+  into 0/.
+* 20 flow-throughs, averaged over 12-20.
+* Image `iom-cfd:1ce5be2`, the first with joined force histories and the
+  drift check.
+* 2 × c3d-standard-16 Spot, one core per case, `--max-hours 16`.
+
+Why: the 1 m/s ranking (run 20261015-161112) still used steady 2° and 6°
+points for these four. Only 1 m/s had time-accurate 4° points.
+
+**Outcome.** 15 ok, 1 not finished. No Spot preemption.
+* **0008/90 at 6°, 1 m/s hit the 16 h limit per attempt** at 16:09 UTC and
+  was killed.
+  * Nothing reached the bucket, so its log is lost.
+  * Batch retried it from scratch.
+  * The job was cancelled 3 h into the retry (user, 2026-10-17).
+  * The other three 6° cases took 9.3-10.6 h. Why this one was slower is not
+    known.
+* **Wall time per case:**
+
+  | cases | wall [h] |
+  |---|---|
+  | 2° | 5.0-9.6 |
+  | 6° | 9.3-10.6 |
+  | 4° at 0.75 m/s | 7.1-8.5 |
+  | 4° at 1.5 m/s | 8.6-16.0 |
+
+  * 0008/100 at 1.5 m/s finished 2 minutes under the limit.
+  * 140 case-hours for the 15, plus about 19 h for 0008/90 at 6°.
+* **Drift check: 3 flagged.**
+  * 0008/90 and 0008/100 at 2°: Cl −2.6 % and +5.7 % between the halves of
+    the window.
+  * 0008/100 at 0.75 m/s: Cd +1.1 %.
+
+### Conclusions
+
+1. **At 6° and 1 m/s the flow is steady, but for 0007/100, 0007/90 and
+   0008/100 the steady drag was 4-6 % high.**
+   * Time-accurate against steady: Cd −4.0 to −5.7 %, Cl +0.5 to +2.1 %.
+   * Lift oscillates by under 0.02 %.
+   * Friction is higher (+12 to +18 %) and pressure drag lower (−9 to −12 %).
+   * For 0009/80 and 0009/100 the steady 6° drag agreed within 0.5 % (run
+     20261014-040114). So the steady error at 6° depends on the section.
+     **This revises** that run's reading that "the steady results stand" at
+     6°: that holds for the 0009 sections only.
+
+   Confidence: high for these three.
+2. **At 2° the 0007 sections are almost steady; the 0008 sections shed
+   irregularly.**
+   * **0007/90 and 0007/100:**
+     * lift oscillates 2-3 %;
+     * time-accurate against steady: Cl +5.9 and +2.7 %, Cd +1.4 and +1.0 %;
+     * the flow is reversed from x/c 0.69-0.70 to the trailing edge
+       (final instant).
+   * **0008/100 and 0008/90:**
+     * lift oscillates 41-49 % and is still drifting;
+     * the steady solutions were smooth (Cd oscillation under 0.01 %);
+     * time-accurate against steady: Cl +6.8 and −17 %, Cd +5.3 and +4.0 %;
+     * the block means of 0008/100 range over Cl 0.100-0.116.
+
+   This is the low-Reynolds-number lift loss near 0° of the thicker
+   sections. A smooth steady solution again did not mean steady flow.
+
+   Confidence: high for 0007. Low for the 0008 values: they have not settled.
+3. **At 0.75 m/s and 4°, all four shed, as at 1 m/s, and the steady points
+   erred the same way.**
+   * Lift oscillates 10-11 %.
+   * Time-accurate against steady: Cl −12.4 to +1.9 %, Cd −7.8 to −15.4 %.
+
+   Confidence: high.
+4. **At 1.5 m/s and 4°, 0007/100 settled into a different flow: a
+   leading-edge bubble, with steady, mostly turbulent flow behind it. Its
+   drag is 21-26 % above the other three's.**
+   * **The other three shed** (lift oscillation 9 %). Cd is 5.5-11.8 % below
+     steady.
+   * **0007/100 settles to steady flow after about 12 flow-throughs** (lift
+     oscillation 0.02 %).
+     * Laminar separation at x/c 0.015, reattachment at 0.18, turbulent and
+       attached to the trailing edge (highlight `speed-at-4deg`).
+     * Friction is double its steady value: Cd_f 0.0077 against 0.0039.
+     * Cd 0.0152 is 15.5 % above steady. The other three have 0.0121-0.0126.
+   * **The same mechanism** made 0006 lose at 4° in fin-profile-selection run
+     20261012-175146 (conclusion 6).
+   * **The picture is not clean.** At its final instant 0007/90 at 1.5 m/s
+     also shows a separation near the leading edge (x/c 0.03-0.18), yet it
+     sheds and has low drag.
+
+   Confidence: low.
+   * It is one case.
+   * Separation bubbles are the transition model's weak spot (README,
+     validation).
+   * The flow it ends in may depend on where it started. It started from a
+     steady solution with mid-chord separation. That was not checked.
+   * Tu was not varied.
+5. **At 1 m/s, with all three angles time-accurate for the top four,
+   0007/100 stays first.** Race-time loss, % behind the best, estimated
+   resistance slope / doubled. The method is that of methodology.md.
+
+   | section | light (2°) | working (4°) | high (6°) | mean |
+   |---|---|---|---|---|
+   | 0007/100 | 0.82 / 0.38 | best | 0.35 / 0.20 | 0.39 / 0.19 |
+   | 0007/90 | best | 0.22 / 0.25 | 2.31 / 1.41 | 0.84 / 0.55 |
+   | 0008/100 | 2.36 / 1.20 | 0.90 / 0.44 | best | 1.09 / 0.55 |
+   | 0008/90 | 1.97 / 1.23 | 0.92 / 0.60 | 2.24 / 1.38 | 1.71 / 1.07 |
+   | 0009/100 | 3.26 / 1.57 | 1.61 / 0.79 | 0.52 / 0.28 | 1.80 / 0.88 |
+   | 0008/80 | 0.54 / 0.49 | 2.63 / 1.70 | 5.07 / 3.12 | 2.75 / 1.77 |
+   | 0009/80 | 2.26 / 1.49 | 2.75 / 1.76 | 3.74 / 2.45 | 2.92 / 1.90 |
+
+   * **0008/90's 6° point is still steady.** Scaled by the mean change of the
+     other three (Cl ×1.012, Cd ×0.953; **estimate**), its high-load loss
+     would be 1.48 / 0.98 and its mean 1.42 / 0.92. It stays fourth.
+   * **The 0008 sections lost ground in light air.** Their 2° points are not
+     settled (conclusion 2).
+
+   Confidence: medium. The 2D, input and Tu caveats of the earlier entries
+   stand.
+6. **Across speeds, 0007/100 is first at 0.75 and 1 m/s and last of the
+   four at 1.5 m/s. Averaged over the three speeds it stays first, but only
+   just.** Top four, time-accurate 4° points, mean over the three loads
+   (resistance slope / doubled):
+
+   | section | 0.75 m/s | 1.0 m/s | 1.5 m/s | mean of the three |
+   |---|---|---|---|---|
+   | 0007/100 | 0.27 / 0.12 | 0.39 / 0.19 | 1.58 / 0.68 | 0.75 / 0.33 |
+   | 0007/90 | 0.82 / 0.53 | 0.84 / 0.55 | 0.83 / 0.50 | 0.83 / 0.53 |
+   | 0008/100 | 1.05 / 0.56 | 1.09 / 0.55 | 0.58 / 0.14 | 0.91 / 0.41 |
+   | 0008/90 | 1.19 / 0.75 | 1.71 / 1.07 | 0.70 / 0.39 | 1.20 / 0.74 |
+
+   * **The 1.5 m/s result comes from conclusion 4.** With steady points at
+     1.5 m/s, 0007/100 was first there (0.30 / 0.10).
+   * **Two views of the risk:**
+     * Over a single speed, 0007/100's worst is 1.0 / 0.5 behind 0008/100
+       at 1.5 m/s.
+     * 0008/100's worst is 0.8 / 0.4 behind 0007/100 at 0.75 m/s.
+   * **The order holds for run 3's averaging window**: 12-16, 16-20 or
+     12-20 move no mean by more than 0.07.
+
+   Confidence: medium at 0.75 and 1 m/s; low at 1.5 m/s.
+
+### Evidence
+
+Time-accurate means over flow-throughs 12-20 (`results.csv`) against the
+steady window means of fin-profile-selection runs 20261013-045759 and
+20261013-200643. Osc is the standard deviation of Cl / its mean. Separation
+points are from the final instant (`surface.csv`), not means.
+
+| case | Cl | Cl steady | ΔCl | Cd | Cd steady | ΔCd | ΔCd friction, pressure | osc | wall [h] |
+|---|---|---|---|---|---|---|---|---|---|
+| 0007/100, 2°, 1 m/s | 0.1270 | 0.1236 | +2.7 % | 0.01217 | 0.01205 | +1.0 % | +0.5 %, +1.9 % | 2.9 % | 6.0 |
+| 0007/90, 2°, 1 m/s | 0.1308 | 0.1235 | +5.9 % | 0.01272 | 0.01254 | +1.4 % | +0.5 %, +3.1 % | 2.2 % | 5.0 |
+| 0008/100, 2°, 1 m/s | 0.1118 | 0.1047 | +6.8 % | 0.01411 | 0.01340 | +5.3 % | +2.0 %, +9.8 % | 41 % | 8.7 |
+| 0008/90, 2°, 1 m/s | 0.0837 | 0.1011 | −17.2 % | 0.01435 | 0.01381 | +4.0 % | +3.4 %, +4.5 % | 49 % | 9.6 |
+| 0007/100, 4°, 0.75 m/s | 0.3989 | 0.3914 | +1.9 % | 0.01581 | 0.01715 | −7.8 % | +24 %, −25 % | 10.4 % | 8.5 |
+| 0007/90, 4°, 0.75 m/s | 0.4006 | 0.4198 | −4.6 % | 0.01643 | 0.01936 | −15.1 % | +32 %, −35 % | 10.7 % | 8.4 |
+| 0008/100, 4°, 0.75 m/s | 0.3954 | 0.4513 | −12.4 % | 0.01620 | 0.01889 | −14.2 % | +18 %, −31 % | 10.8 % | 8.0 |
+| 0008/90, 4°, 0.75 m/s | 0.4008 | 0.4542 | −11.8 % | 0.01693 | 0.02001 | −15.4 % | +22 %, −34 % | 11.0 % | 7.1 |
+| 0007/100, 4°, 1.5 m/s | 0.4284 | 0.4085 | +4.9 % | 0.01520 | 0.01316 | +15.5 % | +99 %, −19 % | 0.02 % | 14.6 |
+| 0007/90, 4°, 1.5 m/s | 0.4037 | 0.4109 | −1.8 % | 0.01260 | 0.01416 | −11.0 % | +21 %, −26 % | 9.3 % | 8.6 |
+| 0008/100, 4°, 1.5 m/s | 0.4094 | 0.4187 | −2.2 % | 0.01208 | 0.01278 | −5.5 % | +29 %, −23 % | 9.0 % | 16.0 |
+| 0008/90, 4°, 1.5 m/s | 0.4080 | 0.4391 | −7.1 % | 0.01239 | 0.01405 | −11.8 % | −6 %, −16 % | 9.2 % | 9.6 |
+| 0007/100, 6°, 1 m/s | 0.5756 | 0.5697 | +1.0 % | 0.02948 | 0.03125 | −5.7 % | +18 %, −12 % | 0.01 % | 9.3 |
+| 0007/90, 6°, 1 m/s | 0.5717 | 0.5688 | +0.5 % | 0.03093 | 0.03236 | −4.4 % | +13 %, −9 % | 0.01 % | 10.5 |
+| 0008/100, 6°, 1 m/s | 0.5852 | 0.5734 | +2.1 % | 0.02694 | 0.02805 | −4.0 % | +12 %, −9 % | 0.01 % | 10.6 |
+| 0008/90, 6°, 1 m/s | killed at the 16 h limit | 0.5715 | | | 0.02930 | | | | > 16 |
+
+Wall times are from the Batch task start and end times.
+
+**How the ranking was computed.** The race-time metric of methodology.md,
+from `report/selection.csv` of fin-profile-selection runs 3 and 4 (steady,
+Tu 0.1 %). The time-accurate means replace the steady points:
+* this run's, over flow-throughs 12-20;
+* run 20261015-161112's 4° points at 1 m/s, over 24-30;
+* run 20261014-040114's 6° points of 0009/80 and 0009/100, over 12-15.
+
+Loads are the steady 0009/80 forces at 2, 4 and 6° at each speed.
+V dR/dV = 0.81, 1.354 and 2.71 N at 0.75, 1 and 1.5 m/s.
+* At 1 m/s, all seven are ranked.
+* At 0.75 and 1.5 m/s, the top four are ranked among themselves: only they
+  have time-accurate points there. Their 2° and 6° points at those speeds
+  are steady.
+
+Checks of the computation:
+* With only the earlier points, the script reproduces the published table
+  of run 20261015-161112 exactly.
+* Windows 12-16 and 16-20 instead of 12-20 change no mean by more than 0.07.
+
+### Decisions
+
+* **The 0008/90 6° case was cancelled, not rerun** (user, 2026-10-17). Its
+  steady point is kept, flagged, with the estimate in conclusion 5.
+* **`start_from.json` is now part of a light fetch** (`LIGHT_FILES`). The
+  report's "start" column read "rest" for every case of this run because
+  the file was not downloaded.
+
+### Assumptions
+
+* As run 20261015-161112:
+  * 2D URANS represents the shedding (**not validated**);
+  * the race-time inputs (**not verified**);
+  * steady and time-accurate points can be mixed in one polar
+    (**not verified**).
+* That a case started from its steady solution ends in the same flow as
+  one started from rest. Run 20261015-161112 showed that for 0009/100 at
+  4°. **Not checked** for 0007/100 at 1.5 m/s, where it matters most.
+
+### Compromises
+
+* 0008/90 at 6° keeps its steady point (conclusion 5).
+* 20 flow-throughs: enough for 13 of 15 cases. The 0008 sections at 2° are
+  not settled.
+* 2° and 6° only at 1 m/s. At 0.75 and 1.5 m/s the 2° and 6° points are
+  steady.
+* 0.5 m/s has no time-accurate points.
+
+### Learnings
+
+* **A smooth steady solution doesn't mean steady flow, again.** 0008 at 2°
+  was smooth steady and sheds strongly. The reverse holds too: at 6° the
+  steady solver oscillated where the flow is steady.
+* **A higher speed can switch the flow.** Here a thin section moved to a
+  leading-edge bubble at 1.5 m/s. One time-accurate case per
+  point can't show whether that is robust.
+* **Cost and time.**
+  * 1.5 m/s cases take up to 16 h on one core: smaller near-wall cells mean
+    smaller time steps.
+  * `--max-hours 16` was too tight. 24 h would have covered every finished
+    case.
+  * **A Batch task killed at the time limit is retried from scratch** (up
+    to 3 times here), and loses everything. Proposed: fail the task, without
+    retrying, when the exit code is the time-limit one (50005).
+
+### Open questions and next steps
+
+Proposed, not agreed:
+1. **0007/100 at 1.5 m/s and 4°, started from rest** (or from its 1 m/s
+   time-accurate state). Does the leading-edge-bubble flow come back? If
+   so, at 1.25 m/s: where does the switch happen?
+2. **0008/90 at 6°, 1 m/s, with a 24-30 h limit.** Low priority:
+   conclusion 5 suggests it doesn't change the order.
+3. **The 0008 sections at 2°, run longer.** Low priority: light air, and
+   they trail there anyway.
+4. **Highlights for a next run:** 0007/100 at 4° along speed (0.75, 1, 1.25,
+   1.5 m/s), to see the switch.
+
 ## Run 20261015-161112 (2026-10-15, git 6649979, GCP, 8 cases)
 
 **Setup.** The eight 4° cases of run 20261014-040114, continued from 15 to

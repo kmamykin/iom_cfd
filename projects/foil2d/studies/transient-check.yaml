@@ -36,53 +36,36 @@ description: >
   20261013-200643 and 20261013-045759), which settles in about 10
   flow-throughs (0009/100 in run 20261015-161112); 20 flow-throughs,
   averaged over the last 8.
+  Run 20261017-000816 (15 of 16 finished; findings log): 0007/100 is
+  first at 0.75 and 1 m/s, but at 1.5 m/s and 4 deg it settled into a
+  leading-edge bubble with attached turbulent flow behind it and 21-26 %
+  more drag than the other three, which shed. That case started from a
+  steady solution. This run (2 cases) checks whether that flow is robust:
+  0007/100 at 4 deg, 1.5 m/s, started from rest; and at 1.25 m/s (no steady
+  solution there), to see where the switch happens. 30 flow-throughs from
+  rest (about 99 % of the Wagner build-up), averaged over the last 6. The
+  1.5 m/s case of the last run took 14.6 h for 20 flow-throughs: about 22 h
+  for 30 (estimate); submit with --max-hours 30.
 report:
   fin_span: 0.36        # m below the hull, as fin-profile-selection
   induced_drag: true
 highlights:   # fields fetched for these; Cp/Cf at the final time step
-  - name: light-load-2deg
+  - name: leading-edge-bubble
     why: >
-      The steady 2 deg points were smooth (Cd oscillation 0.5-2 %), but at 4 deg smooth steady solutions
-      were 10-16 % off in lift (run 20261015-161112). Does the flow shed at 2 deg, and does 0007 at 90 and
-      100 mm keep its light-air lead?
-    where: {foil: naca0007, aoa: 2, speed: 1.0}
-    compare: chord
-    views: [separation, transition]
-  - name: high-load-6deg
-    why: >
-      At 6 deg the 0009 sections were steady and the steady drag held (run 20261014-040114). Is that true
-      for 0008 at 90 and 100 mm, which decide the high-load ranking?
-    where: {foil: naca0008, aoa: 6, speed: 1.0}
-    compare: chord
-    views: [separation, transition]
-  - name: speed-at-4deg
-    why: >
-      At 1 m/s every section sheds at 4 deg. Does 0007/100 shed the same way at 0.75 and 1.5 m/s?
+      From a steady start, 0007/100 at 4 deg and 1.5 m/s settled into a leading-edge bubble (separation at
+      x/c 0.015, reattachment 0.18) with 21-26 % more drag than the shedding sections (run 20261017-000816).
+      Started from rest, does it do the same, and does it at 1.25 m/s?
     where: {foil: naca0007, chord: 0.1, aoa: 4}
     compare: speed
-    views: [separation]
+    views: [separation, transition]
 defaults:
   turbulence: kOmegaSSTLM
   Tu: 0.1
   mesh: medium
-  speed: 1.0
   solver: transient
-  flow_times: 20
-  average_times: 8
-  start_from:         # each case's own steady solution
-    - fin-profile-selection/20261013-200643
-    - fin-profile-selection/20261013-045759
-zip:          # the top four (foil and chord varied together)
-  foil:  [naca0007, naca0007, naca0008, naca0008]
-  chord: [0.10,     0.09,     0.10,     0.09]
-sweep:
-  aoa: [2, 6]         # at 1 m/s
-cases:                # 4 deg at the other speeds
-  - {foil: naca0007, chord: 0.10, aoa: 4, speed: 0.75}
-  - {foil: naca0007, chord: 0.09, aoa: 4, speed: 0.75}
-  - {foil: naca0008, chord: 0.10, aoa: 4, speed: 0.75}
-  - {foil: naca0008, chord: 0.09, aoa: 4, speed: 0.75}
+  flow_times: 30
+  average_times: 6
+  start_from: []      # from rest
+cases:
   - {foil: naca0007, chord: 0.10, aoa: 4, speed: 1.5}
-  - {foil: naca0007, chord: 0.09, aoa: 4, speed: 1.5}
-  - {foil: naca0008, chord: 0.10, aoa: 4, speed: 1.5}
-  - {foil: naca0008, chord: 0.09, aoa: 4, speed: 1.5}
+  - {foil: naca0007, chord: 0.10, aoa: 4, speed: 1.25}
