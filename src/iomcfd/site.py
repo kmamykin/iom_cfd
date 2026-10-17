@@ -67,12 +67,15 @@ def _run_dir(study: str, run: str) -> Path:
 def _table(entry: dict[str, Any]):
     import pandas as pd
 
+    files = entry["file"] if isinstance(entry["file"], list) else [entry["file"]]
     frames = []
     for run in entry["runs"]:
-        f = _run_dir(entry["study"], run) / entry["file"]
-        df = pd.read_csv(f)
-        df.insert(0, "run", str(run))
-        frames.append(df)
+        for name in files:
+            df = pd.read_csv(_run_dir(entry["study"], run) / name)
+            if len(files) > 1:
+                df.insert(0, "file", name)
+            df.insert(0, "run", str(run))
+            frames.append(df)
     df = pd.concat(frames, ignore_index=True)
     for col, want in (entry.get("where") or {}).items():
         df = df[df[col].isin(want if isinstance(want, list) else [want])]
