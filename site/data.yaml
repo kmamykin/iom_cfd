@@ -72,11 +72,23 @@ race-time-by-speed:
     working and high loads, at 0.75, 1 and 1.5 m/s with time-accurate 4 deg points;
     loss_x1 / loss_x2 as above.
 
-shedding-video:
+# Vortex shedding on 0007/100, 4 deg, 1 m/s, time-accurate: 150 snapshots over 3 flow-throughs
+# (study shedding-video), rendered with --options '{"time_fps": 15}' (10 s each).
+shedding-velocity:
   kind: file
-  study: demo-transient-snapshots
-  runs: [20261012-023115]
-  file: aoa4/viz/velocity_time.mp4   # NACA 0009, Re 1e5, 4 deg, Tu 0.1 %, coarse mesh, transient
+  study: shedding-video
+  runs: [20261017-212526]
+  file: aoa4_chord0.1_foilnaca0007/viz/velocity_time.mp4
+shedding-boundary-layer:
+  kind: file
+  study: shedding-video
+  runs: [20261017-212526]
+  file: aoa4_chord0.1_foilnaca0007/viz/boundary_layer_time.mp4
+shedding-vorticity:
+  kind: file
+  study: shedding-video
+  runs: [20261017-212526]
+  file: aoa4_chord0.1_foilnaca0007/viz/vorticity_time.mp4
 
 # Flow gallery: ParaView renders (projects/foil2d/viz.py, views boundary_layer, separation, vorticity),
 # from cases fetched whole (`gcp fetch --only`) and rendered with `iomcfd viz --views ...`.

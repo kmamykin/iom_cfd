@@ -55,7 +55,27 @@ figcaption, .figure-caption { font-size: .82rem; color: $muted; line-height: 1.4
 
 table { font-size: .85rem; }
 td, th { text-align: left !important; vertical-align: top; overflow-wrap: break-word; }
-@media (max-width: 600px) { table { display: block; overflow-x: auto; } }
+.mobile-hint { display: none; font-family: $font-family-sans-serif; font-size: .8rem; color: $muted; }
+.table-hint { display: none; font-family: $font-family-sans-serif; font-size: .75rem; color: $muted; }
+.jump-links { display: block; font-family: $font-family-sans-serif; font-size: .9rem; margin: .5rem 0 1.5rem; }
+@media (max-width: 700px) {
+  .table-hint { display: block; margin-bottom: .2rem; }
+  .mobile-hint { display: block; margin-bottom: .4rem; }
+  /* numeric tables: keep each "x1 / x2" pair on one line and scroll instead */
+  #tbl-race-time td, #tbl-race-time-by-speed td, #tbl-fin-choice td { white-space: nowrap; }
+  /* horizontal scroll with shadows at the edges that have more table */
+  table {
+    display: block; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    background:
+      linear-gradient(to right, $paper 30%, rgba(251, 250, 246, 0)),
+      linear-gradient(to left, $paper 30%, rgba(251, 250, 246, 0)) 100% 0,
+      radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, .18), rgba(0, 0, 0, 0)),
+      radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, .18), rgba(0, 0, 0, 0)) 100% 0;
+    background-repeat: no-repeat;
+    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+}
 thead th { border-bottom: 2px solid $ink !important; }
 
 .katex { font-size: 1.05em; }

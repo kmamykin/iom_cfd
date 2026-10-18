@@ -155,16 +155,38 @@
     "file": "data/race-time-by-speed.csv",
     "source": "projects/foil2d/findings/transient-check.md, run 20261017-000816, conclusion 6. Top four, race-time loss, % behind the best of the four, mean over the light, working and high loads, at 0.75, 1 and 1.5 m/s with time-accurate 4 deg points; loss_x1 / loss_x2 as above."
   },
-  "shedding-video": {
+  "shedding-boundary-layer": {
     "kind": "file",
-    "file": "assets/shedding-video.mp4",
-    "study": "demo-transient-snapshots",
+    "file": "assets/shedding-boundary-layer.mp4",
+    "study": "shedding-video",
     "runs": [
-      "20261012-023115"
+      "20261017-212526"
     ],
-    "source": "aoa4/viz/velocity_time.mp4",
+    "source": "aoa4_chord0.1_foilnaca0007/viz/boundary_layer_time.mp4",
     "exported": "2026-10-17",
-    "git": "1ce5be2-dirty"
+    "git": "57bb4b1-dirty"
+  },
+  "shedding-velocity": {
+    "kind": "file",
+    "file": "assets/shedding-velocity.mp4",
+    "study": "shedding-video",
+    "runs": [
+      "20261017-212526"
+    ],
+    "source": "aoa4_chord0.1_foilnaca0007/viz/velocity_time.mp4",
+    "exported": "2026-10-17",
+    "git": "57bb4b1-dirty"
+  },
+  "shedding-vorticity": {
+    "kind": "file",
+    "file": "assets/shedding-vorticity.mp4",
+    "study": "shedding-video",
+    "runs": [
+      "20261017-212526"
+    ],
+    "source": "aoa4_chord0.1_foilnaca0007/viz/vorticity_time.mp4",
+    "exported": "2026-10-17",
+    "git": "57bb4b1-dirty"
   },
   "steady-1ms": {
     "kind": "table",

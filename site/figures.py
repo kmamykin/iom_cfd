@@ -28,7 +28,8 @@ from iomcfd.physics import induced_drag  # noqa: E402
 
 SPAN, SPAN_EFF = 0.36, 0.9
 REF = "0009/80"  # its steady forces at 2, 4 and 6 deg are the loads
-LOAD_AOA = {"light": 2, "working": 4, "high": 6}
+LOAD_AOA = {"low": 2, "working": 4, "high": 6}  # side-force loads (not wind strengths)
+LOAD_NAMES = {"light": "low", "working": "working", "high": "high"}  # findings' names -> this page's
 TOP_FOUR = ["0007/100", "0007/90", "0008/100", "0008/90"]
 # 2 laps of 90 m windward-leeward legs, about 420 m sailed (42 deg track upwind), 1 m boat:
 # 1 % of race time is about 4 boat lengths (docs/research/surface-roughness.md; an estimate)
@@ -91,70 +92,153 @@ def wagner(flow_times):
 
 
 def course(out: Path) -> Path:
-    fig, (a, b) = plt.subplots(1, 2, figsize=(9.2, 4.3), gridspec_kw={"width_ratios": [1, 1.25]})
-    for ax in (a, b):
-        ax.set_aspect("equal")
-        ax.axis("off")
+    fig, a = plt.subplots(figsize=(5.4, 4.3))
+    a.set_aspect("equal")
+    a.axis("off")
+    fs = 11
 
     def bearing(deg, r=1.0):  # degrees clockwise from windward (+y)
         t = np.radians(deg)
         return np.array([np.sin(t), np.cos(t)]) * r
 
-    # (a) the upwind leg
-    a.set_title("Upwind: heading, leeway and track")
     a.plot([0, 0], [0, 1.08], ls=(0, (4, 3)), color=MUTED, lw=1)
-    a.text(0.0, 1.11, "to the windward mark", ha="center", va="bottom", color=MUTED, fontsize=8.5)
-    a.add_patch(FancyArrowPatch((-0.42, 1.12), (-0.42, 0.84), arrowstyle="-|>", mutation_scale=14, color=INK, lw=1.4))
-    a.text(-0.47, 0.98, "true\nwind", ha="right", va="center", fontsize=8.5)
-    a.plot(*zip((0, 0), bearing(39, 1.05)), color=MUTED, lw=1.1, ls=(0, (6, 2)))
-    a.text(*bearing(33.5, 0.98), "heading 39°", rotation=51, ha="center", va="center", fontsize=8.5, color=MUTED)
-    a.add_patch(FancyArrowPatch((0, 0), bearing(42, 1.12), arrowstyle="-|>", mutation_scale=14, color=INK, lw=1.8))
-    a.text(*bearing(47.5, 0.93), "track 42°", rotation=48, ha="center", va="center", fontsize=8.5)
+    a.text(0.0, 1.11, "to the windward mark", ha="center", va="bottom", color=MUTED, fontsize=fs)
+    a.add_patch(FancyArrowPatch((-0.42, 1.12), (-0.42, 0.82), arrowstyle="-|>", mutation_scale=16, color=INK, lw=1.5))
+    a.text(-0.48, 0.97, "true\nwind", ha="right", va="center", fontsize=fs)
+    a.plot(*zip((0, 0), bearing(39, 1.05)), color=MUTED, lw=1.2, ls=(0, (6, 2)))
+    a.text(*bearing(32, 0.95), "heading 39°", rotation=51, ha="center", va="center", fontsize=fs, color=MUTED)
+    a.add_patch(FancyArrowPatch((0, 0), bearing(42, 1.12), arrowstyle="-|>", mutation_scale=16, color=INK, lw=2))
+    a.text(*bearing(49, 0.92), "track 42°", rotation=48, ha="center", va="center", fontsize=fs)
     a.add_patch(Arc((0, 0), 0.5, 0.5, theta1=90 - 39, theta2=90, color=MUTED, lw=1))
-    a.text(*bearing(19, 0.33), "39°", ha="center", va="center", fontsize=8.5, color=MUTED)
+    a.text(*bearing(19, 0.34), "39°", ha="center", va="center", fontsize=fs, color=MUTED)
     w = np.array([(0, 0), bearing(39, 0.8), bearing(42, 0.8)])
     a.add_patch(Polygon(w, closed=True, color=ACCENT, alpha=0.25, lw=0))
-    a.annotate("leeway 3°: the fin's\nangle of attack", xy=bearing(40.5, 0.72), xytext=(0.62, 0.22), fontsize=8.5,
-               color=ACCENT, arrowprops=dict(arrowstyle="-", color=ACCENT, lw=0.8))
-    # the hull points along the heading but moves along the track
+    a.annotate("leeway 3°", xy=bearing(40.5, 0.72), xytext=(0.62, 0.3), fontsize=fs + 1, color=ACCENT,
+               weight="bold", arrowprops=dict(arrowstyle="-", color=ACCENT, lw=0.9))
     c, h = bearing(42, 0.55), bearing(39)
     n = np.array([h[1], -h[0]])
-    s = np.linspace(-1, 1, 30)
-    hull = np.r_[[c + 0.11 * t * h + 0.028 * (1 - t**2) * n for t in s],
-                 [c + 0.11 * t * h - 0.028 * (1 - t**2) * n for t in s[::-1]]]
+    s_ = np.linspace(-1, 1, 30)
+    hull = np.r_[[c + 0.11 * t * h + 0.028 * (1 - t**2) * n for t in s_],
+                 [c + 0.11 * t * h - 0.028 * (1 - t**2) * n for t in s_[::-1]]]
     a.add_patch(Polygon(hull, closed=True, facecolor=INK, edgecolor=INK, alpha=0.85))
-    a.text(-0.55, -0.1, "Sailing D metres to windward takes D / cos 42° of\n"
-           "track. One more degree of leeway costs tan 42° × 1°\n= 1.57 % of the leg's time.",
-           fontsize=8.2, color=MUTED, va="top")
-    a.set_xlim(-0.6, 1.0)
-    a.set_ylim(-0.42, 1.2)
+    a.set_xlim(-0.75, 1.0)
+    a.set_ylim(-0.08, 1.22)
+    fig.tight_layout()
+    return _save(fig, out)
 
-    # (b) the fin section in the water
+
+def fin_side(out: Path) -> Path:
+    """The fin seen from the side (narrow figure: shown at a fixed width on the page)."""
+    fig, a = plt.subplots(figsize=(3.6, 4.4))
+    a.set_aspect("equal")
+    a.axis("off")
+    fs = 12
+    a.fill_between([-1.0, 1.4], 0.0, 0.14, color="#e4ded0")
+    a.plot([-1.0, 1.4], [0, 0], color=INK, lw=1)
+    a.text(-0.95, 0.24, "hull", fontsize=fs, va="bottom", color=MUTED)
+    a.add_patch(Polygon([(0, 0), (1, 0), (1, -3.6), (0, -3.6)], closed=True, facecolor="#d9d3c4", edgecolor=INK, lw=1))
+    t = np.linspace(0, 2 * np.pi, 80)
+    a.fill(0.5 + 1.0 * np.cos(t), -3.85 + 0.28 * np.sin(t), color=INK, alpha=0.85)
+    a.text(0.5, -4.25, "bulb", fontsize=fs, ha="center", va="top", color=MUTED)
+    a.annotate("", xy=(1.3, 0), xytext=(1.3, -3.6), arrowprops=dict(arrowstyle="<->", color=INK, lw=1))
+    a.text(1.42, -1.8, "span\n0.36 m", fontsize=fs, va="center")
+    a.plot([-0.15, 1.15], [-2.2, -2.2], color=ACCENT, lw=1.6, ls=(0, (4, 2)))
+    a.text(-0.2, -2.2, "slice\nsimulated", fontsize=fs, color=ACCENT, ha="right", va="center")
+    a.annotate("", xy=(0, -1.0), xytext=(1, -1.0), arrowprops=dict(arrowstyle="<->", color=INK, lw=1))
+    a.text(0.5, -0.9, "chord", fontsize=fs, ha="center", va="bottom")
+    a.add_patch(FancyArrowPatch((-0.95, -3.2), (-0.25, -3.2), arrowstyle="-|>", mutation_scale=14, color=MUTED, lw=1.3))
+    a.text(-0.95, -3.0, "water", fontsize=fs, color=MUTED, va="bottom")
+    a.set_xlim(-1.3, 2.4)
+    a.set_ylim(-4.6, 0.6)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def section(out: Path) -> Path:
+    """The horizontal slice: NACA 0007, 100 mm chord, at an angle of attack (schematic)."""
     from iomcfd.geometry.foils import naca4
 
-    b.set_title("The fin section: side force and drag")
+    fig, b = plt.subplots(figsize=(6.6, 3.2))
+    b.set_aspect("equal")
+    b.axis("off")
+    fs = 13.5
     f = naca4("0007")
-    al = np.radians(7)  # drawn larger than the real 2-6 deg to be visible
-    x, y = f.x - 0.25, f.y
-    xr, yr = x * np.cos(al) + y * np.sin(al), -x * np.sin(al) + y * np.cos(al)
-    b.fill(xr, yr, facecolor="#d9d3c4", edgecolor=INK, lw=1)
-    for yy in (0.14, 0.0, -0.14):
-        b.add_patch(FancyArrowPatch((-0.95, yy), (-0.55, yy), arrowstyle="-|>", mutation_scale=11, color=MUTED, lw=1))
-    b.text(-0.75, 0.22, "water, speed V", ha="center", fontsize=8.5, color=MUTED)
-    b.plot([-0.25 - 0.1, 1.05], [0, 0], color=MUTED, lw=0.8, ls=(0, (4, 3)))
-    te = np.array([0.75 * np.cos(al), -0.75 * np.sin(al)])
-    b.plot([0, te[0] * 1.35], [0, te[1] * 1.35], color=MUTED, lw=0.8)
-    b.add_patch(Arc((0, 0), 1.7, 1.7, theta1=-7, theta2=0, color=MUTED, lw=1))
-    b.text(0.9, -0.05, "α", fontsize=10, color=MUTED, va="center")
-    b.add_patch(FancyArrowPatch((0, 0), (0, 0.62), arrowstyle="-|>", mutation_scale=14, color=ACCENT, lw=2.2))
-    b.text(0.04, 0.6, "side force F = C$_l$ q c b\n(balances the sails)", color=ACCENT, fontsize=8.5, va="top")
-    b.add_patch(FancyArrowPatch((0, 0), (0.42, 0), arrowstyle="-|>", mutation_scale=14, color=INK, lw=2.2, zorder=3))
-    b.text(0.22, -0.1, "drag D", fontsize=8.5, ha="center", va="top")
-    b.text(-0.95, -0.4, "Upwind the fin needs α ≈ 4° (leeway) to make the side force.\n"
-           "Downwind it makes none: α = 0 and only its drag counts.\n"
-           "q = ½ρV², c = chord, b = 0.36 m span.", fontsize=8.2, color=MUTED, va="top")
-    b.set_xlim(-1.0, 1.1)
-    b.set_ylim(-0.72, 0.75)
+    al = np.radians(6)
+
+    def rot(px, py):
+        return (px - 0.25) * np.cos(al) + py * np.sin(al) + 0.25, -(px - 0.25) * np.sin(al) + py * np.cos(al)
+
+    xr, yr = rot(f.x, f.y)
+    b.fill(xr, yr, facecolor="#d9d3c4", edgecolor=INK, lw=1.2)
+    le, te = rot(0, 0), rot(1, 0)
+    b.plot([le[0], te[0]], [le[1], te[1]], color=MUTED, lw=0.9, ls=(0, (3, 2)))
+    b.text(le[0] - 0.03, le[1] + 0.03, "leading\nedge", ha="right", va="bottom", fontsize=fs)
+    b.text(te[0] + 0.02, te[1] - 0.03, "trailing\nedge", ha="left", va="top", fontsize=fs)
+    b.annotate("", xy=rot(0, -0.12), xytext=rot(1, -0.12), arrowprops=dict(arrowstyle="<->", color=INK, lw=1))
+    mx, my = rot(0.5, -0.15)
+    b.text(mx, my, "chord 100 mm", ha="center", va="top", fontsize=fs, rotation=-6)
+    p0, p1 = rot(0.3, -0.035), rot(0.3, 0.035)
+    b.annotate("", xy=p1, xytext=p0, arrowprops=dict(arrowstyle="<->", color=ACCENT, lw=1.1, shrinkA=0, shrinkB=0))
+    b.annotate("max thickness 7 mm\n(7 % of the chord)", xy=p1, xytext=(0.55, 0.27), fontsize=fs, color=ACCENT,
+               arrowprops=dict(arrowstyle="-", color=ACCENT, lw=0.8))
+    for yy in (0.12, -0.02):
+        b.add_patch(FancyArrowPatch((-0.62, yy), (-0.24, yy), arrowstyle="-|>", mutation_scale=14, color=MUTED, lw=1.3))
+    b.text(-0.62, 0.17, "water", fontsize=fs, color=MUTED)
+    b.plot([0.25, 1.18], [0, 0], color=MUTED, lw=0.9)
+    b.add_patch(Arc((0.25, 0), 1.6, 1.6, theta1=-6, theta2=0, color=MUTED, lw=1.1))
+    b.text(1.07, -0.045, "α", fontsize=fs + 2, color=MUTED, va="center")
+    b.add_patch(FancyArrowPatch((0.25, 0), (0.25, 0.42), arrowstyle="-|>", mutation_scale=15, color=ACCENT, lw=2.2))
+    b.text(0.21, 0.42, "side force", fontsize=fs, color=ACCENT, va="top", ha="right")
+    b.add_patch(FancyArrowPatch((0.25, 0), (0.56, 0), arrowstyle="-|>", mutation_scale=15, color=INK, lw=2.2, zorder=3))
+    b.text(0.58, 0.075, "drag", fontsize=fs, ha="left", va="bottom")
+    b.set_xlim(-0.7, 1.3)
+    b.set_ylim(-0.32, 0.48)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def bubble_schematic(out: Path) -> Path:
+    """Laminar boundary layer, separation, transition in the separated layer, reattachment, turbulent layer."""
+    fig, ax = plt.subplots(figsize=(6.8, 3.3))
+    ax.axis("off")
+    fs = 13
+    x = np.linspace(0, 10, 400)
+    ax.fill_between(x, -0.5, 0, color="#d9d3c4")
+    ax.plot(x, 0 * x, color=INK, lw=1.2)
+    S, T, R = 3.0, 5.0, 6.8
+    u = np.clip((x - S) / (R - S), 0, 1)
+    edge = np.where(x < S, 0.35 * np.sqrt(np.clip(x, 0, None) / S),
+                    np.where(x <= R, 0.35 + 0.45 * np.sin(0.5 * np.pi * u), 0.8 + 0.05 * (x - R)))
+    ax.plot(x, edge, color=MUTED, lw=1, ls=(0, (4, 2)))
+    inner = np.where((x >= S) & (x <= R), 0.32 * np.sin(np.pi * u), np.nan)
+    ax.fill_between(x, 0, inner, where=~np.isnan(inner), color="#9cb8e0", alpha=0.9)
+    ax.plot(x, inner, color="#2a4f86", lw=1.2)  # the separated shear layer
+    for xa in (4.4, 5.8):  # reversed flow near the wall
+        ax.add_patch(FancyArrowPatch((xa + 0.45, 0.08), (xa - 0.35, 0.08), arrowstyle="-|>", mutation_scale=10,
+                                     color="#1b3f73", lw=1.3))
+    for xp, kind in ((1.3, "lam"), (S, "sep"), (8.7, "turb")):
+        ys = np.linspace(0, edge[np.searchsorted(x, xp)], 6)[1:]
+        for yy in ys:
+            frac = yy / ys[-1]
+            uu = (0.6 * (1.5 * frac - 0.5 * frac**3) if kind == "lam" else 0.6 * frac**2 if kind == "sep"
+                  else 0.6 * frac ** (1 / 7))
+            ax.add_patch(FancyArrowPatch((xp, yy), (xp + uu, yy), arrowstyle="-|>", mutation_scale=6, color=INK, lw=0.7))
+        ax.plot([xp, xp], [0, ys[-1]], color=INK, lw=0.7)
+    for xp in (S, R):
+        ax.plot([xp], [0], "o", color=ACCENT, ms=6, zorder=4)
+    ax.text(S, -0.1, "S", ha="center", va="top", fontsize=fs + 1, color=ACCENT, weight="bold")
+    ax.text(R, -0.1, "R", ha="center", va="top", fontsize=fs + 1, color=ACCENT, weight="bold")
+    yT = 0.32 * np.sin(np.pi * (T - S) / (R - S))
+    ax.plot([T], [yT], "o", color=ACCENT, ms=6, zorder=4)
+    ax.annotate("T", xy=(T, yT), xytext=(T - 0.9, yT + 0.55), fontsize=fs + 1, color=ACCENT, weight="bold",
+                arrowprops=dict(arrowstyle="-", color=ACCENT, lw=0.9))
+    ax.text(1.6, 0.62, "laminar", ha="center", fontsize=fs, color=INK)
+    ax.text(8.8, 1.08, "turbulent", ha="center", fontsize=fs, color=INK)
+    ax.text(0.5 * (S + R) + 0.2, 0.17, "reversed", ha="center", fontsize=fs - 1.5, color="#1b3f73")
+    ax.add_patch(FancyArrowPatch((0.1, 1.05), (1.1, 1.05), arrowstyle="-|>", mutation_scale=13, color=MUTED, lw=1.2))
+    ax.text(0.1, 1.12, "water", fontsize=fs, color=MUTED)
+    ax.set_xlim(-0.1, 10.1)
+    ax.set_ylim(-0.5, 1.3)
     fig.tight_layout()
     return _save(fig, out)
 
@@ -306,7 +390,7 @@ def equal_force(data: Path, out: Path) -> Path:
     for name, F in L.items():
         a.axhline(F, color=MUTED, lw=0.8, ls=":")
         b.axvline(F, color=MUTED, lw=0.8, ls=":")
-        a.text(8.3, F + 0.12, f"{name} {F:.2f} N", fontsize=7.5, color=MUTED, ha="right")
+        a.text(8.3, F + 0.12, f"{name} load {F:.2f} N", fontsize=7.5, color=MUTED, ha="right")
         b.text(F - 0.1, 0.97, f"{name}", fontsize=7.5, color=MUTED, rotation=90, ha="right", va="top",
                transform=b.get_xaxis_transform())
     a.set(title="1. The angle each fin needs", xlabel="angle of attack α [°]", ylabel="side force F [N]",
@@ -325,12 +409,13 @@ def race_time(data: Path, out: Path) -> Path:
     r = r.sort_values(("loss_x1", "mean"), ascending=False)
     fig, ax = plt.subplots(figsize=(8, 3.6))
     y = np.arange(len(r))
-    ax.barh(y, r.loss_x1["mean"], color=[COLOURS[s] for s in r.index], height=0.55, label="mean of the three loads")
+    ax.barh(y, r.loss_x1["mean"], color=[COLOURS[s] for s in r.index], height=0.55, label="mean of the three side-force loads")
     ax.scatter(r.loss_x2["mean"], y, marker="|", s=260, color=INK, lw=2, label="mean, resistance slope doubled", zorder=3)
     for yi, v in zip(y, r.loss_x1["mean"]):
         ax.text(max(v, r.loss_x2["mean"].iloc[yi]) + 0.06, yi, f"{v:.2f}", va="center", fontsize=8.5)
     ax.set_yticks(y, r.index)
-    ax.set(xlabel="race time behind the best fin [%]", title="Race-time loss at 1 m/s (time-accurate points)")
+    ax.set(xlabel="mean loss against the best fin at each load [% of race time]",
+           title="Race-time loss at 1 m/s (time-accurate points)")
     ax.grid(axis="y", visible=False)
     ax.set_xlim(0, 3.3)
     ax.legend(loc="upper right", fontsize=8)
@@ -356,8 +441,10 @@ def race_time_by_speed(data: Path, out: Path) -> Path:
         ax.bar(x, g.loss_x1, width=w * 0.92, color=COLOURS[section], label=section)
         ax.scatter(x, g.loss_x2, marker="_", s=120, color=INK, lw=2, zorder=3)
     ax.scatter([], [], marker="_", s=120, color=INK, lw=2, label="resistance slope doubled")
-    ax.set_xticks(np.arange(len(speeds)), [f"{v:g} m/s" for v in speeds])
-    ax.set(ylabel="race time behind the best fin [%]", title="Race-time loss by boat speed (time-accurate 4° points)")
+    wind = {0.75: "light air", 1.0: "medium", 1.5: "fresh"}
+    ax.set_xticks(np.arange(len(speeds)), [f"{v:g} m/s ({wind.get(v, '')})" for v in speeds])
+    ax.set(ylabel="mean loss against the best\nfin at each load [% of race time]",
+           title="Race-time loss by boat speed (time-accurate 4° points)")
     sec = ax.secondary_yaxis("right", functions=(lambda v: v * BOAT_LENGTHS_PER_PCT, lambda v: v / BOAT_LENGTHS_PER_PCT))
     sec.set_ylabel("boat lengths per race (estimate)")
     ax.grid(axis="x", visible=False)
@@ -397,7 +484,7 @@ def race_time_table(data: Path, out: Path) -> Path:
         x = r[(r.section == s) & (r.load == load)].iloc[0]
         return "best" if x.loss_x1 == 0 and x.loss_x2 == 0 else f"{x.loss_x1:.2f} / {x.loss_x2:.2f}"
 
-    rows = ["| section | light (1.15 N) | working (6.69 N) | high (8.33 N) | mean |", "|---|---|---|---|---|"]
+    rows = ["| section | low load (1.15 N) | working load (6.69 N) | high load (8.33 N) | mean |", "|---|---|---|---|---|"]
     rows += [f"| {s} | " + " | ".join(cell(s, ld) for ld in ("light", "working", "high", "mean")) + " |" for s in order]
     out.write_text("\n".join(rows) + "\n")
     return out
@@ -456,6 +543,9 @@ def make_all(data: Path, out: Path) -> list[Path]:
     ref = data.parents[1] / "projects" / "foil2d" / "validation" / "naca0009_re1e5_princeton.csv"
     return [
         course(out / "course.svg"),
+        fin_side(out / "fin-side.svg"),
+        section(out / "section.svg"),
+        bubble_schematic(out / "bubble-schematic.svg"),
         mesh(out / "mesh.png"),
         validation(data, ref, out / "validation.svg"),
         equal_force(data, out / "equal-force.svg"),
