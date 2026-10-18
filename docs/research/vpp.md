@@ -13,46 +13,32 @@ race time.
 
 How much was read:
 * Read for this note: the Python-VPP README, the gvpp project page, the
-  SA-VPP forum post, Gilbert's *Simple VPP* page, the USMMA slides and
-  Parolini & Quarteroni.
+  SA-VPP forum post, Gilbert's *Simple VPP* page, the USMMA slides,
+  Parolini & Quarteroni, and these sections of the ORC VPP Documentation
+  2026: §3 (method and equilibrium), §4.2.7, §4.4, §5.5 and §6.5.
 * Known only from search summaries or abstracts, and marked as such: the
-  ORC documentation's contents, the Day 2017 paper and the commercial
+  rest of the ORC documentation, the Day 2017 paper and the commercial
   tools.
 
 ## Nomenclature
 
-From Parolini & Quarteroni, "Forces and moments on the water plane"
-([MOX 10/2007][parolini], Fig. 2 and eq. 2). On the water plane, x points
-along the boat velocity (the course) and y is normal to it.
+Symbols follow [nomenclature.md](../nomenclature.md). That means Parolini &
+Quarteroni's course frame and h/a subscripts, plus ORC names for what
+Parolini leaves out. Leeway is β_Y, φ is heel, and β_TW and β_AW are
+measured from the course.
 
-| symbol | meaning |
-|---|---|
-| V_b | boat velocity |
-| β_Y | yaw angle, between the course and the boat centreline (this repo's `leeway`) |
-| β_TW, β_AW | true and apparent wind angles |
-| D_h | hydrodynamic drag, along the course |
-| S_h | hydrodynamic side force, normal to the course |
-| M_h | hydromechanic righting moment, about the boat centreline |
-| T_a | aerodynamic thrust, along the course |
-| S_a | aerodynamic side force, normal to the course |
-| M_a | aerodynamic heeling moment |
-| L_a, D_a | aerodynamic lift and drag, in the apparent-wind frame |
+A steady state (Parolini eq. 2, plus a yaw balance) is:
 
-A steady sailing state satisfies
+    T_a = D_h,   S_a = S_h,   M_a + M_h,dyn = RM_φ − RM_V,   N_a + N_h = 0
 
-    D_h + T_a = 0,   S_h + S_a = 0,   M_h + M_a = 0
+A VPP finds, for each V_TW and β_TW, the V_b, φ, β_Y, rudder angle δ_R and
+sail trim that satisfy these and give the greatest V_b.
 
-Each term is a function of V_b, heel and β_Y. A VPP finds, for each true
-wind speed and β_TW, the V_b, heel, β_Y and sail trim that satisfy these
-and give the most speed. Adding a yaw-moment balance brings in the rudder
-angle.
-
-Clashes with this repo's names:
-* The repo says leeway for β_Y.
-* appendage3d's `yaw_moment_Nm` is a moment about z, so "yaw" now means two
-  things.
-* The repo frame has x aft (flow towards +x), while the paper's x points
-  along V_b.
+The ORC solves only the drive and roll balances. The side force is implied,
+leeway appears only inside its induced-drag model, and "the yaw moment
+balance is ignored" ([ORC 2026][orc2026] §3). This project's CFD sweeps
+leeway directly, and an IOM is steered by its rudder alone, so all four
+balances are kept here.
 
 ## Short answer
 
@@ -87,7 +73,7 @@ Clashes with this repo's names:
 
 | model | covers | for an IOM |
 |---|---|---|
-| [ORC VPP Documentation][orcdoc] (yearly, free; [2023 edition][orc2023]) | hull resistance (upright and heeled), appendages, sail forces with depowering (flatten, reef), the solution method | A good template for the structure and the depowering logic. Its hull model is full scale: since 2013 the residuary resistance is fitted to a 43-hull RANS series, and friction uses the Hughes line instead of ITTC-57 ([ORC column][orc2012], **search summary**). |
+| [ORC VPP Documentation][orcdoc] (yearly, free; [2026 edition][orc2026]) | hull resistance (D_v, D_r, D_i and added drag in waves, upright and heeled), appendages, effective draft with bulb and winglet corrections, sail forces with depowering (flat, reef), righting moment, and the solution method (drive and roll balance) | A good template for the structure, the depowering logic and the induced-drag model (D_i = S_h² / (π q T_eff²)). Its hull model is full scale: since 2013 the residuary resistance is fitted to a 43-hull RANS series, and friction uses the Hughes line instead of ITTC-57 ([ORC column][orc2012], **search summary**). |
 | Delft Systematic Yacht Hull Series (DSYHS), e.g. [Keuning & Sonnenberg 1998][keuning] | regressions for upright and heeled residuary resistance, side force and induced drag of the hull and keel | full-size hulls of the 1970s-2000s; well outside an IOM's Reynolds number and hull shapes |
 | Day 2017, [Performance prediction for sailing dinghies][day] | a dinghy VPP for a rig that can't reef: depowering, heel decoupled from the heeling moment, crew position, yaw-moment balance; validated upwind against measurements | the closest in kind to an IOM: small, light, can't reef (**abstract only**) |
 | Hazen (1980) sail model, Kerwin's MIT VPP (1978) | the original sail coefficients and VPP structure behind IMS and ORC ([history][wiki]; names and dates from background knowledge, not re-checked) | historical; the ORC documentation supersedes them |
@@ -121,16 +107,18 @@ Names and claims here come from search summaries. None was evaluated.
 
 ## How a VPP would sit on this project
 
-Each term in eq. 2 maps to a project output. These are the outputs as the
-project READMEs describe them.
+Each term in the balance maps to a project output. The full mapping, with
+signs and frame rotations, is in
+[nomenclature.md](../nomenclature.md#mapping-to-current-outputs).
 
 | term | source | output | gap |
 |---|---|---|---|
 | D_h | `hull` (VOF; `appendages: true` adds the keel and rudder) or `hull` + `appendage3d` | `resistance_N`; `drag_N` | the two projects use different turbulence and transition setups |
-| S_h | `appendage3d` (+ `hull`) | `side_N`; `side_force_N` | in the boat frame; rotate by β_Y into the course frame |
-| M_h | hydrostatics: weight and buoyancy at heel, plus the hydrodynamic roll moment (`roll_moment_Nm`) | not computed today | needs a heeled-hydrostatics routine (STL volume and centroid below a heeled waterline; `src/iomcfd/geometry/stl.py` already computes volumes) and the boat's mass properties: bulb, fin, hull, rig |
-| T_a, S_a, M_a | `sails` | `drive_N`, `heel_force_N`, `heel_moment_Nm`, `z_ce`, lift and drag relative to the apparent wind | same frame rotation; depowering (sheeting, twist, camber) becomes a VPP variable |
-| yaw balance | `appendage3d` (`rudder_angle`, `yaw_moment_Nm`), sails' centre of effort | partly | needs the sails' centre of effort in x |
+| S_h | `appendage3d` (+ `hull`) | `side_N`; `side_force_N` | none; both are already in the course frame |
+| RM_φ | hydrostatics: weight and buoyancy at heel | not computed today | needs a heeled-hydrostatics routine (STL volume and centroid below a heeled waterline; `src/iomcfd/geometry/stl.py` already computes volumes) and the boat's mass properties: bulb, fin, hull, rig |
+| M_h,dyn | `appendage3d` (+ `hull`) | `roll_moment_Nm` | - |
+| T_a, S_a, M_a | `sails` | `drive_N`, `heel_force_N`, `heel_moment_Nm`, `z_ce`, `lift_N`, `drag_N` | sails has no leeway: rotate drive and heel force by β_Y into T_a and S_a, and run at awa = β_AW − β_Y; depowering (sheeting, twist, camber) becomes a VPP variable |
+| N_a + N_h | `appendage3d` (`rudder_angle`, `yaw_moment_Nm`), sails' centre of effort | partly | needs the sails' centre of effort in x |
 | all at once | `fullboat` | - | experimental; no converged run yet |
 
 Notes:
@@ -159,8 +147,9 @@ Notes:
 * No VPP calibrated for an IOM exists that I could find.
 * Python-VPP was judged from its README. Whether its ORC force functions
   can be swapped out cleanly is unchecked.
-* The ORC documentation, Day 2017 and the commercial tools were not read.
-  Their descriptions above come from summaries.
+* Of the ORC documentation, only §3, §4.2.7, §4.4, §5.5 and §6.5 were
+  read. Day 2017 and the commercial tools were not read; their
+  descriptions above come from summaries.
 * Hydrostatic righting moment at heel and the boat's mass properties
   (VCG, inertia) are not yet in the project.
 
@@ -180,7 +169,7 @@ that can't reef), [Simple VPP][poorvpp] (the one IOM VPP).
 [poorvpp]: https://onemetre.net/Design/VPP/PoorVPP.htm
 [usmma]: https://www.webb.edu/wp-content/uploads/2023/02/WI-SISD22-10-Perez-VPP-Dynamic-Open-Source-Velocity-Prediction-Program-VPP-25-Oct-2022.pdf
 [orcdoc]: https://orc.org/organization/rules-regulations
-[orc2023]: https://orc.org/uploads/files/ORC-VPP-Documentation-2023.pdf
+[orc2026]: https://orc.org/uploads/files/Rules-Regulations/2026/ORC-VPP-Documentation-2026.pdf
 [orcvpp]: https://orc.org/for-designers/orc-vpp
 [orc2012]: https://orc2.orc.org/SH%20Columns/SH%20ORC%202012%20Dec.pdf
 [keuning]: https://research.tudelft.nl/en/publications/approximation-of-the-hydrodynamic-forces-on-a-sailing-yacht-based/

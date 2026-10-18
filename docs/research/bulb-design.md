@@ -27,6 +27,9 @@ Labels used below:
   ν = 1.138e-6 m²/s and ρ = 999 kg/m³ (fresh water at 15 °C, as in
   `defaults.yaml`).
 
+Force and moment symbols (D_h, S_h, D_i, T_eff, leeway β_Y, heel φ) follow
+[nomenclature.md](../nomenclature.md).
+
 ## Short answer
 
 * **The IOM bulb works in a regime full-size data barely covers.**
@@ -72,6 +75,9 @@ Labels used below:
     **measured**).
   * A round bulb moves the tip vortex up. A flat bottom with sharp edges
     keeps it low.
+  * The ORC rating VPP builds this in: a round or elliptic bulb reduces the
+    keel's effective draft T_eff, a flat-topped bulb or winglets raise it
+    ([ORC 2026][orc] §4.2.7).
 * **For the simulations:**
   * appendage3d's fully turbulent kOmegaSST with wall functions is the
     wrong tool for bulb shape. Depending on what the boundary layer does,
@@ -466,6 +472,26 @@ Two readings:
      Eliasson).
    * De Saix measured the fin's share of side force on a 5.5 Metre falling
      from 80 % upright to 62 % at 30° heel ([Howlett][howlett]).
+   * **The ORC VPP corrects effective draft for bulbs and winglets**
+     ([ORC 2026][orc] §4.2.7, read for this note).
+     * Its rule: "A ballast bulb with circular (or elliptical) cross
+       section reduces the effect[ive] span of the keel fin. A well
+       designed wing keel extends the effective span."
+     * The shape of the bulb's top matters, through an upper-bulb shape
+       factor (UPBULBF). "A straight shape (e.g. a Scheel Keel) has a
+       positive effect, although a round shape has negative effect on
+       effective draft."
+     * The correction ΔD/MHSD is a function of:
+       * the bulb's and winglets' added widths, WBULB and WWING;
+       * the keel's draft DHK0, maximum width MAXW, and the draft TMAXW at
+         that width.
+
+       Its constants are "based on CFD calculations for eight bulb or
+       winglet configurations", and "the multiplier of 0.5… is an arbitrary
+       reduction of the bulb credit".
+     * ORC uses T_eff in D_i = S_h² / (π q T_eff²) (§6.5, eq. 6.37).
+     * The correction is fitted to full-size keels. At IOM scale it is a
+       hypothesis to test, not a number to use.
 
 8. **The free surface doesn't matter for the bulb.**
    * The bulb is about 10 diameters deep. The submerged-body wave factor
@@ -540,6 +566,12 @@ is not adequate for ranking bulb shapes.
    * Bulb vertical force and pitching moment (about the bulb centroid).
    * Bulb CG z.
    * Fin side force with and without the bulb (the end-plate gain).
+   * Effective draft T_eff from a leeway sweep. Fit D_h = D_0 + S_h² / (π q
+     T_eff²), the ORC induced-drag form, so the slope of D_h against S_h²
+     gives T_eff. That makes the end-plate effect of each bulb one number,
+     comparable with ORC's bulb and winglet correction. This is a method
+     suggestion; it assumes the profile drag D_0 doesn't change much over
+     the sweep.
 6. **Validate step by step.**
    1. Dress's laminar body: coordinates in his Table II, C_D,wet at
       R_L 3.6 × 10⁵ to 1.34 × 10⁶, and the separation line. It tests the
@@ -592,8 +624,9 @@ is not adequate for ranking bulb shapes.
 * **Paywalled, read only as abstracts:** van Oossanen & Joubert 1986 (JFM),
   Werner 2007, Coiro 2005, Orych 2008, Contento 2006, Nicolopoulos 2009,
   Götten 2021, Hess 1976. Larsson & Eliasson's *Principles of Yacht
-  Design* and the Delft keel series (Keuning) could not be reached, so
-  there is no Delft effective-span formula with a bulb term here.
+  Design* and the Delft keel series (Keuning) could not be reached. The
+  ORC's bulb and winglet correction to effective draft (§4.2.7, above) is
+  the only effective-span formula with a bulb term found.
 
 ## Sources
 
@@ -603,8 +636,10 @@ IOM Re), [Parolini & Quarteroni][parolini] (transition on an AC bulb),
 [Sfakianaki et al.][sfak] (bulb at model scale), [Axfors & Tunander][axfors]
 (T/L bulbs, wind tunnel table), [Gilbert MY 184][my184] (IOM tow test),
 [SAILSetc TI23][ti23] (IOM bulb practice), [Myring][myring] and
-[Parsons & Goodson][pg] (optimal bodies).
+[Parsons & Goodson][pg] (optimal bodies), [ORC VPP Documentation 2026][orc]
+(effective draft with bulbs and winglets).
 
+[orc]: https://orc.org/uploads/files/Rules-Regulations/2026/ORC-VPP-Documentation-2026.pdf
 [howlett]: https://6metrearchive.org/wp-content/uploads/2021/02/INHW.7.1.pdf
 [hoerner]: https://archive.org/details/FluidDynamicDragHoerner1965
 [hoerner-lift]: https://archive.org/details/FluidDynamicLiftHoerner1985
