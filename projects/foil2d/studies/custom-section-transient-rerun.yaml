@@ -1,0 +1,27 @@
+study: custom-section-transient-rerun
+project: foil2d
+description: >
+  Reruns of custom-section-transient cases that failed (findings:
+  projects/foil2d/findings/custom-section.md). Run 20261018-104120's NACA
+  0007 at 3 deg and 1 m/s blew up after 5.1 flow-throughs (Courant number
+  9.8 to 30,748 in one step; the time-step guard stopped it). Same case,
+  same steady start (custom-section-screen run 20261018-043724) and settings,
+  but max_co 5 instead of 10, as for the stepped sections (defaults.yaml).
+  Its result replaces the failed point when the runs are ranked together
+  (`sectiondesign cfd ... --replace`, later files win). The other points of
+  that run keep max_co 10.
+report:
+  fin_span: 0.36
+  induced_drag: true
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+  solver: transient
+  flow_times: 20
+  average_times: 8
+  max_co: 5
+  start_from: [custom-section-screen/20261018-043724]
+cases:
+  - {foil: naca0007, speed: 1.0, aoa: 3}

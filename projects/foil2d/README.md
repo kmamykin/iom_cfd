@@ -43,8 +43,28 @@ far field, wake cut behind a sharp trailing edge.
 ## Parameters
 
 See [defaults.yaml](defaults.yaml); the main ones are `foil`
-(`naca0008`, `file:<name>.dat` or a stepped section such as `stair1:naca0009`), `chord`, `aoa`, `speed` or `Re`,
+(`naca0008`, `naca0007-74` (modified 4-digit), `file:<name>.dat` or a stepped section such as `stair1:naca0009`), `chord`, `aoa`, `speed` or `Re`,
 `turbulence`, `Tu`, `mesh`.
+
+The modified 4-digit `naca00TT-IM` separates what the plain 4-digit ties to
+thickness: I is the nose-radius index (6 = the plain section's radius,
+1.1019 t², which scales with I²; 9 = three times it) and M the position of
+maximum thickness in tenths (`naca0007-45` is the 16-series shape).
+Symmetric only.
+
+## Section design (XFOIL)
+
+`python -m iomcfd.sectiondesign` screens and optimises sections with XFOIL
+before they get CFD time: `screen` ranks sections by race time against a
+baseline (methodology.md, `iomcfd.racetime`), `calibrate` checks XFOIL's
+ranking against finished CFD runs, `optimise` evolves a CST section at the
+baseline's bending stiffness, `export` writes sections to
+`geometry/foils/` for a study (`file:<name>.dat`), and `figure` draws a
+section against others (true scale, nose and tail close-ups, thickness and
+stiffness), e.g. for `findings/figures/`. XFOIL is not part of the
+image: build it with `tools/build-xfoil.sh`. Use 0.5° angle steps; how far
+XFOIL can be trusted, and what it misses (the leading-edge bubble on sharp
+noses), is in [findings/custom-section.md](findings/custom-section.md).
 
 ## Outputs (per case, in results.csv)
 
@@ -220,7 +240,16 @@ convergence and steady vs transient for stepped sections; run 20261013-190301:
 11 cases, run 2: the two transient cases again, from a steady start),
 `stepped-vs-naca` (stair1 steps at x/c 0.35 and 0.5, 15/30/50 % deep, and
 stair5 and stair10, cut from NACA 0009, against plain 0009 and 0007;
-0.5-1.5 m/s: 150 cases).
+0.5-1.5 m/s: 150 cases), `custom-section-screen` (published low-Reynolds
+sections scaled to 7 %, a modified 4-digit and a 6-series section against
+NACA 0007 at 100 mm, 0-6° with 3° and 5°: the CFD screen of
+[findings/custom-section.md](findings/custom-section.md)),
+`custom-section-optima` (the two XFOIL-optimised CST sections, same
+settings), `custom-section-transient` (HT35 at 7.25 % and NACA 0007,
+time-accurate at 2-5°), `custom-section-tu` (the same two, steady, at Tu 1
+and 2 %), `custom-section-transient-opt2` and `custom-section-tu-opt2`
+(both again for cst-opt2), `custom-section-transient-rerun` (failed
+time-accurate cases again, at max_co 5).
 
 What the runs showed, and the assumptions behind them, is logged per study
 in [findings/](findings/), e.g.

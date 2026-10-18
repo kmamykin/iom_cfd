@@ -1,0 +1,67 @@
+study: custom-section-transient
+project: foil2d
+description: >
+  Time-accurate check of the custom-section CFD screen (findings:
+  projects/foil2d/findings/custom-section.md). In the steady screen (run
+  20261018-043724) HT35 scaled to 7.25 % (NACA 0007/100's bending
+  stiffness) beat NACA 0007/100 by 0.43-0.69 % of race time at every speed,
+  but most of its points at 2-5 deg are flagged unsteady or hit the
+  iteration limit, and the steady 4 deg points of thin sections were 5-15 %
+  off in drag in transient-check. This runs both sections at the angles the
+  three loads need at 100 mm (2-5 deg) and 0.75, 1 and 1.5 m/s, with the
+  settings of transient-check run 20261017-000816 (20 flow-throughs,
+  averaged over 12-20, max_co 10, Tu 0.1 %, medium mesh). Each case starts
+  from its steady screen solution (start_from); HT35 at 4 deg and 1 m/s
+  diverged in the screen, so it starts from 2000 steady iterations instead.
+  NACA 0007 is rerun at all 12 points rather than reusing transient-check's,
+  so both sections share settings and image; the 4 points transient-check
+  has (1 m/s at 2 and 4 deg, 0.75 and 1.5 m/s at 4 deg) check the
+  repeatability. 0 and 6 deg stay steady (the 0 deg drag oscillates under
+  1 %; 6 deg was steady flow in transient-check). 1.5 m/s cases took up to
+  16 h on one core in transient-check: --max-hours 24.
+report:
+  fin_span: 0.36
+  induced_drag: true
+  compare_at: {foil: naca0007, chord: 0.1, aoa: [2, 4, 6]}
+highlights:
+  - name: working-load
+    why: >
+      The working load needs about 3.5-4 deg at 100 mm. In the steady screen HT35 separates later at the
+      leading edge (x/c 0.044 against 0.032 at 4 deg, 1 m/s) and has 6 % less drag; does the shedding,
+      time-averaged, keep that?
+    where: {speed: 1.0, aoa: [3, 4], foil: [naca0007, "file:ht35-t0725.dat"]}
+    compare: foil
+    views: [separation, transition]
+  - name: leading-edge-bubble
+    why: >
+      0007/100 settled into a leading-edge bubble with 21-26 % more drag at 4 deg and 1.5 m/s in
+      transient-check run 20261017-000816. Does it again, and does HT35, with its crest further forward?
+    where: {speed: 1.5, aoa: [3, 4, 5], foil: [naca0007, "file:ht35-t0725.dat"]}
+    compare: foil
+    views: [separation, transition]
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+  solver: transient
+  flow_times: 20
+  average_times: 8
+  start_from: [custom-section-screen/20261018-043724]
+sweep:
+  foil: [naca0007]
+  speed: [0.75, 1.0, 1.5]
+  aoa: [2, 3, 4, 5]
+cases:
+  - {foil: "file:ht35-t0725.dat", speed: 0.75, aoa: 2}
+  - {foil: "file:ht35-t0725.dat", speed: 0.75, aoa: 3}
+  - {foil: "file:ht35-t0725.dat", speed: 0.75, aoa: 4}
+  - {foil: "file:ht35-t0725.dat", speed: 0.75, aoa: 5}
+  - {foil: "file:ht35-t0725.dat", speed: 1.0, aoa: 2}
+  - {foil: "file:ht35-t0725.dat", speed: 1.0, aoa: 3}
+  - {foil: "file:ht35-t0725.dat", speed: 1.0, aoa: 4, start_from: []}   # diverged in the steady screen
+  - {foil: "file:ht35-t0725.dat", speed: 1.0, aoa: 5}
+  - {foil: "file:ht35-t0725.dat", speed: 1.5, aoa: 2}
+  - {foil: "file:ht35-t0725.dat", speed: 1.5, aoa: 3}
+  - {foil: "file:ht35-t0725.dat", speed: 1.5, aoa: 4}
+  - {foil: "file:ht35-t0725.dat", speed: 1.5, aoa: 5}
