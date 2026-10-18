@@ -83,6 +83,31 @@ mapping is at the end.
 ORC's heeling force FHA is normal to the heeled mast plane. S_a is
 horizontal. For a force normal to the sail plane, S_a ≈ FHA cos φ.
 
+### Sections and single appendages (foil2d)
+
+Neither source covers 2D sections. These are the usual aerofoil symbols,
+marked *project*.
+
+* For one appendage, S_h and D_h mean its share of the hydrodynamic side
+  force and drag. Examples are the fin in foil2d's ranking, or one part in
+  appendage3d.
+* The fin's drag has no residuary or wave-added part in this model, so for
+  the fin D_h = D_v + D_i.
+
+| symbol | meaning | source |
+|---|---|---|
+| α | section angle of attack (`aoa`) | project |
+| c, b | chord; span of the fin below the hull | project |
+| q | dynamic pressure ½ρV_b² | project |
+| Re | chord Reynolds number V_b c / ν | project |
+| C_l, C_d, C_m | section lift, drag and pitching-moment coefficients, per unit span on q c (`Cl`, `Cd`, `Cm`) | project |
+| D_f, D_p | skin-friction and pressure drag of a section. Together they are its profile drag, D_v = D_f + D_p (`Cd_friction`, `Cd_pressure`) | project |
+| e | span efficiency of the lifting-line induced drag (0.9 in foil2d) | project |
+
+* **α and leeway.** At equal span and side force, the induced part of the
+  angle, S_h / (2π e q b²), is the same for every fin. So a difference in α
+  is a difference in leeway: Δβ_Y = Δα.
+
 ## Balance equations
 
 A steady state (Parolini eq. 2, written as magnitudes) is:
@@ -118,6 +143,11 @@ not yet tested. Check the signs on first use.
 | Z_CE | sails `z_ce` | equal |
 | L_a, D_a | sails `lift_N`, `drag_N` | equal |
 | C_D, C_S (hydrodynamic) | appendage3d `Cd`, `Cs` (on the fin's lateral area) | coefficient forms of D_h and S_h for the appendages |
+| S_h (fin) | foil2d report `side_force` (`report/selection.csv`, with `report.fin_span`) | S_h = C_l q c b |
+| D_v, D_i, D_h (fin) | foil2d report `drag_section`, `drag_induced`, `drag` | D_v = C_d q c b; D_i = S_h² / (2π q e b²) (lifting line, hull as a reflection plane); D_h = D_v + D_i |
+| T_eff (fin) | foil2d `report.fin_span` b | the same induced drag in ORC's form: T_eff = b √(2e), about 0.48 m for b = 0.36 m and e = 0.9 |
+| V_TW, β_TW | fullboat `tws`, `twa` | equal. fullboat turns the boat by the leeway, not the flow, and sets the wind relative to the flow. So `twa` is measured from the course |
+| V_AW, β_AW | fullboat outputs `aws`, `awa_deg` | equal (from the course) |
 
 ## Sources
 

@@ -1,8 +1,10 @@
 # appendage3d: keel fin, bulb and rudder
 
-Steady 3D RANS of the appendages alone: drag, side force, heave force and
-moments for a given boat speed, leeway, heel and rudder angle, with a
-per-component breakdown (fin, bulb, rudder).
+Steady 3D RANS of the appendages alone: drag D_h, side force S_h, vertical
+force F_z,h and the roll and yaw moments M_h,dyn and N_h, for a given boat
+speed V_b, leeway β_Y, heel φ and rudder angle δ_R, with a per-component
+breakdown (fin, bulb, rudder). Symbols:
+[docs/nomenclature.md](../../docs/nomenclature.md).
 
 **Status: runs end to end on a coarse mesh; not validated.**
 
@@ -17,7 +19,8 @@ per-component breakdown (fin, bulb, rudder).
   validation (about +25 % at small angles). Use foil2d for section choice,
   and this project for 3D effects (tip vortex, induced drag, fin-bulb
   junction, rudder in the keel's downwash).
-* Leeway rotates the inflow; heel rotates the geometry about the fin root.
+* Leeway β_Y rotates the inflow, so the forces come out along and across
+  the course; heel φ rotates the geometry about the fin root.
 
 ## Geometry
 
@@ -30,11 +33,17 @@ per-component breakdown (fin, bulb, rudder).
 
 ## Outputs
 
-`drag_N`, `side_N` (+ to port), `vertical_N`, `drag_friction_N`,
-`drag_pressure_N`, `side_drag_ratio`, `roll_moment_Nm`, `yaw_moment_Nm`
-(about the bow at the waterline), `x_clr` (centre of lateral resistance, x),
-`Cd`/`Cs` on the fin's lateral area, per-component `drag_<part>_N` and
-`side_<part>_N`, y+.
+* `drag_N` (D_h) and `side_N` (S_h, + to port, which is windward on port
+  tack), both along and across the course;
+* `vertical_N` (F_z,h);
+* `drag_friction_N` and `drag_pressure_N`, the two parts of D_h;
+* `side_drag_ratio`;
+* `roll_moment_Nm` (M_h,dyn, + heels to starboard) and `yaw_moment_Nm`
+  (N_h), about the bow at the waterline;
+* `x_clr`, the x position of the centre of lateral resistance (ORC's z_CLR
+  is its depth);
+* `Cd`/`Cs` (C_D, C_S) on the fin's lateral area;
+* per-component `drag_<part>_N` and `side_<part>_N`, and y+.
 
 ## Mesh levels
 

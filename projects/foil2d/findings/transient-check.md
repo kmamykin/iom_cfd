@@ -9,6 +9,10 @@ This study checks, with the transient solver (pimpleFoam), the steady points
 the fin-profile-selection ranking rests on
 ([fin-profile-selection.md](fin-profile-selection.md)).
 
+Symbols follow [docs/nomenclature.md](../../../docs/nomenclature.md); on
+2026-10-18 the notation of earlier entries was changed to it (course at
+β_TW, resistance slope V_b dD_h/dV_b). Only the notation changed.
+
 ## Run 20261017-000816 (2026-10-17, git 1ce5be2, GCP, 16 cases, 15 finished)
 
 **Setup.** The top four of the 1 m/s ranking (0007/100, 0007/90, 0008/100,
@@ -194,7 +198,7 @@ Tu 0.1 %). The time-accurate means replace the steady points:
 * run 20261014-040114's 6° points of 0009/80 and 0009/100, over 12-15.
 
 Loads are the steady 0009/80 forces at 2, 4 and 6° at each speed.
-V dR/dV = 0.81, 1.354 and 2.71 N at 0.75, 1 and 1.5 m/s.
+V_b dD_h/dV_b = 0.81, 1.354 and 2.71 N at 0.75, 1 and 1.5 m/s.
 * At 1 m/s, all seven are ranked.
 * At 0.75 and 1.5 m/s, the top four are ranked among themselves: only they
   have time-accurate points there. Their 2° and 6° points at those speeds
@@ -368,8 +372,8 @@ fin-profile-selection runs 20261013-045759 and 20261013-200643.
 **How the ranking was computed.** This is the race-time metric of
 fin-profile-selection analysis 2026-10-13 (2):
 * at 1 m/s, the steady 0009/80 forces at 2, 4 and 6°;
-* leeway at a 42° track, the estimated resistance slope (V dR/dV =
-  1.354 N) or double it;
+* leeway with the course at β_TW = 42°, the estimated resistance slope
+  (V_b dD_h/dV_b = 1.354 N) or double it;
 * equal time downwind at 0°.
 
 The steady 4° points of all seven sections were replaced by the means over

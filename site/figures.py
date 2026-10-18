@@ -110,12 +110,12 @@ def course(out: Path) -> Path:
     a.plot(*zip((0, 0), bearing(39, 1.05)), color=MUTED, lw=1.2, ls=(0, (6, 2)))
     a.text(*bearing(32, 0.95), "heading 39°", rotation=51, ha="center", va="center", fontsize=fs, color=MUTED)
     a.add_patch(FancyArrowPatch((0, 0), bearing(42, 1.12), arrowstyle="-|>", mutation_scale=16, color=INK, lw=2))
-    a.text(*bearing(49, 0.92), "track 42°", rotation=48, ha="center", va="center", fontsize=fs)
+    a.text(*bearing(49, 0.92), "course $\\beta_{TW}$ 42°", rotation=48, ha="center", va="center", fontsize=fs)
     a.add_patch(Arc((0, 0), 0.5, 0.5, theta1=90 - 39, theta2=90, color=MUTED, lw=1))
     a.text(*bearing(19, 0.34), "39°", ha="center", va="center", fontsize=fs, color=MUTED)
     w = np.array([(0, 0), bearing(39, 0.8), bearing(42, 0.8)])
     a.add_patch(Polygon(w, closed=True, color=ACCENT, alpha=0.25, lw=0))
-    a.annotate("leeway 3°", xy=bearing(40.5, 0.72), xytext=(0.62, 0.3), fontsize=fs + 1, color=ACCENT,
+    a.annotate("leeway $\\beta_Y$ 3°", xy=bearing(40.5, 0.72), xytext=(0.62, 0.3), fontsize=fs + 1, color=ACCENT,
                weight="bold", arrowprops=dict(arrowstyle="-", color=ACCENT, lw=0.9))
     c, h = bearing(42, 0.55), bearing(39)
     n = np.array([h[1], -h[0]])
@@ -334,7 +334,7 @@ def force_history(data: Path, out: Path) -> Path:
             ax.plot(tt, final * wagner(tt), color=MUTED, lw=1.1, ls="-.", label="Wagner build-up (thin-airfoil)")
             ax.axvline(15, color=MUTED, lw=0.8)
             ax.text(15.3, 0.512, "continued\nfrom here", fontsize=8, color=MUTED, va="top")
-        ax.set(title=title, xlabel="chord flow-throughs (c / V)", xlim=(0, 30), ylim=(0.2, 0.52))
+        ax.set(title=title, xlabel="chord flow-throughs (c / $V_b$)", xlim=(0, 30), ylim=(0.2, 0.52))
         ax.legend(loc="lower right", fontsize=7.8, ncols=2 if from_rest else 1)
     axes[0].set_ylabel("C$_l$ at 4°")
     fig.tight_layout()
@@ -395,9 +395,9 @@ def equal_force(data: Path, out: Path) -> Path:
         a.text(8.3, F + 0.12, f"{name} load {F:.2f} N", fontsize=7.5, color=MUTED, ha="right")
         b.text(F - 0.1, 0.97, f"{name}", fontsize=7.5, color=MUTED, rotation=90, ha="right", va="top",
                transform=b.get_xaxis_transform())
-    a.set(title="1. The angle each fin needs", xlabel="angle of attack α [°]", ylabel="side force F [N]",
+    a.set(title="1. The angle each fin needs", xlabel="angle of attack α [°]", ylabel="side force $S_h$ [N]",
           xlim=(-0.2, 8.4), ylim=(-0.2, 10.5))
-    b.set(title="2. Its drag at that side force", xlabel="side force F [N]", ylabel="fin drag D [N]",
+    b.set(title="2. Its drag at that side force", xlabel="side force $S_h$ [N]", ylabel="fin drag $D_h$ [N]",
           xlim=(-0.2, 9.2), ylim=(0.15, 0.62))
     a.legend(loc="upper left", title="1 m/s, Tu 0.1 %", title_fontsize=8)
     b.text(0.02, 0.8, "◆ time-accurate points\n- - steady curve they replace", transform=b.transAxes, fontsize=8,

@@ -36,8 +36,13 @@
 - Templates read `system/caseParameters` via `#include` and `$name`. Only
   derived camelCase names become entries (study inputs are comments) to avoid
   clashing with OpenFOAM keywords; tests/test_projects.py enforces it.
-- Boat frame: x aft, y port, z up, waterline z=0; + heel = to starboard,
-  + leeway = bow to port (port tack).
+- Boat frame: x aft, y port, z up, waterline z=0; + heel φ = to starboard,
+  + leeway β_Y = bow to port (port tack).
+- Symbols for forces, moments and angles in docs, findings and the site:
+  docs/nomenclature.md (after Parolini & Quarteroni and the ORC VPP): D_h,
+  S_h, T_a, S_a, M_a, D_h = D_v + D_i for a fin, β_TW/β_AW from the course,
+  V_b. Parameter and output names (`leeway`, `drag_N`, `awa`) stay as they
+  are; sails `awa` is from the centreline, fullboat `twa` from the course.
 - Never edit files under runs/ to fix things; fix the template or project.py.
 - foil2d stepped (Kline-Fogleman) sections: `foil: stair1:naca0009:x=0.5,d=0.3`
   (the number is steps per side: stair1 = the hobby KFm4; stair5/stair10 are

@@ -56,6 +56,10 @@ Edit only the affected sections of the study's page:
   to "Revision history": date, what changed, which runs.
 
 Plain words. Readers are sailors and engineers, not the people who ran it.
+Symbols follow docs/nomenclature.md: side force S_h, drag D_h = D_v + D_i,
+leeway β_Y, heel φ, true wind angle β_TW (from the course), boat speed V_b.
+On the page they are written with Quarto subscripts (`S~h~`, `β~Y~`) or in
+TeX, and in figure labels as mathtext (`$S_h$`).
 
 ## 5. Build and check
 

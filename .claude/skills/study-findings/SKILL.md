@@ -112,6 +112,9 @@ and why, given what this run showed.
   sources as unverified.
 * State uncertainty plainly: "10 of 17 comparisons agree" is better than
   "robust".
+* Use the symbols in docs/nomenclature.md for forces, moments and angles:
+  S_h, D_h = D_v + D_i, leeway β_Y, heel φ, β_TW and β_AW (from the course),
+  V_b. Output and parameter names (`Cl`, `aoa`, `drag_N`) stay as they are.
 * If the analysis contradicts something said earlier (in the log, the
   README or the study description), say so explicitly in the new entry.
 * Keep the study YAML and README as they are unless the user asks. Propose

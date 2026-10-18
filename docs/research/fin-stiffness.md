@@ -8,15 +8,16 @@ differences between the leading sections (under 1 % of race time;
 Literature numbers carry their source. Numbers worked out here say how they
 were computed and are labelled **estimate**. The class-rule numbers, the
 onemetre.net quotes and the SAILSetc product page were read for this note.
-Forum posts are opinion and are marked as such.
+Forum posts are opinion and are marked as such. Symbols (heel φ, side force
+S_h, righting moment RM_φ) follow [nomenclature.md](../nomenclature.md).
 
 ## Short answer
 
 * **At IOM speeds the bulb's weight loads the fin far more than the water
   does.**
-  * At 30° heel, the part of a 2.4 kg bulb's weight acting across the fin is
-    about 12 N, at the tip.
-  * The fin's own side force is about 6-7 N (this project: 6.7 N at working
+  * At a heel φ of 30°, the part of a 2.4 kg bulb's weight acting across
+    the fin is about 12 N, at the tip.
+  * The fin's own side force S_h is about 6-7 N (this project: 6.7 N at working
     load and 1 m/s).
   * Stiffness is therefore about holding the bulb, not about the water
     bending the fin.
@@ -169,7 +170,7 @@ thick, with a 90 mm chord at the hull tapering towards the bulb, carbon over
 a core, about 115 g. Its section isn't named.
 
 **Righting moment lost to sag.**
-* ΔRM ≈ m g δ_h sin φ cos φ, where δ_h is the tip drop in the horizontal
+* ΔRM_φ ≈ m g δ_h sin φ cos φ, where δ_h is the tip drop in the horizontal
   bench test.
 * For the forum's 30 mm, at 40° heel: about 0.35 N·m. That is roughly 6-7 %
   of the boat's righting moment, using Gilbert's 117-158 mm righting arm at

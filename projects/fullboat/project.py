@@ -41,8 +41,9 @@ class FullBoat(Project):
         air = physics.air(p["temperature"])
         V, W = float(p["speed"]), float(p["tws"])
         twa = math.radians(float(p["twa"]))
-        # boat frame: water flows aft (+x); true wind from the port bow blows
-        # towards +x/-y, and the apparent wind adds the boat's own motion.
+        # course frame (surfaces() turns the boat by the leeway): water flows
+        # aft (+x); true wind from port, twa off the course, blows towards
+        # +x/-y, and the apparent wind adds the boat's own motion.
         u_air = [W * math.cos(twa) + V, -W * math.sin(twa), 0.0]
         aws = math.hypot(u_air[0], u_air[1])
         tw = physics.turbulence_inflow(V, water.nu, float(p["Tu"]), float(p["viscosity_ratio"]))

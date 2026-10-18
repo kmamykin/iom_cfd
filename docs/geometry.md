@@ -8,9 +8,9 @@
 | y | to port | centreline y = 0 |
 | z | up | calm waterline z = 0 |
 
-* **Heel** + = mast to starboard (port tack upwind), rotation about the x axis
+* **Heel φ** + = mast to starboard (port tack upwind), rotation about the x axis
   through midship at the waterline.
-* **Leeway** + = bow to port, i.e. the boat slides to starboard and the keel's
+* **Leeway β_Y** + = bow to port, i.e. the boat slides to starboard and the keel's
   side force points to port (port tack upwind). appendage3d rotates the inflow;
   hull and fullboat rotate the geometry.
 * **Trim** + = bow down; **sinkage** + = down.
