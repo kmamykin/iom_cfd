@@ -68,6 +68,22 @@ def test_falls_back_to_a_steady_run(tmp_path, project):
     assert json.loads((case / "start_from.json").read_text())["continued"] is False
 
 
+@pytest.mark.parametrize("solver, time", [("transient", "1.2"), ("steady", "2016")])
+def test_start_from_replaces_the_steady_start(tmp_path, project, solver, time):
+    """A transient case's steady start (start_iter) is dropped when start_from
+    gives the initial fields: the time-accurate setup is the active one."""
+    _source(project, tmp_path / "bucket", "tc/r1", "src", time=time, solver=solver)
+    case = tmp_path / "new"
+    project.prepare_case(case, _params(project, flow_times=30, start_iter=2000, start_from=["tc/r1"]))
+    assert not list((case / "system").glob("*.transient"))
+    cd = (case / "system" / "controlDict").read_text()
+    assert re.search(r"^application\s+pimpleFoam;", cd, re.M) and "timeStepGuard" in cd
+    assert "PIMPLE" in (case / "system" / "fvSolution").read_text()
+    if solver == "transient":  # writeInterval set on the transient controlDict, not a steady one
+        m = re.search(r"^writeInterval\s+([0-9.eE+-]+);", cd, re.M)
+        assert float(m.group(1)) == pytest.approx(1.2)
+
+
 def test_no_matching_case_is_an_error(tmp_path, project):
     _source(project, tmp_path / "bucket", "tc/r1", "same", chord=0.09)
     with pytest.raises(ValueError, match="no finished case"):

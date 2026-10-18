@@ -3,7 +3,8 @@
 Pipeline per case:
   derive()  fluid properties, Re, inflow vector, turbulence inflow, mesh sizes
   render()  structured C-grid -> constant/polyMesh, system/caseParameters
-  Allrun    checkMesh + simpleFoam (stops on converged Cl/Cd averages)
+  Allrun    checkMesh + simpleFoam (stops on converged Cl/Cd averages);
+            solver: transient restarts its steady start with pimpleFoam
   extract() Cl, Cd (pressure/friction split), Cm, y+, Cp/Cf, separation points
 """
 
@@ -22,7 +23,7 @@ import numpy as np
 from iomcfd import config, physics
 from iomcfd.foam import find_dat, latest_time, read_dat, set_entry
 from iomcfd.forces import read_forces, settled
-from iomcfd.geometry import cmesh, foils
+from iomcfd.geometry import cmesh, foils, stepped
 from iomcfd.project import Project
 
 # Mesh levels: each level doubles the cell count (factor sqrt(2) per direction),
@@ -43,6 +44,14 @@ BLOCK_FLOW_TIMES = 3  # block length for the block means in report/transient.md
 
 # 'medium' (factor 1) resolution. ~90k cells.
 BASE_MESH = dict(n_surface=256, ds_le=1.0e-3, ds_te=2.0e-3, n_wake=96, n_normal=128)
+# stepped sections, 'medium': wall spacing around each step as fractions of
+# its height (cmesh.CMeshSpec.step_*); a stair1 step adds ~120 points per side
+STEP_MESH = dict(step_corner=0.02, step_foot=0.1, step_recirc=0.1, step_growth=0.1)
+STEP_FIRST_CELL = 0.05  # first cell at most this fraction of the smallest step height ('medium')
+
+# solver: transient
+TRANSIENT_FILES = ("controlDict", "fvSchemes", "fvSolution")  # system/ files that differ from steady
+MIN_DT_FLOW_TIMES = 1e-6  # abort below this time step, in c/U (at Co 10: stair1 2e-3, NACA 0009 8e-3)
 
 
 class Foil2D(Project):
@@ -81,6 +90,15 @@ class Foil2D(Project):
             farfield=float(p["farfield"]),
             wake_length=float(p["farfield"]),
         )
+        extra = {}
+        if stepped.is_stepped(p["foil"]):
+            # wall spacings around the steps refine with the level too, and the
+            # first cell stays well below the smallest step (else the step
+            # sits inside the first cell at low speed: stair10's are 0.1 mm)
+            mesh.update({k: v / f for k, v in STEP_MESH.items()})
+            h_step = min(s.height for s in foils.load(str(p["foil"]), [config.geometry_dir() / "foils"]).steps) * c
+            mesh["first_cell"] = min(h0, STEP_FIRST_CELL * h_step / f)
+            extra["stepHeight"] = h_step
         return {
             # physics
             "rhoInf": fl.rho,
@@ -109,6 +127,7 @@ class Foil2D(Project):
             "relaxTransition": float(p["relax_transition"]),
             # mesh (not used by OpenFOAM, recorded for reference)
             "mesh_spec": mesh,
+            **extra,
         }
 
     # ------------------------------------------------------------------
@@ -130,16 +149,35 @@ class Foil2D(Project):
             raise ValueError("solver must be 'steady' or 'transient'")
         if p.get("start_from"):
             self._start_from(case_dir, p, d)
+        if foil.steps:
+            # the cells fanning round a step reach 60-78 deg non-orthogonality
+            # (smooth sections ~20 deg): one corrector per pressure solve
+            # (also in a transient case's fvSolution.transient)
+            for fs in sorted((case_dir / "system").glob("fvSolution*")):
+                set_entry(fs, "nNonOrthogonalCorrectors", 1)
         self.write_parameters(case_dir, {k: v for k, v in d.items() if k != "mesh_spec"}, inputs=p)
 
     def _make_transient(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
         """Switch the copied (steady) case to pimpleFoam with an adaptive time
-        step. The template itself stays steady."""
+        step. The template itself stays steady.
+
+        With start_iter > 0 the steady setup stays in place for that many
+        SIMPLE iterations and the time-accurate one goes to system/*.transient;
+        Allrun then restarts the steady solution as time 0 of the transient
+        run (unless start_from gives the initial fields). Started from the
+        uniform inflow instead, NACA 0009 drifted for more than 15 c/U and a
+        stair1 step diverged (stepped-checks run 1).
+        """
         t_ref = float(p["chord"]) / d["magUInf"]  # one chord flow-through
         end = float(p["flow_times"]) * t_ref
         d["flowTime"] = t_ref
         d["simEndTime"] = end
-        cd = case_dir / "system" / "controlDict"
+        sysd = case_dir / "system"
+        n_start = int(p.get("start_iter") or 0)
+        if n_start > 0:  # keep the steady setup for the start
+            for name in TRANSIENT_FILES:
+                shutil.copy(sysd / name, sysd / f"{name}.steady")
+        cd = sysd / "controlDict"
         set_entry(cd, "application", "pimpleFoam")
         set_entry(cd, "endTime", end)
         set_entry(cd, "deltaT", 1e-4 * t_ref)
@@ -156,9 +194,20 @@ class Foil2D(Project):
             "writeControl    adjustable;",
             1,
         )
+        # a diverged run's time step collapses towards 0 (stair1 crawled for
+        # 4 h at dt ~1e-67 s): stop it with an error instead
+        text = text.replace("functions\n{\n", (
+            "functions\n{\n"
+            "    timeStepGuard\n    {\n"
+            "        type            runTimeControl;\n"
+            "        libs            (utilityFunctionObjects);\n"
+            "        satisfiedAction abort;\n"
+            "        conditions\n        {\n"
+            f"            minTimeStep {{ type minTimeStep; minValue {MIN_DT_FLOW_TIMES * t_ref:.6g}; }}\n"
+            "        }\n    }\n\n"), 1)
         cd.write_text(text)
-        set_entry(case_dir / "system" / "fvSchemes", "default", "backward")  # first 'default' = ddtSchemes
-        fs = case_dir / "system" / "fvSolution"
+        set_entry(sysd / "fvSchemes", "default", "backward")  # first 'default' = ddtSchemes
+        fs = sysd / "fvSolution"
         text = fs.read_text()
         # looser linear-solver tolerances: each time step is converged by the
         # PIMPLE outer loop, not by driving every solve to 1e-10
@@ -178,6 +227,12 @@ class Foil2D(Project):
             "relaxationFactors\n{\n    equations\n    {\n        \".*\"          0.9;\n        \".*Final\"     1;\n    }\n}\n"
         )
         fs.write_text(text)
+        if n_start > 0:
+            for name in TRANSIENT_FILES:
+                (sysd / name).rename(sysd / f"{name}.transient")
+                (sysd / f"{name}.steady").rename(sysd / name)
+            set_entry(sysd / "controlDict", "endTime", n_start)
+            set_entry(sysd / "controlDict", "writeInterval", n_start)
 
     @staticmethod
     def find_start_case(runs: list[str] | str, p: dict[str, Any]) -> tuple[Path, str, dict[str, Any]] | None:
@@ -233,6 +288,12 @@ class Foil2D(Project):
         n_src = json.loads((src / "params.json").read_text()).get("derived", {}).get("n_cells")
         if n_src is not None and n_src != d["n_cells"]:
             raise ValueError(f"start_from {src}: its mesh has {n_src} cells, this case's {d['n_cells']}")
+        # the source replaces a transient case's steady start (start_iter): a
+        # transient source is continued, a steady one already is a steady solution
+        sysd = case_dir / "system"
+        for name in TRANSIENT_FILES:
+            if (sysd / f"{name}.transient").is_file():
+                (sysd / f"{name}.transient").replace(sysd / name)
         continued = sp.get("solver") == p["solver"] == "transient"
         if continued:
             if float(t) >= d["simEndTime"] * (1 - 1e-9):
@@ -437,34 +498,57 @@ class Foil2D(Project):
         U = d["magUInf"]
         x, y = P[:, 0] / c, P[:, 1] / c
         cp = P[:, 3] / (0.5 * U**2)
+        # Each side's faces in order LE -> TE: by x on a smooth section; on a
+        # stepped one by position along the contour (a step face has one x).
+        foil = foils.load(str(p["foil"]), [config.geometry_dir() / "foils"]) if stepped.is_stepped(p["foil"]) else None
+        if foil is None:
+            upper = _upper_mask(x, y)
+            sides = {"upper": np.where(upper)[0][np.argsort(x[upper])], "lower": np.where(~upper)[0][np.argsort(x[~upper])]}
+        else:
+            s = _contour_param(foil, x, y)
+            upper = s < foil.s_le
+            sides = {"upper": np.where(upper)[0][np.argsort(-s[upper])], "lower": np.where(~upper)[0][np.argsort(s[~upper])]}
         # Skin friction along the local surface tangent (LE -> TE on each side).
         # OpenFOAM's wallShearStress points opposite to the near-wall flow, so
         # Cf = -tau.t/q is > 0 where the flow is attached and < 0 where reversed.
-        upper = _upper_mask(x, y)
         q = 0.5 * U**2
         cf = np.zeros_like(x)
-        for m in (upper, ~upper):
-            idx = np.where(m)[0][np.argsort(x[m])]
+        tx = np.ones_like(x)
+        for idx in sides.values():
             pts = P[idx, :2]
             t = np.gradient(pts, axis=0)
             t /= np.linalg.norm(t, axis=1, keepdims=True)
             cf[idx] = -(T[idx, 3] * t[:, 0] + T[idx, 4] * t[:, 1]) / q
-        order = np.lexsort((x, ~upper))
+            tx[idx] = t[:, 0]
+        order = np.lexsort((x, ~upper)) if foil is None else np.concatenate([sides["upper"], sides["lower"]])
         rows = [(bool(upper[i]), x[i], y[i], cp[i], cf[i]) for i in order]
         with open(case_dir / "surface.csv", "w", newline="") as f:
             w = csv.writer(f)
             w.writerow(["upper", "x_c", "y_c", "Cp", "Cf"])
             w.writerows(rows)
         res: dict[str, Any] = {}
-        for side, m in (("upper", upper), ("lower", ~upper)):
-            k = np.argsort(x[m])
-            xs, cfs = x[m][k], cf[m][k]
+        for side, idx in sides.items():
+            if foil is not None:
+                idx = idx[tx[idx] > 0.5]  # leave out step faces (x is not monotonic there)
+            xs, cfs = x[idx], cf[idx]
             # laminar separation, reattachment, and a later (trailing-edge) separation
             sep = _first_crossing(xs, cfs, falling=True, start=0.01)
             rea = _first_crossing(xs, cfs, falling=False, start=sep) if sep is not None else None
             res[f"x_sep_{side}"] = sep
             res[f"x_reattach_{side}"] = rea
             res[f"x_te_sep_{side}"] = _first_crossing(xs, cfs, falling=True, start=max(rea or 0.0, 0.5))
+            if foil is not None:
+                # behind the most forward step on this side: where the flow
+                # reattaches, in step heights from the step (0: no reversed
+                # flow within 3 heights behind it; None: never reattaches)
+                st = min((st for st in foil.steps if st.side == side), key=lambda st: st.x, default=None)
+                if st is not None:
+                    # first reversed flow on the surface behind the face (past a
+                    # small corner eddy at the foot), then where it turns forward
+                    rev = np.where((xs > st.x) & (xs < st.x + 3 * st.height) & (cfs < 0))[0]
+                    rs = _first_crossing(xs, cfs, falling=False, start=xs[rev[0]]) if len(rev) else None
+                    res[f"step_reattach_{side}"] = (0.0 if not len(rev) else
+                                                    None if rs is None else (rs - st.x) / st.height)
         return res
 
     # ------------------------------------------------------------------
@@ -474,9 +558,10 @@ class Foil2D(Project):
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
+        files = self._sections(df, out_dir)
         df = df[df["status"].isin(["ok", "not_converged"])].copy()
         if df.empty:
-            return []
+            return files
         group_cols = [c for c in ("foil", "chord", "speed", "Re", "Tu", "turbulence", "mesh", "temperature", "fluid")
                       if c in df and df[c].nunique(dropna=False) > 1]
         groups = df.groupby(group_cols) if group_cols else [("all", df)]
@@ -511,7 +596,7 @@ class Foil2D(Project):
         polar = out_dir / "polar.png"
         fig.savefig(polar, dpi=130)
         plt.close(fig)
-        files = [polar]
+        files.append(polar)
         files += self._selection(df, out_dir, options)
         gci = self._mesh_convergence(df, out_dir)
         if gci:
@@ -609,6 +694,23 @@ class Foil2D(Project):
             plt.close(fig)
             files.append(png)
         return files
+
+    @staticmethod
+    def _sections(df, out_dir: Path) -> list[Path]:  # pragma: no cover - plotting
+        """Studies with stepped sections: sections.png (every section of the
+        study at true scale) and a section_<spec>.png sheet per stepped one
+        (iomcfd.sectionplot). Geometry only, so drawn even if cases failed."""
+        if "foil" not in df or not any(stepped.is_stepped(s) for s in df["foil"].astype(str)):
+            return []
+        from iomcfd.sectionplot import study_sections
+
+        chord = float(df["chord"].min()) if "chord" in df else 0.08
+        try:
+            return study_sections(list(df["foil"].astype(str)), out_dir, chord, [config.geometry_dir() / "foils"],
+                                  title=Path(out_dir).parent.parent.name)
+        except (ValueError, FileNotFoundError) as e:  # e.g. a run made with a spec that no longer exists
+            print(f"sections figure skipped: {e}")
+            return []
 
     def _selection(self, df, out_dir: Path, options=None):
         """Section/chord selection: drag against side force.
@@ -960,21 +1062,51 @@ class Foil2D(Project):
         zm = 0.5 * float(m["span"])
         R = float(m["farfield"]) * c
         cut = dict(origin=(0.0, 0.0, zm), normal=(0.0, 0.0, 1.0), axes=(0, 1))
+        views = [
+            MeshView("whole domain: C-grid, wake cut to the outlet", center=(0.0, 0.0), width=3.4 * R, lw=0.15, **cut),
+            MeshView("foil", center=(0.55 * c, 0.0), width=1.45 * c, **cut),
+            MeshView("leading edge", center=(0.03 * c, 0.0), width=0.12 * c, **cut),
+            MeshView("trailing edge and start of the wake cut", center=(c, 0.0), width=0.12 * c, **cut),
+        ]
+        surface = f"{m['n_surface'] + 1} points per surface"
+        try:  # a run made with a spec that no longer exists keeps the standard views
+            foil = foils.load(str(p["foil"]), [config.geometry_dir() / "foils"]) if stepped.is_stepped(p["foil"]) else None
+        except ValueError:
+            foil = None
+        if foil is not None:
+            st = min((s for s in foil.steps if s.side == "upper"), key=lambda s: s.x)  # most forward upper step
+            h = st.height * c
+            y_lip = float(foil.point(np.array([st.s_lip[0]]))[0, 1]) * c
+            views += [
+                MeshView(f"upper step at x/c = {st.x:.2f}: lip, face and recirculation zone",
+                         center=(st.x * c + 3 * h, y_lip), width=10 * h, **cut),
+                MeshView("step: lip and foot corners", center=(st.x * c + 0.3 * h, y_lip - 0.5 * h), width=2 * h, lw=0.4, **cut),
+            ]
+            surface = f"surface points refined around {len(foil.steps) // 2} step(s) per side (height {h * 1000:.3f} mm)"
         return MeshSpec(
-            [
-                MeshView("whole domain: C-grid, wake cut to the outlet", center=(0.0, 0.0), width=3.4 * R, lw=0.15, **cut),
-                MeshView("foil", center=(0.55 * c, 0.0), width=1.45 * c, **cut),
-                MeshView("leading edge", center=(0.03 * c, 0.0), width=0.12 * c, **cut),
-                MeshView("trailing edge and start of the wake cut", center=(c, 0.0), width=0.12 * c, **cut),
-            ],
+            views,
             walls="foil",
-            notes=[f"structured C-grid: {m['n_surface'] + 1} points per surface, {m['n_normal']} wall-normal cells, "
+            notes=[f"structured C-grid: {surface}, {m['n_normal']} wall-normal cells, "
                    f"{m['n_wake']} wake cells, first cell {m['first_cell'] / c:.1e} c, far field {m['farfield']:.0f} c"],
         )
 
     def resources(self, p: dict[str, Any]) -> dict[str, Any]:
         f = MESH_LEVELS.get(p.get("mesh", "medium"), 1.0)
-        return {"cpus": int(p.get("np", 1)), "memory_gb": 2, "max_hours": 1 + 2 * f * f}
+        # stepped sections have more cells: stair1 ~1.3x, stair5 3x, stair10 5.5x
+        k = 1.0
+        preset = stepped.parse_spec(str(p["foil"]))[0] if stepped.is_stepped(p.get("foil", "")) else None
+        if preset:
+            k = {"stair5": 3.0, "stair10": 4.0}.get(preset, 2.0)
+        hours = 2 * f * f * k
+        if p.get("solver") == "transient":
+            # 15 c/U at Co 10 on the medium mesh took 1.3 h for NACA 0009 (4
+            # ranks); a stair1 step's cells cut the time step 3.6x and add
+            # cells (~5x). stair5/stair10 are guesses from their smallest cells.
+            # One rank is ~2.7x slower than 4 (transient-check's local probe).
+            kt = {"stair5": 20.0, "stair10": 60.0}.get(preset, 5.0) if preset else 1.0
+            ranks = max(1.0, 4 / max(int(p.get("np", 1)), 1)) ** 0.72
+            hours += 2 * f**3 * kt * float(p.get("flow_times", 15)) / 15 * 10 / float(p.get("max_co", 10)) * ranks
+        return {"cpus": int(p.get("np", 1)), "memory_gb": 2, "max_hours": 1 + hours}
 
 
 def _find_raw(d: Path, field: str) -> Path | None:
@@ -982,6 +1114,16 @@ def _find_raw(d: Path, field: str) -> Path | None:
         if cand.is_file():
             return cand
     return None
+
+
+def _contour_param(foil, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """Foil parameter (TE upper -> LE -> TE lower) of the contour point nearest
+    to each (x, y) (unit chord)."""
+    from scipy.spatial import cKDTree
+
+    s = np.unique(np.concatenate([np.linspace(0.0, foil.perimeter, 40001), foil.s_nodes]))
+    _, k = cKDTree(foil.point(s)).query(np.column_stack([x, y]))
+    return s[k]
 
 
 def _upper_mask(x: np.ndarray, y: np.ndarray) -> np.ndarray:

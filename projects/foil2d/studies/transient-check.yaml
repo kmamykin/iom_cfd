@@ -66,6 +66,7 @@ defaults:
   flow_times: 30
   average_times: 6
   start_from: []      # from rest
+  start_iter: 0       # no steady start either (the default is 2000 steady iterations)
 cases:
   - {foil: naca0007, chord: 0.10, aoa: 4, speed: 1.5}
   - {foil: naca0007, chord: 0.10, aoa: 4, speed: 1.25}

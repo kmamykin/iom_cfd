@@ -116,6 +116,35 @@ def test_gcp_job_writes_into_its_run():
     assert len(name) <= 63 and name.endswith("-20261012-045433")
 
 
+def test_gcp_task_hours_fit_the_longest_case():
+    """stepped-vs-naca starts with plain NACA 0009; its stair10 cases need far
+    longer, and every task of a job gets one limit."""
+    from iomcfd.cloud import gcp
+
+    project = load_project("foil2d")
+    study = Study.load(config.projects_dir() / "foil2d" / "studies" / "stepped-vs-naca.yaml")
+    cases = study.expand(project.defaults)
+    first = float(project.resources({**cases[0].params, "np": 1})["max_hours"])
+    hours = gcp.task_hours(project, cases, 1)
+    assert hours == pytest.approx(1 + 2 * 4.0)
+    assert hours > 2 * first
+
+
+def test_transient_hours():
+    """A transient case's limit covers its time steps: a stair1 step at maxCo 5
+    takes ~5x NACA 0009's steps per c/U, and twice as many at half the Co;
+    on one rank ~2.7x longer than on 4."""
+    project = load_project("foil2d")
+    p = {**project.defaults, "solver": "transient", "mesh": "medium", "np": 4}
+    naca = project.resources({**p, "foil": "naca0009"})["max_hours"]
+    stair1 = project.resources({**p, "foil": "stair1:naca0009:x=0.5,d=0.3", "max_co": 5})["max_hours"]
+    assert naca == pytest.approx(1 + 2 + 2)
+    assert stair1 == pytest.approx(1 + 2 * 2.0 + 2 * 5.0 * 2)
+    assert project.resources({**p, "foil": "naca0009", "solver": "steady"})["max_hours"] == pytest.approx(3)
+    one = project.resources({**p, "foil": "naca0009", "np": 1})["max_hours"]
+    assert one == pytest.approx(1 + 2 + 2 * 4**0.72) and one > 3.5 + 2  # transient-check's ~3.5 h estimate
+
+
 @pytest.mark.parametrize("path, kept", [
     ("study.yaml", True), ("run.json", True), ("report/summary.md", True), ("viz/index.html", True),
     ("aoa4/result.json", True), ("aoa4/params.json", True), ("aoa4/surface.csv", True), ("aoa4/viz/velocity.png", True),

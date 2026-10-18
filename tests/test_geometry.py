@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from iomcfd.geometry import appendages as ap
-from iomcfd.geometry import cmesh, foils, hulls, sails, stl
+from iomcfd.geometry import cmesh, foils, hulls, sails, stepped, stl
 from iomcfd.geometry.distributions import geometric, graded_section, vinokur
 
 
@@ -90,6 +90,130 @@ def test_cmesh_valid_and_orthogonal(code):
     assert np.allclose(P[NI - 1 - np.arange(nw + 1), 0], P[np.arange(nw + 1), 0])
     # first cell height on the wall
     assert np.min(np.hypot(*(P[nw:NI - nw, 1] - P[nw:NI - nw, 0]).T)) == pytest.approx(2e-5, rel=0.05)
+
+
+def test_cmesh_smooth_section_unchanged():
+    """Smooth sections are meshed exactly as before stepped sections were
+    added (values from the generator at git f2b7bc0): earlier runs stay
+    reproducible."""
+    spec = cmesh.CMeshSpec(chord=0.08, span=0.008, n_surface=96, n_wake=40, n_normal=64, first_cell=2e-5)
+    P, _ = cmesh.generate(foils.naca4("2412"), spec)
+    assert P.shape == (273, 65, 2)
+    assert float(P.sum()) == pytest.approx(1811.5638625461297, rel=1e-12)
+    assert float((P**2).sum()) == pytest.approx(8802.157175833698, rel=1e-12)
+    assert P[150, 10] == pytest.approx([0.0008969158266819711, 0.002206040721360161], rel=1e-9)
+    assert P[200, 40] == pytest.approx([0.05353692132645316, 0.06157384079078007], rel=1e-9)
+
+
+# --- stepped (Kline-Fogleman) sections ---------------------------------------------
+
+
+def _half_thickness(f, x):
+    up, lo = f.surface("upper", 2000), f.surface("lower", 2000)
+    return 0.5 * (np.interp(x, up[:, 0], up[:, 1]) - np.interp(x, lo[:, 0], lo[:, 1]))
+
+
+@pytest.mark.parametrize("spec,n", [("stair1:naca0009", 1), ("stair1:naca0009:x=0.35,d=0.5", 1),
+                                    ("stair10:naca0009", 10), ("stair5:naca0009", 5)])
+def test_stepped_presets(spec, n):
+    f = foils.load(spec)
+    base = foils.naca4("0009")
+    up = sorted((s for s in f.steps if s.side == "upper"), key=lambda s: s.x)
+    lo = sorted((s for s in f.steps if s.side == "lower"), key=lambda s: s.x)
+    # symmetric: the same steps on both surfaces, and the contour is its own mirror image
+    assert len(up) == len(lo) == n and [(s.x, s.height) for s in up] == [(s.x, s.height) for s in lo]
+    assert np.allclose(f.x, f.x[::-1], atol=1e-12) and np.allclose(f.y, -f.y[::-1], atol=1e-12)
+    for st in up:
+        assert 0 < st.height < _half_thickness(base, st.x)
+    assert f.thickness()[0] == pytest.approx(0.09, abs=1e-3)  # the steps are behind the maximum thickness
+
+
+@pytest.mark.parametrize("spec,h,n,left", [("stair10", 0.00125, 10, 0.51), ("stair5", 0.0025, 5, 0.46)])
+def test_stairs(spec, h, n, left):
+    """stair10 = 10 x 0.1 mm, stair5 = 5 x 0.2 mm on an 80 mm chord: equal steps,
+    evenly spaced from x/c 0.3 to 0.9, about half the thickness left near the TE."""
+    f = foils.load(f"{spec}:naca0009")
+    base = foils.naca4("0009")
+    up = sorted((s for s in f.steps if s.side == "upper"), key=lambda s: s.x)
+    assert [round(s.x, 6) for s in up] == pytest.approx(np.linspace(0.3, 0.9, n))
+    assert all(s.height == pytest.approx(h, rel=1e-9) for s in up)
+    assert _half_thickness(f, 0.95) / _half_thickness(base, 0.95) == pytest.approx(left, abs=0.01)
+    with pytest.raises(ValueError):  # ten 0.2 mm steps would cut through the section
+        foils.load("stair10:naca0009:h=0.0025")
+
+
+def test_stepped_geometry_one_step():
+    f = foils.load("stair1:naca0009:x=0.6,d=0.4")
+    base = foils.naca4("0009")
+    st = f.steps[0]
+    assert st.x == 0.6 and st.depth == 0.4
+    assert st.height == pytest.approx(0.4 * _half_thickness(base, 0.6), rel=1e-4)
+    # behind the step the section is the base with 60 % of its thickness, sharp TE
+    for x in (0.7, 0.85, 0.95):
+        assert _half_thickness(f, x) == pytest.approx(0.6 * _half_thickness(base, x), rel=2e-3)
+    assert f.point(np.array([0.0, f.perimeter])) == pytest.approx(np.array([[1.0, 0.0], [1.0, 0.0]]), abs=1e-9)
+    # vertical face: between the two fillets the contour runs straight down at x = 0.6
+    s = np.linspace(st.s_foot[1], st.s_lip[0], 50)
+    assert np.allclose(f.point(s)[:, 0], 0.6, atol=1e-9)
+    # the same step given by its height instead of its depth
+    h = 0.4 * float(stepped._Surfaces(base).half_thickness(0.6))
+    g = foils.load(f"stair1:naca0009:x=0.6,h={h!r}")
+    assert np.allclose(g.x, f.x, atol=1e-12) and np.allclose(g.y, f.y, atol=1e-12)
+
+
+def test_stepped_splines_do_not_overshoot():
+    """One spline per smooth piece: no ringing at the corners (a single spline
+    through a step overshoots by about the step height). From ahead of the
+    lip to behind the foot the upper surface only ever goes down."""
+    f = foils.load("stair1:naca0009")
+    st = [s for s in f.steps if s.side == "upper"][0]
+    s = np.linspace(st.s_foot[0] - 0.02, st.s_lip[1] + 0.02, 20000)  # parameter runs TE -> LE on the upper side
+    assert np.all(np.diff(f.point(s)[:, 1]) >= -1e-12)
+
+
+def test_stepped_spec_options():
+    assert stepped.parse_spec("stair5:naca0009:x=0.4,x_end=0.6,h=0.002") == (
+        "stair5", "naca0009", {"x": 0.4, "x_end": 0.6, "h": 0.002})
+    assert stepped.parse_spec("stair1:file:sd8020.dat")[1] == "file:sd8020.dat"
+    with pytest.raises(ValueError):
+        stepped.parse_spec("stair1:naca0009:depth=0.3")
+    with pytest.raises(ValueError):  # options belong to one preset: a stair has a height, not a depth
+        stepped.parse_spec("stair10:naca0009:d=0.3")
+    with pytest.raises(ValueError):  # one step has no x_end
+        stepped.parse_spec("stair1:naca0009:x_end=0.8")
+    with pytest.raises(ValueError):  # depth or height, not both
+        stepped.parse_spec("stair1:naca0009:d=0.3,h=0.01")
+    with pytest.raises(ValueError):  # the name fixes the number of steps
+        stepped.parse_spec("stair10:naca0009:n=12")
+    with pytest.raises(ValueError):
+        foils.load("stair3:naca0009")
+    for gone in ("kfm1", "kfm2", "kfm4", "kfm5", "kfm10", "kfm15"):  # renamed stair1/5/10; one-sided ones dropped
+        with pytest.raises(ValueError, match="stair1"):
+            foils.load(f"{gone}:naca0009")
+    with pytest.raises(ValueError):
+        foils.load("stair1:naca0009:d=0.95")  # nothing left behind the step
+
+
+@pytest.mark.parametrize("spec", ["stair1:naca0009", "stair1:naca0009:x=0.35,d=0.5", "stair10:naca0009",
+                                  "stair5:naca0009"])
+def test_cmesh_stepped_valid(spec):
+    f = foils.load(spec)
+    h_min = min(s.height for s in f.steps) * 0.08
+    mesh = cmesh.CMeshSpec(chord=0.08, span=0.008, n_surface=128, n_wake=48, n_normal=64,
+                           first_cell=min(2e-5, h_min / 20), farfield=50, wake_length=50)
+    P, nw = cmesh.generate(f, mesh)
+    assert np.all(cmesh.cell_areas(P) > 0)
+    assert cmesh.quality(P)["max_nonortho"] < 80.0
+    # wall points cluster at each lip: spacing there ~ step_corner * h
+    NI = P.shape[0]
+    wall = P[nw:NI - nw, 0] / 0.08
+    ds = np.hypot(*np.diff(wall, axis=0).T)
+    for st in f.steps:
+        lip = f.point(np.array(st.s_lip)).mean(axis=0)
+        near = np.hypot(*(0.5 * (wall[1:] + wall[:-1]) - lip).T) < 0.2 * st.height
+        assert near.any() and ds[near].min() <= max(3 * mesh.step_corner * st.height, 2.5e-4)
+    # first wall cell still sized for y+ (the marched lines leave the wall normally)
+    assert np.min(np.hypot(*(P[nw:NI - nw, 1] - P[nw:NI - nw, 0]).T)) == pytest.approx(mesh.first_cell, rel=0.05)
 
 
 def test_polymesh_files(tmp_path):

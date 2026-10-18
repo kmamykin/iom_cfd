@@ -1,0 +1,89 @@
+study: stepped-vs-naca
+project: foil2d
+description: >
+  Do stepped (Kline-Fogleman) fin sections beat plain NACA sections at equal
+  side force? A fin works on both tacks, so every stepped candidate has the
+  same steps on both sides (symmetric). All are cut from NACA 0009 at 80 mm
+  chord, the working-load pick of fin-profile-selection run
+  20261012-045433; NACA 0007 is the thinner plain reference (a deep step
+  leaves the part behind it thinner than 0007).
+  Candidates, named by the number of steps per side: stair1, one step per
+  side (the layout the hobby calls KFm4) at x/c 0.35 (just behind the
+  maximum thickness at 0.30) and 0.5 (the classic KF position), removing 15,
+  30 or 50 % of the local half-thickness (0.5 to 1.8 mm steps); and stair5
+  (5 x 0.2 mm) and stair10 (10 x 0.1 mm), equal steps evenly spaced from x/c
+  0.3 to 0.9. Both stairs leave about half the thickness near the trailing
+  edge, like the 50 % stair1 step at x/c 0.5 (one 1.6 mm step), so those
+  three differ only in step size and count.
+  Hypotheses: (1) step size and depth matter: shallow steps cost least
+  (Mishriky & Walsh 2016), and many small steps differ from one big one;
+  (2) at low Reynolds numbers a small step can trip the laminar boundary
+  layer and so shorten the laminar separation bubble, which might pay at
+  0.5 m/s (Re 35k; Seyhan & Akbiyik 2024 saw transition from a suction-side
+  step); (3) at upwind working load (1 m/s, 4 deg force) no stepped section
+  beats plain 0009, because the published gains are in maximum lift and
+  every study that measured drag found more of it.
+  Method as fin-profile-selection run 2: kOmegaSSTLM, Tu 1 %, medium mesh,
+  steady solver (unsteady points flagged). The step meshes are marched
+  C-grids refined to a fraction of the step height around each step
+  (cmesh.py): stair1 ~115k cells, stair5 275k, stair10 495k, plain 90k, so
+  the 30 stair5/stair10 cases are about half the compute. Numerics checks
+  (mesh levels, steady vs transient) are in the stepped-checks study. The step flow itself is
+  unvalidated: no open measurements of a symmetric stepped section at these
+  Reynolds numbers were found. Findings:
+  projects/foil2d/findings/stepped-vs-naca.md.
+report:
+  fin_span: 0.36        # m below the hull, as fin-profile-selection
+  induced_drag: true
+  compare_at: {foil: naca0009, chord: 0.08, aoa: [2, 4, 6]}
+highlights:
+  - name: step-depth-at-working-load
+    why: >
+      Hypothesis 1 at the typical upwind point (1 m/s, 4 deg force): how does
+      the separated flow behind a mid-chord step grow with depth, and where
+      does it reattach?
+    where: {speed: 1.0, aoa: 4, foil: [naca0009, "stair1:naca0009:x=0.5,d=0.15", "stair1:naca0009:x=0.5,d=0.3", "stair1:naca0009:x=0.5,d=0.5"]}
+    compare: foil
+    views: [step, separation, transition]
+  - name: step-position
+    why: >
+      The same 30 % step just behind the maximum thickness (x/c 0.35) and at
+      mid-chord (0.5), 1 m/s and 4 deg: does the earlier step meet a thinner
+      boundary layer and separate harder?
+    where: {speed: 1.0, aoa: 4, foil: [naca0009, "stair1:naca0009:x=0.35,d=0.3", "stair1:naca0009:x=0.5,d=0.3"]}
+    compare: foil
+    views: [step, separation, transition]
+  - name: step-size-ladder
+    why: >
+      Hypothesis 1, size: about half the thickness near the trailing edge
+      taken off in one 1.6 mm step, five 0.2 mm steps or ten 0.1 mm steps,
+      at 1 m/s and 4 deg.
+    where: {speed: 1.0, aoa: 4, foil: [naca0009, "stair1:naca0009:x=0.5,d=0.5", "stair5:naca0009", "stair10:naca0009"]}
+    compare: foil
+    views: [step, separation, transition]
+  - name: low-speed-trip
+    why: >
+      Hypothesis 2: at 0.5 m/s (Re 35k) does a shallow step or the stair move
+      transition forward and shorten the laminar bubble?
+    where: {speed: 0.5, aoa: 4, foil: [naca0009, "stair1:naca0009:x=0.35,d=0.15", "stair10:naca0009"]}
+    compare: foil
+    views: [separation, transition, step]
+defaults:
+  chord: 0.08
+  turbulence: kOmegaSSTLM
+  Tu: 1.0
+  mesh: medium
+sweep:
+  foil:
+    - naca0009
+    - naca0007
+    - "stair1:naca0009:x=0.35,d=0.15"
+    - "stair1:naca0009:x=0.35,d=0.3"
+    - "stair1:naca0009:x=0.35,d=0.5"
+    - "stair1:naca0009:x=0.5,d=0.15"
+    - "stair1:naca0009:x=0.5,d=0.3"
+    - "stair1:naca0009:x=0.5,d=0.5"
+    - stair10:naca0009    # 10 x 0.1 mm per side
+    - stair5:naca0009     # 5 x 0.2 mm per side
+  speed: [0.5, 1.0, 1.5]
+  aoa: [0, 2, 4, 6, 8]

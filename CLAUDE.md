@@ -37,6 +37,10 @@
 - Boat frame: x aft, y port, z up, waterline z=0; + heel = to starboard,
   + leeway = bow to port (port tack).
 - Never edit files under runs/ to fix things; fix the template or project.py.
+- foil2d stepped (Kline-Fogleman) sections: `foil: stair1:naca0009:x=0.5,d=0.3`
+  (the number is steps per side: stair1 = the hobby KFm4; stair5/stair10 are
+  5 x 0.2 / 10 x 0.1 mm at 80 mm chord; symmetric only; geometry/stepped.py). Their meshes are marched near the steps
+  (cmesh.py); smooth sections must stay bit-identical to the old generator.
 - Visualisation is a separate, re-runnable layer: `uv run iomcfd viz <study>`
   runs in the `iom-cfd-viz` image (ParaView 6.2, `make viz-image`) and only
   reads finished cases. Views are functions in `projects/<name>/viz.py`

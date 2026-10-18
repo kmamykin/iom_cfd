@@ -1,24 +1,25 @@
-# Solver image for Cloud Batch: on every push to main (except website-only
+# Solver image for Cloud Batch: on every push to a branch (except website-only
 # ones), run the fast tests, then build docker/Dockerfile for linux/amd64
-# (what Batch VMs run) and push it to Artifact Registry as :<git describe>
-# and :latest, the same tags `make push` uses.
+# (what Batch VMs run) and push it to Artifact Registry as :<git describe>, the
+# tag `make push` uses. Only main also moves :latest (config.env's default
+# IMAGE_TAG); run a branch's image with `iomcfd gcp submit --tag <git describe>`.
 #
 # GCP access is keyless (Workload Identity Federation, limited to pushes to
-# main of this repository); one-time setup: cloud/gcp/setup-github.sh, which
-# also sets the repository variables used below. Local builds (`make image`)
-# are not affected.
+# branches of this repository, not pull_request events); one-time setup:
+# cloud/gcp/setup-github.sh, which also sets the repository variables used
+# below. Local builds (`make image`) are not affected.
 name: solver image
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
     paths-ignore:  # the website alone doesn't change the image
       - "site/**"
       - ".github/workflows/site.yml"
   workflow_dispatch:
 
 concurrency:
-  group: solver-image
+  group: solver-image-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -65,8 +66,14 @@ jobs:
       - name: Image name and tag
         id: meta
         run: |
-          echo "image=$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/$AR_REPO/$IMAGE_NAME" >> "$GITHUB_OUTPUT"
-          echo "tag=$(git describe --always)" >> "$GITHUB_OUTPUT"
+          image="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/$AR_REPO/$IMAGE_NAME"
+          tag=$(git describe --always)
+          {
+            echo "tags<<EOF"
+            echo "$image:$tag"
+            if [ "$GITHUB_REF" = refs/heads/main ]; then echo "$image:latest"; fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - id: auth
         uses: google-github-actions/auth@v3
@@ -89,9 +96,7 @@ jobs:
           file: docker/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
-            ${{ steps.meta.outputs.image }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -99,5 +104,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Summary
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
         run: |
-          echo "Pushed \`${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}\` (also \`:latest\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pushed: $(echo $TAGS)" >> "$GITHUB_STEP_SUMMARY"

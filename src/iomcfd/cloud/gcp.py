@@ -201,6 +201,12 @@ def build_job(
     return job
 
 
+def task_hours(project, cases: list, np_: int) -> float:
+    """Per-task time limit: one for all tasks of a job, so the longest
+    case's (a study can mix mesh levels and sections of very different size)."""
+    return max(float(project.resources({**c.params, "np": np_}).get("max_hours", 4)) for c in cases)
+
+
 def job_name(study_name: str, run_id: str) -> str:
     base = re.sub(r"[^a-z0-9-]", "-", study_name.lower()).strip("-")[:39]
     return f"iomcfd-{base}-{run_id}"  # Batch: at most 63 characters
@@ -218,9 +224,7 @@ def cmd_submit(args) -> None:
     study, project, cases = _load(args)
     machine = args.machine or cfg["DEFAULT_MACHINE"]
     np_ = args.np or int(cases[0].params.get("np", 1))
-    # the longest any case may need (a mesh study's fine cases, not the first)
-    max_hours = args.max_hours or max(float(project.resources({**c.params, "np": np_}).get("max_hours", 4))
-                                      for c in cases)
+    max_hours = args.max_hours or task_hours(project, cases, np_)
     run_id = new_run_id()
     job = build_job(cfg, study.name, len(cases), np_, machine, not args.standard, max_hours,
                     args.parallelism, args.set or [], args.tag, run_id)

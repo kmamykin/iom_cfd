@@ -65,7 +65,7 @@ class Case:
 # Parameters that change how a case runs or what it writes, but not its
 # answer. They are left out of the cache hash, so adding or changing them
 # never forces finished cases to re-run (use --force for that).
-EXECUTION_KEYS = {"np", "relax_U", "relax_turb", "relax_transition", "snapshot_interval"}
+EXECUTION_KEYS = {"np", "relax_U", "relax_turb", "relax_transition", "snapshot_interval", "start_iter"}
 
 # Parameters added after runs existed, left out of the hash while empty
 # (their default), so finished cases of earlier runs keep their hash.

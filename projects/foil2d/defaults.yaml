@@ -2,7 +2,8 @@
 # Units SI unless stated. Anything not listed here is rejected (typo guard).
 
 # --- geometry -------------------------------------------------------------
-foil: naca0008          # 'nacaMPTT' (analytic 4-digit) or 'file:<name>.dat' in geometry/foils/
+foil: naca0008          # 'nacaMPTT' (analytic 4-digit), 'file:<name>.dat' in geometry/foils/, or a
+                        # stepped section 'stair1:<base>[:x=..,d=..]', 'stair5:<base>' or 'stair10:<base>' (README, stepped.py)
 chord: 0.080            # m. IOM fins are ~65-90 mm, rudders ~80 mm
 
 # --- flow -------------------------------------------------------------------
@@ -29,7 +30,11 @@ farfield: 50            # chords, radius of the C-domain and wake length
 solver: steady          # steady (simpleFoam) | transient (pimpleFoam, time-averaged forces)
 flow_times: 15          # transient: simulated time in chord flow-throughs (c/U)
 average_times: 6        # transient: forces averaged over the last this many c/U
-max_co: 10              # transient: maximum Courant number (adaptive time step)
+max_co: 10              # transient: maximum Courant number (adaptive time step); stepped
+                        # sections 5 (stair1 diverged at 10 from a uniform start)
+start_iter: 2000        # transient: start from this many steady (simpleFoam) iterations,
+                        # 0 = from the uniform inflow (slow to settle, and stair1 diverged);
+                        # not used when start_from gives the initial fields
 snapshot_interval: 0    # transient: write fields every this many c/U (0 = final state only).
                         # Enables time animations in `iomcfd viz` (~10 MB per snapshot, coarse)
 start_from: []          # earlier runs ('<study>/<run id>', first match wins) to take the initial
