@@ -36,4 +36,4 @@ cloud/gcp/jobs/
 /site/_site/
 /site/_generated/
 /site/.quarto/
-/site/index_files/
+/site/**/index_files/

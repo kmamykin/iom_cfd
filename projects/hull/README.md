@@ -11,7 +11,8 @@ validated. Free sinkage/trim (`attitude: free`) is set up but untested.**
 
 * interFoam (two-phase VOF), kOmegaSST with wall functions.
 * `attitude: fixed`: local time stepping (pseudo-steady), the attitude is what
-  you set (`heel`, `trim`, `sinkage`, `leeway`). Fast; the usual first step.
+  you set (`heel` φ, `trim`, `sinkage`, `leeway` β_Y). Fast; the usual
+  first step.
 * `attitude: free`: transient, rigid-body motion in heave and pitch
   (`rigidBodyMotion` with Pz + Ry joints). Needs `mass`, `cog` and `inertia`;
   the hull must be positioned at the waterline that matches its mass. Several
@@ -35,9 +36,12 @@ validated. Free sinkage/trim (`attitude: free`) is set up but untested.**
 
 ## Outputs
 
-`resistance_N` (total, friction and pressure parts, per component),
-`vertical_force_N`, `side_force_N`, `pitch_moment_Nm` (about the CoG),
-`Ct` (on the at-rest wetted area), `Cf_ittc57`, residuary `Cr = Ct − Cf`,
+`resistance_N` (D_h along the course, because the hull, not the flow, is
+turned by the leeway; total, friction and pressure parts, per component),
+`vertical_force_N` (F_z,h), `side_force_N` (S_h, + to port),
+`pitch_moment_Nm` (about the CoG), `Ct` (on the at-rest wetted area),
+`Cf_ittc57`, residuary `Cr = Ct − Cf` (it includes the form drag, which the
+ORC counts in the viscous drag D_v rather than the residuary D_r),
 `Fn`, and for free attitude `sinkage_m` and `trim_deg` (from the rigid-body
 log; verify the sign convention on your first free run). The free surface
 (alpha = 0.5 iso-surface) is written to

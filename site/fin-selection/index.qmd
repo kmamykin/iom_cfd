@@ -1,0 +1,844 @@
+---
+title: "IOM fin: NACA section and chord selection with CFD"
+subtitle: "2D simulations of symmetric NACA fin sections, ranked by the race time they cost"
+# the card on the front page (and link previews): image, title, description
+description: >-
+  Symmetric NACA fin sections, 6–12 % thick and 80–100 mm in chord, compared in 2D simulations by
+  the race time each would cost. Provisional answer: NACA 0007 with a 100 mm chord.
+image: ../_generated/fin-selection-card.png
+author: Kliment Mamykin
+date: 2026-10-16
+date-modified: 2026-10-18
+license: "CC BY"
+code-links:
+  - text: Source on GitHub
+    icon: github
+    href: https://github.com/kmamykin/iom_cfd
+  - text: Findings logs
+    icon: journal-text
+    href: https://github.com/kmamykin/iom_cfd/tree/main/projects/foil2d/findings
+abstract: |
+  An IOM radio yacht's fin has to make sideways force with as little drag as possible. This page
+  compares symmetric NACA fin sections, 6–12\ % thick and 80–100 mm in chord, by the race time each
+  would cost. It uses 2D computer simulations of a horizontal slice of the fin, not tests of a finished
+  fin. **Provisional answer:** a 7\ % thick section with a 100 mm chord (NACA 0007/100) is the best
+  all-round fin. In fresh air (1.5 m/s boat speed) the 8\ % section 0008/100 may be better, a result
+  still being checked. **Main caveat:** the leading choices differ by less than 1\ % of race time. That is small
+  next to the uncertainties of a 2D model, so treat the ranking as a guide, not a guarantee.
+---
+
+::: {.callout-warning appearance="simple" icon=false}
+[**One check is running.** At 1.5 m/s NACA 0007/100 switched to a different, higher-drag flow in a
+single simulation. Two more cases test whether that is real: the same case started from rest, and
+1.25 m/s. This page will be updated with their results.]{.status}
+:::
+
+::: {.key-results}
+::: {}
+[0007/100]{.big-number}<br>
+NACA 0007, 100 mm chord: the best all-round fin, and the best in light and medium air (provisional;
+2D model)
+:::
+::: {}
+[0008/100]{.big-number}<br>
+NACA 0008, 100 mm chord: best in fresh air, 1.5 m/s boat speed (provisional, being checked); 30–50\ %
+stiffer
+:::
+::: {}
+[1.4]{.big-number}<br>
+boat lengths per race that one 0007/100 fin gives away on average, against changing fins for each
+wind (estimate: 2 laps of 90 m legs, half the race time upwind and half downwind, the three loads and
+the three boat speeds weighted equally)
+:::
+::: {}
+[1,000+]{.big-number}<br>
+2D simulations, on a laptop and on Google Cloud
+:::
+:::
+
+[**Jump to:** [the answer](#sec-conclusion) · [the basics: the fin and its flow](#sec-basics) ·
+[how the water flows (videos)](#sec-flows) · [results](#sec-results) ·
+[method](#sec-method)]{.jump-links}
+
+## The fin and its flow {#sec-basics}
+
+### The fin and its section
+
+The fin hangs below the hull and carries the lead bulb. Seen from the side it is a blade about 0.36 m
+deep. Cut horizontally, every slice of it is a streamlined shape, the **section**
+(@fig-fin-side, @fig-section). The simulations compute one such slice. They describe a fin with the
+same section and chord all the way down, without its tip, bulb or hull junction.
+
+[On a phone, pinch to zoom the diagrams, or turn the phone sideways.]{.mobile-hint}
+
+![The fin seen from the side. The dashed line is the kind of horizontal slice the simulations
+compute. Schematic, not to scale.](../_generated/fin-side.svg){#fig-fin-side width="300px"}
+
+![That slice: NACA 0007 with a 100 mm chord, meeting the water at an angle of attack α. The side force
+acts across the water flow and the drag along it. Schematic: the angle is exaggerated so it can be
+seen.](../_generated/section.svg){#fig-section}
+
+**Reading a name like "0007/100".** NACA 0007 is a symmetric section from the NACA four-digit family.
+"00" means no camber: both sides have the same shape. "07" means its maximum thickness is 7\ % of the
+chord. "/100" is the chord in millimetres. So 0007/100 is a section 100 mm long and 7 mm thick at its
+thickest point, 30\ % of the chord back from the leading edge.
+
+**Terms used on this page.** The symbols follow the project's
+[nomenclature](https://github.com/kmamykin/iom_cfd/blob/main/docs/nomenclature.md), which builds on
+Parolini and Quarteroni [@parolini2007] and the ORC's VPP documentation [@orc-vpp2026].
+
+* **Angle of attack α:** the angle between the section's chord line and the water it meets.
+* **Leeway β~Y~:** the angle between where the boat points (its heading) and where it goes (its
+  course through the water). The fin meets the water at this angle. In 3D, part of it is used up by the vortex at the fin's tip;
+  the rest is the 2D section angle α that the simulations compute. At working load and 1 m/s that is
+  about 4° of section angle plus about 1° for the tip. The comparisons only use differences between
+  fins. At equal span and side force the tip part is the same for every fin, so a difference in α is a
+  difference in leeway: Δβ~Y~ = Δα.
+* **Side force S~h~ and drag D~h~:** the fin's share of the boat's hydrodynamic side force and drag.
+  Their section coefficients C~l~ and C~d~ are the force per metre of span divided by q c, where
+  q = ½ρV~b~² is the dynamic pressure, ρ the density of water, V~b~ the boat speed and c the chord.
+* **Reynolds number** Re = V~b~ c / ν, with ν the kinematic viscosity of water (about 1.14×10⁻⁶ m²/s at
+  15 °C). It sets how the boundary layer
+  behaves. For 0007/100 at 1 m/s in water at 15 °C, Re ≈ 88,000. IOM fins work at 3×10⁴ to 2×10⁵.
+* **Tu,** the turbulence of the incoming water: its random velocity fluctuations as a percentage of
+  the speed. The simulations use 0.1\ % (calm) and 1\ % (more disturbed). Nobody has measured it on a
+  model-yacht pond.
+* **Flow-through:** the time the water takes to pass one chord, c / V~b~. For a 100 mm chord at 1 m/s
+  that is 0.1 s.
+* **Load** means the side force the fin must make, which the sails set: low, working and high load.
+  **Wind** means the boat speed it brings: light air (about 0.75 m/s), medium (1 m/s) and fresh
+  (1.5 m/s). That mapping is an assumption.
+
+### The boundary layer, separation and bubbles
+
+Right next to the surface the water is slowed by friction in a thin **boundary layer**.
+
+* **A laminar boundary layer** flows in smooth sheets. Its friction is low, but it separates easily
+  where the pressure rises towards the trailing edge.
+* **A turbulent boundary layer** mixes. It has more friction, but it is more resistant to
+  separation.
+
+At IOM Reynolds numbers the layer starts laminar. On the suction side it often separates (S), turns
+turbulent in the separated layer (T) and reattaches (R). The region between is a **laminar separation
+bubble** (@fig-bubble), and its position and size decide much of the drag. The separated layer can
+also roll up into vortices that are shed downstream (**vortex shedding**), fail to reattach at all at
+low speed, or separate right at the leading edge at higher speed or angle. The videos and the gallery
+in @sec-flows show each case.
+
+![A laminar separation bubble, schematic. The laminar layer separates from the wall at S. The
+separated layer (the line above the blue pocket) turns turbulent at T, away from the wall, and
+reattaches to the wall at R. In the blue pocket the water next to the wall flows backwards. The small
+arrows show velocity profiles, and the dashed line is the edge of the boundary layer. Not to
+scale.](../_generated/bubble-schematic.svg){#fig-bubble}
+
+### Where the drag comes from {#sec-drag}
+
+The drag of an IOM fin, D~h~, has three main parts: skin friction D~f~, pressure drag D~p~ and
+induced drag D~i~.
+
+$$
+D_h = \underbrace{D_f + D_p}_{D_v\text{, profile drag}} + D_i
+$$
+
+The first two together are called **profile drag**, D~v~ (the ORC's viscous drag): what the 2D section
+simulations calculate. Induced drag comes from the fin's finite span.
+
+#### 1. Skin-friction drag D~f~: water rubbing against the surface
+
+Water touching the fin is stationary relative to it. Its speed rises through a thin boundary layer
+until it reaches the speed of the surrounding flow. That velocity gradient creates friction.
+
+* **Laminar flow:** orderly layers, relatively little mixing and low friction.
+* **Turbulent flow:** mixing brings faster water towards the wall, increasing the velocity gradient
+  and friction.
+
+A smooth surface and less wetted area generally help. But keeping the boundary layer laminar is
+beneficial only while separation remains under control.
+
+#### 2. Pressure drag D~p~: pressure pushing back more than it pushes forward
+
+Water accelerates around the front of the section, then slows as the pressure rises towards the
+trailing edge. Ideally, much of that pressure recovers.
+
+The slow water near the wall can struggle against this rising pressure and separate from the surface.
+A separated region and wake can prevent effective pressure recovery, increasing drag.
+
+**The important trade-off:** turbulent flow has more friction, but can reduce total drag by
+preventing a much more costly separation.
+
+At IOM fin Reynolds numbers, a laminar layer may separate, become turbulent, then reattach. This is a
+laminar separation bubble (@fig-bubble). A short bubble can be relatively inexpensive; a long bubble
+or separation without reattachment can be costly.
+
+#### 3. Induced drag D~i~: the cost of producing side force
+
+A real fin has a tip. Flow around it creates a trailing vortex system that changes the direction of
+the local flow. Consequently, some of the fin's hydrodynamic force acts backwards.
+
+Induced drag increases roughly with side force squared and decreases with span squared, with another
+factor accounting for the lift distribution (the span efficiency e in
+[From a section to a fin](#sec-section-to-fin)).
+
+For these comparisons, fins have the same span and produce the same required side force. With the
+same assumed span efficiency, their induced drag is therefore the same; it does not decide the
+section ranking.
+
+#### Which flow is desirable?
+
+| Flow state | Drag consequence |
+|---|---|
+| Attached laminar boundary layer | Low friction and good pressure recovery: usually ideal. |
+| Short separation bubble, then attached flow | Some additional loss, but potentially a good compromise. |
+| Attached turbulent boundary layer | Higher friction, but often preferable to extensive separation. |
+| Long bubble or open separation | Poor pressure recovery; often high drag. |
+| Strong vortex shedding | Fluctuating forces; mean drag depends on the resulting separation and wake. |
+
+: How the state of the boundary layer affects drag. The gallery (@sec-gallery) shows examples from
+the simulations. {#tbl-flow-states}
+
+::: {.callout-note appearance="simple" icon=false}
+**Key takeaway.** The goal is not as little turbulence as possible. It is the lowest combined
+friction and pressure drag while making the required side force. That is why calmer water
+(@fig-flow-bubble-tu01), a thinner section, or an earlier transition can each help in one operating
+condition and hurt in another.
+:::
+
+## Previous state of the art {#sec-prior}
+
+::: {.callout-note}
+## Scope of the evidence
+* Class-rule figures come from the 2026 rules.
+* Product figures are the makers' own claims, not measurements.
+* Designers' views come from their articles and from forums, and are opinion.
+* No published comparison of IOM fin sections in terms of race time was found.
+
+Details and sources are in two research notes,
+[iom-fins-on-the-market.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/iom-fins-on-the-market.md)
+and [fin-stiffness.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/fin-stiffness.md).
+Numbers on this page come from this project unless a source is cited.
+:::
+
+**Fins in use.** The class rules leave the fin almost free [@iom-rules-2026]:
+
+* any material no denser than lead, so carbon is legal in the fin (though not in the hull);
+* no minimum thickness, and at most 20 mm thick above the bottom 60 mm;
+* a keel of 2.2–2.5 kg and a draft of 370–420 mm.
+
+Every fin on the market with stated dimensions is a tapered carbon blade, about 80–100 mm in chord at
+the hull and 63–75 mm at the bulb, 350–360 mm below the hull, 6–7\ % thick (about 5–6 mm).
+
+* SAILSetc sells a 7\ % fin, 90 → 75 mm [@sailsetc-370iom].
+* Craig Smith sells a 6\ % fin, 90 → 75 mm [@cs-cf1].
+* Rob Nelson sells a fin of 100 → 70 mm, thickness not stated [@rn-gp].
+
+No maker names its section. Graham Bantock's fins have used custom low-Reynolds-number sections by
+David Hollom since 1992 [@hollom2008]. The designs winning world championships (V12, VISS, Venti, K2)
+come with their own fins, whose dimensions aren't published [@iomica-hof]. Designers agree that thin
+is fast: "the thinnest is best, around 6\ %", with a longer chord if the fin needs strength
+(Bantock, as recalled in a forum). Proposals for a minimum fin thickness were defeated in the 1990s
+[@bantock-iom1]. The typical leeway in the No. 1 rig is about 3° [@gilbert-finforce]. *Not found:*
+any published comparison of fin sections or chords for IOMs in terms of race time.
+
+**Low-Reynolds-number aerofoils.** Wind-tunnel polars at Re ≈ 10⁵ [@selig1989] show how laminar
+separation bubbles set the drag of thin sections. This project checks its model against those polars
+(@sec-validation).
+
+**Predicting transition.** RANS turbulence models can be combined with a transition model
+[@menter1994; @langtry2009]. Their known weak spot is separation bubbles.
+
+**Surface finish and trips.** Roughness on model yachts is covered by @klaka2022, and
+boundary-layer trips on low-Reynolds-number aerofoils by @lyon1997. The project's research note
+[surface-roughness.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/surface-roughness.md)
+has the details.
+
+**Fin stiffness.** It matters mainly for holding the bulb, by limiting sag at high heel and
+oscillation in waves. Its value in race time hasn't been measured (@sec-conclusion).
+
+**What this project adds:**
+
+* a ranking by race time rather than drag coefficient, with leeway and the downwind leg counted;
+* a check of the steady solutions against time-accurate ones;
+* the ranking at three boat speeds.
+
+## Methodology {#sec-method}
+
+### Simulating a fin section
+
+Each simulation is a 2D slice of the fin: one section at one angle of attack and one boat speed, in
+fresh water at 15 °C. It uses OpenFOAM v2512 [@openfoam] with the k-ω SST turbulence model
+[@menter1994] and the γ-Re~θ~ transition model of Langtry and Menter [@langtry2009]. The transition
+model predicts where the boundary layer stays laminar, separates, reattaches or turns turbulent. At
+these Reynolds numbers that decides most of the drag. It needs Tu as an input.
+
+Two solvers are used:
+
+* **Steady** (simpleFoam) finds a flow that doesn't change in time. It is cheap enough to sweep
+  hundreds of cases per run, but where the real flow is unsteady its answer can be wrong
+  (@sec-transient).
+* **Time-accurate** (pimpleFoam) follows the flow in time, here for 30 flow-throughs. The forces are
+  averaged over the last 6. It costs 8–13 hours per case on one core.
+
+The mesh (@fig-mesh) is a structured C-grid written directly by the project's own generator: 90,112
+hexahedral cells, wall-normal grid lines, the first cell sized for y⁺ ≈ 0.5 so that the viscous
+sublayer is resolved, and a far field 50 chords away. Doubling the cell count changes drag by 0.1–0.2\ %
+at 4° and 0.8–1.7\ % at 6°, and lift by under 0.4\ % (study `mesh-finalists`).
+
+![The medium C-grid for NACA 0007 at 100 mm chord: the whole domain (every 4th grid line), the
+section, and the leading edge. Drawn by the same code that writes the simulation
+mesh.](../_generated/mesh.png){#fig-mesh}
+
+### Validation {#sec-validation}
+
+The model was checked on one section, NACA 0009 at Re = 10⁵, against wind-tunnel data from Princeton
+[@selig1989]:
+
+![NACA 0009 at Re 10⁵, coarse mesh, Tu 0.1\ %, steady solver. The transition model (used for every
+result on this page) gets lift within 6\ % up to 8°. Drag is 10\ % high at 4° and 25\ % high at 8°, where
+a laminar separation bubble dominates. The fully turbulent model has too much drag at low angles
+because it misses the laminar flow.](../_generated/validation.svg){#fig-validation}
+
+This supports using the model in this regime: thin symmetric sections at Re around 10⁵ and small
+angles. It does **not** show that the model ranks sections correctly when they differ by less than
+1\ % of race time. The ranking assumes the model's errors are similar for similar sections, and no
+measurement here confirms that. Absolute drag is uncertain by roughly 10–25\ %. Likely causes, roughly
+in order:
+
+1. the transition model's handling of separation bubbles;
+2. the tunnel's effective turbulence;
+3. steady solutions of an unsteady flow at 4°;
+4. mesh resolution;
+5. scatter in the experiment itself.
+
+### From a section to a fin {#sec-section-to-fin}
+
+Each simulation gives a lift and drag coefficient, C~l~ and C~d~. They are scaled to the whole fin's
+side force S~h~ and drag D~h~, with span b = 0.36 m below the hull, chord c and dynamic pressure q:
+
+$$
+\begin{aligned}
+S_h &= C_l\, q\, c\, b \\
+D_h &= \underbrace{C_d\, q\, c\, b}_{D_v} + \underbrace{\frac{S_h^2}{2\pi\, q\, e\, b^2}}_{D_i}
+\end{aligned}
+$$
+
+D~v~ is the section's profile drag. D~i~ is the induced drag of the tip vortex, from lifting-line theory
+with the hull as a reflection plane and span efficiency e = 0.9. All fins have the same span, so at equal side force
+their induced drag is the same: it adds to the total but doesn't reorder the fins.
+
+### Compare at equal side force
+
+The sails decide how much side force the fin must make, not the fin. So every fin is compared at the
+same three side forces, the **loads**: what one reference section (0009/80) makes at 2°, 4° and 6°. At
+1 m/s these are 1.15 N (low load), 6.69 N (working load) and 8.33 N (high load). These are loads, not
+wind strengths. For each fin, interpolating along its lift curve gives the angle it needs, and along
+its drag curve its drag, at that force (@fig-equal-force).
+
+![The two steps of the comparison at 1 m/s, Tu 0.1\ %, for the four best fins. Left: the angle each
+fin needs to make each load. Right: its drag at that load. Diamonds are time-accurate points that
+replaced steady ones (dashed). The steady points overestimated lift, so every fin needs more angle
+than the steady curves suggested.](../_generated/equal-force.svg){#fig-equal-force}
+
+A longer chord makes the same force at a lower angle, and so with less leeway.
+
+### Race time
+
+Upwind there are two costs, and downwind one (@fig-course):
+
+![Upwind, the boat heads 39° off the true wind [@gilbert-vmg] and slides about 3° sideways (leeway
+β~Y~), so its course is at β~TW~ = 42° to the true wind [@gilbert-finforce]. Downwind the fin makes no side force and meets the water at
+0°.](../_generated/course.svg){#fig-course}
+
+* **Drag slows the boat.** Extra drag ΔD~h~ costs a fraction of the leg's time of
+  $$\text{drag loss} = \frac{\Delta D_h}{V_b\,\mathrm{d}D_h/\mathrm{d}V_b},$$
+  where dD~h~/dV~b~ is the slope of the boat's total hydrodynamic drag (its resistance) with boat
+  speed. V~b~ dD~h~/dV~b~ ≈ 1.35 N at 1 m/s,
+  estimated from hull, fin, bulb and rudder friction. At that slope 0.01 N of extra drag costs 0.74\ %
+  of the leg.
+* **Leeway lengthens the path.** Sailing a distance d to windward takes d / cos β~TW~ of sailing,
+  where β~TW~ = 42° is the true wind angle measured from the course. One more degree of leeway costs
+  tan β~TW~ · Δβ~Y~ ≈ **1.57\ %** of the leg. The difference in
+  leeway between two fins is the difference in their 2D section angles, because the tip-vortex part is
+  the same at equal span and side force.
+* **Downwind** the fin's drag at 0° counts, at the same boat speed.
+
+With equal time upwind and downwind, a fin's loss is half the sum of the three. It is measured against
+the best fin at each load and averaged over the three loads.
+
+**Reading "×1 / ×2".** The resistance slope is the least certain input, so every result is computed
+twice: with the estimated slope (×1) and with it doubled (×2). Tables show both as "×1 / ×2". It is a
+sensitivity check on one input, not an error bar.
+
+An example at working load: 0008/90 is 0.92\ % behind 0007/100. Its extra upwind drag (0.016 N) costs
+0.60\ %, its extra 0.36° of leeway 0.29\ %, and its extra downwind drag 0.03\ %. The full method is in
+[methodology.md](https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/methodology.md).
+
+The course angle uses a typical leeway of 3° [@gilbert-finforce]. The simulations imply about 5° at
+working load: 4° of section angle plus about 1° for the tip vortex. With 5°, each degree of leeway
+would cost about 7\ % more, which would favour longer chords slightly (an estimate; not included).
+
+### Robustness
+
+A fin can win on average and still lose badly somewhere. So the ranking is repeated for each boat speed
+(0.75, 1 and 1.5 m/s) and each combination of:
+
+* water turbulence (Tu 0.1\ % and 1\ %);
+* resistance slope (×1 and ×2);
+* solver (steady or time-accurate points).
+
+A fin's **regret** in each case is how far it is behind the best fin there. The largest regret says
+how badly the choice could turn out.
+
+## Results {#sec-results}
+
+Click any chart to see it larger.
+
+### Steady and time-accurate {#sec-transient}
+
+The steady solver's 4° solutions for the most promising thin sections never settled: their drag
+oscillated by up to 22\ %. Time-accurate runs showed why: the flow itself is unsteady. At 4° the flow
+shed vortices:
+
+* in all the cases tested at 1 m/s (seven sections);
+* in all the cases tested at 0.75 m/s (four sections);
+* in three of the four at 1.5 m/s.
+
+The exception, NACA 0007/100 at 1.5 m/s, is in @sec-by-speed.
+
+Getting a reliable time average took two lessons (@fig-force-history):
+
+* **An impulsive start leaves a slow lift build-up.** Lift approaches its final value as the Wagner
+  function predicts [@wagner1925; @jones1938]: about 95\ % after 15 flow-throughs, 99\ % after 30. The
+  first runs stopped at 15 and were still drifting. They were continued to 30 from where they stopped.
+* **Starting from the steady solution settles in about 10 flow-throughs.** The mean is the same either
+  way.
+
+![Lift at 4° and 1 m/s. Left: 0007/100 started from rest, continued at 15 flow-throughs; the
+dash-dot line is the Wagner build-up scaled to the final mean. Right: 0009/100 started from the steady
+solution. Thin lines are the instantaneous lift, which oscillates by about 10\ % as vortices are shed;
+the forces are averaged over flow-throughs 24–30 (shaded).](../_generated/force-history.svg){#fig-force-history}
+
+The settled means are checked by comparing the two halves of the averaging window: they agree to
+within 1.3\ %. Halving the time step changes lift and drag by about 1\ %.
+
+![Lift and drag coefficients at 4° and 1 m/s, steady against time-accurate. Every section tested makes about
+the same time-accurate lift, C~l~ 0.39–0.40. The steady solver spread them from 0.41 to 0.47, and the
+thick sections were the most wrong.](../_generated/steady-vs-transient.svg){#fig-steady-vs-transient}
+
+**What changed, by angle:**
+
+* **At 6°** (checked at 1 m/s) the flow is steady, but the steady drag was still 4–6\ % high for the
+  0007 and 0008 sections (within 0.5\ % for 0009).
+* **At 4°** (0.75, 1 and 1.5 m/s) the steady points were too optimistic about lift and too pessimistic
+  about drag, and not by the same amount for every section. That reordered the fins.
+* **At 2°** (1 m/s) the 0008 sections, which looked perfectly steady in the steady solver, shed
+  strongly.
+
+### The ranking at 1 m/s
+
+For each side-force load, a fin's loss is measured against the best fin at that load; the mean
+averages the three loads. Different fins win different loads, so even the best mean is above zero.
+
+![Race-time loss at 1 m/s, Tu 0.1\ %, % behind the best fin at each load, averaged over the low,
+working and high loads. Bars use the estimated resistance slope; ticks use it doubled. Time-accurate
+points at 2°, 4° and 6° for the four best fins (0008/90 at 6° is still steady), and at 4° for the
+rest. Less is better.](../_generated/race-time.svg){#fig-race-time}
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-race-time}
+{{< include ../_generated/race-time.md >}}
+
+Race-time loss at 1 m/s, Tu 0.1\ %, % behind the best fin at each side-force load: ×1 / ×2
+(estimated resistance slope / doubled). Loads are the side forces of 0009/80 at 2°, 4° and 6°.
+:::
+
+### The ranking by wind strength {#sec-by-speed}
+
+![Race-time loss of the four best fins at three boat speeds (light, medium and fresh air). Each bar is
+a fin's loss behind the best of the four at each load, averaged over the three loads; ticks are with
+the resistance slope doubled. The difference between two bars is the race time between those two fins
+at that speed: at 1.5 m/s, 1.58 − 0.58 = 1.0\ % between 0007/100 and 0008/100. The right axis
+converts to boat lengths per race: about 4 per 1\ % (2 laps of 90 m legs; an
+estimate).](../_generated/race-time-by-speed.svg){#fig-race-time-by-speed}
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-race-time-by-speed}
+{{< include ../_generated/race-time-by-speed.md >}}
+
+Race-time loss of the four best fins by boat speed: % behind the best of the four at each load,
+averaged over the three loads. Each cell is ×1 / ×2, with the estimated resistance slope and with it
+doubled. Time-accurate 4° points at every speed; at 1 m/s also 2° and 6°. "Worst" is the largest loss
+at any of the three speeds.
+:::
+
+**Different winds favour different fins.**
+
+* **At 0.75 and 1 m/s:** NACA 0007/100 is best, by about 0.5\ % of race time (2 boat lengths per
+  race).
+* **At 1.5 m/s (provisional):** it is last of the four, 1\ % (about 4 boat lengths) behind NACA
+  0008/100.
+
+The reason is a change in the flow (@fig-leading-edge-bubble):
+
+* at 0.75 and 1 m/s its boundary layer separates near mid-chord and sheds vortices, like the other
+  sections;
+* at 1.5 m/s it separates right at the leading edge, reattaches turbulent and stays attached, with
+  twice the skin friction.
+
+The same thing made the thinnest section, NACA 0006, lose at working load in selection run 2. The
+1.5 m/s result rests on one simulation, and a check is running.
+
+![NACA 0007/100 at 4°: pressure and skin friction on the suction side at 0.75 and 1.5 m/s (the
+final instant of time-accurate runs). Negative skin friction is reversed
+flow.](../_generated/leading-edge-bubble.svg){#fig-leading-edge-bubble}
+
+## How the water flows {#sec-flows}
+
+The videos and pictures below are all from the 2D simulations.
+
+* The water flows from **left to right**.
+* The **suction side**, where the bubbles form, is on top.
+* Each one says what its colours mean, because they differ.
+
+### Vortex shedding, seen three ways
+
+The three videos show the same run: NACA 0007/100 at 4°, 1 m/s (Re 88,000), Tu 0.1\ %,
+time-accurate on the medium mesh.
+
+* **Length:** 0.3 s of real time (3 flow-throughs, 150 snapshots), slowed about 34 times.
+* **What happens:** the laminar boundary layer on the top surface separates and rolls up into
+  vortices, which travel over the rear half and into the wake. About 13 pass in 0.3 s, around 40–45 a
+  second.
+* **Effect on lift:** it fluctuates by about 10\ % of its mean as they pass.
+
+#### 1. Flow speed
+
+**Colour:** the speed of the water relative to the free stream (speed / V~b~), whatever its direction.
+
+* dark blue: nearly still;
+* green: about 0.6;
+* yellow to olive: about the free-stream speed;
+* red: up to 1.6 times the free-stream speed, over the front of the suction side.
+
+Dark blue means slow, not necessarily backwards. **Black lines** are streamlines.
+
+**Look for:** the slow layer on the top surface thickening towards the back and wobbling as vortices
+pass, and the wake behind the trailing edge waving up and down.
+
+::: {#fig-shedding}
+{{< video ../assets/shedding-velocity.mp4 >}}
+
+Flow speed and streamlines around NACA 0007/100 at 4° and 1 m/s.
+:::
+
+#### 2. Reversed flow along the surface
+
+**Colour:** the velocity along the surface direction, signed, relative to the free stream.
+
+* pale: the free stream;
+* amber: faster than it;
+* dark grey: nearly still;
+* blue: water flowing **backwards**, towards the leading edge.
+
+**Look for:** blue pockets that form around mid-chord and roll back to the trailing edge. Each is a
+vortex with backflow under it.
+
+::: {#fig-shedding-boundary-layer}
+{{< video ../assets/shedding-boundary-layer.mp4 >}}
+
+The same run, close to the suction side: blue is reversed flow.
+:::
+
+#### 3. Spin (vorticity)
+
+**Colour:** how fast the water spins (vorticity ω, scaled as ω c / V~b~).
+
+* blue: clockwise, as seen here;
+* red: anticlockwise;
+* grey: no spin.
+
+The top surface's boundary layer spins clockwise (blue) and the bottom's anticlockwise (red).
+
+**Look for:** the blue layer on top rolling up into separate blobs near the back. Behind the trailing
+edge, blobs of both colours alternate: a vortex street.
+
+::: {#fig-shedding-vorticity}
+{{< video ../assets/shedding-vorticity.mp4 >}}
+
+The same run as vorticity.
+:::
+
+### How the flow changes with angle
+
+**Colours** as in video 2:
+
+* pale: the free stream;
+* dark: slow water near the wall;
+* blue: reversed flow.
+
+**Look for** the blue region moving forward as the angle rises.
+
+::: {#fig-angle-sweep}
+{{< video ../assets/flow-angle-sweep.mp4 >}}
+
+NACA 0009/80, 1 m/s, Tu 1\ %, steady solutions at 0°, 2°, 4°, 6° and 8°, one frame per angle.
+
+* **0–2°:** the flow separates only near the trailing edge.
+* **4°:** a bubble at mid-chord, from 28\ % to 69\ % of the chord, that reattaches.
+* **6–8°:** a short bubble at the leading edge, with turbulent flow behind it.
+
+Drag rises from C~d~ 0.014 to 0.040.
+:::
+
+### A gallery of flows {#sec-gallery}
+
+Each picture is the suction side of one simulation (@fig-bubble explains the terms).
+
+**Colours** as in video 2:
+
+* pale: the free stream;
+* amber: faster than the free stream;
+* dark: the slow layer next to the wall (the boundary layer);
+* blue: flow going backwards.
+
+Pictures from time-accurate runs show a single instant. Captions give the section and chord, the
+angle, the boat speed, the water turbulence (Tu) and the solver.
+
+**Healthy: attached flow.**
+
+![NACA 0007, 100 mm, 2°, 1 m/s, Tu 0.1\ %, time-accurate. The boundary layer stays laminar and
+attached over most of the chord. The flow reverses only near the trailing edge, from about 69\ % of the
+chord. C~d~ 0.0122, among the lowest of all cases.](../assets/flow-attached.png){#fig-flow-attached}
+
+**A laminar separation bubble, and what calm water does to it.**
+
+![NACA 0009, 80 mm, 4°, 1 m/s, Tu 1\ %, steady. The laminar boundary layer separates at 28\ % of the
+chord, turns turbulent in the separated layer and reattaches at 69\ %: a laminar separation bubble.
+C~d~ 0.0164.](../assets/flow-bubble-tu1.png){#fig-flow-bubble-tu1}
+
+![The same section in calmer water (Tu 0.1\ %). The bubble starts earlier, at 16\ %, and the flow
+separates again from 54\ % to the trailing edge. Drag is 14\ % higher (C~d~ 0.0187). Calm water delays
+the turbulence that closes the bubble, so it is not faster.](../assets/flow-bubble-tu01.png){#fig-flow-bubble-tu01}
+
+**Vortex shedding.**
+
+![NACA 0007, 100 mm, 4°, 0.75 m/s, Tu 0.1\ %, time-accurate, one instant. The separated layer doesn't
+form a steady bubble. It rolls up into vortices (the blue pockets) that travel along the rear half.
+Lift fluctuates by about 10\ % of its mean.](../assets/flow-shedding.png){#fig-flow-shedding}
+
+![The same instant as vorticity (the spin of the flow). The shear layer on the suction side (blue)
+rolls up into vortices, which leave the trailing edge as a wake of alternating
+vortices.](../assets/flow-shedding-vorticity.png){#fig-flow-shedding-vorticity}
+
+**Irregular shedding at a small angle.**
+
+![NACA 0008, 100 mm, 2°, 1 m/s, Tu 0.1\ %, time-accurate, one instant (vorticity). Near the trailing
+edge the flow separates and sheds irregularly. Lift fluctuates by about 40\ % of its mean, and the mean
+had not settled after 20 flow-throughs. The steady solver showed a smooth, steady flow
+here.](../assets/flow-irregular-2deg.png){#fig-flow-irregular-2deg}
+
+**A leading-edge bubble, then turbulent flow.**
+
+![NACA 0006, 80 mm, 4°, 1 m/s, Tu 1\ %, steady. The thinnest section separates right at the leading
+edge (1\ % of the chord) and reattaches at 8\ %. Behind the bubble the boundary layer is turbulent all
+the way to the trailing edge. Friction drag is 31\ % higher than on NACA 0009 (C~d~ 0.0195 against
+0.0164).](../assets/flow-le-bubble-0006.png){#fig-flow-le-bubble}
+
+![A close-up of the same kind of bubble on NACA 0007 at 100 mm, 4° and 1.5 m/s (time-accurate).
+Reversed flow runs from 1.6\ % to 17\ % of the chord, and attached turbulent flow follows. This is why
+that fin loses at 1.5 m/s (@sec-by-speed).](../assets/flow-le-bubble-zoom.png){#fig-flow-le-bubble-zoom}
+
+**Too slow: separation without reattachment.**
+
+![NACA 0009, 80 mm, 4°, 0.25 m/s (Re 17,600), Tu 1\ %, steady. At very low speed the separated laminar
+layer never reattaches: the flow is reversed from 39\ % of the chord to the trailing edge. C~d~ 0.0336,
+twice the drag at 1 m/s.](../assets/flow-no-reattachment.png){#fig-flow-no-reattachment}
+
+**On the edge of stall.**
+
+![NACA 0006, 80 mm, 8°, 0.25 m/s, Tu 1\ %, steady. The flow separates at the leading edge and is
+reversed over almost the whole suction side, from 0.6\ % to 99.5\ % of the chord. Lift still holds up
+(C~l~ 0.66), but the drag is very high (C~d~ 0.089). At 8° the thinnest
+section is close to stall at every speed: C~d~ 0.067–0.089 from 0.25 to 2.5 m/s, against 0.040 for
+NACA 0009 at 1 m/s.](../assets/flow-stall.png){#fig-flow-stall}
+
+**Lift lost near 0°.**
+
+![NACA 0009, 80 mm, 2°, 0.75 m/s, Tu 0.1\ %, steady. The suction side separates at 56\ % of the chord
+and never reattaches, while the other side stays attached. The section makes only a third of the lift
+that thin-aerofoil theory predicts (C~l~ 0.070 against 0.22). This is how thicker sections lose lift
+near 0° at low speed, and why light air is hard for them.](../assets/flow-lift-loss.png){#fig-flow-lift-loss}
+
+## Conclusion {#sec-conclusion}
+
+*Everything here comes from a 2D model of the fin section, not from tests of a finished fin, and is
+provisional.*
+
+**Different winds favour different fins.**
+
+* **Light and medium air (0.75–1 m/s boat speed): NACA 0007/100.**
+  * It is about 0.5\ % of race time (2 boat lengths per race) ahead of the next best, 0007/90.
+  * It is 0.7–0.8\ % (3 boat lengths) ahead of 0008/100.
+* **Fresh air (1.5 m/s boat speed), provisional: NACA 0008/100.**
+  * It is about 1\ % (4 boat lengths) ahead of 0007/100, whose flow switches to a high-drag
+    leading-edge bubble at that speed (@fig-leading-edge-bubble).
+  * This rests on one simulation; the check is running.
+
+Few sailors change fins with the wind, so the question is what one fin for every wind gives away
+(@tbl-fin-choice).
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-fin-choice}
+{{< include ../_generated/fin-choice.md >}}
+
+What each fin gives away at each wind against the best fin there: the one with the smallest averaged
+loss at that speed, which you'd fit if you could change fins. % of race time, ×1 / ×2 (estimated
+resistance slope / doubled).
+
+* **Assumptions behind "average":** half the race time upwind and half downwind, the three side-force
+  loads weighted equally at each speed, and the three boat speeds weighted equally.
+* **Boat lengths:** about 4 per 1\ % over 2 laps of 90 m legs (an estimate).
+:::
+
+**Best all-round: NACA 0007/100**, on current evidence.
+
+* **It gives away the least on average:** 0.33\ % of race time, about 1.4 boat lengths per race.
+  That assumes 2 laps of 90 m legs, half the time upwind and half downwind, and equal weight for the
+  three loads and the three boat speeds. 0007/90 gives away 0.42\ % and 0008/100 0.49\ %.
+* **All of its cost is in fresh air.** If the running check confirms the leading-edge bubble, and
+  finds it already at 1.25 m/s, it loses over a wider range of winds. 0008/100 would then likely
+  become the better all-round fin (an estimate).
+* **0007/90 is the most even:** never more than 0.55\ % behind. But it is the least stiff of the
+  three.
+
+**Stiffness.** At IOM speeds the bulb loads the fin more than the water does: at a heel φ of 30° the part of
+a 2.4 kg bulb's weight across the fin is about 12\ N, against about 7\ N of side force S~h~. A soft fin
+lets the bulb sag to leeward at high heel, which costs righting moment RM~φ~, and lets fin and bulb oscillate in
+waves. One designer describes a boat (a Ten Rater, a larger radio class) that "would slow and spurt
+unpredictably in waves" until a stiffer fin was fitted [@gilbert-finpos]. Nobody has published how much stiffness is worth in race time, and the
+leading designers put thinness first, getting stiffness from the chord and the layup. A fin's bending
+stiffness scales roughly with chord × thickness³, so at 100 mm NACA 0007 is about 50\ % stiffer at the
+root than a 7\ % fin with a 90 mm chord, and NACA 0008 at 100 mm is another 30–50\ % stiffer (estimates
+for the same construction). Stiffness doesn't rule out 0007/100; if the boat sails a lot in waves at
+high heel, or the bulb sits well aft of the fin, 0008/100 is the safer side. The details and the
+sources are in the research note
+[fin-stiffness.md](https://github.com/kmamykin/iom_cfd/blob/main/docs/research/fin-stiffness.md).
+
+**How much is at stake.**
+
+* **The right fin for the wind:** up to about 1\ % of race time, 4 boat lengths.
+* **Between the three best all-round choices:** about 0.2\ % on average, under a boat length.
+
+These are smaller than the uncertainties of the 2D model (@sec-validation). By comparison, sanding
+finer than 400–600 grit gains less than half a boat length, but a dirty, slimy or unfair hull can cost
+as much as a poor section choice or more [@klaka2022]. Choose the section, *and* keep the boat clean
+and fair.
+
+**Why the order is not certain:**
+
+* **The model.** It is checked against one section at one Reynolds number (@sec-validation). It isn't
+  validated for ranking sections that differ by under 1\ %, and the shedding hasn't been compared with
+  measurements.
+* **The fresh-air result** for 0007/100 rests on one simulation, which is being checked.
+* **Not every point is time-accurate.** At 0.75 and 1.5 m/s only the 4° points are; 0.5 m/s has none.
+* **2D, constant chord.** Tip, bulb, hull junction, heel and taper are not modelled.
+* **Estimated inputs.** The resistance slope and the water turbulence are estimates. The hull and
+  rudder are assumed to make no side force, and every wind is weighted equally.
+
+**Against what is sold.** The recommended thickness, 7\ %, is what the market sells and what designers
+recommend. The chord is not: the simulations favour 90–100 mm, because a longer chord needs less leeway,
+while commercial fins taper from 80–100 mm at the hull to 63–75 mm at the bulb (a mean of about
+75–85 mm). The 2D model can't weigh taper, which moves lift and bending moment towards the root and
+saves weight at the tip. In practice, "NACA 0007 at 100 mm" means a 7\ % fin at the long end of what is
+sold; a 3D comparison of a tapered fin is the open question.
+
+**What would change it:**
+
+* the running check of 0007/100 at 1.25 and 1.5 m/s;
+* a hull resistance curve, to replace the estimate;
+* a 3D check of 0007/100 against 0008/100, and of a tapered 7\ % fin (for example 100 → 70 mm) against
+  a constant 100 mm chord;
+* a bench test of a real fin's stiffness: the tip drop with the keel held horizontal and the bulb on.
+
+## How the work went {#sec-studies}
+
+The work went in small steps, each a study with a question; its answer set up the next one. Each study
+has a dated findings log in the repository.
+
+::: {.callout-note collapse="true"}
+## The studies, one by one (click to open)
+
+::: {#tbl-studies}
+| when | study | question | answer |
+|:----|:----------------|:----------------|:------------------------|
+| 11\ Oct | validation | Does the transition model match wind-tunnel data at Re 10⁵? | Lift within 6\ %, drag 10–25\ % high, for this one section: it supports the model at Re 10⁵ (@sec-validation). |
+| 12\ Oct | selection run 1: 0006, 0009, 0012 × 80, 100 mm; 360 cases | How do thickness and chord trade off? | A thin, short fin wins at low load and a longer chord at high load. At working load the optimum lies between 6\ % and 9\ % thick. |
+| 13\ Oct | selection run 2: 0006–0012 × 80, 90, 100 mm; 450 cases | Where between 6\ % and 9\ %? | Thin sections lose at working load because their laminar boundary layer separates at the leading edge. NACA 0012 is out. |
+| 13\ Oct | mesh check | Is the mesh fine enough to separate the finalists? | Yes: medium is within 0.2\ % of fine at 4°. |
+| 13\ Oct | selection run 3: four finalists at Tu 0.1\ %; 100 cases | Does calmer water change the order? | Calmer water means *more* drag at 4–8°: the laminar bubble grows. |
+| 13\ Oct | analysis: leeway and both legs | What does the drag difference cost on the race course? | Counting leeway favours longer chords again; 0008/90 looked like the safest all-rounder. |
+| 13\ Oct | selection run 4: 0007/90, 0007/100, 0008/100; 75 cases | Are the thinner, longer sections better still? | Possibly, but the steady 4° solutions oscillated too much to tell. |
+| 14\ Oct | time-accurate check 1: 10 cases | Are the oscillating steady points right? | At 6° yes for the 0009 sections, within 0.5\ %. At 4° all seven sections shed vortices at 1 m/s, and 15 flow-throughs were too few to settle. |
+| 15\ Oct | time-accurate check 2: 8 cases continued to 30 flow-throughs | Where do the 4° forces settle? | Lift 4–16\ % below steady. 0007/100 moves to first, 0008/90 to fourth. |
+| 17\ Oct | time-accurate check 3: the top four at 2° and 6°, and at 0.75 and 1.5 m/s; 15 of 16 cases | Does that hold at other angles and speeds? | At 0.75 and 1 m/s, yes. At 1.5 m/s 0007/100 switches to a leading-edge bubble and drops to last of the four. The steady 6° drag of the 0007 and 0008 sections was 4–6\ % high. |
+| running | time-accurate check 4: 2 cases | Is that 1.5 m/s result real? | Pending. |
+
+The studies so far.
+:::
+:::
+
+```{mermaid}
+%%| label: fig-pipeline
+%%| fig-cap: "From a study file to this page. Every run is kept with its inputs; conclusions go into a dated findings log, and this page summarises the latest."
+flowchart TB
+  subgraph sim ["Simulate"]
+    direction LR
+    A["Study file<br/>what to sweep"] --> B["Cases<br/>one OpenFOAM case each"] --> C["Run<br/>Docker on a laptop,<br/>or Spot VMs on Google Cloud"] --> D["Results<br/>forces, Cp and Cf,<br/>force histories"]
+  end
+  subgraph ana ["Analyse"]
+    direction LR
+    E["Report<br/>polars, equal-force tables"] --> F["Race-time<br/>ranking"] --> G["Findings log<br/>dated conclusions"] --> H["This page"]
+  end
+  sim --> ana
+```
+
+## Reproducing this {.appendix .unnumbered}
+
+Everything is in [the repository](https://github.com/kmamykin/iom_cfd): the simulation setup
+(`projects/foil2d/`), every study file, and a findings log per study with the numbers behind each
+conclusion. Simulations run in Docker (`uv run iomcfd run foil2d/<study>`) or on Google Cloud Batch.
+This page is built from `site/` with Quarto; its charts are drawn from the small data files below,
+which `iomcfd site export` copies out of the runs. The code is under the
+[MIT licence](https://github.com/kmamykin/iom_cfd/blob/main/LICENSE); the text, figures and data on
+this page are under CC BY 4.0. Reference data from other sources keeps its own terms.
+
+## Data behind the figures {.appendix .unnumbered}
+
+{{< include ../_generated/sources.md >}}
+
+## Revision history {.appendix .unnumbered}
+
+* **18 October 2026 (evening).** New title, "IOM fin: NACA section and chord selection with CFD"
+  (was "Which fin section for an IOM?").
+* **18 October 2026 (later).** Added "Where the drag comes from": skin friction, pressure and
+  induced drag, and which boundary-layer states cost drag. Symbols changed to the project's
+  nomenclature (side force S~h~, drag D~h~ = D~v~ + D~i~, leeway β~Y~, true wind angle β~TW~, boat
+  speed V~b~). The numbers are unchanged.
+* **18 October 2026.** Moved to its own address, `/fin-selection/`, when the site's front page
+  became a list of studies. The content is unchanged.
+* **17 October 2026 (night).** Reworked for readers: a shorter summary with the answer and its limits, a
+  section on the fin and its flow (geometry, terms, the boundary layer and bubbles), legends before
+  each video, honest scope for the validation and the 4° shedding, results before the gallery, and
+  the study chronology folded away.
+* **17 October 2026 (evening).** The 3-second shedding clip replaced by three 10-second animations of NACA 0007
+  at 100 mm (velocity, boundary layer, vorticity), from a new run with 150 snapshots.
+* **17 October 2026 (later).** A gallery of flow types (attached flow, separation bubbles, shedding,
+  leading-edge bubbles, separation without reattachment, the edge of stall, lift lost near 0°) and an
+  animation of the flow from 0° to 8°.
+* **17 October 2026.** Time-accurate check 3: the four best fins at 2° and 6°, and at 0.75 and
+  1.5 m/s. The answer now depends on the wind: 0007/100 is best in light and medium air, 0008/100 at
+  1.5 m/s. Added the ranking by wind strength, the leading-edge-bubble figure, and research on fin
+  stiffness and on the fins sold for IOMs. References checked.
+* **16 October 2026.** First version: steady results of selection runs 1–4 and time-accurate checks 1–2.

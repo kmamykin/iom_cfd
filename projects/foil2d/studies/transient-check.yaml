@@ -46,6 +46,16 @@ description: >
   rest (about 99 % of the Wagner build-up), averaged over the last 6. The
   1.5 m/s case of the last run took 14.6 h for 20 flow-throughs: about 22 h
   for 30 (estimate); submit with --max-hours 30.
+  Run 20261017-193613: 1.5 m/s finished (16.4 h): from rest it sheds, Cd
+  0.0124, unlike the steady start's bubble. 1.25 m/s blew up at 4.87
+  flow-throughs (omega to -4.5e8, then deltaT to 1e-23 s) and ran on for
+  25 h until cancelled; 0009/100 diverged the same way from rest at max_co
+  10 in run 20261014-040114, while 0007/100 at max_co 5 did not. This run
+  repeats both cases with max_co 5 (half the time step; it moved Cl and Cd
+  by 1-2 % in run 20261014-040114), so the two speeds stay comparable. About
+  twice the time steps: up to about 35 h (estimate); submit with
+  --max-hours 48. The runner now logs progress every 10 min (iomcfd gcp
+  progress) and stops a diverging case.
 report:
   fin_span: 0.36        # m below the hull, as fin-profile-selection
   induced_drag: true
@@ -67,6 +77,7 @@ defaults:
   average_times: 6
   start_from: []      # from rest
   start_iter: 0       # no steady start either (the default is 2000 steady iterations)
+  max_co: 5           # max_co 10 blew up at 1.25 m/s (run 20261017-193613)
 cases:
   - {foil: naca0007, chord: 0.10, aoa: 4, speed: 1.5}
   - {foil: naca0007, chord: 0.10, aoa: 4, speed: 1.25}

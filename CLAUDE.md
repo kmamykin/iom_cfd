@@ -18,12 +18,17 @@
   cases worth a close look. They come from the current study file (else the
   run's copy) and drive the report's highlight tables/figures, which cases
   `viz` renders (plus montages), and `gcp fetch --fields`.
+- While a case runs, the runner logs a progress line every 10 min and stops
+  diverging cases (src/iomcfd/monitor.py; `Project.progress`/`diverged`
+  hooks). For a cloud job, `iomcfd gcp progress <study>` shows them.
 - `gcp fetch` downloads only results (params/result.json, surface.csv,
   spanload.csv, force_history.csv, start_from.json) plus one mesh per mesh level; `--logs`, `--fields`,
   `--only` add more. Exported cases have gzipped mesh and logs. `iomcfd slim` frees a local run (dry run
   unless `--yes`). Don't fetch whole runs: the laptop's disk is limited.
-- Website: `site/` (Quarto, one page, GitHub Pages on push to main; see
-  docs/website.md). Its charts come from committed CSVs in `site/data/`
+- Website: `site/` (Quarto, GitHub Pages on push to main; see
+  docs/website.md). The front page (`site/index.qmd`) is a card per
+  published study; each study is a page, `site/<study>/index.qmd` (now only
+  `fin-selection`). The charts come from committed CSVs in `site/data/`
   (`iomcfd site export`, sources in `site/data.yaml`), not from runs/.
   After findings change, the `site-update` skill updates it. Pushing to
   main publishes it, so commit and push only when asked.
@@ -34,8 +39,13 @@
 - Templates read `system/caseParameters` via `#include` and `$name`. Only
   derived camelCase names become entries (study inputs are comments) to avoid
   clashing with OpenFOAM keywords; tests/test_projects.py enforces it.
-- Boat frame: x aft, y port, z up, waterline z=0; + heel = to starboard,
-  + leeway = bow to port (port tack).
+- Boat frame: x aft, y port, z up, waterline z=0; + heel φ = to starboard,
+  + leeway β_Y = bow to port (port tack).
+- Symbols for forces, moments and angles in docs, findings and the site:
+  docs/nomenclature.md (after Parolini & Quarteroni and the ORC VPP): D_h,
+  S_h, T_a, S_a, M_a, D_h = D_v + D_i for a fin, β_TW/β_AW from the course,
+  V_b. Parameter and output names (`leeway`, `drag_N`, `awa`) stay as they
+  are; sails `awa` is from the centreline, fullboat `twa` from the course.
 - Never edit files under runs/ to fix things; fix the template or project.py.
 - foil2d stepped (Kline-Fogleman) sections: `foil: stair1:naca0009:x=0.5,d=0.3`
   (the number is steps per side: stair1 = the hobby KFm4; stair5/stair10 are

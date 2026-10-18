@@ -74,6 +74,8 @@ uv run iomcfd gcp submit foil2d/keel-sections                # 2D sweep, default
 uv run iomcfd gcp submit appendage3d/leeway-sweep --machine h3-standard-88 --np 44
 uv run iomcfd gcp status                                     # recent jobs
 uv run iomcfd gcp status <job-name>                          # task counts + log query
+uv run iomcfd gcp progress foil2d/keel-sections              # newest job: each task's latest progress lines
+uv run iomcfd gcp progress foil2d/keel-sections --run-id 20261012-045433 --lines 10
 uv run iomcfd gcp fetch foil2d/keel-sections                 # latest run's results -> runs/<study>/<run id>/
 uv run iomcfd gcp fetch foil2d/keel-sections --run-id 20261012-045433   # a particular run
 uv run iomcfd gcp fetch foil2d/keel-sections --logs          # + logs of failed / not-converged cases
@@ -141,7 +143,12 @@ resolution have not been measured yet; run one case first and scale from its
 
 * Batch runs containers as root. The image sets `OMPI_ALLOW_RUN_AS_ROOT`, and
   tasks get `--shm-size` scaled to their memory for MPI shared memory.
-* Logs: `gcloud logging read` with the query `iomcfd gcp status <job>`
-  prints, or in the Cloud console under Batch.
+* Logs: `iomcfd gcp progress <study>` shows each task's newest lines. Every
+  10 minutes a running case logs a progress line: time and % done, ETA,
+  `deltaT`, Courant number, forces and their drift. A diverging case is
+  stopped and logs `DIVERGED <case>: <reason>`. See "Progress and
+  divergence" in [workflow.md](workflow.md). The full log: `gcloud logging
+  read` with the query `iomcfd gcp status <job>` prints, or in the Cloud
+  console under Batch.
 * Results land in `gs://<bucket>/runs/<study>/<run id>/<case>/`, the same
   layout as local `runs/`.

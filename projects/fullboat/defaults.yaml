@@ -30,7 +30,7 @@ deck: 0.06
 # --- sailing condition -----------------------------------------------------
 speed: 1.0              # m/s boat speed through the water
 tws: 4.0                # m/s true wind speed (uniform with height)
-twa: 45.0               # deg true wind angle from the bow, wind from port
+twa: 45.0               # deg true wind angle β_TW from the course (the boat is turned by leeway), wind from port
 heel: 10.0              # deg, + = to starboard
 leeway: 3.0             # deg, + = bow to port
 trim: 0.0

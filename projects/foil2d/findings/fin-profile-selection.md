@@ -10,6 +10,13 @@ hand, and are not rewritten later: a later run that changes a conclusion says
 so in its own entry. The exception is "Where the selection stands" below: it
 is the current summary and is updated in place.
 
+Symbols follow [docs/nomenclature.md](../../../docs/nomenclature.md). On
+2026-10-18 the symbols in earlier entries were changed to it: side force S_h
+(was F), fin drag D_h = D_v + D_i (was D = D_s + D_i), leeway β_Y (was λ),
+the course's true wind angle β_TW (was θ, "track"), boat speed V_b and the
+resistance slope dD_h/dV_b (was dR/dV). Only the notation changed. `Cl`,
+`Cd` and `aoa` are output and parameter names and stay.
+
 ## Where the selection stands (updated 2026-10-17, after transient-check run 20261017-000816)
 
 **Metric.** The current metric is the race time lost on a windward-leeward
@@ -533,19 +540,20 @@ sources; 39° (plus 3° leeway) is used, with 35° and 45° as bounds.
 
 ### Method
 
-* **Value of leeway.** The track through the water is heading + leeway (θ)
-  off the true wind. The distance sailed for D to windward is D / cos θ, so
-  dt / t = tan θ · Δλ.
+* **Value of leeway.** The course through the water is heading + leeway
+  β_Y off the true wind, at the true wind angle β_TW. The distance sailed
+  for d to windward is d / cos β_TW, so dt / t = tan β_TW · Δβ_Y.
 * **Leeway of each candidate.** At equal side force and span, the
-  lifting-line induced angle, F / (2π e q b²), doesn't depend on chord. So
+  lifting-line induced angle, S_h / (2π e q b²), doesn't depend on chord. So
   the difference in leeway between candidates is the difference in 2D
   section angle at that force. It is interpolated along the pre-stall branch
   like the drag (`selection_compare.csv`). This assumes the fin carries all
   the side force.
 * **Side-force slope.** a = a0 / (1 + a0 / (π e AR)) with AR = 2b / c = 9,
   from the Cl of 0009/80 (`results.csv`).
-* **Drag to time.** δV = ΔD / (dR/dV), so the fraction of a leg's time lost
-  is ΔD / (V · dR/dV). The resistance R(V) is estimated, upright and in calm
+* **Drag to time.** δV_b = ΔD_h / (dD_h/dV_b), so the fraction of a leg's
+  time lost is ΔD_h / (V_b · dD_h/dV_b). The boat's resistance D_h(V_b) is
+  estimated, upright and in calm
   water:
   * hull: ITTC-57 friction × (1 + k), with 1 + k = 1.10 (assumed), on
     0.142 m² and L = 0.99 m;
@@ -565,8 +573,9 @@ sources; 39° (plus 3° leeway) is used, with 35° and 45° as bounds.
 ### Conclusions
 
 1. **1° of leeway costs 1.4-1.9 % of the beat.**
-   * Heading 39° + 3° leeway = a 42° track: 134.6 m sailed per 100 m to
-     windward. 1° more leeway adds 2.1 m, 1.6 % and 1.9 s at 1.13 m/s.
+   * Heading 39° + 3° leeway = a course at β_TW = 42°: 134.6 m sailed per
+     100 m to windward. 1° more leeway adds 2.1 m, 1.6 % and 1.9 s at
+     1.13 m/s.
    * At a 35° heading it adds 1.7 m (1.4 %); at 45°, 2.9 m (1.9 %).
 
    Confidence: high for the geometry, given the heading.
@@ -645,7 +654,7 @@ Values on a 100 m leg (conclusions 1-3):
 
 | item | value |
 |---|---|
-| 1° leeway, track 38 / 42 / 48° (heading 35 / 39 / 45° + 3°) | +1.73 / +2.11 / +2.90 m; +1.36 / +1.57 / +1.94 % of the beat; +1.53 / +1.87 / +2.56 s at 1.13 m/s |
+| 1° leeway, β_TW 38 / 42 / 48° (heading 35 / 39 / 45° + 3°) | +1.73 / +2.11 / +2.90 m; +1.36 / +1.57 / +1.94 % of the beat; +1.53 / +1.87 / +2.56 s at 1.13 m/s |
 | fin side-force slope, 0009/80, 1 m/s | 1.29 N/° (secant to 4°, with 1.01° induced); 0.73-1.93 N/° local, 2-6° |
 | 1 N of side force, 1 m/s | 0.78° of leeway; 1.2 % of the beat; 1.65 m |
 | 0.01 N of drag, ×1 slope | upwind: 0.74 % speed, 0.99 s at 1.0 m/s; 0.61 %, 0.72 s at 1.13 m/s. Downwind: 0.74 %, 0.74 s at 1.0 m/s; 0.37 %, 0.25 s at 1.5 m/s |
@@ -653,7 +662,7 @@ Values on a 100 m leg (conclusions 1-3):
 
 Resistance estimate (method), N:
 
-| V [m/s] | hull | fin (0°) | bulb | rudder | total | V · dR/dV |
+| V_b [m/s] | hull | fin (0°) | bulb | rudder | total | V_b · dD_h/dV_b |
 |---|---|---|---|---|---|---|
 | 0.5 | 0.110 | 0.068 | 0.032 | 0.017 | 0.227 | 0.40 |
 | 0.75 | 0.226 | 0.126 | 0.064 | 0.039 | 0.456 | 0.81 |
@@ -737,8 +746,8 @@ Proposed, not agreed (see "Where the selection stands"):
    angle differences (**not verified**). If the hull and rudder carry
    20-30 %, the leeway differences shrink roughly in proportion (not
    computed).
-6. Sails trimmed to the same apparent wind, so less leeway means a closer
-   track at the same heading and speed.
+6. Sails trimmed to the same apparent wind, so less leeway means a course
+   closer to the wind (smaller β_TW) at the same heading and speed.
 7. Downwind the fin is at 0° (as the previous analysis).
 
 ### Compromises

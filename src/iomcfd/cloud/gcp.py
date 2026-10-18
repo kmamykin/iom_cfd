@@ -259,10 +259,65 @@ def cmd_status(args) -> None:
         print(f"{args.job}: {st.get('state')}  run time {st.get('runDuration', '-')}")
         for grp in (st.get("taskGroups") or {}).values():
             print("  tasks:", ", ".join(f"{k}={v}" for k, v in (grp.get("counts") or {}).items()))
-        print(f"\nlogs: gcloud logging read 'labels.job_uid=\"{info.get('uid')}\"' --project {cfg['GCP_PROJECT']} --limit 50")
+        print(f"\nprogress: iomcfd gcp progress <study> --run-id {info.get('labels', {}).get('run', '<run id>')}")
+        print(f"logs: gcloud logging read 'labels.job_uid=\"{info.get('uid')}\"' --project {cfg['GCP_PROJECT']} --limit 50")
     else:
         _gcloud("batch", "jobs", "list", "--project", cfg["GCP_PROJECT"], "--location", cfg["GCP_REGION"],
                 "--filter", "labels.app=iomcfd", "--sort-by", "~createTime", "--limit", "20")
+
+
+def _task_index(task_id: str) -> int:
+    try:
+        return int(task_id.rsplit("-", 1)[-1])
+    except ValueError:
+        return -1
+
+
+def cmd_progress(args) -> None:
+    """The newest log lines of each task of a study's job, from Cloud Logging:
+    the runner's progress lines (every 10 min: time, %, ETA, deltaT, Courant,
+    forces and their drift), divergence stops and results (runner.py,
+    monitor.py)."""
+    from ..cli import resolve_study_path
+    from ..study import Study
+
+    cfg = load_config()
+    study = Study.load(resolve_study_path(args.study))
+    where = ["--project", cfg["GCP_PROJECT"], "--location", cfg["GCP_REGION"]]
+    if args.run_id:
+        name = job_name(study.name, args.run_id)
+    else:
+        label = re.sub(r"[^a-z0-9_-]", "-", study.name.lower())[:63]
+        # newest by run id (the name's suffix); gcloud's --limit with a filter dropped jobs
+        names = _gcloud("batch", "jobs", "list", *where, "--filter", f"labels.study={label}",
+                        "--format", "value(name)", capture=True).split()
+        if not names:
+            raise SystemExit(f"no Batch jobs of {study.name}")
+        name = max(n.rsplit("/", 1)[-1] for n in names)
+    info = json.loads(_gcloud("batch", "jobs", "describe", name, *where, "--format", "json", capture=True))
+    st = info.get("status", {})
+    counts: dict[str, int] = {}
+    for grp in (st.get("taskGroups") or {}).values():
+        for k, v in (grp.get("counts") or {}).items():
+            counts[k] = counts.get(k, 0) + int(v)
+    dur = st.get("runDuration", "")
+    hours = f"{float(dur[:-1]) / 3600:.1f} h" if dur.endswith("s") and dur[:-1].replace(".", "", 1).isdigit() else "-"
+    print(f"{name}: {st.get('state')}, run time {hours}; tasks: "
+          + (", ".join(f"{k.lower()} {v}" for k, v in sorted(counts.items())) or "-"))
+    flt = f'logName="projects/{cfg["GCP_PROJECT"]}/logs/batch_task_logs" AND labels.job_uid="{info.get("uid")}"'
+    out = _gcloud("logging", "read", flt, "--project", cfg["GCP_PROJECT"], "--freshness", "30d",
+                  "--limit", "2000", "--format", "json", capture=True)
+    lines: dict[str, list[tuple[str, str]]] = {}
+    for e in json.loads(out or "[]"):  # newest first
+        text = (e.get("textPayload") or "").rstrip()
+        if text.strip():
+            lines.setdefault(e.get("labels", {}).get("task_id", "?"), []).append((e.get("timestamp", "")[:19], text))
+    if not lines:
+        print("no task log lines yet")
+    for task in sorted(lines, key=_task_index):
+        print(f"\ntask {_task_index(task)}")
+        for ts, text in reversed(lines[task][: args.lines]):
+            print(f"  {ts}Z {text.strip()}")
 
 
 def cmd_fetch(args) -> None:
@@ -339,6 +394,13 @@ def add_parser(sub) -> None:
     s = gsub.add_parser("status", help="list jobs, or show one")
     s.add_argument("job", nargs="?")
     s.set_defaults(func=cmd_status)
+
+    s = gsub.add_parser("progress", help="newest log lines of each task of a study's job: progress (time, %, ETA, "
+                        "Courant, forces, drift), divergence stops, results")
+    s.add_argument("study")
+    s.add_argument("--run-id", metavar="ID", help="which run (default: the study's newest job)")
+    s.add_argument("--lines", type=int, default=3, help="lines per task (default 3)")
+    s.set_defaults(func=cmd_progress)
 
     s = gsub.add_parser("fetch", help="download a run's results (not meshes, logs, fields) and collect them")
     s.add_argument("study")

@@ -50,6 +50,17 @@ class Project:
         """Polled while the solver runs; return True to stop it (writeNow)."""
         return False
 
+    def progress(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any]) -> dict[str, Any]:
+        """Polled while the solver runs: numbers for the progress line in the
+        job log (latest forces, how far they still drift). See monitor.py."""
+        return {}
+
+    def diverged(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any]) -> str | None:
+        """Polled while the solver runs: a reason if the solution has blown up
+        (the runner then stops the case), else None. The runner also checks
+        the time step, Courant number and a stalled solver (monitor.py)."""
+        return None
+
     def extract(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any]) -> dict[str, Any]:
         """Parse solver output into a flat dict of metrics."""
         return {}

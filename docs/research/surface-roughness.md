@@ -254,7 +254,7 @@ profile no longer holds, so they are an order of magnitude only.
   leading edge is not.
 
 **Comparison per race.** Using Klaka's course of 2 laps of 90 m legs,
-about 420 m sailed with a 42° track upwind: 1 % of race time ≈ 4 m ≈ 4 boat
+about 420 m sailed with the course at β_TW = 42° upwind: 1 % of race time ≈ 4 m ≈ 4 boat
 lengths. This is a rough conversion.
 
 | what changes | effect | boat lengths per race |

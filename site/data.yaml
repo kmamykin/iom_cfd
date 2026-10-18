@@ -1,4 +1,4 @@
-# Data behind the website (site/index.qmd). Each entry is one file: a table
+# Data behind the website's study pages (site/<study>/index.qmd). Each entry is one file: a table
 # in site/data/<name>.csv, or a picture or video in site/assets/<name>.<ext>.
 #
 #   uv run iomcfd site export [NAME ...]
