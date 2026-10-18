@@ -4,6 +4,10 @@ OpenFOAM simulations for International One Metre (IOM) radio-controlled
 yachts: keel and rudder sections, 3D appendages, hull resistance, sails, and
 (experimental) the whole boat in water and air.
 
+**Website:** [kmamykin.github.io/iom_cfd](https://kmamykin.github.io/iom_cfd/),
+a one-page summary of the findings so far (which fin section, why, and how
+sure), with flow pictures and videos.
+
 You describe a design study in a small YAML file. The tooling turns each
 variation into a complete OpenFOAM case, meshes it, runs it in Docker
 (locally or on Google Cloud Batch), stops it when the forces have settled,
