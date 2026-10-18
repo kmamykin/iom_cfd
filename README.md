@@ -5,8 +5,8 @@ yachts: keel and rudder sections, 3D appendages, hull resistance, sails, and
 (experimental) the whole boat in water and air.
 
 **Website:** [kmamykin.github.io/iom_cfd](https://kmamykin.github.io/iom_cfd/),
-a one-page summary of the findings so far (which fin section, why, and how
-sure), with flow pictures and videos.
+the published studies, each a summary of where it stands (so far: which fin
+section, why, and how sure), with flow pictures and videos.
 
 You describe a design study in a small YAML file. The tooling turns each
 variation into a complete OpenFOAM case, meshes it, runs it in Docker
@@ -24,9 +24,9 @@ study YAML ──> iomcfd run ──> OpenFOAM cases (Docker / Cloud Batch) ─�
 | Project | What it computes | Solver / mesh | Status |
 |---|---|---|---|
 | [`foil2d`](projects/foil2d) | 2D section polars (Cl, Cd, Cm, Cp, Cf, separation) for fins and rudders | simpleFoam + kOmegaSSTLM transition, generated C-grid | **Working, partly validated** |
-| [`appendage3d`](projects/appendage3d) | Fin + bulb + rudder forces at speed, leeway, heel, rudder angle | simpleFoam + kOmegaSST, snappyHexMesh | Runs end to end, not validated |
-| [`hull`](projects/hull) | Calm-water resistance, fixed or free sinkage/trim | interFoam (VOF), snappyHexMesh | Fixed attitude runs end to end; free attitude untested |
-| [`sails`](projects/sails) | Drive force, heeling force, centre of effort of main + jib + mast | simpleFoam + kOmegaSST, sails as baffles | Runs end to end, not validated |
+| [`appendage3d`](projects/appendage3d) | Fin + bulb + rudder forces and moments (D_h, S_h, M_h,dyn, N_h) at boat speed V_b, leeway β_Y, heel φ, rudder angle δ_R | simpleFoam + kOmegaSST, snappyHexMesh | Runs end to end, not validated |
+| [`hull`](projects/hull) | Calm-water resistance D_h, fixed or free sinkage/trim | interFoam (VOF), snappyHexMesh | Fixed attitude runs end to end; free attitude untested |
+| [`sails`](projects/sails) | Drive and heeling force (giving T_a, S_a), heeling moment M_a, centre of effort Z_CE of main + jib + mast | simpleFoam + kOmegaSST, sails as baffles | Runs end to end, not validated |
 | [`fullboat`](projects/fullboat) | Hull + appendages in water and rig in air together; force/moment balance | interFoam (VOF) | **Experimental**, pipeline check only |
 
 "Runs end to end" means a coarse smoke study meshes, solves and extracts
@@ -102,8 +102,8 @@ iom_cfd/
 ├── geometry/                 your CAD exports (Fusion 360 STL) and foil .dat files
 ├── cloud/gcp/                config.env.example, setup.sh
 ├── site/                     the website (Quarto, GitHub Pages): page, data, figures
-├── docs/                     workflow, OpenFOAM notes, cloud, geometry conventions
-│   └── research/             literature notes (e.g. surface-roughness.md)
+├── docs/                     workflow, OpenFOAM notes, cloud, geometry conventions, nomenclature
+│   └── research/             literature notes (e.g. surface-roughness.md, bulb-design.md, vpp.md)
 ├── tests/                    pytest (pure Python; `-m docker` runs OpenFOAM)
 └── runs/                     simulation output (git-ignored)
 ```
@@ -126,8 +126,8 @@ iom_cfd/
 Details, runs, findings and statistics: [docs/workflow.md](docs/workflow.md).
 Visualisation of results (views per project, adding views, animations):
 [docs/visualization.md](docs/visualization.md).
-The project website, a one-page summary of the findings built from `site/`
-and published on GitHub Pages: [docs/website.md](docs/website.md).
+The project website, a page per published study built from `site/` and
+published on GitHub Pages: [docs/website.md](docs/website.md).
 
 ## Running on Google Cloud
 
@@ -141,6 +141,7 @@ cloud/gcp/setup.sh                                     # APIs, registry, bucket,
 cloud/gcp/setup-github.sh                              # GitHub Actions pushes the image on every push to main
 uv run iomcfd gcp submit foil2d/keel-sections
 uv run iomcfd gcp status
+uv run iomcfd gcp progress foil2d/keel-sections        # each task's latest progress line (time, ETA, forces, divergence)
 uv run iomcfd gcp fetch foil2d/keel-sections           # latest run's results (MBs, not GBs) -> runs/<study>/<run id>/
 uv run iomcfd gcp fetch foil2d/keel-sections --fields  # + whole cases of the study's highlights, for viz
 ```
@@ -169,9 +170,13 @@ benchmark are the next validation steps. Discussion:
 
 * SI units everywhere; angles in degrees in studies.
 * Boat frame for all 3D projects: **x aft** (bow near x = 0, water flows +x),
-  **y to port**, **z up**, calm waterline at z = 0. Positive heel = mast to
-  starboard; positive leeway = bow to port (port tack upwind).
+  **y to port**, **z up**, calm waterline at z = 0. Positive heel φ = mast
+  to starboard; positive leeway β_Y = bow to port (port tack upwind).
   See [docs/geometry.md](docs/geometry.md) for Fusion 360 export settings.
+* Symbols for forces, moments and angles (D_h, S_h, T_a, S_a, M_a, β_TW,
+  β_AW, ...) follow [docs/nomenclature.md](docs/nomenclature.md), after
+  Parolini & Quarteroni and the ORC VPP documentation. Parameter and output
+  names (`leeway`, `drag_N`, `side_N`) are unchanged; the doc maps them.
 * Study parameters are validated against `defaults.yaml`: a typo is an error,
   not a silently ignored setting.
 * Generated case files are outputs. Edit the template or the study, not

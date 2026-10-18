@@ -1,8 +1,9 @@
 """The project website (site/, GitHub Pages): its data, figures and build.
 
-The page, site/index.qmd, is written by hand. Its charts are drawn by
-site/figures.py from small CSV files in site/data/, which are committed, so
-the site builds without runs/. site/data.yaml says which run each data file
+A Quarto website: a front page listing the published studies as cards
+(site/index.qmd) and a page per study (site/<study>/index.qmd), written by
+hand. Their charts are drawn by site/figures.py from small CSV files in
+site/data/, which are committed, so the site builds without runs/. site/data.yaml says which run each data file
 comes from; `iomcfd site export` copies it out of the local runs (a light
 `gcp fetch` is enough for tables) and records the source in
 site/data/sources.json. Pictures and videos that can't be rebuilt online

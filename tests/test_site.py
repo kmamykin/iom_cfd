@@ -2,8 +2,10 @@
 figures (pure Python, no OpenFOAM, no Quarto)."""
 
 import json
+import re
 
 import pytest
+import yaml
 
 from iomcfd import site
 from iomcfd.config import home
@@ -64,15 +66,40 @@ def test_export_of_a_run_that_is_not_here_says_how_to_fetch_it(fake):
         site.export(site=fake)
 
 
-def test_figures_build_from_the_committed_data(tmp_path):
+@pytest.fixture(scope="module")
+def built(tmp_path_factory):
+    """site/figures.py, and everything its make_all() draws from the committed data."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("site_figures", SITE / "figures.py")
     figs = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(figs)
-    out = figs.make_all(SITE / "data", tmp_path)
+    return figs, figs.make_all(SITE / "data", tmp_path_factory.mktemp("generated"))
+
+
+def test_figures_build_from_the_committed_data(built):
+    figs, out = built
     assert all(p.is_file() and p.stat().st_size > 0 for p in out)
     # the loads are the steady side forces of 0009/80 at 1 m/s (methodology.md: 1.15, 6.69, 8.33 N)
     steady = figs._whole_fin(pd.read_csv(SITE / "data" / "steady-1ms.csv"))
     assert [round(v, 2) for v in figs.loads(steady).values()] == [1.15, 6.69, 8.33]
     assert figs.wagner(15) == pytest.approx(0.958, abs=0.002)  # ~95 % after 15 flow-throughs
+
+
+def _front_matter(page):
+    return yaml.safe_load(re.match(r"---\n(.*?)\n---\n", page.read_text(), re.DOTALL).group(1))
+
+
+def test_every_study_on_the_front_page_has_a_card(built):
+    """The front page lists study pages; each card needs the page's title, description and image."""
+    made = {p.name for p in built[1]}
+    pages = _front_matter(SITE / "index.qmd")["listing"]["contents"]
+    assert pages
+    for page in pages:
+        meta = _front_matter(SITE / page)
+        assert meta.get("title") and meta.get("description"), page
+        image = ((SITE / page).parent / meta["image"]).resolve()
+        if image.parent == (SITE / "_generated").resolve():
+            assert image.name in made, f"{page}: figures.make_all() doesn't make {image.name}"
+        else:
+            assert image.is_file(), f"{page}: no {meta['image']}"

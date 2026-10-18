@@ -8,13 +8,15 @@
 | y | to port | centreline y = 0 |
 | z | up | calm waterline z = 0 |
 
-* **Heel** + = mast to starboard (port tack upwind), rotation about the x axis
+* **Heel φ** + = mast to starboard (port tack upwind), rotation about the x axis
   through midship at the waterline.
-* **Leeway** + = bow to port, i.e. the boat slides to starboard and the keel's
+* **Leeway β_Y** + = bow to port, i.e. the boat slides to starboard and the keel's
   side force points to port (port tack upwind). appendage3d rotates the inflow;
   hull and fullboat rotate the geometry.
 * **Trim** + = bow down; **sinkage** + = down.
 * Starboard tack is the mirror image of port tack.
+* Force, moment and angle symbols (D_h, S_h, M_h, T_a, leeway β_Y, heel φ)
+  and how project outputs map onto them: [nomenclature.md](nomenclature.md).
 
 ## Parametric geometry (`src/iomcfd/geometry/`)
 

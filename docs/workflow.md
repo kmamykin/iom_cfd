@@ -192,6 +192,46 @@ read as one run: `force_history()` in foil2d, recorded in each case's
 It reads `force_history.csv`, or `postProcessing/` for cases fetched whole,
 so it also works for runs made before the drift check existed.
 
+### Progress and divergence
+
+While a case runs, the runner (`src/iomcfd/monitor.py`) also reads the tail
+of the solver log.
+
+* **Progress line.** Every 10 minutes (`RunOptions.progress_seconds`) it
+  writes one line to the run's output: on a laptop the terminal, on Cloud
+  Batch Cloud Logging (`iomcfd gcp progress <study>`). The line gives:
+  * the wall time, the solver log and the time or iteration, with % of
+    `endTime`;
+  * `deltaT`, the maximum Courant number, the solver's run time and an ETA;
+  * which turbulence fields were clipped ("bounding");
+  * the project's numbers. For foil2d these are the latest Cl and Cd. A
+    transient case adds flow-throughs, the lift oscillation over the last
+    flow-through and `Cl_drift`/`Cd_drift`. A steady case adds the
+    windowed change of the means against `conv_tol`.
+
+  For example (illustrative):
+
+  ```
+  progress  aoa4_chord0.1_foilnaca0007_speed1.25  wall 1.0 h  log.pimpleFoam  t 0.1892/2.4 (7.9 %)  deltaT 0.000441  Co max 10  solver 1.0 h, ETA 11.7 h  bounding k:31  Cl 0.3289  Cd 0.01466  flow_times 2.365  Cl_osc 0.01
+  ```
+* **Divergence stop.** The case is stopped when one of these holds for
+  two polls in a row (30 s):
+  * `deltaT` falls below 1/1000 of its largest value so far;
+  * the maximum Courant number passes 1000;
+  * the solver's time stands still for 30 minutes while its log still
+    grows;
+  * the project's own test fails. In foil2d that is Cl or Cd non-finite or
+    beyond ±50 in the last three samples, after the start-up.
+
+  The runner writes `stopAt noWriteNow`, so no fields are written. If the
+  solver hasn't stopped after 15 minutes, it is killed. The result is
+  `failed`, with `diverged: <reason>` in `result.json` and in the log, and
+  the case is exported as usual: logs and `postProcessing/`, which
+  `gcp fetch --logs` downloads.
+
+  Without this, transient-check run 20261017-193613 kept one blown-up case
+  running for 25 hours.
+
 ## Verification: mesh refinement
 
 Mesh levels are named (`xcoarse`, `coarse`, `medium`, `fine`, `xfine`) and

@@ -1,8 +1,10 @@
 # sails: main, jib and mast in the apparent wind
 
 Steady RANS of rigid sails above a flat, frictionless water surface: drive
-force, heeling force, heeling moment and centre of effort for a sail trim
-(sheeting, twist, camber), apparent wind angle and heel.
+and heeling force (which give the thrust T_a and side force S_a), heeling
+moment M_a and centre-of-effort height Z_CE for a sail trim (sheeting,
+twist, camber), apparent wind angle and heel φ. Symbols:
+[docs/nomenclature.md](../../docs/nomenclature.md).
 
 **Status: runs end to end on a coarse mesh; not validated.**
 
@@ -33,12 +35,19 @@ force, heeling force, heeling moment and centre of effort for a sail trim
 
 ## Outputs
 
-`drive_N` (forward, −x), `heel_force_N` (to leeward), `heel_moment_Nm`
-(about the waterline), `z_ce` (centre of effort height), lift and drag
-relative to the apparent wind with `CL`/`CD` on the sail area, and
-per-sail drive and heeling force.
+* `drive_N` (forward, −x) and `heel_force_N` (to leeward). sails has no
+  leeway, so these are along and across the centreline, not the course.
+  With leeway β_Y the thrust is T_a = drive_N cos β_Y + heel_force_N sin β_Y
+  and the side force S_a = heel_force_N cos β_Y − drive_N sin β_Y.
+* `heel_moment_Nm` (M_a, about the waterline, + heels to starboard).
+* `z_ce` (Z_CE, the height of the centre of effort).
+* `lift_N` and `drag_N` (L_a, D_a, relative to the apparent wind) with
+  `CL`/`CD` (C_L, C_D) on the sail area.
+* Per-sail drive and heeling force.
 
 ## Studies
 
 `smoke`: xcoarse, 20 iterations. Suggested: sheeting-angle sweep at
-AWA = 25-35°, then AWA sweep 20-90° with trims re-optimised.
+`awa` = 25-35°, then an `awa` sweep 20-90° with trims re-optimised. `awa`
+is measured from the centreline; the apparent wind angle from the course
+is β_AW = `awa` + β_Y.

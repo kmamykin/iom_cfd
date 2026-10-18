@@ -23,6 +23,7 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -32,6 +33,7 @@ from typing import Any
 
 from . import config
 from .foam import tail_log
+from .monitor import PROGRESS_SECONDS, Monitor
 from .project import Project
 from .study import Case, Study
 
@@ -53,6 +55,8 @@ class RunOptions:
     keep_fields: bool = True  # keep the final time directory when exporting
     compress: bool = True  # gzip mesh and logs when exporting
     poll_seconds: float = 15.0  # convergence-monitor interval
+    progress_seconds: float = PROGRESS_SECONDS  # a progress line in the log this often
+    stop_grace_seconds: float = 900.0  # after a divergence stop, kill the solver if still running
 
 
 RUN_ID_FORMAT = "%Y%m%d-%H%M%S"
@@ -130,8 +134,17 @@ def is_done(case_dir: Path, case: Case) -> bool:
 
 
 def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
-             export_dir: Path | None = None) -> dict[str, Any]:
-    """Render (if needed) and run one case. Never raises; returns the result."""
+             export_dir: Path | None = None, log=print) -> dict[str, Any]:
+    """Render (if needed) and run one case. Never raises; returns the result.
+
+    While the solver runs, a Monitor (monitor.py) logs a progress line every
+    opts.progress_seconds and checks for divergence. A diverged case is
+    stopped without writing fields (killed if it doesn't stop within
+    opts.stop_grace_seconds) and reported as failed, with the reason."""
+    def say(msg: str) -> None:
+        log(msg)
+        sys.stdout.flush()  # Cloud Logging shows lines as they come
+
     t0 = time.time()
     result: dict[str, Any] = {
         "case": case.name,
@@ -147,19 +160,40 @@ def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
         if opts.render_only:
             return {"case": case.name, "status": "rendered"}
         env = dict(os.environ, NP=str(case.params.get("np", 1)))
-        with open(case_dir / "log.Allrun", "w") as log:
-            proc = subprocess.Popen(["./Allrun"], cwd=case_dir, stdout=log, stderr=subprocess.STDOUT, env=env)
+        monitor = Monitor(
+            case.name, case_dir,
+            progress=lambda: project.progress(case_dir, case.params, derived),
+            diverged=lambda: project.diverged(case_dir, case.params, derived),
+            log=say, progress_seconds=opts.progress_seconds)
+        with open(case_dir / "log.Allrun", "w") as allrun_log:
+            proc = subprocess.Popen(["./Allrun"], cwd=case_dir, stdout=allrun_log, stderr=subprocess.STDOUT, env=env)
             stop_requested = False
+            diverged: str | None = None
+            kill_at = 0.0
             while proc.poll() is None:
                 time.sleep(opts.poll_seconds)
-                if not stop_requested and _safe_converged(project, case_dir, case.params, derived):
+                if diverged:
+                    if time.time() > kill_at and proc.poll() is None:
+                        say(f"  killing   {case.name}: still running {opts.stop_grace_seconds:.0f} s after the stop")
+                        _kill(proc)
+                    continue
+                diverged = monitor.poll()
+                if diverged:
+                    say(f"  DIVERGED  {case.name}: {diverged}; stopping the solver")
+                    request_stop(case_dir, "noWriteNow")
+                    kill_at = time.time() + opts.stop_grace_seconds
+                elif not stop_requested and _safe_converged(project, case_dir, case.params, derived):
                     request_stop(case_dir)
                     stop_requested = True
             result["stopped_on_convergence"] = stop_requested
         result["returncode"] = proc.returncode
         metrics = project.extract(case_dir, case.params, derived)
         result["metrics"] = metrics
-        if proc.returncode != 0:
+        if diverged:
+            result["status"] = "failed"
+            result["diverged"] = diverged
+            result["error"] = f"diverged: {diverged}"
+        elif proc.returncode != 0:
             result["status"] = "failed"
             result["error"] = _last_error(case_dir)
         else:
@@ -183,11 +217,26 @@ def _safe_converged(project: Project, case_dir: Path, params, derived) -> bool:
         return False
 
 
-def request_stop(case_dir: Path) -> None:
-    """Ask a running solver to write and stop (needs runTimeModifiable true)."""
+def request_stop(case_dir: Path, how: str = "writeNow") -> None:
+    """Ask a running solver to stop at the end of the time step: `writeNow`
+    (write the fields) or `noWriteNow`. Needs runTimeModifiable true."""
     from .foam import set_entry
 
-    set_entry(case_dir / "system" / "controlDict", "stopAt", "writeNow")
+    set_entry(case_dir / "system" / "controlDict", "stopAt", how)
+
+
+def _kill(proc: subprocess.Popen) -> None:
+    """Stop ./Allrun and the solver it started (mpirun passes the signal on
+    to its ranks)."""
+    try:
+        subprocess.run(["pkill", "-TERM", "-P", str(proc.pid)], check=False, capture_output=True)
+    except FileNotFoundError:  # no pkill: the solver may outlive Allrun
+        pass
+    proc.terminate()
+    try:
+        proc.wait(timeout=60)
+    except subprocess.TimeoutExpired:
+        proc.kill()
 
 
 def _last_error(case_dir: Path) -> str:
@@ -297,7 +346,7 @@ def run_study(
 
     results = []
     with ThreadPoolExecutor(max_workers=max(1, opts.jobs)) as pool:
-        futs = {pool.submit(run_case, project, c, d, opts, export_dir): c for c, d in todo}
+        futs = {pool.submit(run_case, project, c, d, opts, export_dir=export_dir, log=log): c for c, d in todo}
         for fut in as_completed(futs):
             r = fut.result()
             results.append(r)
@@ -306,6 +355,7 @@ def run_study(
             log(f"  {r['status']:<13} {r['case']}  {r.get('wall_time_s', 0):>7}s  {summary}")
             if r["status"] == "failed":
                 log("    " + str(r.get("error", "")).replace("\n", "\n    ")[:2000])
+            sys.stdout.flush()
     return results
 
 

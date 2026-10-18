@@ -9,7 +9,8 @@ benchmark are next).
 
 How fin sections are ranked by race time (equal side force, leeway, upwind
 and downwind legs): [methodology.md](methodology.md). Results and decisions:
-[findings/](findings/).
+[findings/](findings/). Symbols (S_h, D_h = D_v + D_i, leeway β_Y, section
+angle α, C_l, C_d): [docs/nomenclature.md](../../docs/nomenclature.md).
 
 ## Physics
 
@@ -97,7 +98,7 @@ the study's `report:` block (no re-run):
 ```yaml
 report:
   fin_span: 0.36        # m: whole-fin forces [N] instead of per metre of span
-  induced_drag: true    # add L^2 / (2 pi q e b^2): lifting line, hull as reflection plane
+  induced_drag: true    # add D_i = S_h^2 / (2 pi q e b^2): lifting line, hull as reflection plane
   span_efficiency: 0.9  # e
   compare_at: {foil: naca0009, chord: 0.08, aoa: [2, 4, 6]}  # default: middle section, shortest chord
 ```
@@ -222,7 +223,7 @@ solutions of unsteady flow at 4°; mesh resolution (coarse level, y+ up to
 3 at the suction peak); and the experiment's own scatter (a separate lift
 run in the same archive reads 0.01-0.02 lower Cl).
 
-Practical reading: at upwind leeway angles (2-5°) the transition model is
+Practical reading: at upwind section angles (α = 2-5°) the transition model is
 good enough to rank sections, with absolute drag uncertain by roughly
 10-25 %. Above ~6° use both models as bounds.
 

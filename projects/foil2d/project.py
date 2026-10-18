@@ -22,7 +22,7 @@ import numpy as np
 
 from iomcfd import config, physics
 from iomcfd.foam import find_dat, latest_time, read_dat, set_entry
-from iomcfd.forces import read_forces, settled
+from iomcfd.forces import read_forces, settled, window_stats
 from iomcfd.geometry import cmesh, foils, stepped
 from iomcfd.project import Project
 
@@ -40,6 +40,7 @@ START_FIELDS = ("U", "p", "k", "omega", "nut", "gammaInt", "ReThetat")
 # window may differ by at most this fraction of the window mean; above it the
 # case is flagged `drifting` (its time average has not settled: run longer).
 DRIFT_TOL = 0.01
+COEFF_LIMIT = 50.0  # |Cl| or |Cd| past this after the start-up: blown up (Project.diverged)
 BLOCK_FLOW_TIMES = 3  # block length for the block means in report/transient.md
 
 # 'medium' (factor 1) resolution. ~90k cells.
@@ -411,6 +412,58 @@ class Foil2D(Project):
         _, cl, cd, _ = c
         w, tol = int(d["convWindow"]), float(p["conv_tol"])
         return settled(cl, w, tol, max(abs(cl[-1]), 0.1)) and settled(cd, w, tol, abs(cd[-1]))
+
+    @staticmethod
+    def _time_accurate_now(case_dir: Path, p: dict[str, Any]) -> bool:
+        """pimpleFoam is running (not the steady start of a transient case,
+        during which Allrun keeps the transient setup in *.transient)."""
+        return p["solver"] == "transient" and not (Path(case_dir) / "system" / "controlDict.transient").exists()
+
+    def progress(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> dict[str, Any]:
+        """Latest Cl and Cd. Transient: flow-throughs, the lift oscillation over
+        the last flow-through and the drift of the means over the averaging
+        window (as `extract`). Steady: how far the windowed means still move,
+        relative, against conv_tol (as `converged`)."""
+        c = self._coeffs(case_dir)
+        if c is None:
+            return {}
+        t, cl, cd, _ = c
+        out: dict[str, Any] = {"Cl": float(cl[-1]), "Cd": float(cd[-1])}
+        if self._time_accurate_now(case_dir, p):
+            ft = float(d["flowTime"])
+            out["flow_times"] = float(t[-1] / ft)
+            last = t > t[-1] - ft
+            mean = float(cl[last].mean())
+            out["Cl_osc"] = float(cl[last].std() / max(abs(mean), 0.1))
+            win = float(p["average_times"]) * ft
+            if t[-1] - t[0] >= win:
+                s = self.window_stats(t, cl, cd, win)
+                out["Cl_drift"], out["Cd_drift"] = s["Cl_drift"], s["Cd_drift"]
+        else:
+            w = int(d["convWindow"])
+            for key, series, scale in (("Cl", cl, max(abs(cl[-1]), 0.1)), ("Cd", cd, abs(cd[-1]))):
+                st = window_stats(series, w)
+                if st is not None and scale:
+                    out[f"{key}_change"] = st[1] / scale
+            out["conv_tol"] = float(p["conv_tol"])
+        return out
+
+    def diverged(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> str | None:
+        """Force coefficients non-finite or past COEFF_LIMIT in the last three
+        samples, once past the start-up (100 samples and, for a transient
+        start from rest, half a flow-through: the impulsive start gives Cl in
+        the hundreds for a few steps)."""
+        c = self._coeffs(case_dir)
+        if c is None or len(c[0]) < 100:
+            return None
+        t, cl, cd, _ = c
+        if self._time_accurate_now(case_dir, p) and t[-1] - t[0] < 0.5 * float(d["flowTime"]):
+            return None
+        rows = np.c_[cl[-3:], cd[-3:]]
+        bad = ~np.isfinite(rows) | (np.abs(rows) > COEFF_LIMIT)
+        if bad.any(axis=1).all():
+            return f"force coefficients out of range: Cl {cl[-1]:.3g}, Cd {cd[-1]:.3g} (t {t[-1]:.6g})"
+        return None
 
     def extract(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> dict[str, Any]:
         out: dict[str, Any] = {}
