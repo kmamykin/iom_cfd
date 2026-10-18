@@ -1,5 +1,5 @@
 ---
-title: "Which fin section for an IOM?"
+title: "IOM fin: NACA section and chord selection with CFD"
 subtitle: "2D simulations of symmetric NACA fin sections, ranked by the race time they cost"
 # the card on the front page (and link previews): image, title, description
 description: >-
@@ -820,6 +820,8 @@ this page are under CC BY 4.0. Reference data from other sources keeps its own t
 
 ## Revision history {.appendix .unnumbered}
 
+* **18 October 2026 (evening).** New title, "IOM fin: NACA section and chord selection with CFD"
+  (was "Which fin section for an IOM?").
 * **18 October 2026 (later).** Added "Where the drag comes from": skin friction, pressure and
   induced drag, and which boundary-layer states cost drag. Symbols changed to the project's
   nomenclature (side force S~h~, drag D~h~ = D~v~ + D~i~, leeway β~Y~, true wind angle β~TW~, boat
