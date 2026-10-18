@@ -1,0 +1,26 @@
+study: shedding-video
+project: foil2d
+description: >
+  A longer animation of vortex shedding for the website (the existing one has
+  12 snapshots, about 1.5 shedding cycles). NACA 0007 at 100 mm chord (the
+  proposed fin), 4 deg, 1 m/s, Tu 0.1 %, medium mesh, time-accurate. It
+  continues the local run transient-check/20261016-135403, whose final state
+  is at 15.2 flow-throughs with the shedding established, for 3 more
+  flow-throughs, writing the fields every 0.02 flow-throughs: 150 snapshots,
+  about 13 shedding cycles, for `iomcfd viz` time animations (render with
+  --options '{"time_fps": 15}' for a 10 s video). Not for forces: at 15
+  flow-throughs the mean lift is still about 1-2 % below its settled value
+  (findings/transient-check.md, run 20261015-161112).
+defaults:
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+  speed: 1.0
+  solver: transient
+  max_co: 10
+  flow_times: 18.2          # total, from 15.2 at the start
+  average_times: 3
+  snapshot_interval: 0.02   # c/U between snapshots
+  start_from: [transient-check/20261016-135403]
+cases:
+  - {foil: naca0007, chord: 0.10, aoa: 4}

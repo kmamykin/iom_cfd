@@ -79,7 +79,8 @@ def main(argv=None) -> int:
                     if ctx._title is not None:
                         ctx._title.Text = ctx._title.Text.split("   t =")[0] + f"   t = {t:.4g} s"
                     ctx.save(frames / f"f_{i:04d}.png", t)
-                fps = max(4.0, min(25.0, len(ctx.times) / 8.0))
+                # about 8 s by default; --options '{"time_fps": 15}' sets the frame rate
+                fps = float(ctx.options.get("time_fps") or max(4.0, min(25.0, len(ctx.times) / 8.0)))
                 mp4 = encode(frames, "f_%04d.png", out / f"{name}_time.mp4", fps)
                 if mp4:
                     entry["time_animation"] = mp4.name
