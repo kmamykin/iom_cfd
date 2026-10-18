@@ -32,6 +32,11 @@ $callout-color-note: $deep;
 $callout-color-warning: $accent;
 $title-banner-bg: $deep;
 $title-banner-color: #f4efe3;
+$navbar-bg: $paper;
+$navbar-fg: $ink;
+$navbar-hl: $accent;
+$footer-bg: $paper;
+$footer-fg: $muted;
 
 /*-- scss:rules --*/
 body { font-feature-settings: "kern", "liga", "onum"; }
@@ -43,7 +48,13 @@ h2 { margin-top: 2.6rem; padding-bottom: .35rem; border-bottom: 1px solid $rule;
 h3 { margin-top: 1.8rem; font-size: 1.15rem; }
 .header-section-number { color: $accent; margin-right: .2em; }
 
+.navbar { border-bottom: 1px solid $rule; }
+.navbar-title { font-weight: 700; letter-spacing: -0.01em; }
+.nav-footer { font-family: $font-family-sans-serif; font-size: .78rem; border-top: 1px solid $rule; }
+
 .quarto-title-banner { padding-top: 3rem; padding-bottom: 2.4rem; }
+// a page's `description` is its card on the front page (and link previews), not part of the page
+.quarto-title-banner .description { display: none; }
 .quarto-title-banner .title { font-size: 2.6rem; letter-spacing: -0.02em; }
 .quarto-title-banner .subtitle { font-family: $font-family-serif; font-style: italic; opacity: .9; }
 
@@ -88,3 +99,21 @@ thead th { border-bottom: 2px solid $ink !important; }
 .key-results > div { border-top: 3px solid $deep; padding-top: .5rem; font-family: $font-family-sans-serif; font-size: .82rem; color: $muted; }
 
 .appendix { font-size: .9rem; }
+
+// Front page: the published studies as cards (a Quarto grid listing; each card links to its page)
+.front-intro { max-width: 46rem; font-size: 1.05rem; }
+.quarto-listing-container-grid { margin-top: 1.2rem; }
+.quarto-grid-link { text-decoration: none; }
+.quarto-grid-item {
+  background: #fff; border: 1px solid $rule; border-radius: 6px; overflow: hidden;
+  transition: transform .15s ease, box-shadow .15s ease;
+  .card-img-top { margin: 0; }
+  .card-img-top img { width: 100%; height: auto !important; aspect-ratio: 3 / 1; object-fit: cover; border-radius: 0; }
+  .card-body { padding: 1rem 1.25rem 1.3rem; }
+  .card-title { font-family: $font-family-sans-serif; font-size: 1.3rem; font-weight: 700; color: $ink; margin-bottom: .45rem; }
+  .card-text { font-size: .95rem; line-height: 1.5; color: $muted; p:last-child { margin-bottom: 0; } }
+}
+.quarto-grid-link:hover .quarto-grid-item, .quarto-grid-link:focus-visible .quarto-grid-item {
+  transform: translateY(-2px); box-shadow: 0 8px 22px rgba(29, 35, 42, .12); border-color: $muted;
+}
+.quarto-grid-link:hover .card-title { color: $accent; }

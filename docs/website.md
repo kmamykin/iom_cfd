@@ -1,28 +1,33 @@
 # The website
 
-A one-page summary of the project, written like a paper (abstract, prior
-work, methodology, studies, findings, conclusion), built with
-[Quarto](https://quarto.org) from `site/` and published on GitHub Pages:
-<https://kmamykin.github.io/iom_cfd/> once Pages is switched on.
+A front page with a card for each published study, and a page per study
+written like a paper (abstract, prior work, methodology, results,
+conclusion). Built with [Quarto](https://quarto.org) from `site/` and
+published on GitHub Pages: <https://kmamykin.github.io/iom_cfd/>.
 
 The findings logs (`projects/<project>/findings/`) stay the dated record of
-every run. The page says where things stand now, and links to them.
+every run. A study's page says where things stand now, and links to them.
 
 ## Layout
 
 ```
 site/
-├── index.qmd        the page, written by hand
-├── _quarto.yml      Quarto settings (layout, table of contents, numbering, references)
-├── styles.scss      the look: fonts, colours (figures.py uses the same palette)
+├── index.qmd        the front page: a card per published study, in order
+├── fin-selection/
+│   └── index.qmd    a study's page, written by hand (which fin section; foil2d)
+├── _quarto.yml      Quarto settings (navbar, footer; for study pages: contents, numbering, references)
+├── styles.scss      the look: fonts, colours, cards (figures.py uses the same palette)
 ├── references.bib   cited sources
 ├── data.yaml        which run each data file comes from
 ├── data/            small CSVs taken from runs (committed); sources.json records where from
 ├── assets/          pictures and videos that can't be rebuilt online (ParaView renders)
-├── figures.py       one function per chart, drawn from data/ into _generated/
-├── _generated/      figures and tables (build output, not committed)
-└── _site/           the built page (build output, not committed)
+├── figures.py       one function per chart, drawn from data/ and assets/ into _generated/
+├── _generated/      figures, tables and card images (build output, not committed)
+└── _site/           the built site (build output, not committed)
 ```
+
+Study pages share `data/`, `assets/`, `_generated/` and `references.bib`,
+and refer to them one level up (`../assets/...`).
 
 Charts are drawn during the build from `site/data/`, so the site builds
 without `runs/`, and changing a chart doesn't leave a new copy of a picture
@@ -32,7 +37,7 @@ in the git history each time. Only renders that need the run's fields
 ## Building
 
 ```bash
-uv run iomcfd site build             # figures, then quarto render -> site/_site/index.html
+uv run iomcfd site build             # figures, then quarto render -> site/_site/
 uv run iomcfd site build --preview   # serve it locally, rebuild on save
 make site / make site-preview        # the same
 ```
@@ -43,12 +48,28 @@ otherwise `uvx` runs the PyPI build of the same version
 
 ## Publishing
 
-`.github/workflows/site.yml` builds and deploys the page on every push to
+`.github/workflows/site.yml` builds and deploys the site on every push to
 main that changes `site/`, or the code its figures use (the mesh generator,
 `projects/foil2d/project.py`). It can also be run by hand from the Actions
 tab. Website-only pushes don't rebuild the solver image (`image.yml`).
 
 One-time setup: repository Settings → Pages → Source: **GitHub Actions**.
+
+## Publishing a study
+
+A study's page is `site/<study>/index.qmd`, at
+`kmamykin.github.io/iom_cfd/<study>/`. Its card on the front page comes from
+its front matter:
+
+* `title`: the card's title (a question works well);
+* `description`: a sentence or two, the question and the answer so far. It
+  is also the text of link previews; the page itself doesn't show it;
+* `image`: a picture at 3:1, for example a crop of a render made by a
+  function in `figures.py` (`card_image` for fin-selection).
+
+Every `site/*/index.qmd` is built, but only pages listed under `contents:`
+in `site/index.qmd` get a card, in that order. A page that isn't listed can
+still be reached by its address, so keep unfinished pages out of `site/`.
 
 ## Updating it after new findings
 
@@ -63,14 +84,15 @@ The `site-update` skill (`.claude/skills/site-update/`) does this.
    then run `uv run iomcfd site export <name>`. A light `gcp fetch` of the
    run is enough for tables. `kind: manual` tables are copied by hand from
    a findings log; keep their `source:` up to date.
-4. Edit the affected sections of `site/index.qmd`. Set `date-modified:` and
-   add a line to "Revision history".
+4. Edit the affected sections of the study's page. Set `date-modified:` and
+   add a line to "Revision history". If the answer changes, change the
+   page's `description` too: it is the card on the front page.
 5. Build, look at it, run `uv run pytest tests/test_site.py`.
 6. Commit and push: that publishes it.
 
 ## Rules
 
-* Every number on the page comes from a findings log or `site/data/`, or
+* Every number on a page comes from a findings log or `site/data/`, or
   is labelled an estimate. Keep the limitations on the page: a polished
   page reads as more certain than the logs do.
 * Don't copy other people's images or text; cite and link them in

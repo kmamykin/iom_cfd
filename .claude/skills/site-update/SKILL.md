@@ -1,6 +1,6 @@
 ---
 name: site-update
-description: Update the project website (site/index.qmd, published to GitHub Pages) after new findings - refresh its data from the runs, redraw the figures, edit the affected sections, add a revision-history line, then build and check it. Use after a study-findings entry changes a conclusion, a number quoted on the page or the method, or when the user asks to update the website.
+description: Update the project website (a study's page, site/<study>/index.qmd, published to GitHub Pages) after new findings - refresh its data from the runs, redraw the figures, edit the affected sections, add a revision-history line, then build and check it. Use after a study-findings entry changes a conclusion, a number quoted on the page or the method, or when the user asks to update the website.
 argument-hint: [what changed, e.g. foil2d/transient-check run <id>]
 ---
 
@@ -15,8 +15,9 @@ the user asks.
 ## 1. Decide whether the page changes
 
 Read the new findings entry (and, for foil2d, "Where the selection stands"
-in findings/fin-profile-selection.md), then `site/index.qmd`. The page
-changes when one of these does:
+in findings/fin-profile-selection.md), then the study's page,
+`site/<study>/index.qmd` (foil2d fin sections: `site/fin-selection/index.qmd`).
+The page changes when one of these does:
 * the recommendation or its confidence;
 * a number the page quotes (search the page for it);
 * the method (projects/foil2d/methodology.md);
@@ -44,11 +45,12 @@ then open the SVG or PNG from `site/_generated/`, or view the page.
 
 ## 4. Text
 
-Edit only the affected sections of `site/index.qmd`:
+Edit only the affected sections of the study's page:
 * every number traceable to a findings log or `site/data/`; estimates
   labelled as such; unverified sources marked in `references.bib`;
 * keep in step: the status callout, the key-results row, the abstract, the
-  studies table, the conclusion and its "why not higher confidence";
+  studies table, the conclusion and its "why not higher confidence", and the
+  front-matter `description` (the study's card on the front page);
 * when a conclusion is superseded, say so on the page, not only in the log;
 * set `date-modified:` in the front matter to today (UTC), and add a line
   to "Revision history": date, what changed, which runs.

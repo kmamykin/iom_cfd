@@ -1,8 +1,10 @@
-"""Charts, diagrams and generated tables for the website (site/index.qmd).
+"""Charts, diagrams and generated tables for the website's fin-selection study
+(site/fin-selection/index.qmd), and its card image on the front page.
 
 `iomcfd site build` calls make_all() before Quarto renders the page. Every
-figure is drawn from the committed files in site/data/ (or from the project's
-own code: the mesh, the Wagner function), so the site builds without runs/.
+figure is drawn from the committed files in site/data/ and site/assets/ (or from
+the project's own code: the mesh, the Wagner function), so the site builds
+without runs/.
 Output goes to site/_generated/ (not committed): one SVG per figure, and
 markdown tables the page includes.
 
@@ -524,6 +526,16 @@ def fin_choice_table(data: Path, out: Path) -> Path:
     return out
 
 
+def card_image(render: Path, out: Path) -> Path:
+    """The study's card on the front page: the vortex-shedding render (0007/100, 4 deg, 0.75 m/s)
+    cropped to the section and its near wake, without the labels and colour bar, at 3:1."""
+    from PIL import Image
+
+    Image.open(render).convert("RGB").crop((60, 140, 1500, 620)).resize((1080, 360), Image.LANCZOS).save(
+        out, optimize=True)
+    return out
+
+
 def sources_table(data: Path, out: Path) -> Path:
     src = json.loads((data / "sources.json").read_text())
     rows = ["| file | from | exported |", "|---|---|---|"]
@@ -558,4 +570,5 @@ def make_all(data: Path, out: Path) -> list[Path]:
         race_time_by_speed_table(data, out / "race-time-by-speed.md"),
         fin_choice_table(data, out / "fin-choice.md"),
         sources_table(data, out / "sources.md"),
+        card_image(data.parent / "assets" / "flow-shedding-vorticity.png", out / "fin-selection-card.png"),
     ]

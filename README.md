@@ -5,8 +5,8 @@ yachts: keel and rudder sections, 3D appendages, hull resistance, sails, and
 (experimental) the whole boat in water and air.
 
 **Website:** [kmamykin.github.io/iom_cfd](https://kmamykin.github.io/iom_cfd/),
-a one-page summary of the findings so far (which fin section, why, and how
-sure), with flow pictures and videos.
+the published studies, each a summary of where it stands (so far: which fin
+section, why, and how sure), with flow pictures and videos.
 
 You describe a design study in a small YAML file. The tooling turns each
 variation into a complete OpenFOAM case, meshes it, runs it in Docker
@@ -126,8 +126,8 @@ iom_cfd/
 Details, runs, findings and statistics: [docs/workflow.md](docs/workflow.md).
 Visualisation of results (views per project, adding views, animations):
 [docs/visualization.md](docs/visualization.md).
-The project website, a one-page summary of the findings built from `site/`
-and published on GitHub Pages: [docs/website.md](docs/website.md).
+The project website, a page per published study built from `site/` and
+published on GitHub Pages: [docs/website.md](docs/website.md).
 
 ## Running on Google Cloud
 

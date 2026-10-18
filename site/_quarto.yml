@@ -1,16 +1,39 @@
-# Quarto project for the website: one page, site/index.qmd, published to
-# GitHub Pages by .github/workflows/site.yml. Build locally with
-# `uv run iomcfd site build` (figures, then `quarto render`), or
-# `uv run iomcfd site build --preview` to serve it and rebuild on save.
+# Quarto website: a front page listing the published studies (index.qmd)
+# and one page per study (<study>/index.qmd), published to GitHub Pages by
+# .github/workflows/site.yml. Build locally with `uv run iomcfd site build`
+# (figures, then `quarto render`), or `uv run iomcfd site build --preview`
+# to serve it and rebuild on save. The defaults below suit a study page; the
+# front page turns off what it doesn't need.
 project:
-  type: default
+  type: website
   output-dir: _site
-  render: [index.qmd]
+  render: [index.qmd, "*/index.qmd"]
   resources: [assets/*.mp4]
 
+website:
+  title: "IOM CFD"
+  description: "Simulations of the flow around International One Metre (IOM) radio yachts, and what they say about the boat."
+  site-url: https://kmamykin.github.io/iom_cfd/
+  open-graph: true
+  search: false
+  navbar:
+    left:
+      - text: Studies
+        href: index.qmd
+    right:
+      - icon: github
+        href: https://github.com/kmamykin/iom_cfd
+        aria-label: Source on GitHub
+  page-footer:
+    left: "Writing, figures and results: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Code: [MIT](https://github.com/kmamykin/iom_cfd/blob/main/LICENSE). Third-party reference data keeps its own terms."
+    right: "Built with [Quarto](https://quarto.org) from [the repository](https://github.com/kmamykin/iom_cfd)."
+
 lang: en-GB
+date-format: "D MMMM YYYY"
 language:
   code-links-title: Links
+  title-block-published: "First published"
+  title-block-modified: "Updated"
 bibliography: references.bib
 link-citations: true
 
@@ -37,12 +60,5 @@ format:
     grid:
       body-width: 760px
       margin-width: 280px
-    code-links:
-      - text: Source on GitHub
-        icon: github
-        href: https://github.com/kmamykin/iom_cfd
-      - text: Findings logs
-        icon: journal-text
-        href: https://github.com/kmamykin/iom_cfd/tree/main/projects/foil2d/findings
     mermaid:
       theme: neutral
