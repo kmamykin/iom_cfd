@@ -18,6 +18,9 @@
   cases worth a close look. They come from the current study file (else the
   run's copy) and drive the report's highlight tables/figures, which cases
   `viz` renders (plus montages), and `gcp fetch --fields`.
+- While a case runs, the runner logs a progress line every 10 min and stops
+  diverging cases (src/iomcfd/monitor.py; `Project.progress`/`diverged`
+  hooks). For a cloud job, `iomcfd gcp progress <study>` shows them.
 - `gcp fetch` downloads only results (params/result.json, surface.csv,
   force_history.csv, start_from.json) plus one mesh per mesh level; `--logs`, `--fields`,
   `--only` add more. Exported cases have gzipped mesh and logs. `iomcfd slim` frees a local run (dry run

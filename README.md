@@ -141,6 +141,7 @@ cloud/gcp/setup.sh                                     # APIs, registry, bucket,
 cloud/gcp/setup-github.sh                              # GitHub Actions pushes the image on every push to main
 uv run iomcfd gcp submit foil2d/keel-sections
 uv run iomcfd gcp status
+uv run iomcfd gcp progress foil2d/keel-sections        # each task's latest progress line (time, ETA, forces, divergence)
 uv run iomcfd gcp fetch foil2d/keel-sections           # latest run's results (MBs, not GBs) -> runs/<study>/<run id>/
 uv run iomcfd gcp fetch foil2d/keel-sections --fields  # + whole cases of the study's highlights, for viz
 ```

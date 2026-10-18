@@ -91,7 +91,7 @@ def test_export_goes_to_study_and_run(tmp_path, monkeypatch):
 
     project, study, cases = _smoke()
     seen = []
-    monkeypatch.setattr(runner, "run_case", lambda p, c, d, o, export_dir=None: seen.append(export_dir) or
+    monkeypatch.setattr(runner, "run_case", lambda p, c, d, o, export_dir=None, log=None: seen.append(export_dir) or
                         {"case": c.name, "status": "ok"})
     rdir = tmp_path / "local" / study.name / "20261012-045433"
     run_study(project, study, cases[:1], RunOptions(export=tmp_path / "bucket"), rdir, log=lambda *a: None)
