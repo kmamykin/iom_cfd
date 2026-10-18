@@ -9,6 +9,10 @@ that follows it. Newest entry first; entries are not rewritten later, except
 place. Results live in `runs/` (not in git), so the numbers that support a
 conclusion are copied here.
 
+Symbols follow [docs/nomenclature.md](../../../docs/nomenclature.md) (S_h,
+D_h = D_v + D_i, leeway β_Y, section angle α) in entries from the Tu runs
+on; the earlier entries say "side force", "drag" and "leeway" in words.
+
 Tools (all in this repository):
 * `iomcfd.xfoil`: XFOIL polars (build the binary with
   `tools/build-xfoil.sh`).
@@ -114,12 +118,10 @@ turning into a loss at Tu 2 % (Analysis 3, conclusion 4).
 
 **Outcome.** 107 ok, 1 not converged, none failed.
 
-Nomenclature from here on follows Parolini & Quarteroni (MOX 10/2007),
-which the user adopted on 2026-10-18:
-* hydrodynamic side force S_h;
-* hydrodynamic drag D_h;
-* yaw angle β_Y, which this repository calls leeway (methodology.md,
-  `aoa`).
+Symbols from here on follow [docs/nomenclature.md](../../../docs/nomenclature.md):
+* the fin's side force S_h and drag D_h;
+* leeway β_Y. At equal span and S_h, a difference in section angle α is a
+  difference in β_Y.
 
 ### Conclusions
 
