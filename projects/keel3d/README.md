@@ -100,19 +100,52 @@ sizing and refuses a fin or bulb that breaks rule E.4.1.
 
 Background cell = fin mean chord (100 mm). Fin surface at level 6-7 on
 `medium` (1.6-0.8 mm), bulb 5-6, hull 4-5, with boxes around the keel, the
-hull and the wake (to 1 m behind the stern).
+hull and the wake (to 1 m behind the stern). `xfine` refines the fin, bulb,
+near wake and boxes once more than `fine`, not the hull.
 
-| `mesh` | cells | fin faces | layers on the fin (of 5) | use |
+* **Near wake** (`fin_wake`, default 0.3): a box along the fin's trailing
+  edge (it follows the slant of a tapered fin), from 0.1 mean chord ahead of
+  the edge to `fin_wake` mean chords behind it, ±6 mm to the sides (plus the
+  leeway drift over its length), at the fin's minimum surface level.
+  Without it the cells behind the trailing edge grew to 6-12 mm within 5 mm
+  of the edge, even on fine (taper-selection run 20261018-044718).
+* **Grid aligned with the boat**: the domain ends on whole background cells
+  from the bow, centre plane and waterline, so every refined cell sits the
+  same way relative to the boat for any leeway or taper. Before, the domain
+  width (which grows with leeway) also moved the grid sideways relative to
+  the fin.
+* **Mirror-image mesh when upright**: the centre plane y = 0 is then a
+  plane of cell faces with the trailing edge on it, so which side the
+  edge's feature refinement lands on is a tie, decided one way or the other
+  in patches (99.1 % of the castellated fin faces mirrored on λ 0.4,
+  medium; the same in serial and parallel). `trailingEdge.obj` adds the
+  edge 1 µm either side of y = 0, so both rows are refined (100 %, +0.3 %
+  cells), and the near-wake box widens for leeway on both sides. Any side
+  force at 0° leeway is then the solver's, not the mesh's.
+* **`mesh_shift`** moves that grid in x and y by a fraction of the finest
+  fin cell, to test how sensitive the forces are to where the grid lines
+  fall. On medium, a shift of 0.5 puts 4 faces over the skewness limit
+  (up to 9.6) on the constant-chord fin's straight trailing edge, and the
+  fin gets 10 % fewer faces (58k against 65k).
+
+With the wake box and the aligned grid, measured at 4° leeway:
+
+| `mesh` | cells λ 1.0 / 0.4 | fin faces λ 1.0 / 0.4 | layer coverage on the fin | use |
 |---|---|---|---|---|
-| xcoarse | 0.16 M (2 layers) | 6.9k | 2 of 2 | smoke |
-| coarse | 0.47 M | 26k | 4.5 | mesh check |
-| medium | 0.94 M | 56k | 4.6 | the working level |
-| fine | 2.9 M | 167k | 4.8 | mesh check (30 faces over the skewness limit) |
+| xcoarse | 0.16 M (2 layers, before the changes) | 6.9k | 2 of 2 | smoke |
+| coarse | not measured (0.47 M before) | | | |
+| medium | 1.06 / 1.07 M | 65k / 67k | 96.8 / 95.5 % | |
+| fine | 3.28 / 3.32 M | 172k / 174k | 97.8 / 97.4 % | |
+| xfine | about 14 M (**estimate**; too big for 11.7 GB of local Docker memory) | | | |
 
-Measured for λ 0.4 at 4° leeway. Meshing takes about 2 minutes (medium)
-and 7 minutes (fine) on 8 cores. At 0° the side force should be zero; on xcoarse it is −0.15 to
-−0.2 N (about 3 % of the working load) from mesh asymmetry, so check it
-on the working mesh.
+Meshing takes about 3-4 minutes (medium) and 8 minutes (fine) on 8 cores.
+Every level now has 3 faces over the skewness limit (5.3) on the waterline
+plane at the stern tip, where the hull's pointed end meets the waterline;
+they are far from the keel. Before these changes, medium had none and fine
+30.
+
+At 0° the side force should be zero: medium (before the changes) gave
+0.004-0.06 N, xcoarse −0.15 to −0.2 N.
 
 ## Outputs
 

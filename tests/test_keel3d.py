@@ -63,3 +63,64 @@ def test_compare_at_equal_force(project):
     fits = project.polar_fits(df).set_index("fin_taper")
     assert fits.loc[0.6, "k_per_N"] == pytest.approx(0.009)
     assert fits.loc[1.0, "side_per_deg_N"] == pytest.approx(1.5)
+
+
+@pytest.mark.parametrize("taper,leeway,heel", [(1.0, 0, 0), (0.4, 4, 0), (0.4, 4, 15)])
+def test_fin_wake_box_holds_the_trailing_edge(project, taper, leeway, heel):
+    import numpy as np
+
+    from iomcfd.geometry import stl
+
+    p = {**project.defaults, "fin_taper": taper, "leeway": leeway, "heel": heel}
+    d = project.derive(p)
+    levels = project.render.__globals__["MESH_LEVELS"]
+    b = project._fin_wake_box(p, d, levels[p["mesh"]])
+    o, span, e1, e3 = (np.array(b[k]) for k in ("finWakeOrigin", "finWakeSpan", "finWakeE1", "finWakeE3"))
+    e2 = np.cross(e3, e1)
+    rot = stl.rotation("x", heel)
+    for chord, z in ((d["fin_root_chord"], d["fin_z_root"]), (d["fin_tip_chord"], d["fin_z_root"] - d["fin_span"])):
+        q = rot @ np.array([float(p["fin_x"]) + 0.75 * chord, 0.0, z]) - o
+        local = np.array([q @ e1, q @ e2, q @ e3]) / span
+        assert np.all(local > 0) and np.all(local < 1)
+        assert local[0] == pytest.approx(0.25)  # 0.1 chord ahead, 0.3 behind
+        assert local[1] == pytest.approx(0.5)  # symmetric about the centre plane
+    assert b["finWakeLevel"] == levels[p["mesh"]]["fin"][0]
+    assert project._fin_wake_box({**p, "fin_wake": 0}, d, levels[p["mesh"]])["finWakeLevel"] == 0
+
+
+def test_mesh_shift_moves_the_background_grid(project, tmp_path):
+    base = project.prepare_case(tmp_path / "a", {**project.defaults, "mesh": "medium"})
+    moved = project.prepare_case(tmp_path / "b", {**project.defaults, "mesh": "medium", "mesh_shift": 0.5})
+    cell = 0.1 / 2**7  # finest fin cell on medium (feature level 7)
+    assert moved["xMin"] - base["xMin"] == pytest.approx(0.5 * cell)
+    assert moved["yMin"] - base["yMin"] == pytest.approx(0.5 * cell)
+    assert moved["zMax"] == base["zMax"] == 0.0  # the waterline stays the top
+
+
+def test_grid_aligned_with_the_boat_at_any_leeway(project, tmp_path):
+    for i, (leeway, taper) in enumerate(((0, 1.0), (4, 1.0), (6, 0.4))):
+        d = project.prepare_case(tmp_path / str(i), {**project.defaults, "leeway": leeway, "fin_taper": taper})
+        for k in ("xMin", "yMin", "zMin", "xMax", "yMax"):
+            assert d[k] / d["baseCell"] == pytest.approx(round(d[k] / d["baseCell"]), abs=1e-9), k
+        assert d["zMax"] == 0.0
+
+
+def test_trailing_edge_feature_lines(project, tmp_path):
+    project.prepare_case(tmp_path / "c", {**project.defaults, "fin_taper": 0.4})
+    lines = (tmp_path / "c" / "constant" / "triSurface" / "trailingEdge.obj").read_text().splitlines()
+    v = [list(map(float, ln.split()[1:])) for ln in lines if ln.startswith("v ")]
+    assert len(v) == 8 and sum(ln.startswith("l ") for ln in lines) == 6
+    assert {round(p[1] * 1e6) for p in v} == {1, -1}  # 1 um either side of the centre plane
+    assert "trailingEdge.obj" in (tmp_path / "c" / "system" / "snappyHexMeshDict").read_text()
+
+
+def test_grid_shift_cases_kept_apart(project):
+    # a shifted-grid point at 4 deg must not join the unshifted leeway curve
+    rows = _sweep(1.0, 1.5, 0.010) + _sweep(0.4, 1.5, 0.009)
+    for r in rows:
+        r["mesh_shift"] = 0.0
+    rows.append({**_sweep(1.0, 1.5, 0.010)[2], "mesh_shift": 0.5, "side_N": 5.0, "drag_N": 2.0})
+    t = project.compare_at_equal_force(pd.DataFrame(rows), {"compare_at": {"fin_taper": 1.0, "leeway": [2, 4, 6]}})
+    w = t[(t["load"] == "working") & (t["mesh_shift"] == 0.0)].set_index("fin_taper")
+    assert w.loc[1.0, "side_N"] == pytest.approx(6.0) and w.loc[1.0, "drag_N"] == pytest.approx(0.96)
+    assert t[t["mesh_shift"] == 0.5].empty  # a single point is not a sweep

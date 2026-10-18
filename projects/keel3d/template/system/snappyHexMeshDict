@@ -47,6 +47,14 @@ geometry
         min     $wakeBoxMin;
         max     $wakeBoxMax;
     }
+    finWakeBox              // along the fin's trailing edge: its near wake
+    {
+        type    searchableRotatedBox;
+        origin  $finWakeOrigin;     // a corner
+        span    $finWakeSpan;       // lengths along e1, e2 = e3 x e1, e3
+        e1      $finWakeE1;         // downstream, normal to the trailing edge
+        e3      $finWakeE3;         // up the trailing edge
+    }
 }
 
 castellatedMeshControls
@@ -61,6 +69,10 @@ castellatedMeshControls
     (
         {
             file    "boat.eMesh";
+            level   $featureLevel;
+        }
+        {
+            file    "trailingEdge.obj";     // the trailing edge 1 um either side of y = 0 (project.py)
             level   $featureLevel;
         }
     );
@@ -86,6 +98,7 @@ castellatedMeshControls
         keelBox     { mode inside; levels ((1e15 $keelBoxLevel)); }
         hullBox     { mode inside; levels ((1e15 $hullBoxLevel)); }
         wakeBox     { mode inside; levels ((1e15 $wakeBoxLevel)); }
+        finWakeBox  { mode inside; levels ((1e15 $finWakeLevel)); }
         keel        { mode distance; levels (($keelDistance $keelDistanceLevel)); }
     }
 

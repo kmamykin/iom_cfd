@@ -49,7 +49,9 @@ Tu: 0.5
 viscosity_ratio: 10
 
 # --- mesh (snappyHexMesh) ----------------------------------------------------------------
-mesh: medium            # xcoarse | coarse | medium | fine
+mesh: medium            # xcoarse | coarse | medium | fine | xfine
+fin_wake: 0.3           # near-wake box behind the fin's trailing edge, mean chords long (0 = none)
+mesh_shift: 0.0         # shift of the background grid in x and y, fraction of the finest fin cell
 n_layers: 5             # prism layers on hull, fin and bulb
 span_bins: 16           # strips for the fin's spanwise loading (spanload.csv); rounded to whole fin cells
 
