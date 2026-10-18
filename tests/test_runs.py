@@ -274,3 +274,13 @@ def test_mesh_candidates_one_per_level_finished_first():
             {"case": "c", "status": "ok", "mesh": "medium"}]
     assert mesh_candidates(rows) == [["b", "a"], ["c"]]
     assert mesh_candidates([{"case": "x", "status": "ok"}]) == [["x"]]
+
+
+def test_cli_parser_builds_with_every_help_string():
+    # argparse (Python >= 3.14) checks help strings when a parser is added:
+    # a bare % breaks every command, not just its own.
+    parser = cli.build_parser()
+    for args in (["gcp", "-h"], ["gcp", "progress", "-h"], ["run", "-h"]):
+        with pytest.raises(SystemExit) as e:
+            parser.parse_args(args)
+        assert e.value.code == 0

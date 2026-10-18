@@ -395,7 +395,7 @@ def add_parser(sub) -> None:
     s.add_argument("job", nargs="?")
     s.set_defaults(func=cmd_status)
 
-    s = gsub.add_parser("progress", help="newest log lines of each task of a study's job: progress (time, %, ETA, "
+    s = gsub.add_parser("progress", help="newest log lines of each task of a study's job: progress (time, %%, ETA, "
                         "Courant, forces, drift), divergence stops, results")
     s.add_argument("study")
     s.add_argument("--run-id", metavar="ID", help="which run (default: the study's newest job)")
