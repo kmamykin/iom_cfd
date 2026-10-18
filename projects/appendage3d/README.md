@@ -43,9 +43,10 @@ Background cell = mean fin chord. `xcoarse` (~0.25M cells, smoke tests),
 
 ## Research
 
-[research.md](research.md): keel bulb designs (America's Cup, grand prix,
-IOM and other model yachts), what each optimises, low-Reynolds-number
-body drag, and what that means for simulating IOM bulbs here.
+[bulb-design.md](../../docs/research/bulb-design.md):
+keel bulb designs (America's Cup, grand prix, IOM and other model yachts),
+what each optimises, low-Reynolds-number body drag, and what that means for
+simulating IOM bulbs here.
 
 ## Studies
 
