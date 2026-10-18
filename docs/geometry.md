@@ -15,6 +15,8 @@
   hull and fullboat rotate the geometry.
 * **Trim** + = bow down; **sinkage** + = down.
 * Starboard tack is the mirror image of port tack.
+* Force, moment and angle symbols (D_h, S_h, M_h, T_a, leeway β_Y, heel φ)
+  and how project outputs map onto them: [nomenclature.md](nomenclature.md).
 
 ## Parametric geometry (`src/iomcfd/geometry/`)
 
