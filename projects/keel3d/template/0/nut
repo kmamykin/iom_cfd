@@ -1,0 +1,38 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| keel3d template (OpenFOAM v2512). Values come from                          |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      nut;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+dimensions      [0 2 -1 0 0 0 0];
+
+internalField   uniform $nutInf;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"   // processor, cyclic, empty...
+
+    boat
+    {
+        type            nutUSpaldingWallFunction;   // valid from y+ ~1 to ~300
+        value           uniform 0;
+    }
+    freestream
+    {
+        type            calculated;
+        value           uniform $nutInf;
+    }
+    top
+    {
+        type            symmetryPlane;
+    }
+}

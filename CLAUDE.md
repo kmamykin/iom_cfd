@@ -19,7 +19,7 @@
   run's copy) and drive the report's highlight tables/figures, which cases
   `viz` renders (plus montages), and `gcp fetch --fields`.
 - `gcp fetch` downloads only results (params/result.json, surface.csv,
-  force_history.csv, start_from.json) plus one mesh per mesh level; `--logs`, `--fields`,
+  spanload.csv, force_history.csv, start_from.json) plus one mesh per mesh level; `--logs`, `--fields`,
   `--only` add more. Exported cases have gzipped mesh and logs. `iomcfd slim` frees a local run (dry run
   unless `--yes`). Don't fetch whole runs: the laptop's disk is limited.
 - Website: `site/` (Quarto, one page, GitHub Pages on push to main; see

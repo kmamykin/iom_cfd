@@ -1,0 +1,31 @@
+study: taper-selection
+project: keel3d
+description: >
+  Constant chord or tapered keel? Four planforms of the NACA 0007 fin at equal
+  lateral area (mean chord 100 mm, the foil2d recommendation): taper ratio
+  1.0 (constant chord), 0.8, 0.6 and 0.4, quarter-chord line vertical, on the
+  same canoe body and the same 2380 g NACA 0007 bulb at the 420 mm draft limit.
+  Leeway 0-8 deg at 1 m/s, upright, double body, fully turbulent kOmegaSST,
+  medium mesh. Ranked by race time at the side forces the constant-chord keel
+  makes at 2, 4 and 6 deg (foil2d/methodology.md). Mesh check: coarse and fine
+  at 4 deg for taper 1.0 and 0.4.
+report:
+  compare_at: {fin_taper: 1.0, leeway: [2, 4, 6]}
+highlights:
+  - name: planform-at-working-load
+    why: Where along the span does each planform carry its side force, and how do the tip and fin-bulb junction flows differ?
+    where: {leeway: 4, mesh: medium}
+    compare: fin_taper
+    views: [surface_cp_starboard, vortices, wake_slice]
+defaults:
+  mesh: medium
+  speed: 1.0
+  heel: 0
+sweep:
+  fin_taper: [1.0, 0.8, 0.6, 0.4]
+  leeway: [0, 2, 4, 6, 8]
+cases:
+  - {fin_taper: 1.0, leeway: 4, mesh: coarse}
+  - {fin_taper: 1.0, leeway: 4, mesh: fine}
+  - {fin_taper: 0.4, leeway: 4, mesh: coarse}
+  - {fin_taper: 0.4, leeway: 4, mesh: fine}

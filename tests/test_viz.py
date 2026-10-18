@@ -12,7 +12,7 @@ from iomcfd.study import Case
 from iomcfd.viz import study as vstudy
 
 
-@pytest.mark.parametrize("project", ["foil2d", "appendage3d", "hull", "sails", "fullboat"])
+@pytest.mark.parametrize("project", ["foil2d", "appendage3d", "keel3d", "hull", "sails", "fullboat"])
 def test_view_metadata_loads_without_paraview(project):
     meta = vstudy.load_viz_meta(project)
     assert meta.DEFAULT_VIEWS and set(meta.DEFAULT_VIEWS) <= set(meta.VIEWS)

@@ -11,6 +11,7 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.integrate import trapezoid  # numpy < 2 in the solver image
 
 from . import foils
 from .stl import Surface, loft, revolve
@@ -28,6 +29,7 @@ class FinSpec:
     x_root_le: float = 0.45  # m, root leading edge
     z_root: float = -0.04  # m, canoe-body bottom at the fin
     root_extension: float = 0.02  # m, extra length above z_root
+    tip_extension: float = 0.0  # m, extra length below the tip at the tip chord (e.g. into a bulb)
     twist: float = 0.0  # deg, rotation of the tip section (washout) about z
     n_span: int = 24
     n_section: int = 81  # points per surface side
@@ -39,7 +41,7 @@ def fin(spec: FinSpec, name: str = "fin") -> Surface:
     lo = f.surface("lower", spec.n_section)
     ring2d = np.vstack([up[::-1][:-1], lo[:-1]])  # TE->upper->LE->lower (TE once)
     z_top = spec.z_root + spec.root_extension
-    z_tip = spec.z_root - spec.span
+    z_tip = spec.z_root - spec.span - spec.tip_extension
     rings = []
     for eta in np.linspace(0, 1, spec.n_span):  # 0 at top
         z = z_top + (z_tip - z_top) * eta
@@ -108,3 +110,57 @@ def rudder(spec: RudderSpec, name: str = "rudder") -> Surface:
     s = fin(spec, name)
     stock = (spec.x_root_le + spec.stock_at * spec.root_chord, 0.0, 0.0)
     return s.rotated("z", spec.angle, about=stock) if spec.angle else s
+
+
+def taper_chords(mean_chord: float, taper: float) -> tuple[float, float]:
+    """(root, tip) chord of a straight-tapered fin with this mean chord and
+    taper ratio (tip / root). Equal mean chord and span = equal area."""
+    root = 2.0 * mean_chord / (1.0 + taper)
+    return root, taper * root
+
+
+@dataclass
+class FoilBulbSpec:
+    """Body of revolution whose radius follows a symmetric foil's half-thickness
+    (`section`, e.g. naca0007: diameter = 7 % of the length, round nose,
+    pointed tail). Placed by its centre of volume (= the lead's centre of mass)."""
+
+    section: str = "naca0007"
+    length: float = 0.46
+    x_cg: float = 0.50  # m, centre of volume
+    z_axis: float = -0.40  # m
+    n_axial: int = 100
+    n_theta: int = 48
+
+
+def _foil_radius(section: str, n: int) -> tuple[np.ndarray, np.ndarray]:
+    """Half-thickness y(x) of a symmetric section, unit chord, x from 0 to 1."""
+    f = foils.load(section)
+    up, lo = f.surface("upper", n), f.surface("lower", n)
+    if np.max(np.abs(up[:, 1] + np.interp(up[:, 0], lo[:, 0], lo[:, 1]))) > 1e-4:
+        raise ValueError(f"bulb section {section} is not symmetric")
+    x = np.clip(up[:, 0], 0.0, 1.0)
+    r = np.clip(up[:, 1], 0.0, None)
+    r[0] = r[-1] = 0.0
+    return x, r
+
+
+def foil_body_coefficients(section: str) -> tuple[float, float, float]:
+    """(volume / L^3, centre of volume / L, max diameter / L) of the body of
+    revolution of `section` (exact shape, not the STL facets)."""
+    x, r = _foil_radius(section, 4001)
+    a = math.pi * r**2
+    vol = float(trapezoid(a, x))
+    return vol, float(trapezoid(a * x, x)) / vol, 2.0 * float(r.max())
+
+
+def foil_bulb_length(section: str, volume: float) -> float:
+    """Length of the `section` body of revolution that has this volume."""
+    return (volume / foil_body_coefficients(section)[0]) ** (1.0 / 3.0)
+
+
+def foil_bulb(spec: FoilBulbSpec, name: str = "bulb") -> Surface:
+    x, r = _foil_radius(spec.section, spec.n_axial)
+    _, xc, _ = foil_body_coefficients(spec.section)
+    s = revolve(x * spec.length, r * spec.length, spec.n_theta, name)
+    return s.translated((spec.x_cg - xc * spec.length, 0.0, spec.z_axis))

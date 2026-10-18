@@ -1,0 +1,100 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| keel3d template (OpenFOAM v2512). Values come from                          |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+application     simpleFoam;
+
+startFrom       latestTime;
+startTime       0;
+stopAt          endTime;
+endTime         $maxIter;
+deltaT          1;
+writeControl    timeStep;
+writeInterval   $maxIter;
+purgeWrite      1;
+writeFormat     binary;
+writePrecision  8;
+writeCompression off;
+timeFormat      general;
+timePrecision   6;
+runTimeModifiable true;    // iomcfd sets 'stopAt writeNow' once forces have converged
+
+functions
+{
+    // Coefficients for the whole boat (convergence monitoring).
+    // e1 = drag (freestream direction), e3 = side force (horizontal, + to port).
+    forceCoeffs
+    {
+        type            forceCoeffs;
+        libs            (forces);
+        writeControl    timeStep;
+        writeInterval   1;
+        log             false;
+        patches         (boat);
+        rho             rhoInf;
+        rhoInf          $rhoInf;
+        magUInf         $magUInf;
+        lRef            $lRef;
+        Aref            $Aref;
+        origin          (0 0 0);
+        e1              $dragDir;
+        e3              $sideDir;
+    }
+
+    // Dimensional forces (N) and moments (N m, about the origin = bow at the
+    // waterline): hull, fin, bulb, keel (fin + bulb) and total.
+    #include "include/forceFunctions"
+
+    // Spanwise loading: the fin's face forces summed in strips along the
+    // fin, from the hull bottom (spanMin, m from the waterline) to the top of
+    // the bulb (spanMax). The field 'force' is shared by all the forces
+    // objects above (they run first); each one resets and refills its own
+    // patches, so the fin faces hold their own force.
+    spanload
+    {
+        type            binField;
+        libs            (fieldFunctionObjects);
+        binModel        singleDirectionUniformBin;
+        fields          (force);
+        patches         (boat_fin);
+        CofR            (0 0 0);    // global axes for the bin direction
+        executeControl  timeStep;
+        executeInterval 5;
+        writeControl    timeStep;
+        writeInterval   5;
+        binData
+        {
+            nBin        $spanBins;
+            direction   $spanDir;
+            min         $spanMin;
+            max         $spanMax;
+            cumulative  no;
+        }
+    }
+
+    yPlus
+    {
+        type            yPlus;
+        libs            (fieldFunctionObjects);
+        writeControl    writeTime;
+        log             false;
+    }
+
+    residuals
+    {
+        type            solverInfo;
+        libs            (utilityFunctionObjects);
+        fields          (U p k omega);
+    }
+}

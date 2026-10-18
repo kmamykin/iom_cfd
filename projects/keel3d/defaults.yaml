@@ -1,0 +1,60 @@
+# keel3d: canoe body + keel fin + lead bulb in steady single-phase water flow.
+# Double-body model: the waterline z = 0 is a symmetry plane (no waves).
+# Boat frame: x aft (bow at x = 0), y port, z up, waterline z = 0.
+# The keel is sized from the IOM class rules (2026): the bulb holds the lead
+# the keel mass limit leaves after the fin, and it touches the draft limit.
+
+# --- IOM class rules ------------------------------------------------------------
+draft: 0.42             # m, waterline to the bulb bottom (C.4.1 maximum)
+keel_mass: 2.5          # kg, fin + bulb, excluding fasteners (C.6.4 maximum)
+fin_mass: 0.120         # kg, the carbon fin; the bulb is the rest of keel_mass
+lead_density: 11340     # kg/m^3 (E.3.1: no keel material denser than lead)
+boat_mass: 4.0          # kg (C.4.2 minimum); only for the displacement check
+
+# --- hull: parametric canoe body (geometry.hulls.CanoeSpec) -----------------------
+# Defaults: 3.62 L, wetted area 0.142 m^2, so hull + keel displace ~4.0 kg.
+hull_length: 0.99       # m, waterline length
+hull_beam: 0.165        # m, waterline beam
+hull_draft: 0.053       # m, canoe-body draft (deepest point of the hull)
+hull_beam_at: 0.55      # fraction of the length where the waterline is widest
+hull_draft_at: 0.50     # fraction of the length where the hull is deepest
+hull_entry: 2.0         # waterline shape exponent forward / aft of the widest point
+hull_run: 2.0           #   (2 = parabolic, larger = fuller ends)
+hull_section: 2.0       # section shape |y/b|^n + |z/t|^n = 1 (2 = elliptic)
+
+# --- keel fin ----------------------------------------------------------------------
+# The planform runs from the hull bottom to the top of the bulb (the exposed
+# span, fixed by the draft and the bulb). Mean chord and span fix the area,
+# so every taper ratio has the same lateral area.
+fin_section: naca0007   # foil2d recommendation (fin-profile-selection, transient-check)
+fin_mean_chord: 0.100   # m
+fin_taper: 1.0          # tip chord / root chord (1 = constant chord)
+fin_sweep: 0.0          # deg, sweep of the quarter-chord line (+ = tip aft)
+fin_x: 0.50             # m from the bow, quarter chord at the root (~ the hull's centre of buoyancy)
+
+# --- bulb: a symmetric section's thickness revolved about the bulb axis -------------
+bulb_section: naca0007  # length follows from the lead volume (diameter = 7 % of it)
+bulb_x: 0.0             # m, bulb centre of mass aft of the fin's quarter chord at the bulb
+
+# --- attitude and flow --------------------------------------------------------------
+speed: 1.0              # m/s boat speed through the water
+leeway: 0.0             # deg, + = bow to port of the track (port tack upwind); side force + to port
+heel: 0.0               # deg, + = mast to starboard; the boat rotates about the x axis at the waterline
+fluid: water
+temperature: 15.0
+
+# --- turbulence -----------------------------------------------------------------------
+turbulence: kOmegaSST   # fully turbulent, wall functions (see README: transition)
+Tu: 0.5
+viscosity_ratio: 10
+
+# --- mesh (snappyHexMesh) ----------------------------------------------------------------
+mesh: medium            # xcoarse | coarse | medium | fine
+n_layers: 5             # prism layers on hull, fin and bulb
+span_bins: 16           # strips for the fin's spanwise loading (spanload.csv); rounded to whole fin cells
+
+# --- solver -----------------------------------------------------------------------------
+max_iter: 3000          # SIMPLE iteration budget
+conv_window: 200        # iterations per averaging window
+conv_tol: 2.0e-3        # stop when window means of drag and side force change < this fraction
+np: 8                   # MPI ranks per case

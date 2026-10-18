@@ -25,6 +25,7 @@ study YAML ──> iomcfd run ──> OpenFOAM cases (Docker / Cloud Batch) ─�
 |---|---|---|---|
 | [`foil2d`](projects/foil2d) | 2D section polars (Cl, Cd, Cm, Cp, Cf, separation) for fins and rudders | simpleFoam + kOmegaSSTLM transition, generated C-grid | **Working, partly validated** |
 | [`appendage3d`](projects/appendage3d) | Fin + bulb + rudder forces at speed, leeway, heel, rudder angle | simpleFoam + kOmegaSST, snappyHexMesh | Runs end to end, not validated |
+| [`keel3d`](projects/keel3d) | Canoe body + fin + bulb sized by the IOM rules; keel planforms (constant chord vs tapered) at equal side force | simpleFoam + kOmegaSST, snappyHexMesh, double body | Runs end to end (smoke), not validated |
 | [`hull`](projects/hull) | Calm-water resistance, fixed or free sinkage/trim | interFoam (VOF), snappyHexMesh | Fixed attitude runs end to end; free attitude untested |
 | [`sails`](projects/sails) | Drive force, heeling force, centre of effort of main + jib + mast | simpleFoam + kOmegaSST, sails as baffles | Runs end to end, not validated |
 | [`fullboat`](projects/fullboat) | Hull + appendages in water and rig in air together; force/moment balance | interFoam (VOF) | **Experimental**, pipeline check only |

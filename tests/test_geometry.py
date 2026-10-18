@@ -273,3 +273,43 @@ def test_rotation_keeps_volume():
     assert r.volume() == pytest.approx(s.volume(), rel=1e-9)
     assert stl.rotation("z", 90) @ np.array([1, 0, 0]) == pytest.approx([0, 1, 0], abs=1e-12)
     assert math.isclose(np.linalg.det(stl.rotation("y", 33)), 1.0)
+
+
+def test_foil_bulb_volume_and_centre():
+    vol = (2.5 - 0.12) / ap.LEAD_DENSITY  # IOM keel limit minus a 120 g fin, in lead
+    length = ap.foil_bulb_length("naca0007", vol)
+    assert length == pytest.approx(0.4634, abs=5e-4)
+    k, xc, d = ap.foil_body_coefficients("naca0007")
+    assert d == pytest.approx(0.07, abs=1e-4)  # diameter = section thickness
+    b = ap.foil_bulb(ap.FoilBulbSpec(section="naca0007", length=length, x_cg=0.5, z_axis=-0.4))
+    assert b.is_closed()
+    assert b.volume() == pytest.approx(vol, rel=0.005)  # facets lose a little
+    assert b.centroid() == pytest.approx([0.5, 0.0, -0.4], abs=1e-4)
+    with pytest.raises(ValueError):
+        ap.foil_bulb_length("naca2412", vol)
+
+
+@pytest.mark.parametrize("taper", [1.0, 0.8, 0.6, 0.4])
+def test_taper_keeps_mean_chord(taper):
+    root, tip = ap.taper_chords(0.1, taper)
+    assert 0.5 * (root + tip) == pytest.approx(0.1)
+    assert tip / root == pytest.approx(taper)
+    spec = ap.FinSpec(section="naca0007", root_chord=root, tip_chord=tip, span=0.33, z_root=-0.05,
+                      tip_extension=0.016, n_span=40)
+    s = ap.fin(spec)
+    assert s.is_closed()
+    assert s.bounds[0][2] == pytest.approx(-0.05 - 0.33 - 0.016)
+
+
+def test_canoe_body():
+    spec = hulls.CanoeSpec()
+    h = hulls.canoe(spec)
+    assert h.is_closed()
+    vol, lcb, area = hulls.canoe_displacement(spec)
+    assert vol == pytest.approx(3.62e-3, rel=0.01)
+    assert lcb == pytest.approx(0.504, abs=0.005)
+    assert area == pytest.approx(hulls.wetted_area_below(h), rel=0.02)
+    assert float(hulls.canoe_depth(spec, spec.draft_at * spec.length)) == pytest.approx(spec.draft)
+    assert float(hulls.canoe_half_breadth(spec, 0.0)) == 0.0
+    lo, hi = h.bounds
+    assert lo[2] == pytest.approx(-spec.draft, abs=1e-4) and hi[1] == pytest.approx(spec.beam / 2, abs=1e-4)

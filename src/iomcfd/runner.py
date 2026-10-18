@@ -40,7 +40,8 @@ RESULT = "result.json"
 # Per-case files that carry a case's results: enough for collect, report
 # (except the mesh figure) and the findings. `gcp fetch` downloads only these
 # by default, and `iomcfd slim` keeps only these (plus viz/ images).
-LIGHT_FILES = ("params.json", RESULT, "surface.csv", "force_history.csv", "start_from.json")  # last two: transient
+# surface.csv: foil2d Cp/Cf; spanload.csv: keel3d spanwise loading; the last two: transient runs.
+LIGHT_FILES = ("params.json", RESULT, "surface.csv", "spanload.csv", "force_history.csv", "start_from.json")
 
 
 @dataclass
