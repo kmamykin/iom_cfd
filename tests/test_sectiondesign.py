@@ -139,3 +139,16 @@ def test_xfoil_polar_naca0009():
     assert list(p.alpha) == [0, 2, 4]
     assert p.cl[0] == pytest.approx(0, abs=1e-3) and 0.3 < p.cl[2] < 0.6
     assert 0.008 < p.cd[0] < 0.02
+
+
+def test_cfd_table_replace_fills_failed_points(tmp_path):
+    cols = ["foil", "chord", "speed", "aoa", "Tu", "status", "Cl", "Cd"]
+    base = pd.DataFrame([["naca0007", 0.1, 1.0, 2, 0.1, "ok", 0.12, 0.012],
+                         ["naca0007", 0.1, 1.0, 4, 0.1, "failed", 1e27, 1e26]], columns=cols)
+    tr = pd.DataFrame([["naca0007", 0.1, 1.0, 2, 0.1, "ok", 0.13, 0.0125],
+                       ["naca0007", 0.1, 1.0, 4, 0.1, "ok", 0.40, 0.014]], columns=cols)
+    base.to_csv(tmp_path / "a.csv", index=False)
+    tr.to_csv(tmp_path / "b.csv", index=False)
+    t = sectiondesign.cfd_table([tmp_path / "a.csv"], [tmp_path / "b.csv"], tu=0.1).set_index("aoa")
+    assert list(t.index) == [2, 4]
+    assert t.loc[2, "Cl"] == 0.13 and t.loc[4, "Cd"] == 0.014

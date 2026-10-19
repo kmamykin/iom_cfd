@@ -161,9 +161,9 @@ def rank_summary(rk: pd.DataFrame) -> pd.DataFrame:
 def cfd_table(results: list[Path], replace: list[Path] = (), tu: float | None = None, speeds=None) -> pd.DataFrame:
     """foil2d results.csv files as a polar table (candidate = 'foil/chord mm',
     foil, chord, speed, aoa, Cl, Cd). Rows of the `replace` files (e.g.
-    time-accurate points) replace the same candidate, speed and angle, in
-    order, so a later file wins; duplicates within one file are averaged.
-    Failed cases are dropped."""
+    time-accurate points) replace the same candidate, speed and angle, or add
+    it if the base runs lack it, in order, so a later file wins; duplicates
+    within one file are averaged. Failed cases are dropped."""
 
     def read(paths):
         d = pd.concat([pd.read_csv(p) for p in paths], ignore_index=True)
@@ -175,10 +175,11 @@ def cfd_table(results: list[Path], replace: list[Path] = (), tu: float | None = 
         d["candidate"] = [f"{f}/{c * 1000:g}" for f, c in zip(d["foil"], d["chord"])]
         return d.groupby(["candidate", "foil", "chord", "speed", "aoa"], as_index=False)[["Cl", "Cd"]].mean()
 
-    t = read(results).set_index(["candidate", "speed", "aoa"])
-    for path in replace:
-        t.update(read([path]).set_index(["candidate", "speed", "aoa"])[["Cl", "Cd"]])
-    return t.reset_index()
+    key = ["candidate", "speed", "aoa"]
+    t = read(results)
+    for path in replace:  # a replacement also fills a point the base runs lack (e.g. a failed case)
+        t = pd.concat([t, read([path])], ignore_index=True).drop_duplicates(key, keep="last")
+    return t.sort_values(key, ignore_index=True)
 
 
 def calibrate(cfd: pd.DataFrame, tu: float, reference: str | None = None, slope_factors=(1.0, 2.0)) -> pd.DataFrame:
