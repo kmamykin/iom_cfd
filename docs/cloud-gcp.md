@@ -56,9 +56,13 @@ up in the Actions logs.
 Manual pushes still work, e.g. to test an image before committing:
 
 ```bash
-make push      # docker buildx: linux/amd64 + linux/arm64, tags <git describe> and latest
+make push      # docker buildx: linux/amd64 + linux/arm64, tag <git describe>
 make push-amd64  # x86 only (all Cloud Batch needs); much faster from an Apple Silicon Mac
 ```
+
+They tag `<git describe>` only (`-dirty` for uncommitted changes); run them
+with `--tag`. Only CI on `main` moves `latest`, so a branch's image never
+becomes the default of every job by accident.
 
 The image contains the code, templates and `geometry/`, so changes to
 templates or `src/` reach the cloud once they are pushed (`latest`: to

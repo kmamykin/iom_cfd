@@ -35,13 +35,16 @@ test-docker: image  ## integration tests that run OpenFOAM in the image
 smoke: image  ## 2-case end-to-end foil2d run (~1-2 min)
 	uv run iomcfd run foil2d/smoke
 
-push:  ## build multi-arch image and push to Artifact Registry (tags: git describe + latest)
+# Manual pushes tag <git describe> only: `latest` (config.env's default
+# IMAGE_TAG) is moved by CI on pushes to main (.github/workflows/image.yml),
+# so a branch's image never becomes every job's default by accident.
+push:  ## build multi-arch image and push to Artifact Registry (tag: git describe; not latest)
 	@test -n "$(GCP_PROJECT)" || (echo "fill in cloud/gcp/config.env first" && exit 1)
 	docker buildx build --platform $(PLATFORMS) \
 	    --build-arg OPENFOAM_VERSION=$(OPENFOAM_VERSION) \
-	    -t $(REMOTE_IMAGE):$(GIT_TAG) -t $(REMOTE_IMAGE):latest \
+	    -t $(REMOTE_IMAGE):$(GIT_TAG) \
 	    -f docker/Dockerfile --push .
-	@echo "pushed $(REMOTE_IMAGE):$(GIT_TAG) ($(PLATFORMS))"
+	@echo "pushed $(REMOTE_IMAGE):$(GIT_TAG) ($(PLATFORMS)); run it with iomcfd gcp submit --tag $(GIT_TAG)"
 
 push-amd64:  ## like push, x86 only: what Cloud Batch runs; faster from an Arm Mac
 	$(MAKE) push PLATFORMS=linux/amd64
