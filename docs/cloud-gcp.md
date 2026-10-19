@@ -113,9 +113,25 @@ editing or resubmitting a study never affects a job that is already running.
 The job spec and `run.json` are also saved locally in
 `cloud/gcp/jobs/<job name>/`.
 
-`--parallelism` caps how many tasks run at once. With the default
-`c3d-standard-16` (8 tasks per VM) and a 64-vCPU quota, `--parallelism 32`
-runs 4 VMs.
+`--parallelism` caps how many tasks run at once. Without it, `submit` sets
+it from the quotas' headroom at submit time and prints how. Batch would
+otherwise ask for every task's VM at once. If that is over a quota, the
+instance group can't create the VMs, and after a few retries the job stays
+queued for good. The quotas checked are:
+* VM instances in the region (24 here);
+* the machine family's vCPUs in the region. Older families have their own
+  quota, e.g. C2D_CPUS (100). Newer ones (C3D, H3, C4…) count against
+  CPUS_PER_VM_FAMILY, read with `gcloud beta quotas`; C3D is 150 here;
+* vCPUs in all regions (512).
+
+Usage counts every live VM in the project, other sessions' jobs too. With
+no headroom the job gets one VM and waits in the queue. Example (bulb-section,
+2026-10-19): 39 one-VM keel3d tasks with 116 of 150 C3D vCPUs in use leaves
+room for 2 `c3d-standard-16` VMs. The same study on `c2d-standard-16` (8
+physical cores too, its own 100-vCPU quota) ran 6 at a time.
+
+The cap is fixed at submit time: a job submitted while the quotas are full
+stays at its few VMs after they free up. Pass `--parallelism` to choose.
 
 How tasks are packed: each case gets `np` MPI ranks, each rank a physical
 core (2 vCPUs on SMT families such as C3D/C2D, 1 vCPU on H3, T2D, C4A).

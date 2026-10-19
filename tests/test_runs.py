@@ -118,6 +118,47 @@ def test_gcp_job_writes_into_its_run():
     assert len(name) <= 63 and name.endswith("-20261012-045433")
 
 
+def test_gcp_parallelism_fits_the_quotas():
+    from iomcfd.cloud import gcp
+
+    # bulb-section on 2026-10-19: 39 one-VM tasks; 8 of 24 instances and 116 of 150 C3D vCPUs in use
+    p, why = gcp.parallelism_from_quotas(39, 1, [("instances", 24, 8, 1), ("C3D vCPUs", 150, 116, 16)])
+    assert p == 2 and "room for 2" in why
+    assert gcp.parallelism_from_quotas(54, 8, [("instances", 24, 8, 1)])[0] == 54  # 7 VMs of 8 cases
+    assert gcp.parallelism_from_quotas(39, 1, [("C3D vCPUs", 150, 150, 16)])[0] == 1  # full: one VM, waits
+    assert gcp.parallelism_from_quotas(39, 1, [])[0] == gcp.FALLBACK_MAX_VMS
+
+
+def test_gcp_quota_constraints(monkeypatch):
+    from iomcfd.cloud import gcp
+
+    def fake_gcloud(*args, capture=False, dry=False):
+        if args[:2] == ("compute", "regions"):
+            return json.dumps({"quotas": [{"metric": "INSTANCES", "limit": 24.0, "usage": 8.0},
+                                          {"metric": "C2D_CPUS", "limit": 100.0, "usage": 32.0}]})
+        if args[:3] == ("beta", "quotas", "info"):
+            return json.dumps({"dimensionsInfos": [
+                {"dimensions": {"region": "us-central1", "vm_family": "C3D"}, "details": {"value": "150"}},
+                {"dimensions": {"vm_family": "C3D"}, "details": {"value": "24"}}]})
+        if args[:3] == ("compute", "instances", "list"):
+            return json.dumps([
+                {"zone": "us-central1-f", "machineType": "c3d-standard-16", "status": "RUNNING"},
+                {"zone": "us-central1-c", "machineType": "c3d-standard-4", "status": "STAGING"},
+                {"zone": "us-central1-c", "machineType": "c3d-standard-16", "status": "TERMINATED"},  # holds no quota
+                {"zone": "europe-west1-b", "machineType": "c3d-standard-16", "status": "RUNNING"},  # other region
+                {"zone": "us-central1-a", "machineType": "c2d-standard-16", "status": "RUNNING"}])
+        if args[:2] == ("compute", "project-info"):
+            return json.dumps({"quotas": [{"metric": "CPUS_ALL_REGIONS", "limit": 512.0, "usage": 52.0}]})
+        raise AssertionError(args)
+
+    monkeypatch.setattr(gcp, "_gcloud", fake_gcloud)
+    cfg = {"GCP_PROJECT": "p", "GCP_REGION": "us-central1"}
+    c3d = gcp.quota_constraints(cfg, "c3d-standard-16")
+    assert c3d == [("instances", 24.0, 8.0, 1), ("C3D vCPUs", 150.0, 20, 16), ("vCPUs, all regions", 512.0, 52.0, 16)]
+    c2d = gcp.quota_constraints(cfg, "c2d-standard-16")
+    assert c2d[1] == ("C2D vCPUs", 100.0, 32.0, 16)  # from the region's own quota list
+
+
 def test_gcp_task_hours_fit_the_longest_case():
     """stepped-vs-naca starts with plain NACA 0009; its stair10 cases need far
     longer, and every task of a job gets one limit."""
