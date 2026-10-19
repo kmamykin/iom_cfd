@@ -22,7 +22,7 @@ from iomcfd.viz.geom import box_center, heel_basis, heeled
 
 DEFAULT_VIEWS = ["surface_cp_port", "surface_cp_starboard", "vortices", "wake_slice", "section"]
 ANIMATE_VIEWS = ["surface_cp_port", "vortices", "wake_slice"]
-ANIMATE_PARAMS = ["leeway", "fin_taper", "speed", "heel", "fin_sweep", "mesh"]
+ANIMATE_PARAMS = ["leeway", "fin_taper", "speed", "heel", "fin_sweep", "mesh", "bulb_aspect", "bulb_cant"]
 TIME_VIEWS: list[str] = []
 
 PIVOT = (0.0, 0.0, 0.0)
@@ -48,6 +48,13 @@ def _title(ctx, what: str):
     p, m = ctx.p, ctx.m
     parts = [f"taper {p['fin_taper']}", f"speed {p['speed']} m/s", f"leeway {p['leeway']} deg",
              f"heel {p['heel']} deg", f"mesh {p['mesh']}"]
+    if not p.get("bulb", True):
+        parts.insert(1, "no bulb")
+    else:  # bulb shape, where it isn't the round default
+        shape = [f"{k[5:]} {p[k]}" for k, v in (("bulb_aspect", 1.0), ("bulb_top", 2.0), ("bulb_bottom", 2.0),
+                                                ("bulb_cant", 0.0)) if float(p.get(k, v)) != v]
+        if shape:
+            parts.insert(1, "bulb " + ", ".join(shape))
     if "drag_N" in m and "side_N" in m:
         parts.append(f"drag {m['drag_N']:.3f} N  side {m['side_N']:.3f} N")
     ctx.title(f"{what}\n" + "   ".join(parts))

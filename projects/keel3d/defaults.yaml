@@ -33,8 +33,16 @@ fin_sweep: 0.0          # deg, sweep of the quarter-chord line (+ = tip aft)
 fin_x: 0.50             # m from the bow, quarter chord at the root (~ the hull's centre of buoyancy)
 
 # --- bulb: a symmetric section's thickness revolved about the bulb axis -------------
+bulb: true              # false = the fin alone, with a flat tip where the bulb's top would be (end-plate check)
 bulb_section: naca0007  # length follows from the lead volume (diameter = 7 % of it)
 bulb_x: 0.0             # m, bulb centre of mass aft of the fin's quarter chord at the bulb
+# Cross-section shape, at the round section's area (same lead, same length).
+# The bottom stays at the draft, so a flatter bulb has a lower centre of mass.
+bulb_aspect: 1.0        # width / height of the sections (1 = round)
+bulb_top: 2.0           # superellipse exponent of the upper half: 2 = elliptic, 4-8 = flat top
+bulb_bottom: 2.0        # and of the lower half: 4-8 = flat bottom with harder chines
+bulb_cant: 0.0          # deg nose up, about the bulb's centre of mass; it is then raised so
+                        # its lowest point (the tail) stays at the draft
 
 # --- attitude and flow --------------------------------------------------------------
 speed: 1.0              # m/s boat speed through the water

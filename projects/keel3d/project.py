@@ -48,10 +48,21 @@ VDRDV = {0.5: 0.40, 0.75: 0.81, 1.0: 1.354, 1.5: 2.71}
 TRACK_ANGLE = 42.0
 LOAD_NAMES = ("light", "working", "high")
 
+# Bulb shape parameters and their defaults (results of runs made before
+# they existed have the defaults).
+BULB_SHAPE = {"bulb_section": "naca0007", "bulb_aspect": 1.0, "bulb_top": 2.0, "bulb_bottom": 2.0, "bulb_cant": 0.0}
+
 # Parameters that make a keel design (compared at equal side force) and the
 # conditions it is compared under.
-DESIGN = ["fin_taper", "fin_sweep", "fin_mean_chord", "fin_section", "fin_x", "bulb_section", "bulb_x"]
+DESIGN = ["fin_taper", "fin_sweep", "fin_mean_chord", "fin_section", "fin_x", "bulb", "bulb_section", "bulb_x",
+          "bulb_aspect", "bulb_top", "bulb_bottom", "bulb_cant"]
 CONDITION = ["speed", "heel", "mesh", "mesh_shift", "fin_wake", "turbulence", "Tu"]
+
+
+def bulb_spec(p: dict[str, Any], length: float, x_cg: float, z_axis: float) -> ap.FoilBulbSpec:
+    return ap.FoilBulbSpec(section=p["bulb_section"], length=length, x_cg=x_cg, z_axis=z_axis,
+                           aspect=float(p["bulb_aspect"]), top=float(p["bulb_top"]), bottom=float(p["bulb_bottom"]),
+                           cant=float(p["bulb_cant"]))
 
 
 def keel_geometry(p: dict[str, Any]) -> dict[str, Any]:
@@ -60,14 +71,44 @@ def keel_geometry(p: dict[str, Any]) -> dict[str, Any]:
     bulb_volume = bulb_mass / float(p["lead_density"])
     _, _, d_over_l = ap.foil_body_coefficients(p["bulb_section"])
     bulb_length = ap.foil_bulb_length(p["bulb_section"], bulb_volume)
-    bulb_d = d_over_l * bulb_length
-    if bulb_d > BULB_ZONE:
-        raise ValueError(f"bulb diameter {bulb_d * 1e3:.1f} mm is over the {BULB_ZONE * 1e3:.0f} mm zone of rule E.4.1")
-    z_axis = -float(p["draft"]) + 0.5 * bulb_d
+    bulb_d = d_over_l * bulb_length  # of the round bulb with the same section areas
+    half_w, half_h, _ = (0.5 * bulb_d * v for v in ap.section_shape(
+        float(p["bulb_aspect"]), float(p["bulb_top"]), float(p["bulb_bottom"])))
 
     hull = hull_spec(p)
     z_root = -float(hulls.canoe_depth(hull, float(p["fin_x"])))  # hull bottom at the root quarter chord
-    span = z_root - (z_axis + 0.5 * bulb_d)  # exposed: hull bottom to the top of the bulb
+    sweep = math.tan(math.radians(float(p["fin_sweep"])))
+    # The bulb's lowest point is at the draft (with cant, the tail's), its
+    # centre of mass under the fin's quarter chord at the bulb (plus bulb_x).
+    # The sweep moves that point with the bulb's height, so iterate once.
+    x_cg = float(p["fin_x"]) + sweep * (z_root + float(p["draft"]) - half_h) + float(p["bulb_x"])
+    for _ in range(2):
+        xt, zt, _, zb = ap.foil_bulb_lines(bulb_spec(p, bulb_length, x_cg, 0.0))
+        z_axis = -float(p["draft"]) - float(zb.min())
+        x_qc_bulb = float(p["fin_x"]) + sweep * (z_root - z_axis)
+        x_cg = x_qc_bulb + float(p["bulb_x"])
+    xt, zt, _, _ = ap.foil_bulb_lines(bulb_spec(p, bulb_length, x_cg, z_axis))
+    x_unit, r_unit = ap._foil_radius(p["bulb_section"], len(xt))
+    z_top = float(zt[np.argmax(r_unit)])  # top of the bulb's widest section: where the fin's span ends
+    zoff = ap.foil_bulb_cg_offset(bulb_spec(p, bulb_length, x_cg, z_axis))
+    z_cg = z_axis + zoff  # cant turns the bulb about this point
+    # Rule E.4.1: no transverse dimension over 20 mm except in the lowest 60 mm.
+    # Where each section is 20 mm wide (upper half: 2 b (1 - (z/h)^n)^(1/n)),
+    # with cant; sections narrower than that don't count.
+    rr = r_unit / r_unit.max()
+    wide = half_w * rr > 0.5 * MAX_FIN_THICKNESS
+    if wide.any():
+        n, b, h = float(p["bulb_top"]), half_w * rr[wide], half_h * rr[wide]
+        z20 = h * (1.0 - (0.5 * MAX_FIN_THICKNESS / b) ** n) ** (1.0 / n)  # above the axis
+        _, xc, _ = ap.foil_body_coefficients(p["bulb_section"])
+        xi = (x_unit[wide] - xc) * bulb_length  # along the axis from the centre of mass
+        cant = math.radians(float(p["bulb_cant"]))
+        z20 = z_cg - xi * math.sin(cant) + (z20 - zoff) * math.cos(cant)
+        if float(z20.max()) > -float(p["draft"]) + BULB_ZONE + 1e-9:
+            raise ValueError(f"bulb wider than 20 mm up to {(float(z20.max()) + float(p['draft'])) * 1e3:.1f} mm "
+                             f"above the draft, over the {BULB_ZONE * 1e3:.0f} mm zone of rule E.4.1")
+
+    span = z_root - z_top  # exposed: hull bottom to the top of the bulb
     if span <= 0:
         raise ValueError("no room for the fin between the hull and the bulb")
     root, tip = ap.taper_chords(float(p["fin_mean_chord"]), float(p["fin_taper"]))
@@ -75,8 +116,6 @@ def keel_geometry(p: dict[str, Any]) -> dict[str, Any]:
     tc = foil.thickness()[0]
     if tc * root > MAX_FIN_THICKNESS:
         raise ValueError(f"fin root {tc * root * 1e3:.1f} mm thick, over the 20 mm of rule E.4.1")
-    sweep = math.tan(math.radians(float(p["fin_sweep"])))
-    x_qc_bulb = float(p["fin_x"]) + sweep * (z_root - z_axis)
     fin_volume = foil.area() * span * (root**2 + root * tip + tip**2) / 3  # exposed part
     hull_volume, hull_lcb, hull_area = hulls.canoe_displacement(hull)
     return {
@@ -84,8 +123,15 @@ def keel_geometry(p: dict[str, Any]) -> dict[str, Any]:
         "bulb_volume_m3": bulb_volume,
         "bulb_length": bulb_length,
         "bulb_diameter": bulb_d,
+        "bulb_width": 2 * half_w,
+        "bulb_height": 2 * half_h,
         "bulb_z_axis": z_axis,
-        "bulb_x_cg": x_qc_bulb + float(p["bulb_x"]),
+        "bulb_x_cg": x_cg,
+        "bulb_z_cg": z_cg,
+        "bulb_cg_above_draft": z_cg + float(p["draft"]),
+        # the fin runs on into the bulb, to its axis (which cant tilts nose up)
+        "fin_tip_extension": z_top - z_axis + (x_qc_bulb - x_cg) * math.tan(math.radians(float(p["bulb_cant"])))
+        if p["bulb"] else 0.0,
         "fin_z_root": z_root,
         "fin_span": span,
         "fin_root_chord": root,
@@ -151,6 +197,7 @@ class Keel3D(Project):
         cell = c / 2 ** MESH_LEVELS[p["mesh"]]["fin"][0]
         k = max(1, int(g["fin_span"] / (int(p["span_bins"]) * cell)))
         n_bins = int(g["fin_span"] / (k * cell))
+        rot = stl.rotation("x", float(p["heel"]))
         return {
             "rhoInf": fl.rho,
             "nu": fl.nu,
@@ -167,6 +214,9 @@ class Keel3D(Project):
             "Re_hull": V * float(p["hull_length"]) / fl.nu,
             **g,
             "displacement_kg": displaced * fl.rho,
+            # the bulb's centre of mass and pitch axis (boat y), heeled: its pitching moment
+            "bulbCofG": [float(v) for v in rot @ np.array([g["bulb_x_cg"], 0.0, g["bulb_z_cg"]])],
+            "bulbPitchAxis": [float(v) for v in rot @ np.array([0.0, 1.0, 0.0])],
             # spanwise strips along the (heeled) fin: distance from the waterline
             "spanDir": [0.0, math.sin(h), -math.cos(h)],
             "spanMin": -g["fin_z_root"],
@@ -190,11 +240,11 @@ class Keel3D(Project):
         fin = ap.fin(ap.FinSpec(
             section=p["fin_section"], root_chord=root, tip_chord=g["fin_tip_chord"], span=g["fin_span"],
             sweep=float(p["fin_sweep"]), x_root_le=float(p["fin_x"]) - 0.25 * root, z_root=g["fin_z_root"],
-            root_extension=0.5 * float(p["hull_draft"]), tip_extension=0.5 * g["bulb_diameter"], n_span=40,
+            root_extension=0.5 * float(p["hull_draft"]), tip_extension=g["fin_tip_extension"], n_span=40,
         ), "fin")
-        bulb = ap.foil_bulb(ap.FoilBulbSpec(section=p["bulb_section"], length=g["bulb_length"],
-                                            x_cg=g["bulb_x_cg"], z_axis=g["bulb_z_axis"]), "bulb")
-        out = [hull, fin, bulb]
+        out = [hull, fin]
+        if p["bulb"]:  # else the fin alone, with a flat tip where the bulb's top would be
+            out.append(ap.foil_bulb(bulb_spec(p, g["bulb_length"], g["bulb_x_cg"], g["bulb_z_axis"]), "bulb"))
         if float(p["heel"]):
             out = [s.rotated("x", float(p["heel"])) for s in out]
         return out
@@ -249,7 +299,8 @@ class Keel3D(Project):
             "keelDistance": 6 * h / 2 ** lv["dist"], "keelDistanceLevel": lv["dist"],
             "locationInMesh": vec(loc),
             "components": [s.name for s in surfs],
-            "wetted_area_m2": d["hull_wetted_area_m2"] + d["fin_wetted_area_m2"] + surfs[2].area(),
+            "bulb_wetted_area_m2": surfs[2].area() if len(surfs) > 2 else 0.0,
+            "wetted_area_m2": d["hull_wetted_area_m2"] + d["fin_wetted_area_m2"] + sum(s.area() for s in surfs[2:]),
             "bodyBoxBoat": self._boat_box(p),
         })
         for name, (a, b) in boxes.items():
@@ -257,7 +308,7 @@ class Keel3D(Project):
         d.update(self._fin_wake_box(p, d, lv))
 
         fo = [forces_function(f"forces_{s.name}", [f"boat_{s.name}"]) for s in surfs]
-        fo.append(forces_function("forces_keel", ["boat_fin", "boat_bulb"]))
+        fo.append(forces_function("forces_keel", [f"boat_{s.name}" for s in surfs[1:]]))
         fo.append(forces_function("forces_total", ["boat"], interval=1))
         inc = case_dir / "system" / "include"
         inc.mkdir(parents=True, exist_ok=True)
@@ -308,7 +359,9 @@ class Keel3D(Project):
         z_r, span = g["fin_z_root"], g["fin_span"]
         sweep = math.tan(math.radians(float(p["fin_sweep"])))
         # the fin's own extent: into the hull above the root, into the bulb below the tip
-        zs = [z_r + 0.5 * float(p["hull_draft"]), z_r, z_r - span, z_r - span - 0.5 * g["bulb_diameter"]]
+        zs = [z_r + 0.5 * float(p["hull_draft"]), z_r, z_r - span]
+        if g["fin_tip_extension"] > 0:
+            zs.append(z_r - span - g["fin_tip_extension"])
 
         def x_te(z: float) -> float:
             frac = min(max((z_r - z) / span, 0.0), 1.0)
@@ -376,6 +429,12 @@ class Keel3D(Project):
                 out[f"drag_{comp}_N"] = float(r.total @ dd)
                 out[f"side_{comp}_N"] = float(r.total @ sd)
                 out[f"drag_{comp}_friction_N"] = float(r.viscous @ dd)
+                if comp == "bulb":
+                    out["drag_bulb_pressure_N"] = float(r.pressure @ dd)
+                    out["vertical_bulb_N"] = float(r.total[2])  # + up
+                    # about the bulb's centre of mass, + nose up (moments are about the origin)
+                    m_cg = r.moment - np.cross(np.array(d["bulbCofG"]), r.total)
+                    out["pitch_bulb_Nm"] = float(m_cg @ np.array(d["bulbPitchAxis"]))
         out.update(self._spanload(case_dir, p, d))
         files = sorted((case_dir / "postProcessing" / "forceCoeffs").glob("*/coefficient.dat"))
         n_iter = 0
@@ -489,6 +548,10 @@ class Keel3D(Project):
         options: compare_at {<design param>: value, leeway: [..]} (default
         fin_taper 1.0 at 2, 4, 6 deg), vdrdv {speed: V dR/dV [N]},
         track_angle [deg]. Returns a DataFrame, one row per design and load.
+
+        Downwind the boat sails upright, so when the study has an upright
+        case at 0 deg of the same design (and speed, mesh, ...), heeled rows
+        take their downwind drag from it.
         """
         import pandas as pd
         from scipy.interpolate import PchipInterpolator
@@ -501,9 +564,15 @@ class Keel3D(Project):
         df = df[df["status"].isin(["ok", "not_converged"])]
         design = [c for c in DESIGN if c in df and df[c].nunique() > 1] or ["fin_taper"]
         cond = [c for c in CONDITION if c in df and df[c].nunique() > 1]
+        other = [c for c in cond if c != "heel"]
+        upright = {}
+        if "heel" in df:
+            for _, r in df[(df["heel"] == 0) & (df["leeway"] == 0)].iterrows():
+                upright[(tuple(r[c] for c in other), tuple(r[c] for c in design))] = float(r["drag_N"])
         rows = []
         for ckey, cg in (df.groupby(cond) if cond else [((), df)]):
             ckey = ckey if isinstance(ckey, tuple) else (ckey,)
+            okey = tuple(dict(zip(cond, ckey))[c] for c in other)
             curves = {}
             for dkey, g in cg.groupby(design):
                 g = g.sort_values("leeway")
@@ -511,18 +580,20 @@ class Keel3D(Project):
                 keep = np.concatenate([[True], np.diff(F) > 0])  # rising branch only
                 keep &= np.cumprod(keep).astype(bool)
                 d0 = float(np.interp(0.0, b, D)) if b.min() <= 0 <= b.max() else float("nan")
+                d0 = upright.get((okey, dkey if isinstance(dkey, tuple) else (dkey,)), d0)
                 if keep.sum() >= 2:  # a sweep, not a single point (e.g. a mesh check)
-                    curves[dkey if isinstance(dkey, tuple) else (dkey,)] = (b[keep], F[keep], D[keep], d0)
+                    cg_h = float(g["bulb_cg_above_draft"].iloc[0]) if "bulb_cg_above_draft" in g else float("nan")
+                    curves[dkey if isinstance(dkey, tuple) else (dkey,)] = (b[keep], F[keep], D[keep], d0, cg_h)
             refkey = [k for k in curves if all(_same(dict(zip(design, k))[n], v) for n, v in ref.items() if n in design)]
             if not refkey:
                 continue
-            rb, rF, _, _ = curves[refkey[0]]
+            rb, rF, *_ = curves[refkey[0]]
             loads = [float(np.interp(a, rb, rF)) if rb.min() <= a <= rb.max() else float("nan") for a in ref_leeway]
             V = float(dict(zip(cond, ckey)).get("speed", df["speed"].iloc[0]))
             for li, (a, F0) in enumerate(zip(ref_leeway, loads)):
                 if np.isnan(F0):
                     continue
-                for dkey, (b, F, D, d0) in curves.items():
+                for dkey, (b, F, D, d0, cg_h) in curves.items():
                     ok = len(F) >= 2 and F[0] <= F0 <= F[-1]
                     # drag is close to linear in F^2 (D0 + k F^2), leeway in F
                     f2 = lambda f: f * np.abs(f)
@@ -533,7 +604,7 @@ class Keel3D(Project):
                     rows.append({**dict(zip(cond, ckey)), **dict(zip(design, dkey)),
                                  "load": LOAD_NAMES[li] if li < len(LOAD_NAMES) else f"load{li}",
                                  "ref_leeway": a, "side_N": F0, "leeway": beta, "drag_N": drag, "drag0_N": d0,
-                                 "vdrdv": vdrdv.get(V, float("nan"))})
+                                 "vdrdv": vdrdv.get(V, float("nan")), "bulb_cg_above_draft": cg_h})
         t = pd.DataFrame(rows)
         if t.empty:
             return t
@@ -548,17 +619,22 @@ class Keel3D(Project):
         return t
 
     @staticmethod
-    def polar_fits(df):
+    def polar_fits(df, max_leeway: float | None = None):
         """Per design and condition: drag at zero side force, induced-drag
         factor k of D = D0 + k F^2 (least squares), effective span efficiency
         e = 1 / (2 pi q d^2 k) with d the draft (hull + keel as a half wing
-        on the waterline mirror), and the side force per degree of leeway
-        (fit up to 4 deg)."""
+        on the waterline mirror), effective draft T_eff = 1 / sqrt(pi q k)
+        (ORC), and the side force per degree of leeway (fit up to 4 deg).
+        Fit only the points up to the highest attached leeway (`max_leeway`
+        in the study's report options): k also holds the growth of viscous
+        drag with side force, which separation makes steep."""
         import pandas as pd
 
         df = df[df["status"].isin(["ok", "not_converged"])]
         design = [c for c in DESIGN if c in df and df[c].nunique() > 1] or ["fin_taper"]
         cond = [c for c in CONDITION if c in df and df[c].nunique() > 1]
+        if max_leeway is not None:
+            df = df[df["leeway"] <= float(max_leeway) + 1e-9]
         rows = []
         for key, g in df.groupby([*cond, *design]):
             key = key if isinstance(key, tuple) else (key,)
@@ -572,6 +648,8 @@ class Keel3D(Project):
             slope = float(np.polyfit(b[lin], F[lin], 1)[0]) if lin.sum() >= 2 else float("nan")
             rows.append({**dict(zip([*cond, *design], key)), "D0_N": d0, "k_per_N": k,
                          "e_eff": 1.0 / (2 * math.pi * q * depth**2 * k) if k > 0 else float("nan"),
+                         # ORC's form D_i = S_h^2 / (pi q T_eff^2) (VPP documentation eq. 6.37)
+                         "T_eff_m": 1.0 / math.sqrt(math.pi * q * k) if k > 0 else float("nan"),
                          "side_per_deg_N": slope, "n_points": len(g)})
         return pd.DataFrame(rows)
 
@@ -609,7 +687,7 @@ class Keel3D(Project):
         plt.close(fig)
 
         if df["leeway"].nunique() >= 3:
-            fits = self.polar_fits(df)
+            fits = self.polar_fits(df, (options or {}).get("max_leeway"))
             if not fits.empty:
                 fits.to_csv(out_dir / "polar_fits.csv", index=False)
             t = self.compare_at_equal_force(df, options)
@@ -635,15 +713,20 @@ class Keel3D(Project):
         hs = hull_spec(first)
         x = np.linspace(0, hs.length, 300)
         ax.fill_between(x, -hulls.canoe_depth(hs, x), 0, color="0.85", label="canoe body (centre line)")
+        drawn = set()
         for i, (key, g) in enumerate(df.groupby(design)):
             r = g.iloc[0]
-            if i == 0 or r["bulb_section"] != first["bulb_section"]:
-                xr, rr = ap._foil_radius(r["bulb_section"], 300)
-                _, xc, _ = ap.foil_body_coefficients(r["bulb_section"])
-                X, R = r["bulb_x_cg"] + (xr - xc) * r["bulb_length"], rr * r["bulb_length"]
-                ax.fill_between(X, r["bulb_z_axis"] - R, r["bulb_z_axis"] + R, color="0.6",
-                                label=f"bulb {r['bulb_section']}: {r['bulb_length'] * 1e3:.0f} x {r['bulb_diameter'] * 1e3:.1f} mm, "
-                                      f"{r['bulb_mass_kg'] * 1e3:.0f} g")
+            shape = {k: r.get(k, v) for k, v in BULB_SHAPE.items()}
+            if r.get("bulb", True) and tuple(shape.values()) not in drawn:
+                drawn.add(tuple(shape.values()))
+                xt, zt, xb, zb = ap.foil_bulb_lines(bulb_spec({**r, **shape}, r["bulb_length"], r["bulb_x_cg"],
+                                                              r["bulb_z_axis"]), 300)
+                h = r.get("bulb_height", r["bulb_diameter"])
+                ax.fill(np.r_[xt, xb[::-1]], np.r_[zt, zb[::-1]], color="0.6", alpha=0.5,
+                        label=f"bulb {r['bulb_section']}: {r['bulb_length'] * 1e3:.0f} x {r.get('bulb_width', h) * 1e3:.1f}"
+                              f" x {h * 1e3:.1f} mm (L x W x H), {r['bulb_mass_kg'] * 1e3:.0f} g"
+                              + "".join(f", {k} {shape[k]}" for k in BULB_SHAPE if k != "bulb_section"
+                                        and shape[k] != BULB_SHAPE[k]))
             zr, span = r["fin_z_root"], r["fin_span"]
             cr, ct = r["fin_root_chord"], r["fin_tip_chord"]
             xq, xt = float(r["fin_x"]), float(r["fin_x"]) + math.tan(math.radians(float(r["fin_sweep"]))) * span
@@ -703,13 +786,19 @@ class Keel3D(Project):
              "at that force (interpolated along its leeway sweep), and the race time it loses against the best "
              "design (foil2d/methodology.md: half upwind with drag and leeway, half downwind with the drag at 0 deg; "
              "x1 / x2 = the estimated resistance slope and double it).", ""]
-        head = [*cond, *design, "load", "side [N]", "leeway [deg]", "drag [N]", "drag at 0 deg [N]", "loss x1 / x2 [%]"]
+        cg = "bulb_cg_above_draft" in t and t["bulb_cg_above_draft"].nunique() > 1
+        if cg:
+            L[-1:-1] = ["The bulb's centre of mass is given above the draft (a lower one is more righting moment; "
+                        "the race time doesn't count it).", ""]
+        head = [*cond, *design, "load", "side [N]", "leeway [deg]", "drag [N]", "drag at 0 deg [N]",
+                *(["bulb CG above draft [mm]"] if cg else []), "loss x1 / x2 [%]"]
         L += ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
         for _, r in t.iterrows():
             loss = "-" if np.isnan(r["loss_x1_pct"]) else ("best" if r["loss_x1_pct"] < 1e-9 and r["loss_x2_pct"] < 1e-9
                                                            else f"{r['loss_x1_pct']:.2f} / {r['loss_x2_pct']:.2f}")
             L.append("| " + " | ".join([*(str(r[c]) for c in [*cond, *design]), r["load"], f"{r['side_N']:.3f}",
-                                        f"{r['leeway']:.2f}", f"{r['drag_N']:.4f}", f"{r['drag0_N']:.4f}", loss]) + " |")
+                                        f"{r['leeway']:.2f}", f"{r['drag_N']:.4f}", f"{r['drag0_N']:.4f}",
+                                        *([f"{1e3 * r['bulb_cg_above_draft']:.1f}"] if cg else []), loss]) + " |")
         if not fits.empty:
             L += ["", "## Drag polar fits", "", "D = D0 + k F^2 over each leeway sweep; e_eff = 1 / (2 pi q d^2 k), "
                   "d = draft (the waterline is a mirror plane). It includes the growth of viscous drag with side "

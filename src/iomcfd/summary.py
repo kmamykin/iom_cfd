@@ -68,7 +68,8 @@ def write_summary(rdir: Path, study, cases, df, report_files: list[Path]) -> Pat
     if varied:
         L += ["", "## Swept parameters", ""]
         for k in varied:
-            vals = sorted({c.varied[k] for c in cases}, key=lambda v: (isinstance(v, str), v))
+            # None (a parameter unset in some cases) first, then numbers, then strings
+            vals = sorted({c.varied[k] for c in cases}, key=lambda v: (v is not None, isinstance(v, str), v if v is not None else 0))
             L.append(f"* {k}: {', '.join(str(v) for v in vals)}")
     fixed = {k: v for k, v in (study.defaults or {}).items() if k not in varied}
     if fixed:

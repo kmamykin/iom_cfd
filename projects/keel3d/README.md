@@ -2,7 +2,10 @@
 
 Steady 3D RANS of the underwater boat (canoe body, keel fin and lead bulb)
 at a given speed, leeway and heel. Built to answer one question first:
-**is a constant-chord or a tapered keel fin better on an IOM?**
+**is a constant-chord or a tapered keel fin better on an IOM?** Then: **what
+bulb section and cant?** (Track A of
+[docs/research/bulb-design.md](../../docs/research/bulb-design.md); see
+"Bulb shape" below. The bulb's drag at low Reynolds numbers is bulb2d's.)
 
 **Status: runs end to end on the xcoarse mesh (smoke, and a 10-case
 leeway sweep to check the report); coarse, medium and fine meshed but not
@@ -76,6 +79,45 @@ Code: `geometry.hulls.CanoeSpec` / `canoe`, `geometry.appendages.FoilBulbSpec`
 / `foil_bulb` / `foil_bulb_length`, `taper_chords`, and `FinSpec` (with
 `tip_extension` into the bulb). `keel_geometry()` in project.py does the
 sizing and refuses a fin or bulb that breaks rule E.4.1.
+
+### Bulb shape
+
+The bulb's cross-sections can be other than round, at the same area, so
+the lead, the length and the centre of mass along x stay the same
+(`geometry.appendages.section_shape`, `section_ring`):
+
+| parameter | meaning |
+|---|---|
+| `bulb_aspect` | width / height of every section (1 = round) |
+| `bulb_top`, `bulb_bottom` | superellipse exponents of the upper and lower halves, \|y/b\|^n + \|z/h\|^n = 1: 2 = elliptic, 4-8 = flat with harder shoulders or chines |
+| `bulb_cant` | degrees nose up, about the bulb's centre of mass |
+| `bulb: false` | the fin alone, with a flat tip where the bulb's top would be (the end-plate check) |
+
+* The bulb's lowest point stays at the draft: a flatter bulb's centre of
+  mass is lower, and the fin runs down to its lower top, so it is longer
+  (7 mm at 1.5:1). Cant moves the lowest point aft, and the bulb is moved
+  to keep it at the draft. That moves the lead a little either way: +1.4 mm
+  at 3° on the NACA 0007 bulb, −0.5 mm at 2° and +0.6 mm at 4° on the
+  NACA 0011 (its widest section is ahead of the centre of mass).
+* The section rings are exact mirror images in y, so an upright mesh can
+  still be a mirror image.
+* Rule E.4.1 is checked as the rule reads: nothing wider than 20 mm above
+  the lowest 60 mm (a tall, narrow bulb can be legal).
+
+The bulb studies use a market-like bulb, `bulb_section: naca0011`: 2380 g,
+343 × 37.7 mm, L/D 9.1 (IOM bulbs on the market: 345-365 mm, 35-38 mm). The
+default, NACA 0007 (463 × 32.4 mm, L/D 14.3), stays for the taper studies.
+With the λ 0.8, 90 mm fin:
+
+| section (2380 g, NACA 0011, 343 mm) | width × height [mm] | centre of mass above the draft [mm] | fin span [mm] | bulb wetted area [cm²] |
+|---|---|---|---|---|
+| round | 37.7 × 37.7 | 18.9 | 329.3 | 278 |
+| elliptic 1.25 | 42.2 × 33.7 | 16.9 | 333.3 | 281 |
+| elliptic 1.5 | 46.2 × 30.8 | 15.4 | 336.2 | 287 |
+| elliptic 2.0 | 53.3 × 26.7 | 13.3 | 340.3 | 303 |
+| flat bottom 1.5 (exponent 6) | 43.8 × 29.2 | 13.6 | 337.8 | 293 |
+| flat top 1.5 (exponent 6) | 43.8 × 29.2 | 15.6 | 337.8 | 293 |
+| round, 2° / 3° / 4° nose up | 37.7 × 37.7 | 18.4 / 18.7 / 19.5 | 328.7 / 327.9 / 326.7 | 278 |
 
 ## Model
 
@@ -165,15 +207,22 @@ Per case (`results.csv`):
   wide, so every strip holds the same number of face rows (otherwise the
   load jumps by ±15 % from strip to strip on xcoarse). They stop short of
   the bulb by less than one strip (10 mm on medium);
+* the bulb: `drag_bulb_pressure_N`, `vertical_bulb_N` (+ up) and
+  `pitch_bulb_Nm` (about its centre of mass, + nose up);
 * y+ per part, `n_cells`, and the derived sizes (`fin_root_chord`,
-  `bulb_length`, `displacement_kg`, ...).
+  `bulb_length`, `bulb_width`, `bulb_height`, `bulb_z_cg`,
+  `bulb_cg_above_draft`, `bulb_wetted_area_m2`, `displacement_kg`, ...).
 
 `iomcfd report`:
 * `keel_forces.png`: side force and drag against leeway, drag polar;
 * `planform_compare.md` / `.csv`: every planform at the reference's side
   forces (leeway, drag, drag at 0°, race-time loss ×1 / ×2 resistance slope),
   plus `polar_fits.csv`: D = D0 + k F² per planform, effective span
-  efficiency e = 1 / (2π q d² k) with d the draft, side force per degree;
+  efficiency e = 1 / (2π q d² k) with d the draft, the effective draft
+  T_eff = 1 / √(π q k) (ORC's D_i = S_h² / (π q T_eff²)), side force per
+  degree. With `heel` swept, heeled designs take their downwind drag from
+  the upright 0° case; when the bulb's centre of mass differs, the table
+  shows it;
 * `spanload.png`: local cl and normalised load along the span near the
   working load, against elliptic;
 * `mesh_check.md` when a study runs cases on more than one mesh.
@@ -181,7 +230,8 @@ Per case (`results.csv`):
 Study `report:` options: `compare_at` (reference design and leeway angles,
 default `{fin_taper: 1.0, leeway: [2, 4, 6]}`), `vdrdv` (V·dR/dV by speed,
 default the foil2d estimates 0.40 / 0.81 / 1.354 / 2.71 N at 0.5 / 0.75 / 1 /
-1.5 m/s), `track_angle` (42°).
+1.5 m/s), `track_angle` (42°), `max_leeway` (fit the polars only up to this
+leeway).
 
 ## Studies
 
@@ -190,6 +240,17 @@ default the foil2d estimates 0.40 / 0.81 / 1.354 / 2.71 N at 0.5 / 0.75 / 1 /
 * `taper-selection`: λ 1.0, 0.8, 0.6, 0.4 × leeway 0, 2, 4, 6, 8° at
   1 m/s, upright, medium; mesh check on coarse and fine at 4° for λ 1.0 and
   0.4. 24 cases, meant for GCP.
+* `taper-mesh`: mesh ladder for λ 1.0 and 0.8 at 90 mm mean chord.
+* `bulb-smoke`: the bulb options on xcoarse (fin alone; flat bottom, canted,
+  heeled; flat top).
+* `bulb-endplate` (Track A1): the λ 0.8 fin with and without the NACA 0011
+  bulb, leeway 0-4°, upright, medium, plus fine at 4°: the end-plate gain
+  against the Open 50 tank test (+17-24 % side force).
+* `bulb-section` (Track A2): six sections of the NACA 0011 bulb (round,
+  1.25, 1.5, 2:1, flat bottom, flat top) × heel 0 and 25° × leeway 0-4°,
+  medium, plus fine at 4°. 39 cases, meant for GCP.
+* `bulb-cant` (Track A3): the round NACA 0011 bulb at 0, 2 and 4° nose up,
+  25° heel, leeway 0-4°, and upright at 0°.
 
 ## Limitations and next steps
 

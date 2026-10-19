@@ -1,0 +1,65 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| bulb2d template (OpenFOAM v2512). Values come from system/caseParameters,   |
+| which iomcfd writes from the study YAML.                                    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+solvers
+{
+    p
+    {
+        solver          GAMG;
+        smoother        GaussSeidel;
+        tolerance       1e-8;
+        relTol          0.05;
+    }
+    "(U|k|omega|ReThetat|gammaInt)"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-10;
+        relTol          0.1;
+    }
+    // final PIMPLE corrector (solver: transient)
+    pFinal
+    {
+        $p;
+        relTol          0;
+    }
+    "(U|k|omega|ReThetat|gammaInt)Final"
+    {
+        $U;
+        relTol          0;
+    }
+}
+
+SIMPLE
+{
+    consistent      yes;        // SIMPLEC
+    nNonOrthogonalCorrectors 0;
+    residualControl
+    {
+        p               1e-7;
+        U               1e-8;
+        "(k|omega|ReThetat|gammaInt)" 1e-7;
+    }
+}
+
+relaxationFactors
+{
+    equations
+    {
+        U               $relaxU;          // study parameter relax_U
+        "(k|omega)"     $relaxTurb;       // study parameter relax_turb
+        "(ReThetat|gammaInt)" $relaxTransition;  // study parameter relax_transition
+    }
+}

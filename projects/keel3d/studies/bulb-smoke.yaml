@@ -1,0 +1,17 @@
+study: keel3d-bulb-smoke
+project: keel3d
+description: >
+  Pipeline check of the bulb options: xcoarse snappyHexMesh and a few
+  iterations for the fin alone (bulb false), a flat-bottomed 1.5:1 bulb
+  canted 3 deg nose up at 25 deg heel and 4 deg leeway, and a flat-topped
+  2:1 bulb. Not for engineering use.
+defaults:
+  mesh: xcoarse
+  n_layers: 2
+  max_iter: 30
+  conv_window: 10
+  np: 4
+cases:
+  - {bulb: false, leeway: 4}
+  - {bulb_aspect: 1.5, bulb_bottom: 6, bulb_cant: 3, heel: 25, leeway: 4}
+  - {bulb_aspect: 2.0, bulb_top: 6, leeway: 0}

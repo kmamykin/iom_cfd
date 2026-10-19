@@ -1,0 +1,13 @@
+study: bulb2d-smoke
+project: bulb2d
+description: >
+  Pipeline check: xcoarse wedge meshes and a few hundred iterations for
+  Dress's blunt-based laminar body and keel3d's NACA 0007 bulb (pointed
+  tail). Not for engineering use.
+defaults:
+  mesh: xcoarse
+  max_iter: 300
+  conv_window: 50
+cases:
+  - {body: "file:dress-laminar-body.csv", mass: 0, length: 0.3048, Re: 437600}
+  - {body: naca, fineness: 14.29}

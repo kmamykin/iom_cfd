@@ -1,0 +1,39 @@
+study: validation-dress
+project: bulb2d
+description: >
+  Track B1 of docs/research/bulb-design.md: can the transition model
+  predict a body of revolution's drag at IOM Reynolds numbers? Dress (1988)
+  measured his laminar-flow body (12 in long, L/D 4.5, largest diameter at
+  0.56 L, blunt base 0.3 of the largest diameter) magnetically suspended,
+  so with no support, at Re_L 3.6e5-1.34e6. Below Re_L about 7e5 the
+  laminar layer separated at x/L 0.50-0.55, with reattachment only near
+  the tail, and C_D,wet was 0.0105-0.0120, about twice turbulent friction;
+  as Re_L rose the bubble shrank (oil flow at 1.2e6: separation 0.67,
+  reattachment 0.73) and the drag fell to 0.0045. His base pressures were
+  positive (he doubts them). A bulb's Re_L at 0.5-1.5 m/s is 1.4-6e5. Swept:
+  six of Dress's Reynolds numbers, kOmegaSSTLM at Tu 0.05, 0.1, 0.2 and
+  0.5 % (his tunnel's turbulence isn't known here), and fully turbulent
+  kOmegaSST. The body is his Table II with one digit swap corrected
+  (geometry/bodies/dress-laminar-body.csv).
+  Mesh check at Re 4.4e5, Tu 0.1 on coarse and fine. Pass: C_D,wet within
+  about 10 % of the measured values below 7e5, separation near x/L 0.5-0.55
+  there and a bubble near 0.63-0.73 at 1.2e6, and the fall in drag above
+  7e5 at some Tu.
+reference: validation/dress1988.csv
+defaults:
+  body: "file:dress-laminar-body.csv"
+  mass: 0
+  length: 0.3048
+  mesh: medium
+sweep:
+  Re: [364500, 437600, 560800, 689400, 940600, 1340500]
+  Tu: [0.05, 0.1, 0.2, 0.5]
+cases:
+  - {turbulence: kOmegaSST, Re: 364500}
+  - {turbulence: kOmegaSST, Re: 437600}
+  - {turbulence: kOmegaSST, Re: 560800}
+  - {turbulence: kOmegaSST, Re: 689400}
+  - {turbulence: kOmegaSST, Re: 940600}
+  - {turbulence: kOmegaSST, Re: 1340500}
+  - {Re: 437600, Tu: 0.1, mesh: coarse}
+  - {Re: 437600, Tu: 0.1, mesh: fine}
