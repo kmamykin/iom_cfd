@@ -5,7 +5,8 @@ one task per case. Every task runs the solver image, works on the VM's local
 disk, and copies the finished case (without processor directories and
 intermediate time steps; mesh and logs gzipped) to a Cloud Storage bucket
 mounted with Cloud Storage FUSE. VMs are Spot by default, and preempted tasks
-retry automatically (exit code 50001).
+retry automatically (exit code 50001). Long cases keep checkpoints in the
+bucket and resume from them when retried (Checkpoints, below).
 
 ## One-time setup
 
@@ -55,9 +56,13 @@ up in the Actions logs.
 Manual pushes still work, e.g. to test an image before committing:
 
 ```bash
-make push      # docker buildx: linux/amd64 + linux/arm64, tags <git describe> and latest
+make push      # docker buildx: linux/amd64 + linux/arm64, tag <git describe>
 make push-amd64  # x86 only (all Cloud Batch needs); much faster from an Apple Silicon Mac
 ```
+
+They tag `<git describe>` only (`-dirty` for uncommitted changes); run them
+with `--tag`. Only CI on `main` moves `latest`, so a branch's image never
+becomes the default of every job by accident.
 
 The image contains the code, templates and `geometry/`, so changes to
 templates or `src/` reach the cloud once they are pushed (`latest`: to
@@ -121,6 +126,37 @@ How tasks are packed: each case gets `np` MPI ranks, each rank a physical
 core (2 vCPUs on SMT families such as C3D/C2D, 1 vCPU on H3, T2D, C4A).
 Batch then packs as many tasks per VM as fit. Example: a `c3d-standard-16`
 runs eight single-core foil2d cases at once.
+
+## Checkpoints: surviving Spot preemption
+
+A preempted task is retried on a new VM, and the case would start from
+scratch: a foil2d time-accurate case at 1.5 m/s needs 16-24 h on one core,
+and in October 2026 the Spot VMs in us-central1 were preempted every 11-14 h
+(custom-section-transient lost 25 h that way). So every job runs with
+`--checkpoint <bucket>/checkpoints`
+([src/iomcfd/checkpoint.py](../src/iomcfd/checkpoint.py)):
+
+* While a case runs, the runner copies its newest completely written time
+  directory and `postProcessing/` (the force history) to
+  `gs://<bucket>/checkpoints/<study>/<run id>/<case>/`, at most every 15 min.
+  Two slots alternate and a manifest is written last, so a preemption
+  during a copy can't spoil the previous checkpoint.
+* A retried task renders the case as usual, copies the checkpoint in, and
+  the solver continues from it (the templates start from `latestTime`). The
+  job log says `resumed   <case> from its checkpoint at t = ...`, and
+  `result.json` has `resumed_from`. The force history joins across the
+  restart (foil2d reads every `postProcessing/forceCoeffs/<start>/`).
+* A case that finishes deletes its checkpoint; a failed one keeps it.
+* Tasks are retried up to 6 times.
+
+Which cases have checkpoints is up to the project (`Project.checkpoint_setup`).
+foil2d: time-accurate cases on one rank. They then write their fields
+every flow-through (keeping the last two), so at most about one flow-through
+of work is lost per preemption. Those writes land the adjustable time step
+on the write times, so the time steps differ slightly from a run without
+checkpoints. Steady cases are short and run without; decomposed cases
+(np > 1) are not supported yet. Locally, `iomcfd run --checkpoint DIR` does
+the same.
 
 ## Choosing machines
 

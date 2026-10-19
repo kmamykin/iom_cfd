@@ -1,0 +1,16 @@
+# Comparison side forces [N] for iomcfd.sectiondesign (whole fin, 360 mm span): what NACA 0009 at
+# 80 mm makes at 2, 4 and 6 deg in the steady CFD at Tu 0.1 % (fin-profile-selection run
+# 20261013-045759, report/selection.csv), the loads every fin-profile-selection ranking uses.
+speed,load,force
+0.5,light,0.28812
+0.5,working,1.15053
+0.5,high,2.04448
+0.75,light,0.56264
+0.75,working,3.78175
+0.75,high,4.65082
+1.0,light,1.14958
+1.0,working,6.68502
+1.0,high,8.32920
+1.5,light,7.31227
+1.5,working,14.89239
+1.5,high,16.63893

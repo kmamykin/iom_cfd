@@ -141,7 +141,8 @@ def build_job(
     shm_gb = max(1, min(64, mem_mib // 1024 // 2))
     study_file = f"{MOUNT}/runs/{study_name}/{run_id}/study.yaml"  # this run's own copy
     cmd = ["iomcfd", "--runs", "/tmp/iomcfd-runs", "run", study_file, "--run-id", run_id,
-           "--index", "BATCH_TASK_INDEX", "--jobs", "1", "--np", str(np_), "--export", f"{MOUNT}/runs"]
+           "--index", "BATCH_TASK_INDEX", "--jobs", "1", "--np", str(np_), "--export", f"{MOUNT}/runs",
+           "--checkpoint", f"{MOUNT}/checkpoints"]
     for s in sets:
         cmd += ["--set", s]
     job = {
@@ -153,12 +154,13 @@ def build_job(
                 "taskSpec": {
                     "computeResource": {"cpuMilli": task_vcpus * 1000, "memoryMib": mem_mib},
                     "maxRunDuration": f"{int(max_hours * 3600)}s",
-                    "maxRetryCount": 3,
+                    "maxRetryCount": 6,
                     # Batch allows a single lifecycle policy. Don't retry: iomcfd's exit
                     # 1 (failed case, error) or 2 (usage), nor 50005 (over maxRunDuration:
-                    # a retry starts the case from scratch and hits the limit again).
-                    # Everything else, notably 50001 (Spot VM preempted), is retried up
-                    # to maxRetryCount.
+                    # a case without checkpoints would start from scratch and hit the
+                    # limit again). Everything else, notably 50001 (Spot VM preempted), is
+                    # retried up to maxRetryCount; a case with checkpoints resumes from
+                    # its last one (checkpoint.py).
                     "lifecyclePolicies": [
                         {"action": "FAIL_TASK", "actionCondition": {"exitCodes": [1, 2, 50005]}},
                     ],
@@ -407,7 +409,7 @@ def add_parser(sub) -> None:
     s.add_argument("job", nargs="?")
     s.set_defaults(func=cmd_status)
 
-    s = gsub.add_parser("progress", help="newest log lines of each task of a study's job: progress (time, %, ETA, "
+    s = gsub.add_parser("progress", help="newest log lines of each task of a study's job: progress (time, %%, ETA, "
                         "Courant, forces, drift), divergence stops, results")
     s.add_argument("study")
     s.add_argument("--run-id", metavar="ID", help="which run (default: the study's newest job)")

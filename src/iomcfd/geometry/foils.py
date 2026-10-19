@@ -9,6 +9,7 @@ joined at `breaks`, so a spline never runs across a corner.
 
 Sources:
   naca4("2412")           analytic NACA 4-digit (closed TE variant)
+  naca4_modified("0007-74")  analytic NACA modified 4-digit, symmetric (closed TE)
   from_dat(path)          Selig or Lednicer coordinate files (UIUC database,
                           airfoiltools.com, XFoil exports, Fusion 360 sketches
                           exported as points...)
@@ -140,12 +141,17 @@ class Foil:
     def area(self) -> float:
         return float(0.5 * abs(np.dot(self.x, np.roll(self.y, -1)) - np.dot(self.y, np.roll(self.x, -1))))
 
-    def write_dat(self, path: Path, n: int = 161) -> None:
-        """Selig format (TE->upper->LE->lower->TE), e.g. for XFoil or CAD."""
+    def write_dat(self, path: Path, n: int = 161, digits: int = 7) -> None:
+        """Selig format (TE->upper->LE->lower->TE), e.g. for XFoil or CAD.
+
+        At 7 decimals the points next to the leading edge keep only one or
+        two significant digits in x: harmless for the shape (1e-7 c), but
+        the nose curvature read back from the file is off by up to 20 %.
+        Use more digits where that matters (section design)."""
         up = self.surface("upper", n)[::-1]
         lo = self.surface("lower", n)[1:]
         pts = np.vstack([up, lo])
-        lines = [self.name] + [f"{px: .7f} {py: .7f}" for px, py in pts]
+        lines = [self.name] + [f"{px: .{digits}f} {py: .{digits}f}" for px, py in pts]
         Path(path).write_text("\n".join(lines) + "\n")
 
 
@@ -181,6 +187,56 @@ def naca4(code: str, n: int = 400, closed_te: bool = True) -> Foil:
     xl, yl = x + yt * np.sin(th), yc - yt * np.cos(th)
     foil = _from_surfaces(f"NACA {code}", xu, yu, xl, yl)
     return foil if closed_te else close_trailing_edge(foil)
+
+
+def modified4_thickness(x: np.ndarray, t: float, m: float = 0.3, rho: float = 1.0, d1: float | None = None,
+                        te: float = 0.0) -> np.ndarray:
+    """Half-thickness of the NACA modified 4-digit series, continuous parameters.
+
+    t: thickness/chord; m: x/c of maximum thickness; rho: leading-edge radius
+    as a multiple of the normal 4-digit one (1.1019 t^2); d1: trailing-edge
+    slope in the series' t = 0.2 units (default: NACA's value for m);
+    te: trailing-edge half-thickness in the same units (NACA's is 0.002; 0
+    closes it). Forward of m a0 sqrt(x) + a1 x + a2 x^2 + a3 x^3, aft of it
+    d0 + d1 (1-x) + d2 (1-x)^2 + d3 (1-x)^3, matched at m in value, slope
+    and curvature (Abbott & von Doenhoff 1959, sec. 6.4; Ladson & Brooks,
+    NASA TM X-3284, 1975)."""
+    if d1 is None:
+        d1 = (2.24 - 5.42 * m + 12.3 * m**2) / (10 * (1 - 0.878 * m))
+    a0 = 0.296904 * math.sqrt(rho)
+    L = 1 - m
+    d0 = te
+    d3 = (2 * d0 + d1 * L - 0.2) / L**3
+    d2 = -(d1 + 3 * d3 * L**2) / (2 * L)
+    curv = 2 * d2 + 6 * d3 * L  # aft curvature at m, matched by the forward polynomial
+    A = np.array([[m, m**2, m**3], [1, 2 * m, 3 * m**2], [0, 2, 6 * m]])
+    b = np.array([0.1 - a0 * math.sqrt(m), -a0 / (2 * math.sqrt(m)), curv + a0 / (4 * m**1.5)])
+    a1, a2, a3 = np.linalg.solve(A, b)
+    x = np.asarray(x, float)
+    xf = np.minimum(x, m)
+    xa = 1 - np.maximum(x, m)
+    fwd = a0 * np.sqrt(xf) + a1 * xf + a2 * xf**2 + a3 * xf**3
+    aft = d0 + d1 * xa + d2 * xa**2 + d3 * xa**3
+    return t / 0.2 * np.where(x <= m, fwd, aft)
+
+
+def naca4_modified(code: str, n: int = 400) -> Foil:
+    """Symmetric NACA modified 4-digit section '00TT-IM', closed trailing edge.
+
+    I is the leading-edge radius index (6 = the normal 4-digit radius, which
+    scales with I^2; 9 = three times normal), M the position of maximum
+    thickness in tenths of the chord. NACA 0012-63 is close to, but not the
+    same as, NACA 0012."""
+    mt = re.fullmatch(r"00(\d{2})-(\d)(\d)", code)
+    if not mt:
+        raise ValueError(f"modified 4-digit code must be '00TT-IM' (symmetric), got '{code}'")
+    t, i_le, m = int(mt.group(1)) / 100, int(mt.group(2)), int(mt.group(3)) / 10
+    if not 0.2 <= m <= 0.6 or i_le == 0:
+        raise ValueError(f"'{code}': needs a maximum-thickness position 2-6 and a leading-edge index 1-9")
+    rho = 3.0 if i_le == 9 else (i_le / 6) ** 2
+    x = 0.5 * (1 - np.cos(np.linspace(0, math.pi, n)))
+    y = modified4_thickness(x, t, m, rho)
+    return _from_surfaces(f"NACA {code}", x, y, x, -y)
 
 
 def _read_dat(path: Path) -> tuple[str, np.ndarray]:
@@ -270,6 +326,9 @@ def load(spec: str, search_dirs: list[Path] | None = None) -> Foil:
     m = re.fullmatch(r"(?i)naca\s*(\d{4})", s)
     if m:
         return naca4(m.group(1))
+    m = re.fullmatch(r"(?i)naca\s*(00\d{2}-\d{2})", s)
+    if m:
+        return naca4_modified(m.group(1))
     name = s[5:] if s.lower().startswith("file:") else s
     candidates = [Path(name)]
     for d in search_dirs or []:

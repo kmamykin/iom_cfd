@@ -1,0 +1,30 @@
+study: custom-section-tu-opt2
+project: foil2d
+description: >
+  custom-section-tu (run 20261018-104350: NACA 0007 and HT35 at 7.25 %, Tu
+  1 and 2 %) for cst-opt2, the optimised CST section that leads at equal
+  bending stiffness in the steady CFD at Tu 0.1 % (custom-section-optima run
+  20261018-051126: 0.49-0.79 % of race time ahead of NACA 0007/100).
+  Identical settings and image (6d541d0), so its cases rank together with
+  that run's NACA 0007. Added at the user's request (2026-10-18). Findings:
+  projects/foil2d/findings/custom-section.md.
+report:
+  fin_span: 0.36
+  induced_drag: true
+highlights:
+  - name: laminar-run
+    why: >
+      Where does cst-opt2's boundary layer turn turbulent at 0 and 4 deg, 1 m/s, at Tu 1 and 2 %? Compare
+      with custom-section-tu's NACA 0007 and HT35 and the Tu 0.1 % optima run.
+    where: {speed: 1.0, aoa: [0, 4]}
+    compare: Tu
+    views: [separation, transition]
+defaults:
+  foil: "file:cst-opt2.dat"
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  mesh: medium
+sweep:
+  Tu: [1.0, 2.0]
+  speed: [0.75, 1.0, 1.5]
+  aoa: [0, 2, 3, 4, 5, 6]

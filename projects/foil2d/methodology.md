@@ -11,8 +11,10 @@ here are the fin's share of the boat's hydrodynamic side force and drag.
 **What is automated.**
 * `iomcfd report` does steps 1 and 2: `report/selection.csv` and
   `report/selection_compare.md`, the drag at equal side force.
-* Steps 3-7 were run as analysis scripts, not yet in the repository. Adding
-  leeway and race time to the report is a proposed next step.
+* Steps 3-7 are `iomcfd.racetime` (`race_time`, `summary`). It reproduces
+  the published Tu 0.1 % table of fin-profile-selection run 20261013-200643
+  (findings/custom-section.md). The report doesn't call it yet; the
+  section-design tools do (`python -m iomcfd.sectiondesign`).
 
 ## 1. From the CFD to whole-fin forces
 

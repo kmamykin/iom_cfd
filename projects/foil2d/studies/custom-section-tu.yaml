@@ -1,0 +1,36 @@
+study: custom-section-tu
+project: foil2d
+description: >
+  Does the custom section's gain survive turbulent water? (findings:
+  projects/foil2d/findings/custom-section.md). The pond's turbulence
+  intensity is unknown (README: a towing tank is under 0.1 %, open water
+  probably 0.5-2 %). In XFOIL the HT35 family's gain over NACA 0007 shrinks
+  as Tu rises and becomes a loss of 0.3-0.5 % of race time at Tu 2 %, because
+  it comes from longer laminar runs. The CFD screen (run 20261018-043724)
+  was at Tu 0.1 % only. This repeats it for NACA 0007 and HT35 at 7.25 %
+  (equal bending stiffness) at Tu 1 and 2 %, with the screen's other
+  settings (100 mm, 0.75-1.5 m/s, 0-6 deg with 3 and 5, steady, medium mesh;
+  image 6d541d0). Steady flow is more common at higher Tu (fin-profile-selection:
+  the 4 deg oscillation was 0-7 % at Tu 1 % against 14-22 % at Tu 0.1 %), so
+  the steady answers should be more trustworthy here than in the screen.
+report:
+  fin_span: 0.36
+  induced_drag: true
+  compare_at: {foil: naca0007, chord: 0.1, aoa: [2, 4, 6]}
+highlights:
+  - name: laminar-run
+    why: >
+      XFOIL ties HT35's gain to a longer laminar run, lost at high Tu. Where does the boundary layer turn
+      turbulent on each section at 0 and 4 deg, 1 m/s, at Tu 1 and 2 % (compare the screen's Tu 0.1 %)?
+    where: {speed: 1.0, aoa: [0, 4], foil: [naca0007, "file:ht35-t0725.dat"]}
+    compare: Tu
+    views: [separation, transition]
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  mesh: medium
+sweep:
+  foil: [naca0007, "file:ht35-t0725.dat"]
+  Tu: [1.0, 2.0]
+  speed: [0.75, 1.0, 1.5]
+  aoa: [0, 2, 3, 4, 5, 6]

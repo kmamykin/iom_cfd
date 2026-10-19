@@ -1,0 +1,71 @@
+study: custom-section-screen
+project: foil2d
+description: >
+  Can a section other than a NACA 4-digit beat NACA 0007 at 100 mm, the
+  current all-round recommendation (fin-profile-selection)? CFD screen of
+  sections picked with XFOIL (iomcfd.sectiondesign; findings log
+  projects/foil2d/findings/custom-section.md). All at 100 mm chord and 7 %
+  thickness unless named otherwise, cut or scaled from published sections
+  (geometry/foils/, written by `python -m iomcfd.sectiondesign export`):
+  ht35-t070 and ht35-t0725, M. Drela's HT35 RC-glider tail section scaled to
+  7 % and to 7.25 % (the thickness that matches NACA 0007's bending
+  stiffness), XFOIL's best smooth-nosed candidates (maximum thickness at
+  x/c 0.26, nose radius 1.3x NACA's, trailing-edge angle 7 deg against 9.6);
+  sd8020-t070 (Selig SD8020 scaled to 7 %: XFOIL likes it, but its nose
+  radius is half NACA's, and XFOIL misses the leading-edge bubble the CFD
+  finds on sharp noses, so it tests that blind spot); ht14-t070 (HT14 at
+  7 %: a nose 2.4x NACA's and maximum thickness at x/c 0.19, XFOIL mixed);
+  naca0007-73 (modified 4-digit: NACA 0008's nose radius on 0007, the
+  hypothesis that a blunter nose avoids 0007's leading-edge bubble at
+  1.5 m/s and its pressure drag at 6 deg; XFOIL says slightly worse);
+  naca64-007 (NACA 64-008a scaled to 7 %, a laminar 6-series section; XFOIL
+  says clearly worse: a negative control). NACA 0007 is the baseline, rerun
+  in this image so every candidate shares solver, mesh and settings.
+  Angles 0-6 with 3 and 5 deg added: on a 2 deg grid the linear
+  interpolation of the race-time ranking reorders candidates (XFOIL
+  calibration, findings). Steady solver, Tu 0.1 %, medium mesh, as
+  fin-profile-selection runs 3-4: the 4 deg points of thin sections shed, so
+  this is a screen, and the leaders get time-accurate points next.
+report:
+  fin_span: 0.36
+  induced_drag: true
+  compare_at: {foil: naca0007, chord: 0.1, aoa: [2, 4, 6]}
+highlights:
+  - name: downwind
+    why: >
+      XFOIL puts most of HT35's gain in the 0 deg drag (5-6 % below NACA 0007): a longer laminar run
+      and a gentler pressure recovery towards the thinner trailing edge. Does the CFD agree, and where
+      does each section's boundary layer turn turbulent or separate?
+    where: {speed: 1.0, aoa: 0, foil: [naca0007, "file:ht35-t070.dat", "file:sd8020-t070.dat", "file:naca64-007.dat"]}
+    compare: foil
+    views: [separation, transition]
+  - name: noses-at-high-load
+    why: >
+      Nose radius at 6 deg and 1.5 m/s, where 0007/100 had a leading-edge bubble and the most pressure
+      drag: sharp (SD8020, 0.5x NACA), NACA 0007, 0008's radius (0007-73, 1.36x) and HT14 (2.4x).
+    where: {speed: 1.5, aoa: 6, foil: [naca0007, "file:sd8020-t070.dat", "file:naca0007-73.dat", "file:ht14-t070.dat"]}
+    compare: foil
+    views: [separation, transition]
+  - name: working-load
+    why: >
+      The working-load angle (about 4 deg at 1 m/s): XFOIL has HT35 level with NACA 0007 here. Laminar
+      separation, bubble length and reattachment of the four smooth-nosed 7 % sections.
+    where: {speed: 1.0, aoa: 4, foil: [naca0007, "file:ht35-t070.dat", "file:naca0007-73.dat", "file:ht14-t070.dat"]}
+    compare: foil
+    views: [separation, transition]
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+sweep:
+  foil:
+    - naca0007
+    - "file:ht35-t070.dat"
+    - "file:ht35-t0725.dat"
+    - "file:sd8020-t070.dat"
+    - "file:ht14-t070.dat"
+    - "file:naca0007-73.dat"
+    - "file:naca64-007.dat"
+  speed: [0.75, 1.0, 1.5]
+  aoa: [0, 2, 3, 4, 5, 6]
