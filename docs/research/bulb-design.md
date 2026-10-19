@@ -6,7 +6,8 @@ Research note, 2026-10-18. It asks:
 * What each design optimises for: drag, righting moment, side force, and
   side effects such as pitch, weed and strength.
 * What results and assumptions can set the parameters of IOM bulb
-  simulations in this project (appendage3d), and what can check them.
+  simulations in this project (keel3d and bulb2d; first written for
+  appendage3d), and what can check them.
 
 Four web surveys gathered the material (America's Cup and grand prix,
 academic hydrodynamics, model yachts, low-Reynolds-number bodies). Key
@@ -79,10 +80,10 @@ Force and moment symbols (D_h, S_h, D_i, T_eff, leeway β_Y, heel φ) follow
     keel's effective draft T_eff, a flat-topped bulb or winglets raise it
     ([ORC 2026][orc] §4.2.7).
 * **For the simulations:**
-  * appendage3d's fully turbulent kOmegaSST with wall functions is the
-    wrong tool for bulb shape. Depending on what the boundary layer does,
-    the baseline bulb's drag at 1 m/s ranges from about 37 to over 160 mN
-    (**estimate**).
+  * keel3d's (and appendage3d's) fully turbulent kOmegaSST with wall
+    functions is the wrong tool for bulb shape. Depending on what the
+    boundary layer does, the baseline bulb's drag at 1 m/s ranges from
+    about 37 to over 160 mN (**estimate**).
   * Fully turbulent is not even a safe upper bound: laminar separation can
     cost more ([Dress][dress], [Mishra et al.][mishra]).
   * Use kOmegaSSTLM at y+ ≈ 1 with a Tu sweep, as foil2d does. Bracket it
@@ -496,27 +497,33 @@ Two readings:
 8. **The free surface doesn't matter for the bulb.**
    * The bulb is about 10 diameters deep. The submerged-body wave factor
      exp(-2gh/U²) is 4 × 10⁻⁴ at 1 m/s and 0.05 at 1.6 m/s (**estimate**).
-   * The symmetry-plane model in appendage3d is fine for the bulb. At the
-     top speed and heel, one check against `hull` with appendages would
-     confirm it.
+   * keel3d's double body and appendage3d's symmetry plane are fine for
+     the bulb. At the top speed and heel, one check against `hull` with
+     appendages would confirm it.
 
-## What this means for the appendage3d simulations
+## What this means for the simulations
 
-**Current model.**
-* kOmegaSST, fully turbulent, with Spalding wall functions (y+ 1-300).
-* 5 prism layers.
-* The bulb is a body of revolution with three exposed parameters (length,
-  diameter, `max_at`). `BulbSpec.tail_exp` exists but isn't exposed.
-* Leeway rotates the inflow, and heel rotates the geometry about the fin
-  root. The heeled bulb therefore already sees leeway × sin(heel) of pitch.
-* There is no trim or cant.
+The bulb work runs in two projects (added 2026-10-19):
+* **keel3d** (Track A): the whole underwater boat, canoe body, fin and bulb
+  sized by the IOM rules. Steady kOmegaSST, fully turbulent, with wall
+  functions and 5 prism layers; double body. Its bulb holds 2380 g of
+  lead (2.5 kg keel − 120 g fin) with its bottom at the 420 mm draft. The
+  default is NACA 0007 revolved, 463 × 32.4 mm (L/D 14.3), longer than any
+  IOM bulb on the market; the bulb studies use NACA 0011, 343 × 37.7 mm
+  (L/D 9.1), like the HC1 (345 × 37 mm). Heel turns the boat, so the heeled bulb sees
+  leeway × sin(heel) of pitch. Good for side force, the end-plate effect and
+  induced drag; not for ranking bulbs by drag.
+* **bulb2d** (Track B): the bulb alone as a body of revolution at zero
+  incidence, on an axisymmetric wedge mesh with kOmegaSSTLM: the
+  boundary-layer questions.
 
-That is adequate for side force, the end-plate effect and induced drag. It
-is not adequate for ranking bulb shapes.
+appendage3d (fin, bulb and rudder under a flat plate) has the same
+turbulence model as keel3d and is not used for bulbs.
 
 **Recommendations**, in order:
 
-1. **Model transition on the bulb.**
+1. **Model transition on the bulb.** *Done in bulb2d; keel3d stays fully
+   turbulent.*
    * Use kOmegaSSTLM as foil2d does: decay control, Tu swept over 0.1, 0.5
      and 1 %.
    * In Alinghi's appendage CFD (a downwind case), raising the inlet Tu
@@ -534,22 +541,25 @@ is not adequate for ranking bulb shapes.
      thick if laminar and about 10 mm if turbulent (**estimate**).
    * snappyHexMesh struggles with that many layers. Budget for it.
 2. **Run the isolated, upright, zero-incidence bulb as a 2D axisymmetric
-   case first** (a wedge mesh, like foil2d's structured approach; not yet
-   in the project).
+   case first.** *Done: bulb2d, a wedge cut from foil2d's C-grid.*
    * It is cheap enough for the transition model, Tu sweeps and mesh
      studies.
    * It covers the questions where the fin doesn't matter: fineness at
      fixed mass, maximum-thickness position, nose and tail shape.
-   * Use 3D appendage3d for the junction, incidence, heel and flattened
+   * Use 3D keel3d for the junction, incidence, heel and flattened
      sections.
-3. **Compare at equal mass.**
+3. **Compare at equal mass.** *Done: keel3d sizes the bulb from the lead the
+   keel limit leaves (2380 g); bulb2d takes `mass`.*
    * Add a `bulb_mass` input that solves for the diameter (or the scale)
      given length, shape and section aspect. Set it to about 2.40 kg (a
      legal keel with a 100 g fin).
    * Report the bulb's CG height and its righting-moment lever with the
      drag. A shape gains on one and loses on the other, and the study should
      show both.
-4. **Expose the design parameters the literature says matter:**
+4. **Expose the design parameters the literature says matter.** *Done in
+   keel3d: `bulb_cant`, `bulb_aspect`, `bulb_top`/`bulb_bottom` (flat top or
+   bottom), and `bulb_x` (slot position). In bulb2d: fineness, `max_at`,
+   `tail_exp`. Not done: a nose exponent, a beaver tail, fillets.*
    * `bulb_cant`: nose-up degrees, 0-4°. Rotate about the bulb centroid,
      or the fin tip.
    * `bulb_aspect`: width/height at equal section area, 1-2. Optionally a
@@ -561,7 +571,9 @@ is not adequate for ranking bulb shapes.
      and `bulb_x`; better to express it as a fraction of bulb length.
    * a fillet radius of 0-8 mm at the fin-bulb junction (legal; see
      "IOM rules").
-5. **Add outputs.**
+5. **Add outputs.** *Done in keel3d: `drag_bulb_friction_N`,
+   `drag_bulb_pressure_N`, `vertical_bulb_N`, `pitch_bulb_Nm`, `bulb_z_cg`,
+   `bulb: false` for the fin alone, and `T_eff_m` in `polar_fits.csv`.*
    * Bulb friction and pressure drag separately.
    * Bulb vertical force and pitching moment (about the bulb centroid).
    * Bulb CG z.
@@ -572,7 +584,7 @@ is not adequate for ranking bulb shapes.
      comparable with ORC's bulb and winglet correction. This is a method
      suggestion; it assumes the profile drag D_0 doesn't change much over
      the sweep.
-6. **Validate step by step.**
+6. **Validate step by step.** *Dress: bulb2d `validation-dress`.*
    1. Dress's laminar body: coordinates in his Table II, C_D,wet at
       R_L 3.6 × 10⁵ to 1.34 × 10⁶, and the separation line. It tests the
       transition model at IOM Re.
@@ -589,15 +601,74 @@ is not adequate for ranking bulb shapes.
      discretisation error must both sit below that. Check with a mesh
      study on the bulb drag alone.
 
-**Suggested studies** (once the above is in place):
+**The plan** (2026-10-19).
 
-| study | sweep | holds | answers |
+The design direction to explore is the **flattened bulb that works as an
+end plate** (elliptic, flat-bottomed or flat-topped sections at equal lead
+mass). In parallel, build the boundary-layer model that bulb drag needs.
+
+* **Upwind, the bulb matters more as an end plate than as a drag body**
+  (**estimate**). At the fin study's working load (S_h 6.44 N at 1 m/s,
+  T_eff 0.48 m) the keel's induced drag is about 115 mN, more than the
+  bulb's own drag if its flow stays attached (37-93 mN).
+  * A 5 % gain in T_eff cuts that by about 11 mN: about 0.8 % of the upwind
+    leg, by foil2d's conversion (10 mN = 0.74 % at 1 m/s).
+  * By the formulas, bulb lengths differ by only 1-3 mN.
+* **Flattening helps on every upwind count:** a lower centre of mass (+0.9 %
+  of the bulb's righting moment at 1.5:1), a lower tip vortex with a flat
+  bottom and sharp edges (Ljungqvist), and ORC's credit for a flat-topped
+  bulb.
+* **Its costs fall mostly downwind:** about 3 % more wetted area, and lift
+  at incidence (pitch). That fits Bantock's oval bulb: "as good… on the
+  beat, but not quite as good on the run". The IOM market is moving this
+  way (MC-1, Sailboat RC) with no published data.
+* **Not worth runs now:**
+  * longer bulbs: a flat optimum from L/D 6 to 10, and IOMs are at 9-10
+    (B2 checks the model against the tow test instead);
+  * winglets: probably not legal;
+  * T, L or tandem layouts: the rules allow a fin and a bulb;
+  * fillets: about 0.35 mN by Hoerner, and RANS is unreliable at junction
+    corners.
+
+| track | study | what | why |
 |---|---|---|---|
-| fineness | L/D 5, 6, 7, 8.8, 10, 12 at 2.40 kg; 0.5, 1.0, 1.6 m/s; Tu 0.1, 0.5, 1 % | mass, bottom at the draft | is longer still better at IOM Re, and why (tail separation)? |
-| tail and maximum thickness | `max_at` 0.35-0.55, `tail_exp` 1.5-3, beaver tail | mass, L/D | where does laminar separation move? |
-| section | width/height 1, 1.25, 1.5, 2; upright and 20-30° heel with 3-5° leeway | mass, length | drag against VCG; heave and pitch forces |
-| cant | 0-4° nose up at heel 0, 20, 30° and leeway 0, 3, 5° | geometry | check Gilbert's leeway × sin(heel) rule |
-| junction | slot position at 30-50 % of length; fillet 0-8 mm | the rest | horseshoe vortex, separation, fin side force |
+| A1 | keel3d `bulb-endplate` | λ 0.8 fin with and without the NACA 0011 bulb, leeway 0-4°, upright, medium; fine at 4° | calibration: the Open 50 tank test measured +17-24 % side force from the bulb |
+| A2 | keel3d `bulb-section` | six sections of the NACA 0011 bulb (round; 1.25, 1.5, 2:1; flat bottom 1.5; flat top 1.5) × heel 0 and 25° × leeway 0-4°; fine at 4° | the main question, scored by race time on both legs, with the bulb's centre of mass beside it |
+| A3 | keel3d `bulb-cant` | round bulb at 0, 2 and 4° nose up, 25° heel; then the A2 winner | Gilbert's 2-3° rule is a calculation for round bulbs; a flattened bulb lifts at incidence |
+| B1 | bulb2d `validation-dress` | Dress's body at six of his Re_L, Tu 0.1-0.5 % and fully turbulent; mesh check | without it no drag ranking of bulbs means anything |
+| B2 | bulb2d `fineness` | 2380 g NACA bodies of L/D 5-14.3 (230-463 mm, including A's NACA 0011) at 0.5, 1.0 and 1.5 m/s | reproduce Gilbert's tow ranking; does today's bulb separate on its tail? |
+| B3 | bulb2d (not written) | largest diameter at 0.35-0.55 L, tail exponent 1.5-3, a trip step at 0.55-0.7 L; best worst case over Tu | only if B2 finds tail separation |
+
+Then rerun the A2 winner's friction drag with the transition model.
+
+**Results so far** (2026-10-19; details in the findings logs):
+* **B1** ([validation-dress](../../projects/bulb2d/findings/validation-dress.md)):
+  the transition model at Tu 0.05-0.1 % follows Dress's fall of drag with
+  Re_L, 10-30 % low. Its laminar bubbles reattach too soon, so a separating
+  body's drag reads low. Fully turbulent RANS is no bracket (−45 % at low
+  Re, +17 % at 1.34e6).
+* **B2** ([fineness](../../projects/bulb2d/findings/fineness.md)): with
+  transition, longer is better at fixed lead, but from L/D 9.1 (343 mm) to
+  14.3 only 2 %. Fat bulbs (L/D 5-5.7) separate on the tail; from 9.1 the
+  flow stays attached and laminar to about 0.93 L. Fully turbulent ranks
+  them the other way and doubles the slender bulbs' drag. The direction
+  matches Gilbert's tow test; the size is about half at 1 m/s and an eighth
+  at 0.5 m/s. **B3 is dropped**: the market-like bulb doesn't separate.
+* **A1** ([bulb-endplate](../../projects/keel3d/findings/bulb-endplate.md)):
+  the bulb adds 13-15 % keel side force at the same leeway (Open 50:
+  17-24 %), T_eff +4 %, the fin's tip load +44 %. keel3d's bulb drag is
+  about twice the transitional value.
+
+**Assumptions in the plan:**
+* **Righting moment has no conversion to race time yet.** Bracket it from
+  0 (light air) to about 0.5 % of speed per 1 % of righting moment
+  (overpowered). The upper figure assumes drive ∝ righting moment and
+  resistance ∝ V². It is a back-of-envelope figure, not from a source. A VPP
+  would replace it ([vpp.md](vpp.md)).
+* **The fin is held fixed** (λ 0.8, 90 mm mean chord, NACA 0007: taper-mesh's
+  market-like fin). This assumes the bulb ranking doesn't flip with the fin.
+* **keel3d's flatter bulbs come with a longer fin** (the draft is fixed), so
+  A2 compares designs at the draft limit, not bulbs alone.
 
 ## Assumptions, gaps and caveats
 

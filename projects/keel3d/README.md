@@ -6,7 +6,9 @@ M_h,dyn and N_h, the centre of lateral resistance and the fin's spanwise
 loading, for a given boat speed V_b, leeway β_Y and heel φ. Symbols:
 [docs/nomenclature.md](../../docs/nomenclature.md). Built to answer one
 question first: **is a constant-chord or a tapered keel fin better on an
-IOM?**
+IOM?** Then: **what bulb section and cant?** (Track A of
+[docs/research/bulb-design.md](../../docs/research/bulb-design.md); see
+"Bulb shape" below. The bulb's drag at low Reynolds numbers is bulb2d's.)
 
 **Status: runs end to end on GCP; not validated.** taper-selection run
 20261018-044718 (24 cases) showed that the medium mesh could not rank the
@@ -91,6 +93,45 @@ Code: `geometry.hulls.CanoeSpec` / `canoe`, `geometry.appendages.FoilBulbSpec`
 `tip_extension` into the bulb). `keel_geometry()` in project.py does the
 sizing and refuses a fin or bulb that breaks rule E.4.1.
 
+### Bulb shape
+
+The bulb's cross-sections can be other than round, at the same area, so
+the lead, the length and the centre of mass along x stay the same
+(`geometry.appendages.section_shape`, `section_ring`):
+
+| parameter | meaning |
+|---|---|
+| `bulb_aspect` | width / height of every section (1 = round) |
+| `bulb_top`, `bulb_bottom` | superellipse exponents of the upper and lower halves, \|y/b\|^n + \|z/h\|^n = 1: 2 = elliptic, 4-8 = flat with harder shoulders or chines |
+| `bulb_cant` | degrees nose up, about the bulb's centre of mass |
+| `bulb: false` | the fin alone, with a flat tip where the bulb's top would be (the end-plate check) |
+
+* The bulb's lowest point stays at the draft: a flatter bulb's centre of
+  mass is lower, and the fin runs down to its lower top, so it is longer
+  (7 mm at 1.5:1). Cant moves the lowest point aft, and the bulb is moved
+  to keep it at the draft. That moves the lead a little either way: +1.4 mm
+  at 3° on the NACA 0007 bulb, −0.5 mm at 2° and +0.6 mm at 4° on the
+  NACA 0011 (its widest section is ahead of the centre of mass).
+* The section rings are exact mirror images in y, so an upright mesh can
+  still be a mirror image.
+* Rule E.4.1 is checked as the rule reads: nothing wider than 20 mm above
+  the lowest 60 mm (a tall, narrow bulb can be legal).
+
+The bulb studies use a market-like bulb, `bulb_section: naca0011`: 2380 g,
+343 × 37.7 mm, L/D 9.1 (IOM bulbs on the market: 345-365 mm, 35-38 mm). The
+default, NACA 0007 (463 × 32.4 mm, L/D 14.3), stays for the taper studies.
+With the λ 0.8, 90 mm fin:
+
+| section (2380 g, NACA 0011, 343 mm) | width × height [mm] | centre of mass above the draft [mm] | fin span [mm] | bulb wetted area [cm²] |
+|---|---|---|---|---|
+| round | 37.7 × 37.7 | 18.9 | 329.3 | 278 |
+| elliptic 1.25 | 42.2 × 33.7 | 16.9 | 333.3 | 281 |
+| elliptic 1.5 | 46.2 × 30.8 | 15.4 | 336.2 | 287 |
+| elliptic 2.0 | 53.3 × 26.7 | 13.3 | 340.3 | 303 |
+| flat bottom 1.5 (exponent 6) | 43.8 × 29.2 | 13.6 | 337.8 | 293 |
+| flat top 1.5 (exponent 6) | 43.8 × 29.2 | 15.6 | 337.8 | 293 |
+| round, 2° / 3° / 4° nose up | 37.7 × 37.7 | 18.4 / 18.7 / 19.5 | 328.7 / 327.9 / 326.7 | 278 |
+
 ## Model
 
 * **Double body.** The waterline z = 0 is a symmetry plane that cuts the
@@ -154,6 +195,14 @@ of them; **estimate**):
 | fine | 3.3 / 3.4 M | 172k / 175k | 97.8 / 97.5 % | |
 | xfine | about 14 M (**estimate**; too big for 11.7 GB of local Docker memory) | | | |
 
+* **Layer addition is limited to 20 medial-axis iterations**
+  (`nMedialAxisIter`). Unlimited, it moved interior points far from the
+  walls and inverted 12 cells in the near-wake box above a NACA 0011 bulb on
+  fine (bulb-endplate run 20261019-020506; the solver then stopped on a
+  floating-point exception). With 20 that mesh is clean; the hull's layers
+  reach 81 % of their target thickness (89 % before), the fin's 96 % (98 %),
+  the bulb's 98 %. Meshes made before 2026-10-19 had no limit.
+
 Meshing takes about 3-4 minutes (medium) and 8 minutes (fine) on 8 cores.
 Every level has 3 faces over the skewness limit (5.3) on the waterline
 plane at the stern tip, where the hull's pointed end meets the waterline;
@@ -183,8 +232,11 @@ Per case (`results.csv`):
   surface cells wide, so every strip holds the same number of face rows
   (otherwise the load jumps by ±15 % from strip to strip on xcoarse). They
   stop short of the bulb by less than one strip (10 mm on medium);
+* the bulb: `drag_bulb_pressure_N`, `vertical_bulb_N` (+ up) and
+  `pitch_bulb_Nm` (about its centre of mass, + nose up);
 * y+ per part, `n_cells`, and the derived sizes (`fin_root_chord`,
-  `bulb_length`, `displacement_kg`, ...).
+  `bulb_length`, `bulb_width`, `bulb_height`, `bulb_z_cg`,
+  `bulb_cg_above_draft`, `bulb_wetted_area_m2`, `displacement_kg`, ...).
 
 While a case runs, its progress line ([docs/workflow.md](../../docs/workflow.md),
 "Progress and divergence"; `iomcfd gcp progress <study>` on GCP) adds the boat's latest
@@ -201,7 +253,9 @@ relative to D_h and to max(D_h, S_h). The case stops when both are below
   T_eff = 1 / √(π q k) (ORC's form of D_i = S_h² / (π q T_eff²)), the same
   as a span efficiency e = 1 / (2π q d² k) on the draft d, and S_h per
   degree of β_Y. The fit includes the growth of viscous drag with S_h, so
-  T_eff is shorter than the induced-drag value;
+  T_eff is shorter than the induced-drag value. With `heel` swept, heeled
+  designs take their downwind drag from the upright β_Y = 0 case; when the
+  bulb's centre of mass differs, the table shows it;
 * `spanload.png`: local C_l and normalised load along the span near the
   working load, against elliptic;
 * `mesh_check.md` when a study runs cases on more than one mesh, and
@@ -210,7 +264,8 @@ relative to D_h and to max(D_h, S_h). The case stops when both are below
 Study `report:` options: `compare_at` (reference design and leeway angles,
 default `{fin_taper: 1.0, leeway: [2, 4, 6]}`), `vdrdv` (the resistance
 slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
-1.354 / 2.71 N at 0.5 / 0.75 / 1 / 1.5 m/s), `track_angle` (42°).
+1.354 / 2.71 N at 0.5 / 0.75 / 1 / 1.5 m/s), `track_angle` (42°),
+`max_leeway` (fit the polars only up to this β_Y).
 
 ## Studies
 
@@ -224,6 +279,16 @@ slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
 * `taper-mesh`: 0007/90 constant chord against 100 → 80 mm, β_Y 0, 2, 4° on
   medium and fine, 4° on xfine, and the constant-chord fin at 4° with the
   grid shifted. Picks the mesh level for the planform comparison.
+* `bulb-smoke`: the bulb options on xcoarse (fin alone; flat bottom, canted,
+  heeled; flat top).
+* `bulb-endplate` (Track A1): the λ 0.8 fin with and without the NACA 0011
+  bulb, β_Y 0-4°, upright, medium, plus fine at 4°: the end-plate gain
+  against the Open 50 tank test (+17-24 % S_h).
+* `bulb-section` (Track A2): six sections of the NACA 0011 bulb (round,
+  1.25, 1.5, 2:1, flat bottom, flat top) × φ 0 and 25° × β_Y 0-4°, medium,
+  plus fine at 4°. 39 cases, meant for GCP.
+* `bulb-cant` (Track A3): the round NACA 0011 bulb at 0, 2 and 4° nose up,
+  φ 25°, β_Y 0-4°, and upright at 0°.
 
 ## Limitations and next steps
 

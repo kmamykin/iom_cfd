@@ -150,3 +150,57 @@ def test_progress_reports_forces_and_their_drift(project, tmp_path):
     assert prog["conv_tol"] == p["conv_tol"]
     assert project.converged(tmp_path, p, d) == (max(prog["D_h_change"], prog["S_h_change"]) < p["conv_tol"])
     assert project.progress(tmp_path / "none", p, d) == {}
+
+
+def test_flatter_bulb_same_lead_lower_and_longer_fin(project):
+    base = project.derive(dict(project.defaults))
+    for kw in ({"bulb_aspect": 1.5}, {"bulb_aspect": 1.5, "bulb_bottom": 6.0}, {"bulb_aspect": 2.0, "bulb_top": 6.0}):
+        d = project.derive({**project.defaults, **kw})
+        assert d["bulb_volume_m3"] == base["bulb_volume_m3"] and d["bulb_length"] == base["bulb_length"]
+        assert d["bulb_z_axis"] - d["bulb_height"] / 2 == pytest.approx(-0.42)  # bottom at the draft
+        assert d["bulb_cg_above_draft"] < base["bulb_cg_above_draft"]
+        # the fin reaches down to the lower top of the bulb, and on to its axis
+        assert d["fin_span"] - base["fin_span"] == pytest.approx(base["bulb_height"] - d["bulb_height"], abs=1e-9)
+        assert d["fin_tip_extension"] == pytest.approx(d["bulb_height"] / 2)
+    # E.4.1 limits the width above the lowest 60 mm, not the height
+    tall = {**project.defaults, "bulb_section": "naca0015", "bulb_aspect": 0.4}
+    assert project.derive(tall)["bulb_height"] > 0.060  # 66 mm tall, but under 20 mm wide above 60 mm
+    with pytest.raises(ValueError, match="E.4.1"):
+        project.derive({**project.defaults, "bulb_section": "naca0040", "bulb_aspect": 0.7})
+
+
+def test_canted_bulb_stays_at_the_draft(project):
+    p = {**project.defaults, "bulb_cant": 3.0}
+    d = project.derive(p)
+    bulb = project.surfaces(p)[2]
+    assert bulb.vertices[:, 2].min() == pytest.approx(-0.42, abs=2e-4)  # the tail, now the lowest point
+    assert bulb.centroid()[0] == pytest.approx(d["bulb_x_cg"], abs=1e-4)
+    assert d["bulb_cg_above_draft"] > project.derive(dict(project.defaults))["bulb_cg_above_draft"]
+
+
+def test_fin_alone(project, tmp_path):
+    p = {**project.defaults, "bulb": False}
+    assert [s.name for s in project.surfaces(p)] == ["hull", "fin"]
+    assert project.derive(p)["fin_span"] == project.derive(dict(project.defaults))["fin_span"]
+    d = project.prepare_case(tmp_path / "f", p)
+    assert d["bulb_wetted_area_m2"] == 0.0
+    assert "boat_bulb" not in (tmp_path / "f" / "system" / "include" / "forceFunctions").read_text()
+
+
+def test_downwind_drag_from_the_upright_case(project):
+    rows = []
+    for heel, extra in ((0, 0.0), (25, 0.05)):
+        for r in _sweep(1.0, 1.5, 0.010) + _sweep(0.6, 1.5, 0.009, d0=0.62):
+            rows.append({**r, "heel": heel, "drag_N": r["drag_N"] + extra})
+    t = project.compare_at_equal_force(pd.DataFrame(rows), {"compare_at": {"fin_taper": 1.0, "leeway": [2, 4]}})
+    heeled = t[t["heel"] == 25].set_index(["fin_taper", "load"])
+    assert heeled.loc[(1.0, "working"), "drag0_N"] == pytest.approx(0.6)  # upright, not 0.65
+    assert heeled.loc[(0.6, "working"), "drag0_N"] == pytest.approx(0.62)
+
+
+def test_effective_draft(project):
+    df = pd.DataFrame(_sweep(1.0, 1.5, 0.010))
+    fits = project.polar_fits(df).set_index("fin_taper")
+    assert fits.loc[1.0, "T_eff_m"] == pytest.approx(1 / math.sqrt(math.pi * 499.6 * 0.010))
+    df.loc[df["leeway"] == 8, "drag_N"] += 1.0  # a separated point
+    assert project.polar_fits(df, max_leeway=6).loc[0, "k_per_N"] == pytest.approx(0.010)

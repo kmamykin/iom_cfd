@@ -91,11 +91,13 @@ def test_export_goes_to_study_and_run(tmp_path, monkeypatch):
 
     project, study, cases = _smoke()
     seen = []
-    monkeypatch.setattr(runner, "run_case", lambda p, c, d, o, export_dir=None, log=None: seen.append(export_dir) or
-                        {"case": c.name, "status": "ok"})
+    monkeypatch.setattr(runner, "run_case", lambda p, c, d, o, export_dir=None, log=None, checkpoint_dir=None:
+                        seen.append((export_dir, checkpoint_dir)) or {"case": c.name, "status": "ok"})
     rdir = tmp_path / "local" / study.name / "20261012-045433"
-    run_study(project, study, cases[:1], RunOptions(export=tmp_path / "bucket"), rdir, log=lambda *a: None)
-    assert seen == [tmp_path / "bucket" / study.name / "20261012-045433"]
+    run_study(project, study, cases[:1], RunOptions(export=tmp_path / "bucket", checkpoint=tmp_path / "ck"), rdir,
+              log=lambda *a: None)
+    assert seen == [(tmp_path / "bucket" / study.name / "20261012-045433",
+                     tmp_path / "ck" / study.name / "20261012-045433")]
 
 
 def test_gcp_job_writes_into_its_run():
@@ -276,3 +278,13 @@ def test_mesh_candidates_one_per_level_finished_first():
             {"case": "c", "status": "ok", "mesh": "medium"}]
     assert mesh_candidates(rows) == [["b", "a"], ["c"]]
     assert mesh_candidates([{"case": "x", "status": "ok"}]) == [["x"]]
+
+
+def test_cli_parser_builds_with_every_help_string():
+    # argparse (Python >= 3.14) checks help strings when a parser is added:
+    # a bare % breaks every command, not just its own.
+    parser = cli.build_parser()
+    for args in (["gcp", "-h"], ["gcp", "progress", "-h"], ["run", "-h"]):
+        with pytest.raises(SystemExit) as e:
+            parser.parse_args(args)
+        assert e.value.code == 0

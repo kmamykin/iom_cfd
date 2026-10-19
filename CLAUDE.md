@@ -21,6 +21,10 @@
 - While a case runs, the runner logs a progress line every 10 min and stops
   diverging cases (src/iomcfd/monitor.py; `Project.progress`/`diverged`
   hooks). For a cloud job, `iomcfd gcp progress <study>` shows them.
+- Cloud jobs keep checkpoints of long cases in the bucket and resume from
+  them after a Spot preemption (src/iomcfd/checkpoint.py;
+  `Project.checkpoint_setup`/`checkpoint_restored`; foil2d: time-accurate,
+  np 1; docs/cloud-gcp.md).
 - `gcp fetch` downloads only results (params/result.json, surface.csv,
   spanload.csv, force_history.csv, start_from.json) plus one mesh per mesh level; `--logs`, `--fields`,
   `--only` add more. Exported cases have gzipped mesh and logs. `iomcfd slim` frees a local run (dry run

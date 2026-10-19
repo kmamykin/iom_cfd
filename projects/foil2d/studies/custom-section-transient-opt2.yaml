@@ -1,0 +1,45 @@
+study: custom-section-transient-opt2
+project: foil2d
+description: >
+  custom-section-transient (run 20261018-104120: NACA 0007 and HT35 at
+  7.25 %, time-accurate at 2-5 deg, 0.75-1.5 m/s) for cst-opt2, the
+  optimised CST section that leads at equal bending stiffness in the steady
+  CFD at Tu 0.1 % (custom-section-optima run 20261018-051126: 0.49-0.79 % of
+  race time ahead of NACA 0007/100). Identical settings and image (6d541d0):
+  20 flow-throughs averaged over 12-20, max_co 10, Tu 0.1 %, medium mesh,
+  each case started from its steady solution in the optima run, so the
+  cases rank together with custom-section-transient's NACA 0007. Added at
+  the user's request (2026-10-18). Findings:
+  projects/foil2d/findings/custom-section.md.
+report:
+  fin_span: 0.36
+  induced_drag: true
+highlights:
+  - name: working-load
+    why: >
+      cst-opt2 makes the working-load force at about 3-3.5 deg. In the steady optima run most of its gain
+      over NACA 0007 is at 1 m/s; does the time-averaged shedding flow keep it? Compare with
+      custom-section-transient's working-load highlight.
+    where: {speed: 1.0, aoa: [3, 4]}
+    compare: aoa
+    views: [separation, transition]
+  - name: leading-edge-bubble
+    why: >
+      NACA 0007/100 settled into a leading-edge bubble at 4 deg and 1.5 m/s in transient-check. cst-opt2
+      has the same nose radius but its crest at x/c 0.25: does it?
+    where: {speed: 1.5, aoa: [3, 4, 5]}
+    compare: aoa
+    views: [separation, transition]
+defaults:
+  foil: "file:cst-opt2.dat"
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+  solver: transient
+  flow_times: 20
+  average_times: 8
+  start_from: [custom-section-optima/20261018-051126]
+sweep:
+  speed: [0.75, 1.0, 1.5]
+  aoa: [2, 3, 4, 5]

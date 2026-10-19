@@ -1,0 +1,51 @@
+study: custom-section-optima
+project: foil2d
+description: >
+  The two XFOIL optima of the custom-section research against NACA 0007 at
+  100 mm, in CFD, with exactly the settings of custom-section-screen (same
+  image, mesh, Tu 0.1 %, steady, 0-6 deg with 3 and 5, 0.75-1.5 m/s), so the
+  runs can be ranked together. Findings: projects/foil2d/findings/custom-section.md.
+  Both are CST sections (`python -m iomcfd.sectiondesign optimise`) scaled
+  to NACA 0007/100's bending stiffness, with no sharper nose than NACA
+  0007's, scored on the worst of four race-time variants (Tu 0.1 and 1 %,
+  resistance slope x1 and x2) against 0007/100 in XFOIL:
+  cst-opt1 (7.25 % at x/c 0.25; trailing-edge angle free, it went to 15 deg:
+  the aft part stays full to x/c 0.85, then closes steeply, a "boat-tail";
+  XFOIL gain 0.31-0.59 % of race time) and cst-opt2 (7.32 % at x/c 0.25,
+  trailing-edge angle held to 10.5 deg; close to HT35 at the front, a fuller
+  tail; XFOIL gain 0.24-0.78 %). The steep closure of opt1 is where XFOIL is
+  least trusted (trailing-edge separation), so the pair also asks whether
+  that feature survives the CFD. NACA 0007 is rerun so this run's report
+  stands alone; with the same image it should repeat the screen's numbers.
+report:
+  fin_span: 0.36
+  induced_drag: true
+  compare_at: {foil: naca0007, chord: 0.1, aoa: [2, 4, 6]}
+highlights:
+  - name: boat-tail
+    why: >
+      opt1 closes from 1.5 mm half-thickness at x/c 0.8 to a 15 deg trailing edge. Does the boundary layer
+      separate ahead of the trailing edge (Cf < 0 near x/c 0.9-1) at 0 and 4 deg, and does opt2's gentler
+      closure avoid it?
+    where: {speed: 1.0, aoa: [0, 4], foil: [naca0007, "file:cst-opt1.dat", "file:cst-opt2.dat"]}
+    compare: foil
+    views: [separation, transition]
+  - name: optima-at-speed
+    why: >
+      1.5 m/s at the working-load angle, where 0007/100 had a leading-edge bubble in the time-accurate run:
+      the optima have noses exactly as round as NACA 0007's but their crest further forward.
+    where: {speed: 1.5, aoa: [4, 5], foil: [naca0007, "file:cst-opt1.dat", "file:cst-opt2.dat"]}
+    compare: foil
+    views: [separation, transition]
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+sweep:
+  foil:
+    - naca0007
+    - "file:cst-opt1.dat"
+    - "file:cst-opt2.dat"
+  speed: [0.75, 1.0, 1.5]
+  aoa: [0, 2, 3, 4, 5, 6]

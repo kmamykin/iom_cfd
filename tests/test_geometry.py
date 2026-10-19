@@ -313,3 +313,35 @@ def test_canoe_body():
     assert float(hulls.canoe_half_breadth(spec, 0.0)) == 0.0
     lo, hi = h.bounds
     assert lo[2] == pytest.approx(-spec.draft, abs=1e-4) and hi[1] == pytest.approx(spec.beam / 2, abs=1e-4)
+
+
+@pytest.mark.parametrize("aspect,top,bottom", [(1.0, 2.0, 2.0), (1.5, 2.0, 2.0), (2.0, 6.0, 2.0), (1.5, 2.0, 6.0)])
+def test_bulb_sections_keep_the_lead(aspect, top, bottom):
+    ring = ap.section_ring(aspect, top, bottom, 48)
+    y, z = ring[:, 0], ring[:, 1]
+    assert 0.5 * abs(y @ np.roll(z, -1) - z @ np.roll(y, -1)) == pytest.approx(math.pi, rel=0.005)  # circle's area
+    assert ring[1:24][::-1] * (-1, 1) == pytest.approx(ring[25:], abs=0)  # exact mirror images in y
+    b, h, zc = ap.section_shape(aspect, top, bottom)
+    assert (y.max() - y.min(), z.max() - z.min()) == pytest.approx((2 * b, 2 * h), rel=1e-3)
+    assert b / h == pytest.approx(aspect)
+    vol = (2.5 - 0.12) / ap.LEAD_DENSITY
+    spec = ap.FoilBulbSpec(section="naca0007", length=ap.foil_bulb_length("naca0007", vol), x_cg=0.5, z_axis=-0.4,
+                           aspect=aspect, top=top, bottom=bottom)
+    s = ap.foil_bulb(spec)
+    assert s.is_closed()
+    assert s.volume() == pytest.approx(vol, rel=0.006)
+    zoff = ap.foil_bulb_cg_offset(spec)
+    assert (zoff > 0) == (top > bottom) and (zoff < 0) == (top < bottom)  # a flat bottom puts the lead lower
+    assert s.centroid() == pytest.approx([0.5, 0.0, -0.4 + zoff], abs=2e-4)
+
+
+def test_bulb_cant_is_nose_up_about_the_centre_of_mass():
+    spec = ap.FoilBulbSpec(section="naca0007", length=0.46, x_cg=0.5, z_axis=-0.4, aspect=1.5, bottom=6.0)
+    up, canted = ap.foil_bulb(spec), ap.foil_bulb(ap.FoilBulbSpec(**{**spec.__dict__, "cant": 3.0}))
+    assert canted.centroid() == pytest.approx(up.centroid(), abs=1e-5)  # about the exact one, not the facets
+    nose = lambda s: s.vertices[np.argmin(s.vertices[:, 0])]
+    tail = lambda s: s.vertices[np.argmax(s.vertices[:, 0])]
+    assert nose(canted)[2] > nose(up)[2] and tail(canted)[2] < tail(up)[2]
+    xt, zt, xb, zb = ap.foil_bulb_lines(ap.FoilBulbSpec(**{**spec.__dict__, "cant": 3.0}))
+    assert zb.min() == pytest.approx(canted.vertices[:, 2].min(), abs=2e-4)  # the lowest point is on the bottom line
+    assert zt.max() == pytest.approx(canted.vertices[:, 2].max(), abs=2e-4)

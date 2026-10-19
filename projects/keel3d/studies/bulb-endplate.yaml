@@ -1,0 +1,41 @@
+study: bulb-endplate
+project: keel3d
+description: >
+  Track A1 of docs/research/bulb-design.md: what the bulb adds to the fin as
+  an end plate, and a check of the model against the one measurement at a
+  similar Reynolds number. Sfakianaki et al. (2013, quarter-scale Open 50
+  keel, Re_L about 6e5) measured +17-24 % side force and +11 % drag from
+  adding a bulb at the same leeway. If keel3d's gain (keel side force with
+  the bulb against the fin alone) lands in that range, the bulb-section
+  study can trust its end-plate differences. The bulb is the market-like
+  one of the bulb studies: NACA 0011 revolved, 2380 g, 343 x 37.7 mm (L/D
+  9.1; IOM bulbs on the market are 345-365 mm, 35-38 mm). The fin is the
+  market-like one of taper-mesh (NACA 0007, 100 -> 80 mm, lambda 0.8, 90 mm
+  mean chord), so that study's mesh ladder covers it. Without the bulb the same fin ends in
+  a flat tip where the bulb's top would be. Upright, 1 m/s, leeway 0-4 deg
+  (taper-selection: 6 deg is near trailing-edge separation), medium; the
+  4 deg pair also on fine. Fully turbulent kOmegaSST, as every keel3d study.
+  The race-time table means nothing here (the fin alone carries no lead):
+  read side force, leeway and T_eff.
+report:
+  compare_at: {bulb: true, leeway: [2, 4]}
+  max_leeway: 4
+highlights:
+  - name: endplate-at-working-load
+    why: How does the bulb change the fin's tip flow and loading at 4 deg - where is the tip vortex, and how much load does the fin keep next to the bulb?
+    where: {leeway: 4, mesh: medium}
+    compare: bulb
+    views: [surface_cp_starboard, vortices, wake_slice]
+defaults:
+  bulb_section: naca0011
+  fin_taper: 0.8
+  fin_mean_chord: 0.090
+  mesh: medium
+  speed: 1.0
+  heel: 0
+sweep:
+  bulb: [true, false]
+  leeway: [0, 2, 4]
+cases:
+  - {bulb: true, leeway: 4, mesh: fine}
+  - {bulb: false, leeway: 4, mesh: fine}

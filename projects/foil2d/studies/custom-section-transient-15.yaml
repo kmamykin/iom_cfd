@@ -1,0 +1,36 @@
+study: custom-section-transient-15
+project: foil2d
+description: >
+  The 1.5 m/s cases of custom-section-transient (run 20261018-104120) that
+  Spot preemption kept from finishing (findings:
+  projects/foil2d/findings/custom-section.md). They need 16-24 h on one core,
+  and their VM was preempted at 05:34 and 16:20 UTC on 2026-10-19, so each
+  restarted from scratch twice (about 25 h lost). Run again with the same
+  settings (20 flow-throughs averaged over 12-20, max_co 10, Tu 0.1 %,
+  medium mesh, started from custom-section-screen run 20261018-043724's
+  steady solutions), now with checkpoints: a preempted case resumes from its
+  last flow-through (docs/cloud-gcp.md, Checkpoints; image 9b8cbb8 or later).
+  These points replace the missing ones when the runs are ranked together
+  (`sectiondesign cfd ... --replace`). NACA 0007 at 3 deg finished in run
+  20261018-104120 and is not repeated.
+report:
+  fin_span: 0.36
+  induced_drag: true
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+  solver: transient
+  flow_times: 20
+  average_times: 8
+  speed: 1.5
+  start_from: [custom-section-screen/20261018-043724]
+cases:
+  - {foil: naca0007, aoa: 2}
+  - {foil: naca0007, aoa: 4}
+  - {foil: naca0007, aoa: 5}
+  - {foil: "file:ht35-t0725.dat", aoa: 2}
+  - {foil: "file:ht35-t0725.dat", aoa: 3}
+  - {foil: "file:ht35-t0725.dat", aoa: 4}
+  - {foil: "file:ht35-t0725.dat", aoa: 5}

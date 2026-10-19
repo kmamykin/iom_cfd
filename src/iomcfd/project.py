@@ -61,6 +61,18 @@ class Project:
         the time step, Courant number and a stalled solver (monitor.py)."""
         return None
 
+    def checkpoint_setup(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any]) -> bool:
+        """Called on a rendered case when the run keeps checkpoints
+        (checkpoint.py): make the solver write its fields periodically and
+        return True, or return False if this case can't be resumed (the
+        default)."""
+        return False
+
+    def checkpoint_restored(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any],
+                            time: str) -> None:
+        """Called after a checkpoint's time directory was copied into the
+        rendered case, before the solver starts from it."""
+
     def extract(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any]) -> dict[str, Any]:
         """Parse solver output into a flat dict of metrics."""
         return {}

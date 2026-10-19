@@ -1,0 +1,38 @@
+study: bulb-cant
+project: keel3d
+description: >
+  Track A3 of docs/research/bulb-design.md: how much nose-up cant should
+  the bulb have? IOM practice is 2-3 deg nose up (SAILSetc TI23; Gilbert:
+  leeway x sin(heel) plus the bow-down trim, about 2 deg at 4 deg leeway and
+  30 deg heel, a calculation with no test). Gilbert's upright tow test
+  (MY 175) found 2 deg free and 5 deg 1.5 % slower. The round NACA 0011
+  bulb of bulb-section at 0, 2 and 4 deg nose up, at 25 deg heel and leeway
+  0-4 deg, plus upright at 0 deg (downwind drag). Cant turns the bulb about
+  its centre of mass, then moves it so its lowest point stays at the draft,
+  which moves the lead -0.5 mm at 2 deg and +0.6 mm at 4 deg. After
+  bulb-section: rerun with its best section in place of the round one (a
+  flattened bulb lifts at incidence, so its best cant may differ). No
+  re-trim of the boat: heel only (keel3d's model).
+report:
+  compare_at: {bulb_cant: 0.0, leeway: [2, 4]}
+  max_leeway: 4
+highlights:
+  - name: cant-at-heel
+    why: At 25 deg heel and 4 deg leeway, which cant lines the bulb up with the flow (least bulb drag, pitching moment near zero)?
+    where: {leeway: 4, heel: 25}
+    compare: bulb_cant
+    views: [surface_cp_starboard, vortices]
+defaults:
+  bulb_section: naca0011
+  fin_taper: 0.8
+  fin_mean_chord: 0.090
+  mesh: medium
+  speed: 1.0
+sweep:
+  bulb_cant: [0, 2, 4]
+  heel: [25]
+  leeway: [0, 2, 4]
+cases:
+  - {bulb_cant: 0, heel: 0, leeway: 0}
+  - {bulb_cant: 2, heel: 0, leeway: 0}
+  - {bulb_cant: 4, heel: 0, leeway: 0}

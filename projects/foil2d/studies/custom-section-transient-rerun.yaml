@@ -1,0 +1,29 @@
+study: custom-section-transient-rerun
+project: foil2d
+description: >
+  Reruns of custom-section time-accurate cases that blew up at max_co 10
+  (findings: projects/foil2d/findings/custom-section.md): the same case,
+  the same steady start and settings, but max_co 5, as for the stepped
+  sections (defaults.yaml). A rerun's result replaces the failed point when
+  the runs are ranked together (`sectiondesign cfd ... --replace`, later
+  files win). One run per failure, so a running rerun isn't repeated:
+  run 20261018-195326, NACA 0007 at 3 deg and 1 m/s (custom-section-transient
+  run 20261018-104120 blew up after 5.1 flow-throughs, Courant number 9.8 to
+  30,748 in one step); run 2, cst-opt2 at 5 deg and 0.75 m/s
+  (custom-section-transient-opt2 run 20261018-161314 blew up after 0.58
+  flow-throughs, Courant number 10 to 1.4e8). The cases list holds the
+  latest run's case only.
+report:
+  fin_span: 0.36
+  induced_drag: true
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  mesh: medium
+  solver: transient
+  flow_times: 20
+  average_times: 8
+  max_co: 5
+cases:
+  - {foil: "file:cst-opt2.dat", speed: 0.75, aoa: 5, start_from: [custom-section-optima/20261018-051126]}

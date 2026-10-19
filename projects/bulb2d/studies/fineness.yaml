@@ -1,0 +1,43 @@
+study: fineness
+project: bulb2d
+description: >
+  Track B2 of docs/research/bulb-design.md: at a fixed lead mass, does a
+  longer, thinner bulb still have less drag at IOM speeds, and why? The
+  2380 g of lead of keel3d's bulb (2.5 kg keel - 120 g fin) as NACA 4-digit
+  bodies (largest diameter at 0.3 L) of fineness 5 to 14.3: about 230, 250,
+  300, 343, 400 and 463 mm long. 250, 300 and 343 mm are about the lengths
+  of Gilbert's tow test (250, 300, 350 mm; MY 184: the 350 mm bulb 1.9 %
+  faster than the 250 mm at 0.5 m/s). 9.09 (NACA 0011, 343 x 37.7 mm) is
+  the market-like bulb of keel3d's bulb studies (IOM bulbs on the market
+  are 345-365 mm), and 14.3 (NACA 0007) is keel3d's default bulb. Speeds 0.5, 1.0 and 1.5 m/s;
+  kOmegaSSTLM at Tu 0.1 and 0.5 %, and fully turbulent kOmegaSST. Read with
+  validation-dress: if the transition model fails there, only the turbulent
+  bracket stands. Questions: does the fat bulb separate on its tail? Does
+  the ranking match the tow test? Is there still a gain past fineness 10?
+defaults:
+  body: naca
+  mass: 2.38
+  mesh: medium
+sweep:
+  fineness: [5.0, 5.7, 7.5, 9.09, 11.5, 14.29]
+  speed: [0.5, 1.0, 1.5]
+  Tu: [0.1, 0.5]
+cases:  # fully turbulent, at Tu 0.5
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 5.0, speed: 0.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 5.0, speed: 1.0}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 5.0, speed: 1.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 5.7, speed: 0.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 5.7, speed: 1.0}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 5.7, speed: 1.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 7.5, speed: 0.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 7.5, speed: 1.0}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 7.5, speed: 1.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 9.09, speed: 0.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 9.09, speed: 1.0}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 9.09, speed: 1.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 11.5, speed: 0.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 11.5, speed: 1.0}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 11.5, speed: 1.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 14.29, speed: 0.5}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 14.29, speed: 1.0}
+  - {turbulence: kOmegaSST, Tu: 0.5, fineness: 14.29, speed: 1.5}

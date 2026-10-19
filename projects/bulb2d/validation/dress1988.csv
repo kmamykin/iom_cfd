@@ -1,0 +1,23 @@
+# Dress (1988), Table III: drag of the laminar-flow body of revolution (geometry/bodies/dress-laminar-body.csv),
+# free transition, magnetically suspended (no support), corrected for blockage. C_D on the wetted area.
+# Below R_L ~ 7e5 the laminar boundary layer separated at x/L ~ 0.50-0.55 with no reattachment or
+# reattachment close to the tail (liquid crystals, oil flow); the separation line moved aft as R_L rose.
+Re_L,Cd_wet
+364500,0.01179
+437600,0.01201
+504700,0.01155
+560800,0.01121
+689400,0.01050
+729000,0.01023
+797200,0.00969
+848200,0.00922
+896400,0.00854
+940600,0.00786
+1007100,0.00675
+1077500,0.00594
+1115900,0.00546
+1153800,0.00523
+1219900,0.00485
+1257500,0.00451
+1297900,0.00465
+1340500,0.00451
