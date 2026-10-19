@@ -126,6 +126,32 @@ def test_grid_shift_cases_kept_apart(project):
     assert t[t["mesh_shift"] == 0.5].empty  # a single point is not a sweep
 
 
+def _total_forces(case, drag, side):
+    d = case / "postProcessing" / "forces_total" / "0"
+    d.mkdir(parents=True)
+    rows = "\n".join(f"{i + 1}\t{dr:.8g}\t{si:.8g}\t0\t0\t0\t0\t0\t0\t0" for i, (dr, si) in enumerate(zip(drag, side)))
+    (d / "force.dat").write_text("# Time total_x total_y total_z pressure_x pressure_y pressure_z "
+                                 "viscous_x viscous_y viscous_z\n" + rows + "\n")
+
+
+def test_progress_reports_forces_and_their_drift(project, tmp_path):
+    import numpy as np
+
+    p = {**project.defaults}
+    d = {"dragDir": [1.0, 0.0, 0.0], "sideDir": [0.0, 1.0, 0.0], "convWindow": 100}
+    n = np.arange(400)
+    drag, side = 0.93 + 0.1 * np.exp(-n / 60), 6.7 - 0.5 * np.exp(-n / 60)
+    _total_forces(tmp_path, drag, side)
+    prog = project.progress(tmp_path, p, d)
+    assert prog["D_h"] == pytest.approx(drag[-1]) and prog["S_h"] == pytest.approx(side[-1])
+    w = slice(-100, None), slice(-200, -100)
+    assert prog["D_h_change"] == pytest.approx(abs(drag[w[0]].mean() - drag[w[1]].mean()) / drag[-1])
+    assert prog["S_h_change"] == pytest.approx(abs(side[w[0]].mean() - side[w[1]].mean()) / side[-1])
+    assert prog["conv_tol"] == p["conv_tol"]
+    assert project.converged(tmp_path, p, d) == (max(prog["D_h_change"], prog["S_h_change"]) < p["conv_tol"])
+    assert project.progress(tmp_path / "none", p, d) == {}
+
+
 def test_flatter_bulb_same_lead_lower_and_longer_fin(project):
     base = project.derive(dict(project.defaults))
     for kw in ({"bulb_aspect": 1.5}, {"bulb_aspect": 1.5, "bulb_bottom": 6.0}, {"bulb_aspect": 2.0, "bulb_top": 6.0}):

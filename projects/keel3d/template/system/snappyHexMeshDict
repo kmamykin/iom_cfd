@@ -145,6 +145,8 @@ addLayersControls
     // near-wake box above the bulb on the fine mesh (bulb-endplate, NACA 0011
     // bulb, 4 deg); 40 did too. 20 gives a clean mesh at 81 % of the hull's
     // layer thickness (89 % unlimited), 96 % on the fin, 98 % on the bulb.
+    // The same for the 90 mm constant-chord fin on the NACA 0007 bulb
+    // (taper-mesh, fine, 0-4 deg): clean with 20, hull 80-82 %, fin 96 %.
     nMedialAxisIter     20;
 }
 

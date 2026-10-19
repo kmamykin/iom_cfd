@@ -19,7 +19,7 @@ import numpy as np
 
 from iomcfd import physics
 from iomcfd.foam import find_dat, read_dat
-from iomcfd.forces import forces_function, read_forces, settled
+from iomcfd.forces import forces_function, read_forces, settled, window_stats
 from iomcfd.geometry import appendages as ap
 from iomcfd.geometry import foils, hulls, stl
 from iomcfd.project import Project
@@ -387,19 +387,45 @@ class Keel3D(Project):
         return [float(v) for v in (*lo, *hi[:2], 0.0)]
 
     # ------------------------------------------------------------------
-    def converged(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool:
-        """Windowed means of total drag and side force stopped moving."""
+    @staticmethod
+    def _force_history(case_dir: Path, d: dict[str, Any]) -> tuple[np.ndarray, np.ndarray] | None:
+        """D_h and S_h of the whole boat [N] at every iteration so far
+        (forces_total, along and across the course)."""
         ff = find_dat(case_dir, "forces_total", "force.dat")
         if not ff:
-            return False
+            return None
         _, f = read_dat(ff[-1])
         if f.size == 0:
+            return None
+        return f[:, 1:4] @ np.array(d["dragDir"]), f[:, 1:4] @ np.array(d["sideDir"])
+
+    def converged(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool:
+        """Windowed means of D_h and S_h stopped moving."""
+        h = self._force_history(case_dir, d)
+        if h is None:
             return False
-        drag = f[:, 1:4] @ np.array(d["dragDir"])
-        side = f[:, 1:4] @ np.array(d["sideDir"])
+        drag, side = h
         w, tol = int(d["convWindow"]), float(p["conv_tol"])
         scale = max(abs(drag[-1]), abs(side[-1]))
         return settled(drag, w, tol, abs(drag[-1])) and settled(side, w, tol, scale)
+
+    def progress(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> dict[str, Any]:
+        """Latest D_h and S_h of the whole boat [N], and how far their windowed
+        means still move (relative, on the scales `converged` uses), against
+        conv_tol: the case stops once both changes are below it."""
+        h = self._force_history(case_dir, d)
+        if h is None:
+            return {}
+        drag, side = h
+        out: dict[str, Any] = {"D_h": float(drag[-1]), "S_h": float(side[-1])}
+        w = int(d["convWindow"])
+        scales = {"D_h": abs(drag[-1]), "S_h": max(abs(drag[-1]), abs(side[-1]))}
+        for key, series in (("D_h", drag), ("S_h", side)):
+            st = window_stats(series, w)
+            if st is not None and scales[key]:
+                out[f"{key}_change"] = st[1] / scales[key]
+        out["conv_tol"] = float(p["conv_tol"])
+        return out
 
     def extract(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> dict[str, Any]:
         out: dict[str, Any] = {}
@@ -620,14 +646,15 @@ class Keel3D(Project):
 
     @staticmethod
     def polar_fits(df, max_leeway: float | None = None):
-        """Per design and condition: drag at zero side force, induced-drag
-        factor k of D = D0 + k F^2 (least squares), effective span efficiency
-        e = 1 / (2 pi q d^2 k) with d the draft (hull + keel as a half wing
-        on the waterline mirror), effective draft T_eff = 1 / sqrt(pi q k)
-        (ORC), and the side force per degree of leeway (fit up to 4 deg).
-        Fit only the points up to the highest attached leeway (`max_leeway`
-        in the study's report options): k also holds the growth of viscous
-        drag with side force, which separation makes steep."""
+        """Per design and condition: D_h at zero S_h and the factor k of
+        D_h = D0 + k S_h^2 (least squares); the effective draft
+        T_eff = 1 / sqrt(pi q k) (ORC: D_i = S_h^2 / (pi q T_eff^2)) and the
+        same as a span efficiency e = 1 / (2 pi q d^2 k) on the draft d (hull
+        and keel as a half wing on the waterline mirror); S_h per degree of
+        leeway beta_Y (fit up to 4 deg). Fit only the points up to the highest
+        attached leeway (`max_leeway` in the study's report options): k also
+        holds the growth of viscous drag with S_h, which separation makes
+        steep."""
         import pandas as pd
 
         df = df[df["status"].isin(["ok", "not_converged"])]
@@ -674,8 +701,8 @@ class Keel3D(Project):
             axs[0].plot(g["leeway"], g["side_N"], "o-", label=label(key))
             axs[1].plot(g["leeway"], g["drag_N"], "o-", label=label(key))
             axs[2].plot(g["side_N"], g["drag_N"], "o-", label=label(key))
-        for ax, (xl, yl) in zip(axs, [("leeway [deg]", "side force [N]"), ("leeway [deg]", "drag [N]"),
-                                      ("side force [N]", "drag [N]")]):
+        for ax, (xl, yl) in zip(axs, [("leeway β_Y [deg]", "side force S_h [N]"), ("leeway β_Y [deg]", "drag D_h [N]"),
+                                      ("side force S_h [N]", "drag D_h [N]")]):
             ax.set_xlabel(xl)
             ax.set_ylabel(yl)
             ax.grid(alpha=0.3)
@@ -781,16 +808,16 @@ class Keel3D(Project):
 
     @staticmethod
     def _compare_md(t, fits, design, cond, path: Path) -> Path:  # pragma: no cover - formatting
-        L = ["## Keel designs at equal side force", "",
-             "Side force = what the reference design makes at the given leeway. Drag and leeway of every design "
-             "at that force (interpolated along its leeway sweep), and the race time it loses against the best "
-             "design (foil2d/methodology.md: half upwind with drag and leeway, half downwind with the drag at 0 deg; "
-             "x1 / x2 = the estimated resistance slope and double it).", ""]
+        L = ["## Keel designs at equal side force S_h", "",
+             "S_h = what the reference design makes at the given leeway. Leeway β_Y and drag D_h of every design "
+             "at that S_h (interpolated along its leeway sweep), and the race time it loses against the best "
+             "design (foil2d/methodology.md: half upwind with D_h and β_Y, half downwind with D_h at β_Y = 0; "
+             "x1 / x2 = the estimated resistance slope V_b dD_h/dV_b and double it).", ""]
         cg = "bulb_cg_above_draft" in t and t["bulb_cg_above_draft"].nunique() > 1
         if cg:
             L[-1:-1] = ["The bulb's centre of mass is given above the draft (a lower one is more righting moment; "
                         "the race time doesn't count it).", ""]
-        head = [*cond, *design, "load", "side [N]", "leeway [deg]", "drag [N]", "drag at 0 deg [N]",
+        head = [*cond, *design, "load", "S_h [N]", "β_Y [deg]", "D_h [N]", "D_h at β_Y = 0 [N]",
                 *(["bulb CG above draft [mm]"] if cg else []), "loss x1 / x2 [%]"]
         L += ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
         for _, r in t.iterrows():
@@ -800,9 +827,10 @@ class Keel3D(Project):
                                         f"{r['leeway']:.2f}", f"{r['drag_N']:.4f}", f"{r['drag0_N']:.4f}",
                                         *([f"{1e3 * r['bulb_cg_above_draft']:.1f}"] if cg else []), loss]) + " |")
         if not fits.empty:
-            L += ["", "## Drag polar fits", "", "D = D0 + k F^2 over each leeway sweep; e_eff = 1 / (2 pi q d^2 k), "
-                  "d = draft (the waterline is a mirror plane). It includes the growth of viscous drag with side "
-                  "force, so it is lower than the induced-drag span efficiency.", ""]
+            L += ["", "## Drag polar fits", "", "D_h = D0 + k S_h² over each leeway sweep; effective draft "
+                  "T_eff = 1 / √(π q k) (ORC: D_i = S_h² / (π q T_eff²)); e_eff = 1 / (2π q d² k) on the draft d (the "
+                  "waterline is a mirror plane). The fit includes the growth of viscous drag with S_h, so T_eff and "
+                  "e_eff are lower than their induced-drag values.", ""]
             cols = [c for c in fits.columns if c != "n_points"]
             L += ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
             for _, r in fits.iterrows():
@@ -838,8 +866,8 @@ class Keel3D(Project):
             return []
         eta = np.linspace(0, 1, 101)
         axs[1].plot(4 / math.pi * np.sqrt(1 - eta**2), -eta, "k--", lw=1, label="elliptic (hull as mirror, free tip)")
-        axs[0].set_xlabel("local side-force coefficient cl (on the local chord)")
-        axs[1].set_xlabel("side force per metre / span mean")
+        axs[0].set_xlabel("local C_l (side force per metre on q × local chord)")
+        axs[1].set_xlabel("S_h per metre of span / span mean")
         for ax in axs:
             ax.set_ylabel("span: 0 = hull, -1 = top of the bulb")
             ax.grid(alpha=0.3)
