@@ -1,0 +1,61 @@
+#!/bin/sh
+# bulb2d: the wedge mesh (constant/polyMesh) is written by iomcfd when the case
+# is rendered, so this script only checks it and runs the solver.
+#   NP=4 ./Allrun     # run on 4 MPI ranks
+cd "${0%/*}" || exit 1
+. "${WM_PROJECT_DIR:?}"/bin/tools/RunFunctions
+
+NP="${NP:-1}"
+
+runApplication checkMesh -allGeometry -allTopology
+
+if [ "$NP" -gt 1 ]; then
+    foamDictionary -entry numberOfSubdomains -set "$NP" system/decomposeParDict > /dev/null
+    runApplication decomposePar -force
+fi
+
+# Run the solver system/controlDict names. A clean OpenFOAM exit prints
+# "End" as the last line of the log.
+solve() {
+    app=$(getApplication)
+    if [ "$NP" -gt 1 ]; then
+        runParallel "$app"
+    else
+        runApplication "$app"
+    fi
+    rc=$?
+    if [ "$rc" -ne 0 ] || ! tail -n 3 "log.$app" | grep -q "^End"; then
+        echo "solver failed (exit $rc), see log.$app" >&2
+        return 1
+    fi
+}
+
+status=0
+solve || status=1
+
+# solver: transient with start_iter > 0: that was the steady start, and
+# system/*.transient hold the time-accurate setup. The steady solution
+# becomes time 0 of the transient run (without uniform/, which would carry
+# the iteration count and deltaT 1 over).
+if [ "$status" -eq 0 ] && [ -f system/controlDict.transient ]; then
+    for f in controlDict fvSchemes fvSolution; do
+        mv "system/$f" "system/$f.steady" && mv "system/$f.transient" "system/$f"
+    done
+    mv postProcessing postProcessing.steady
+    if [ "$NP" -gt 1 ]; then
+        set -- processor*
+    else
+        mv 0 0.orig
+        set -- .
+    fi
+    for d in "$@"; do
+        last=$(cd "$d" && ls -d [0-9]* | grep -Ex '[0-9.e+-]+' | sort -g | tail -n 1)
+        rm -rf "$d/0" && mv "$d/$last" "$d/0" && rm -rf "$d/0/uniform"
+    done
+    solve || status=1
+fi
+
+if [ "$NP" -gt 1 ]; then
+    runApplication reconstructPar -latestTime
+fi
+exit "$status"

@@ -1,0 +1,45 @@
+study: bulb-section
+project: keel3d
+description: >
+  Track A2 of docs/research/bulb-design.md: is a flattened bulb better than
+  a round one? Six cross-sections of the same market-like bulb, NACA 0011
+  revolved, 2380 g, 343 mm long, 37.7 mm round (same length, same section
+  areas, bottom at the 420 mm draft): round; elliptic
+  1.25, 1.5 and 2.0 wide per height; flat-bottomed 1.5 (lower half a
+  superellipse of exponent 6: hard chines); flat-topped 1.5 (ORC's VPP
+  credits a flat-topped bulb with more effective draft and debits a round
+  one). Flattening lowers the bulb's centre of mass 2-6 mm (more righting
+  moment, which the race time doesn't count: read bulb_cg_above_draft) and
+  lengthens the fin by as much as the top drops (7 mm at 1.5:1). Costs: up
+  to 9 % more bulb wetted area, and lift at incidence. Upwind at 0 and 25 deg
+  heel (the heeled bulb sees leeway x sin(heel) of pitch), leeway 0-4 deg,
+  1 m/s; downwind from the upright 0 deg cases. The fin is bulb-endplate's
+  (lambda 0.8, 90 mm mean chord). Fully turbulent kOmegaSST, so friction is
+  overestimated; the end-plate and lift effects are what this ranks. Mesh
+  check at 4 deg upright on fine for round, 1.5 and flat-bottomed.
+report:
+  compare_at: {bulb_aspect: 1.0, bulb_top: 2.0, bulb_bottom: 2.0, leeway: [2, 4]}
+  max_leeway: 4
+highlights:
+  - name: section-tip-flow
+    why: Does a flat bottom with hard chines keep the fin's tip vortex lower than a round bulb, and how much does the bulb lift and pitch at 25 deg heel?
+    where: {leeway: 4, heel: 25, mesh: medium, bulb_top: 2.0}
+    compare: bulb_aspect
+    views: [surface_cp_starboard, vortices, wake_slice]
+defaults:
+  bulb_section: naca0011
+  fin_taper: 0.8
+  fin_mean_chord: 0.090
+  mesh: medium
+  speed: 1.0
+zip:
+  bulb_aspect: [1.0, 1.25, 1.5, 2.0, 1.5, 1.5]
+  bulb_bottom: [2.0, 2.0, 2.0, 2.0, 6.0, 2.0]
+  bulb_top: [2.0, 2.0, 2.0, 2.0, 2.0, 6.0]
+sweep:
+  heel: [0, 25]
+  leeway: [0, 2, 4]
+cases:
+  - {bulb_aspect: 1.0, bulb_bottom: 2.0, bulb_top: 2.0, heel: 0, leeway: 4, mesh: fine}
+  - {bulb_aspect: 1.5, bulb_bottom: 2.0, bulb_top: 2.0, heel: 0, leeway: 4, mesh: fine}
+  - {bulb_aspect: 1.5, bulb_bottom: 6.0, bulb_top: 2.0, heel: 0, leeway: 4, mesh: fine}

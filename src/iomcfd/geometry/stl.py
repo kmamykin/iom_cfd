@@ -193,13 +193,21 @@ def loft(rings: list[np.ndarray], cap_start: bool = True, cap_end: bool = True, 
     return Surface(verts, np.array(tris, dtype=np.int64), name).oriented_outward()
 
 
-def revolve(x: np.ndarray, r: np.ndarray, n_theta: int = 48, name: str = "body") -> Surface:
+def revolve(x: np.ndarray, r: np.ndarray, n_theta: int = 48, name: str = "body",
+            section: np.ndarray | None = None) -> Surface:
     """Body of revolution about the x axis from a profile r(x).
 
-    r must be 0 at both ends (pointed or rounded tips).
+    r must be 0 at both ends (pointed or rounded tips). `section`: the cross
+    section at r = 1 as a closed ring of (y, z) points (n_theta of them), for
+    a body whose sections are all the same non-circular shape scaled by r;
+    default a circle.
     """
-    th = np.linspace(0, 2 * math.pi, n_theta, endpoint=False)
-    inner = [np.column_stack([np.full(n_theta, xi), ri * np.cos(th), ri * np.sin(th)]) for xi, ri in zip(x[1:-1], r[1:-1])]
+    if section is None:
+        th = np.linspace(0, 2 * math.pi, n_theta, endpoint=False)
+        section = np.column_stack([np.cos(th), np.sin(th)])
+    n_theta = len(section)
+    inner = [np.column_stack([np.full(n_theta, xi), ri * section[:, 0], ri * section[:, 1]])
+             for xi, ri in zip(x[1:-1], r[1:-1])]
     verts = [np.array([[x[0], 0.0, 0.0]])] + inner + [np.array([[x[-1], 0.0, 0.0]])]
     V = np.vstack(verts)
     tris = []

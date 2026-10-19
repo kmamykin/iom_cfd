@@ -1,0 +1,26 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| keel3d template (OpenFOAM v2512). Values come from                          |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      surfaceFeatureExtractDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+boat.stl
+{
+    extractionMethod    extractFromSurface;
+    includedAngle       150;    // edges sharper than 30 deg (fin trailing edge)
+    subsetFeatures
+    {
+        nonManifoldEdges    no;
+        openEdges           yes;
+    }
+    // Fin-hull and fin-bulb junction lines: intersections between STL solids
+    intersectionMethod  region;
+    writeObj            no;
+}

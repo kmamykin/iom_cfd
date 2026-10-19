@@ -273,3 +273,75 @@ def test_rotation_keeps_volume():
     assert r.volume() == pytest.approx(s.volume(), rel=1e-9)
     assert stl.rotation("z", 90) @ np.array([1, 0, 0]) == pytest.approx([0, 1, 0], abs=1e-12)
     assert math.isclose(np.linalg.det(stl.rotation("y", 33)), 1.0)
+
+
+def test_foil_bulb_volume_and_centre():
+    vol = (2.5 - 0.12) / ap.LEAD_DENSITY  # IOM keel limit minus a 120 g fin, in lead
+    length = ap.foil_bulb_length("naca0007", vol)
+    assert length == pytest.approx(0.4634, abs=5e-4)
+    k, xc, d = ap.foil_body_coefficients("naca0007")
+    assert d == pytest.approx(0.07, abs=1e-4)  # diameter = section thickness
+    b = ap.foil_bulb(ap.FoilBulbSpec(section="naca0007", length=length, x_cg=0.5, z_axis=-0.4))
+    assert b.is_closed()
+    assert b.volume() == pytest.approx(vol, rel=0.005)  # facets lose a little
+    assert b.centroid() == pytest.approx([0.5, 0.0, -0.4], abs=1e-4)
+    with pytest.raises(ValueError):
+        ap.foil_bulb_length("naca2412", vol)
+
+
+@pytest.mark.parametrize("taper", [1.0, 0.8, 0.6, 0.4])
+def test_taper_keeps_mean_chord(taper):
+    root, tip = ap.taper_chords(0.1, taper)
+    assert 0.5 * (root + tip) == pytest.approx(0.1)
+    assert tip / root == pytest.approx(taper)
+    spec = ap.FinSpec(section="naca0007", root_chord=root, tip_chord=tip, span=0.33, z_root=-0.05,
+                      tip_extension=0.016, n_span=40)
+    s = ap.fin(spec)
+    assert s.is_closed()
+    assert s.bounds[0][2] == pytest.approx(-0.05 - 0.33 - 0.016)
+
+
+def test_canoe_body():
+    spec = hulls.CanoeSpec()
+    h = hulls.canoe(spec)
+    assert h.is_closed()
+    vol, lcb, area = hulls.canoe_displacement(spec)
+    assert vol == pytest.approx(3.62e-3, rel=0.01)
+    assert lcb == pytest.approx(0.504, abs=0.005)
+    assert area == pytest.approx(hulls.wetted_area_below(h), rel=0.02)
+    assert float(hulls.canoe_depth(spec, spec.draft_at * spec.length)) == pytest.approx(spec.draft)
+    assert float(hulls.canoe_half_breadth(spec, 0.0)) == 0.0
+    lo, hi = h.bounds
+    assert lo[2] == pytest.approx(-spec.draft, abs=1e-4) and hi[1] == pytest.approx(spec.beam / 2, abs=1e-4)
+
+
+@pytest.mark.parametrize("aspect,top,bottom", [(1.0, 2.0, 2.0), (1.5, 2.0, 2.0), (2.0, 6.0, 2.0), (1.5, 2.0, 6.0)])
+def test_bulb_sections_keep_the_lead(aspect, top, bottom):
+    ring = ap.section_ring(aspect, top, bottom, 48)
+    y, z = ring[:, 0], ring[:, 1]
+    assert 0.5 * abs(y @ np.roll(z, -1) - z @ np.roll(y, -1)) == pytest.approx(math.pi, rel=0.005)  # circle's area
+    assert ring[1:24][::-1] * (-1, 1) == pytest.approx(ring[25:], abs=0)  # exact mirror images in y
+    b, h, zc = ap.section_shape(aspect, top, bottom)
+    assert (y.max() - y.min(), z.max() - z.min()) == pytest.approx((2 * b, 2 * h), rel=1e-3)
+    assert b / h == pytest.approx(aspect)
+    vol = (2.5 - 0.12) / ap.LEAD_DENSITY
+    spec = ap.FoilBulbSpec(section="naca0007", length=ap.foil_bulb_length("naca0007", vol), x_cg=0.5, z_axis=-0.4,
+                           aspect=aspect, top=top, bottom=bottom)
+    s = ap.foil_bulb(spec)
+    assert s.is_closed()
+    assert s.volume() == pytest.approx(vol, rel=0.006)
+    zoff = ap.foil_bulb_cg_offset(spec)
+    assert (zoff > 0) == (top > bottom) and (zoff < 0) == (top < bottom)  # a flat bottom puts the lead lower
+    assert s.centroid() == pytest.approx([0.5, 0.0, -0.4 + zoff], abs=2e-4)
+
+
+def test_bulb_cant_is_nose_up_about_the_centre_of_mass():
+    spec = ap.FoilBulbSpec(section="naca0007", length=0.46, x_cg=0.5, z_axis=-0.4, aspect=1.5, bottom=6.0)
+    up, canted = ap.foil_bulb(spec), ap.foil_bulb(ap.FoilBulbSpec(**{**spec.__dict__, "cant": 3.0}))
+    assert canted.centroid() == pytest.approx(up.centroid(), abs=1e-5)  # about the exact one, not the facets
+    nose = lambda s: s.vertices[np.argmin(s.vertices[:, 0])]
+    tail = lambda s: s.vertices[np.argmax(s.vertices[:, 0])]
+    assert nose(canted)[2] > nose(up)[2] and tail(canted)[2] < tail(up)[2]
+    xt, zt, xb, zb = ap.foil_bulb_lines(ap.FoilBulbSpec(**{**spec.__dict__, "cant": 3.0}))
+    assert zb.min() == pytest.approx(canted.vertices[:, 2].min(), abs=2e-4)  # the lowest point is on the bottom line
+    assert zt.max() == pytest.approx(canted.vertices[:, 2].max(), abs=2e-4)

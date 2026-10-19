@@ -1,0 +1,14 @@
+study: keel3d-smoke
+project: keel3d
+description: >
+  Pipeline check: xcoarse snappyHexMesh around hull, tapered fin and bulb,
+  a few iterations at 3 deg leeway and 10 deg heel. Not for engineering use.
+defaults:
+  mesh: xcoarse
+  n_layers: 2
+  max_iter: 30
+  conv_window: 10
+  fin_taper: 0.6
+  leeway: 3
+  heel: 10
+  np: 4

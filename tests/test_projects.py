@@ -20,10 +20,10 @@ RESERVED = {"geometry", "mesh", "type", "value", "dimensions", "internalField", 
 
 
 def test_all_projects_listed():
-    assert {"foil2d", "appendage3d", "hull", "sails", "fullboat"} <= set(list_projects())
+    assert {"foil2d", "appendage3d", "keel3d", "hull", "sails", "fullboat"} <= set(list_projects())
 
 
-@pytest.mark.parametrize("name", ["foil2d", "appendage3d", "hull", "sails", "fullboat"])
+@pytest.mark.parametrize("name", ["foil2d", "appendage3d", "keel3d", "hull", "sails", "fullboat"])
 def test_render_smoke_study(tmp_path, name):
     project = load_project(name)
     study = Study.load(config.projects_dir() / name / "studies" / "smoke.yaml")

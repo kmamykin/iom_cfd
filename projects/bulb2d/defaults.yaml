@@ -1,0 +1,43 @@
+# bulb2d: a keel bulb alone, as a body of revolution at zero incidence, in an
+# axisymmetric (wedge) mesh. Every parameter, with its default; studies
+# override these. Units SI unless stated.
+
+# --- body ------------------------------------------------------------------
+body: naca              # naca: NACA 4-digit thickness revolved (keel3d's bulbs; largest at 30 %)
+                        # bulb: elliptic nose, r ~ 1 - u^tail_exp tail (appendage3d's bulbs)
+                        # file:<name>.csv in geometry/bodies/ (columns x, r, any unit), e.g.
+                        # file:dress-laminar-body.csv (Dress 1988, a validation body)
+fineness: 9.09          # length / largest diameter (naca, bulb); a file's own shape otherwise.
+                        # 9.09 = NACA 0011, keel3d's bulb studies; 14.29 = NACA 0007, keel3d's default
+max_at: 0.4             # bulb: where the diameter is largest, fraction of the length
+tail_exp: 2.0           # bulb: tail shape exponent (2 = parabolic, larger = fuller)
+mass: 2.38              # kg of lead: sets the size (keel3d: 2.5 kg keel - 120 g fin). 0 = use length
+length: 0.30            # m, when mass is 0
+lead_density: 11340     # kg/m^3
+
+# --- flow -------------------------------------------------------------------
+speed: 1.0              # m/s. Ignored when Re is set
+Re: null                # length Reynolds number V L / nu; if set, speed = Re nu / L
+fluid: water            # water | seawater | air
+temperature: 15.0       # deg C (sets rho and nu)
+
+# --- turbulence / transition ---------------------------------------------
+turbulence: kOmegaSSTLM # kOmegaSSTLM (Langtry-Menter transition) | kOmegaSST (fully turbulent)
+Tu: 0.2                 # % freestream turbulence intensity. Pond value unknown: sweep it
+viscosity_ratio: 10     # nut/nu in the freestream
+decay_control: auto     # hold freestream k/omega so Tu at the body = Tu (on for kOmegaSSTLM)
+
+# --- mesh (cmesh C-grid, upper half, as a wedge; geometry/axisym.py) --------
+mesh: medium            # xcoarse | coarse | medium | fine | xfine  (each level = 2x cells)
+yplus: 0.5              # target wall y+ at the 'medium' level (scales with level)
+farfield: 30            # body lengths: radius of the C and wake length
+wedge: 5.0              # deg, the wedge's angle
+
+# --- solver -------------------------------------------------------------------
+max_iter: 8000          # SIMPLE iteration budget
+relax_U: 0.8            # under-relaxation; lower (e.g. 0.6/0.5/0.5) if a case diverges
+relax_turb: 0.7
+relax_transition: 0.7
+conv_window: 500        # iterations per averaging window
+conv_tol: 1.0e-3        # stop when the window means of Cd change by less than this fraction
+np: 1                   # MPI ranks per case

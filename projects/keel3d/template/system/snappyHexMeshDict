@@ -1,0 +1,158 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| keel3d template (OpenFOAM v2512). Values come from                          |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      snappyHexMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+castellatedMesh true;
+snap            true;
+addLayers       true;
+
+geometry
+{
+    boat.stl                // solids hull, fin, bulb -> patches boat_hull, boat_fin, boat_bulb
+    {
+        type    triSurfaceMesh;
+        name    boat;
+    }
+    keel.stl                // fin + bulb again, only for the distance refinement
+    {
+        type    triSurfaceMesh;
+        name    keel;
+    }
+    keelBox                 // around fin and bulb
+    {
+        type    searchableBox;
+        min     $keelBoxMin;
+        max     $keelBoxMax;
+    }
+    hullBox                 // around the canoe body
+    {
+        type    searchableBox;
+        min     $hullBoxMin;
+        max     $hullBoxMax;
+    }
+    wakeBox                 // keel wake and tip vortex, to 1 m behind the stern
+    {
+        type    searchableBox;
+        min     $wakeBoxMin;
+        max     $wakeBoxMax;
+    }
+    finWakeBox              // along the fin's trailing edge: its near wake
+    {
+        type    searchableRotatedBox;
+        origin  $finWakeOrigin;     // a corner
+        span    $finWakeSpan;       // lengths along e1, e2 = e3 x e1, e3
+        e1      $finWakeE1;         // downstream, normal to the trailing edge
+        e3      $finWakeE3;         // up the trailing edge
+    }
+}
+
+castellatedMeshControls
+{
+    maxLocalCells       5000000;
+    maxGlobalCells      60000000;
+    minRefinementCells  10;
+    maxLoadUnbalance    0.10;
+    nCellsBetweenLevels 3;
+
+    features
+    (
+        {
+            file    "boat.eMesh";
+            level   $featureLevel;
+        }
+        {
+            file    "trailingEdge.obj";     // the trailing edge 1 um either side of y = 0 (project.py)
+            level   $featureLevel;
+        }
+    );
+
+    refinementSurfaces
+    {
+        boat
+        {
+            level       ($hullLevelMin $hullLevelMax);
+            patchInfo   { type wall; inGroups (boat); }
+            regions
+            {
+                fin     { level ($finLevelMin $finLevelMax); }
+                bulb    { level ($bulbLevelMin $bulbLevelMax); }
+            }
+        }
+    }
+
+    resolveFeatureAngle 25;
+
+    refinementRegions
+    {
+        keelBox     { mode inside; levels ((1e15 $keelBoxLevel)); }
+        hullBox     { mode inside; levels ((1e15 $hullBoxLevel)); }
+        wakeBox     { mode inside; levels ((1e15 $wakeBoxLevel)); }
+        finWakeBox  { mode inside; levels ((1e15 $finWakeLevel)); }
+        keel        { mode distance; levels (($keelDistance $keelDistanceLevel)); }
+    }
+
+    locationInMesh      $locationInMesh;
+    allowFreeStandingZoneFaces true;
+}
+
+snapControls
+{
+    nSmoothPatch        3;
+    tolerance           2.0;
+    nSolveIter          100;
+    nRelaxIter          5;
+    nFeatureSnapIter    10;
+    implicitFeatureSnap false;
+    explicitFeatureSnap true;
+    multiRegionFeatureSnap true;
+}
+
+addLayersControls
+{
+    relativeSizes       true;
+    layers
+    {
+        "boat_.*"   { nSurfaceLayers $nLayers; }
+    }
+    expansionRatio      1.2;
+    finalLayerThickness 0.5;
+    minThickness        0.1;
+    nGrow               0;
+    featureAngle        130;
+    slipFeatureAngle    30;
+    nRelaxIter          5;
+    nSmoothSurfaceNormals 1;
+    nSmoothNormals      3;
+    nSmoothThickness    10;
+    maxFaceThicknessRatio 0.5;
+    maxThicknessToMedialRatio 0.3;
+    minMedialAxisAngle  90;
+    nBufferCellsNoExtrude 0;
+    nLayerIter          50;
+    // Limit how far from the walls layer addition moves interior points
+    // (displacementMedialAxis). Unlimited, it inverted 12 cells in the fin's
+    // near-wake box above the bulb on the fine mesh (bulb-endplate, NACA 0011
+    // bulb, 4 deg); 40 did too. 20 gives a clean mesh at 81 % of the hull's
+    // layer thickness (89 % unlimited), 96 % on the fin, 98 % on the bulb.
+    nMedialAxisIter     20;
+}
+
+meshQualityControls
+{
+    #includeEtc "caseDicts/meshQualityDict"
+    nSmoothScale    4;
+    errorReduction  0.75;
+}
+
+mergeTolerance 1e-6;

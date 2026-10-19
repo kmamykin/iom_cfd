@@ -1,0 +1,43 @@
+study: taper-mesh
+project: keel3d
+description: >
+  Mesh ladder for the taper question, on the two fins to compare first:
+  NACA 0007 at a constant 90 mm chord (fin-profile-selection's 0007/90) and
+  NACA 0007 tapered from 100 mm at the root to 80 mm at the tip (lambda 0.8),
+  both with 90 mm mean chord, so the same span and area. Commercial IOM fins
+  are all tapered with roots of at most about 100 mm
+  (docs/research/iom-fins-on-the-market.md). In taper-selection run
+  20261018-044718 (100 mm mean chord) the constant-chord fin's side force rose
+  8.1 % at 4 deg from medium to fine, which reversed the medium-mesh ranking;
+  since then the mesh has a near-wake box along the trailing edge (fin_wake
+  0.3 mean chords), a background grid aligned with the boat and mirror-image
+  meshes when upright. Both fins at 0, 2 and 4 deg on medium and fine (enough
+  for the race-time comparison at the light and working loads), at 4 deg on
+  xfine, and the constant-chord fin at 4 deg on medium and fine with the
+  background grid shifted by half the finest fin cell (does its error come
+  from where the grid lines fall relative to its straight edges?).
+  Pass: the lambda 1.0 - 0.8 race-time difference at the working load moves
+  by < 0.1 % from medium to fine (these two fins differ less than run 1's
+  1.0 and 0.4), and their 4-deg side-force and drag differences move by
+  < 1 % from fine to xfine. That level runs the taper comparison.
+report:
+  compare_at: {fin_taper: 1.0, leeway: [2, 4]}
+highlights:
+  - name: constant-chord-mesh-jump
+    why: In run 20261018-044718 the constant-chord fin's side force rose 8 % from medium to fine (the tapered fin's 1 %). With the near-wake box and the aligned grid, does it still move more than the tapered fin, and where on the fin?
+    where: {leeway: 4, mesh_shift: 0}
+    compare: mesh
+    views: [surface_cp_starboard, section, wake_slice]
+defaults:
+  fin_mean_chord: 0.090
+  speed: 1.0
+  heel: 0
+sweep:
+  fin_taper: [1.0, 0.8]
+  leeway: [0, 2, 4]
+  mesh: [medium, fine]
+cases:
+  - {fin_taper: 1.0, leeway: 4, mesh: xfine}
+  - {fin_taper: 0.8, leeway: 4, mesh: xfine}
+  - {fin_taper: 1.0, leeway: 4, mesh: medium, mesh_shift: 0.5}
+  - {fin_taper: 1.0, leeway: 4, mesh: fine, mesh_shift: 0.5}

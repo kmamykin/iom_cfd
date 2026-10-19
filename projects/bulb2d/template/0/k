@@ -1,0 +1,35 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| bulb2d template (OpenFOAM v2512). Values come from system/caseParameters,   |
+| which iomcfd writes from the study YAML.                                    |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      k;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+dimensions      [0 2 -2 0 0 0 0];
+
+internalField   uniform $kInf;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"   // processor, wedge...
+
+    wall                // patch group: body + base
+    {
+        type            fixedValue;    // resolved wall (y+ < 1)
+        value           uniform 0;
+    }
+    freestream
+    {
+        type            inletOutlet;
+        inletValue      uniform $kInf;
+        value           uniform $kInf;
+    }
+}
