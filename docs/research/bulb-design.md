@@ -658,6 +658,14 @@ Then rerun the A2 winner's friction drag with the transition model.
   the bulb adds 13-15 % keel side force at the same leeway (Open 50:
   17-24 %), T_eff +4 %, the fin's tip load +44 %. keel3d's bulb drag is
   about twice the transitional value.
+* **A2** ([bulb-section](../../projects/keel3d/findings/bulb-section.md)):
+  the round bulb has the least race-time loss of six sections, upright and
+  at 25° heel; 1.25:1 loses 0.2-0.4 %, 2:1 about 1 %. A flatter bulb at the
+  same draft brings a longer fin, which is most of its extra drag and most
+  of its extra side force (effective draft +1-2 %). With friction corrected
+  for transition and the upper righting-moment credit, only the flat bottom
+  comes level with round, and only at the upright working load. Bulb lift
+  and pitch are negligible. The differences survive the fine mesh.
 
 **Assumptions in the plan:**
 * **Righting moment has no conversion to race time yet.** Bracket it from

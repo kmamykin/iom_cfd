@@ -36,8 +36,8 @@ stopped on a floating-point exception in its first iterations (next steps).
    * Whole boat, with the hull: +13.2 % and +11.6 %. Side force per degree
      (0-4°): 1.526 against 1.365 N/° (+11.8 %).
 
-   Confidence: medium. Medium mesh: the fin alone moved +1.6 % in side force
-   to fine; the bulb case has no fine point. The Open 50 model differs in
+   Confidence: medium. Medium mesh, but medium → fine moves the side force
+   +1.6 % without the bulb and +1.5 % with it (next steps). The Open 50 model differs in
    scale, bulb (L/D 4.8, tripped) and keel.
 2. **The bulb end-plates the fin: it loads the tip and moves the load down.**
    At 4°: local cl next to the bulb 0.286 against 0.199 without it; the
@@ -118,3 +118,8 @@ The bulb's drag at 0°: friction 78.8 mN, pressure 11.6 mN.
      bulb: 89 / 98 / 98 % unlimited, 81 / 96 / 98 % with 20, 73 / 96 / 98 %
      with 10. keel3d now uses 20. A2 (bulb-section) has this case as its
      fine round-bulb point.
+   * Done (bulb-section run 20261019-203823): the same case on fine, with
+     the bulb, is clean and solves. Medium → fine: side force +1.49 %
+     (keel3d side force with the bulb, all parts), drag −5.53 %. The fin
+     alone moved +1.6 % and −5.0 % (this run), so the end-plate gain of
+     conclusion 1 holds on fine: about +13 % keel side force at 4°.
