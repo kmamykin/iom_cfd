@@ -185,6 +185,18 @@ def build_job(
         "allocationPolicy": {
             "location": {"allowedLocations": [f"regions/{cfg['GCP_REGION']}"]},
             "serviceAccount": {"email": cfg["BATCH_SA"]},
+            # No external IPs: the IN_USE_ADDRESSES quota (8) would cap the job at
+            # 8 VMs. The VMs only talk to Google APIs (Artifact Registry, GCS,
+            # Logging, Batch), via Private Google Access on the subnet (setup.sh).
+            "network": {
+                "networkInterfaces": [
+                    {
+                        "network": "global/networks/default",
+                        "subnetwork": f"regions/{cfg['GCP_REGION']}/subnetworks/default",
+                        "noExternalIpAddress": True,
+                    }
+                ]
+            },
             "instances": [
                 {
                     "policy": {
