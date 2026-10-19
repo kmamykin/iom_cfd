@@ -118,6 +118,77 @@ def _gcloud(*args: str, capture: bool = False, dry: bool = False) -> str:
     return res.stdout if capture else ""
 
 
+# VM states that hold quota (a TERMINATED, i.e. stopped, VM holds none).
+_LIVE_STATES = {"PROVISIONING", "STAGING", "RUNNING", "STOPPING", "REPAIRING", "SUSPENDING"}
+# Without the quota APIs (no permission, no gcloud beta): at most this many VMs.
+FALLBACK_MAX_VMS = 8
+
+
+def parallelism_from_quotas(n_tasks: int, per_node: int, constraints: list[tuple[str, float, float, int]]
+                            ) -> tuple[int, str]:
+    """Tasks a job may run at once so that its VMs fit the quotas' headroom.
+
+    constraints: (name, limit, usage, amount one VM uses), e.g. ("instances",
+    24, 8, 1) or ("C3D vCPUs", 150, 116, 16). Batch otherwise asks for every
+    task's VM at once; over a quota its instance group fails to create VMs
+    and the job stays queued for good (bulb-section, 2026-10-19: 39 VMs
+    against 24 instances, then 12 c3d-16 against 150 C3D vCPUs with 116 in
+    use). At least one VM: with no headroom now, the job waits in the queue.
+    Returns (parallelism, explanation)."""
+    vms = None
+    notes = []
+    for name, limit, usage, per_vm in constraints:
+        room = int((limit - usage) // per_vm)
+        notes.append(f"{name} {usage:g}/{limit:g} used: room for {max(room, 0)}")
+        vms = room if vms is None else min(vms, room)
+    vms = max(1, vms if vms is not None else FALLBACK_MAX_VMS)
+    return min(n_tasks, vms * per_node), "; ".join(notes) or f"no quota data: at most {FALLBACK_MAX_VMS} VMs"
+
+
+def quota_constraints(cfg: dict[str, str], machine: str) -> list[tuple[str, float, float, int]]:
+    """The quotas a job of `machine` VMs in cfg's region runs into, with their
+    current usage: instances in the region, the machine family's vCPUs in the
+    region (older families from the region's quota list, e.g. C2D_CPUS; newer
+    ones such as C3D, H3, C4 from the Cloud Quotas API, CPUS_PER_VM_FAMILY,
+    with the usage summed over the live VMs), and vCPUs in all regions.
+    Read-only gcloud calls; a quota that can't be read is left out."""
+    region, project = cfg["GCP_REGION"], cfg["GCP_PROJECT"]
+    vcpu = machine_vcpus(machine)
+    family = machine.split("-")[0].upper()
+    out: list[tuple[str, float, float, int]] = []
+    reg = {q["metric"]: q for q in json.loads(_gcloud(
+        "compute", "regions", "describe", region, "--project", project, "--format", "json", capture=True)
+    ).get("quotas", [])}
+    if "INSTANCES" in reg:
+        out.append(("instances", reg["INSTANCES"]["limit"], reg["INSTANCES"]["usage"], 1))
+    if f"{family}_CPUS" in reg:
+        q = reg[f"{family}_CPUS"]
+        out.append((f"{family} vCPUs", q["limit"], q["usage"], vcpu))
+    else:
+        try:
+            info = json.loads(_gcloud("beta", "quotas", "info", "describe", "CPUS-PER-VM-FAMILY-per-project-region",
+                                      "--service", "compute.googleapis.com", "--project", project,
+                                      "--format", "json", capture=True))
+        except (subprocess.CalledProcessError, ValueError):
+            info = {}
+        limit = next((float(d["details"]["value"]) for d in info.get("dimensionsInfos", [])
+                      if d.get("dimensions") == {"region": region, "vm_family": family}
+                      and "value" in d.get("details", {})), None)
+        if limit is not None and limit >= 0:
+            vms = json.loads(_gcloud("compute", "instances", "list", "--project", project, "--format",
+                                     "json(zone.basename(),machineType.basename(),status)", capture=True))
+            used = sum(machine_vcpus(v["machineType"]) for v in vms
+                       if v["zone"].startswith(f"{region}-") and v["status"] in _LIVE_STATES
+                       and v["machineType"].upper().startswith(f"{family}-"))
+            out.append((f"{family} vCPUs", limit, used, vcpu))
+    proj = {q["metric"]: q for q in json.loads(_gcloud(
+        "compute", "project-info", "describe", "--project", project, "--format", "json", capture=True)
+    ).get("quotas", [])}
+    if "CPUS_ALL_REGIONS" in proj:
+        out.append(("vCPUs, all regions", proj["CPUS_ALL_REGIONS"]["limit"], proj["CPUS_ALL_REGIONS"]["usage"], vcpu))
+    return out
+
+
 def build_job(
     cfg: dict[str, str],
     study_name: str,
@@ -240,8 +311,18 @@ def cmd_submit(args) -> None:
     np_ = args.np or int(cases[0].params.get("np", 1))
     max_hours = args.max_hours or task_hours(project, cases, np_)
     run_id = new_run_id()
+    parallelism = args.parallelism
+    if not parallelism:  # fit the job to the quotas' headroom (parallelism_from_quotas)
+        per_node = max(1, machine_vcpus(machine) // (max(1, np_) * vcpus_per_rank(machine)))
+        try:
+            constraints = quota_constraints(cfg, machine)
+        except (subprocess.CalledProcessError, ValueError, KeyError, SystemExit) as e:
+            print(f"quotas not readable ({e}): at most {FALLBACK_MAX_VMS} VMs", file=sys.stderr)
+            constraints = []
+        parallelism, why = parallelism_from_quotas(len(cases), per_node, constraints)
+        print(f"parallelism {parallelism} ({-(-parallelism // per_node)} VMs at once; --parallelism to set it): {why}")
     job = build_job(cfg, study.name, len(cases), np_, machine, not args.standard, max_hours,
-                    args.parallelism, args.set or [], args.tag, run_id)
+                    parallelism, args.set or [], args.tag, run_id)
     name = job_name(study.name, run_id)
     out = config.home() / "cloud" / "gcp" / "jobs" / name
     out.mkdir(parents=True, exist_ok=True)
@@ -399,7 +480,7 @@ def add_parser(sub) -> None:
     s.add_argument("--machine", help="Compute Engine machine type (default: DEFAULT_MACHINE in config.env)")
     s.add_argument("--np", type=int, help="MPI ranks per case")
     s.add_argument("--standard", action="store_true", help="on-demand VMs instead of Spot")
-    s.add_argument("--parallelism", type=int, help="max tasks running at once")
+    s.add_argument("--parallelism", type=int, help="max tasks running at once (default: what the quotas allow now: instances, the machine family vCPUs, all vCPUs)")
     s.add_argument("--max-hours", type=float, help="per-task time limit")
     s.add_argument("--tag", help="image tag (default: IMAGE_TAG in config.env)")
     s.add_argument("--dry-run", action="store_true", help="write the job JSON, don't submit")
