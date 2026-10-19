@@ -158,6 +158,17 @@ checkpoints. Steady cases are short and run without; decomposed cases
 (np > 1) are not supported yet. Locally, `iomcfd run --checkpoint DIR` does
 the same.
 
+Checked with a real case (2026-10-19). foil2d NACA 0009, xcoarse mesh,
+4 flow-throughs after a 200-iteration steady start; the solver was killed
+(exit 137) just after the 2-flow-through checkpoint and run again in an
+empty directory:
+* it resumed at t = 0.16 s, with the old-time fields (`U_0`, `phi_0`,
+  `k_0`, ...) and the time step it had (0.00123 s);
+* it didn't repeat the steady start;
+* its force history is continuous across the restart;
+* it finished ok with 4.0 flow-throughs, the last fields written at the
+  end time, and the checkpoint deleted.
+
 ## Choosing machines
 
 Prices are us-central1 list prices for October 2026 (Cloud Billing Catalog),
