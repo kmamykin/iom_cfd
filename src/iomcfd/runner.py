@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from . import config
+from .checkpoint import Checkpoint
 from .foam import tail_log
 from .monitor import PROGRESS_SECONDS, Monitor
 from .project import Project
@@ -57,6 +58,8 @@ class RunOptions:
     poll_seconds: float = 15.0  # convergence-monitor interval
     progress_seconds: float = PROGRESS_SECONDS  # a progress line in the log this often
     stop_grace_seconds: float = 900.0  # after a divergence stop, kill the solver if still running
+    checkpoint: Path | None = None  # keep checkpoints here, to resume after a lost machine (checkpoint.py)
+    checkpoint_seconds: float = 900.0  # at most one checkpoint this often
 
 
 RUN_ID_FORMAT = "%Y%m%d-%H%M%S"
@@ -134,13 +137,18 @@ def is_done(case_dir: Path, case: Case) -> bool:
 
 
 def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
-             export_dir: Path | None = None, log=print) -> dict[str, Any]:
+             export_dir: Path | None = None, log=print, checkpoint_dir: Path | None = None) -> dict[str, Any]:
     """Render (if needed) and run one case. Never raises; returns the result.
 
     While the solver runs, a Monitor (monitor.py) logs a progress line every
     opts.progress_seconds and checks for divergence. A diverged case is
     stopped without writing fields (killed if it doesn't stop within
-    opts.stop_grace_seconds) and reported as failed, with the reason."""
+    opts.stop_grace_seconds) and reported as failed, with the reason.
+
+    With `checkpoint_dir` (the run's, <checkpoints>/<study>/<run id>) and a
+    case the project can resume (Project.checkpoint_setup), the case's
+    progress is saved there while it runs, and a case started again (a Spot
+    VM preempted, the task retried) continues from it (checkpoint.py)."""
     def say(msg: str) -> None:
         log(msg)
         sys.stdout.flush()  # Cloud Logging shows lines as they come
@@ -159,6 +167,14 @@ def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
         derived = project.prepare_case(case_dir, case.params)
         if opts.render_only:
             return {"case": case.name, "status": "rendered"}
+        ckpt = None
+        if checkpoint_dir and project.checkpoint_setup(case_dir, case.params, derived):
+            ckpt = Checkpoint(Path(checkpoint_dir) / case.name, interval=opts.checkpoint_seconds)
+            restored = ckpt.restore(case_dir, case.params_hash)
+            if restored:
+                project.checkpoint_restored(case_dir, case.params, derived, restored)
+                result["resumed_from"] = restored
+                say(f"  resumed   {case.name} from its checkpoint at t = {restored}")
         env = dict(os.environ, NP=str(case.params.get("np", 1)))
         monitor = Monitor(
             case.name, case_dir,
@@ -185,6 +201,10 @@ def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
                 elif not stop_requested and _safe_converged(project, case_dir, case.params, derived):
                     request_stop(case_dir)
                     stop_requested = True
+                if ckpt and not diverged:
+                    saved = ckpt.maybe_save(case_dir, case.params_hash)
+                    if saved:
+                        say(f"  checkpoint {case.name}: t = {saved}")
             result["stopped_on_convergence"] = stop_requested
         result["returncode"] = proc.returncode
         metrics = project.extract(case_dir, case.params, derived)
@@ -207,6 +227,8 @@ def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
         (case_dir / RESULT).write_text(json.dumps(result, indent=2, default=str) + "\n")
     if export_dir and result.get("status") != "rendered":
         export_case(case_dir, Path(export_dir) / case_dir.name, opts.keep_fields, opts.compress)
+    if checkpoint_dir and result.get("status") in ("ok", "not_converged"):
+        Checkpoint(Path(checkpoint_dir) / case.name).clear()
     return result
 
 
@@ -334,6 +356,7 @@ def run_study(
         shutil.copy2(study.path, rdir / "study.yaml")
     write_run_info(rdir, study, len(cases))
     export_dir = Path(opts.export) / study.name / rdir.name if opts.export else None
+    checkpoint_dir = Path(opts.checkpoint) / study.name / rdir.name if opts.checkpoint else None
 
     todo = []
     for c in cases:
@@ -346,7 +369,8 @@ def run_study(
 
     results = []
     with ThreadPoolExecutor(max_workers=max(1, opts.jobs)) as pool:
-        futs = {pool.submit(run_case, project, c, d, opts, export_dir=export_dir, log=log): c for c, d in todo}
+        futs = {pool.submit(run_case, project, c, d, opts, export_dir=export_dir, log=log,
+                            checkpoint_dir=checkpoint_dir): c for c, d in todo}
         for fut in as_completed(futs):
             r = fut.result()
             results.append(r)

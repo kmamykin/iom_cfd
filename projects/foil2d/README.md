@@ -76,7 +76,12 @@ reattachment and trailing-edge separation, x/c, per side); `yplus_max`;
 `converged`, `unsteady`. Each case also has `surface.csv` (Cp and Cf along
 both surfaces). `iomcfd report` draws polars with any reference data.
 
-Transient cases (`solver: transient`) add:
+Transient cases (`solver: transient`) add the outputs below. On the cloud
+(and with `iomcfd run --checkpoint`), a time-accurate case on one rank
+writes its fields every flow-through and resumes from the last one if its
+VM is preempted (docs/cloud-gcp.md, Checkpoints).
+
+Transient cases add:
 * `flow_times_done`;
 * the drift check, `Cl_drift`, `Cd_drift` and `drifting` (docs/workflow.md,
   "Convergence and statistics");

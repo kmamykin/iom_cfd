@@ -53,6 +53,7 @@ STEP_FIRST_CELL = 0.05  # first cell at most this fraction of the smallest step 
 # solver: transient
 TRANSIENT_FILES = ("controlDict", "fvSchemes", "fvSolution")  # system/ files that differ from steady
 MIN_DT_FLOW_TIMES = 1e-6  # abort below this time step, in c/U (at Co 10: stair1 2e-3, NACA 0009 8e-3)
+CHECKPOINT_FLOW_TIMES = 1.0  # with checkpoints, a time-accurate case writes its fields this often (c/U)
 
 
 class Foil2D(Project):
@@ -271,6 +272,43 @@ class Foil2D(Project):
                     if times:
                         return cdir, max(times)[1], sp
         return None
+
+    # ------------------------------------------------------------------
+    # checkpoints (iomcfd.checkpoint): resume a time-accurate case on a new VM
+    def checkpoint_setup(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool:
+        """A time-accurate case on one rank writes its fields every
+        CHECKPOINT_FLOW_TIMES flow-throughs and keeps the last two (purgeWrite
+        2: the older is complete while the newer is written). A snapshot run
+        already writes every snapshot_interval and keeps them all. Adjustable
+        writes count from the start time, so the interval divides the time
+        left exactly and the last write is at the end time. Steady cases are
+        short and decomposed ones (np > 1) not supported: False."""
+        if p["solver"] != "transient" or int(p.get("np") or 1) > 1:
+            return False
+        if not float(p.get("snapshot_interval") or 0.0) > 0:
+            sysd = Path(case_dir) / "system"
+            cd = sysd / "controlDict.transient" if (sysd / "controlDict.transient").exists() else sysd / "controlDict"
+            set_entry(cd, "writeInterval", self._checkpoint_interval(float(d.get("restartTime", 0.0)), d))
+            set_entry(cd, "purgeWrite", 2)
+        return True
+
+    @staticmethod
+    def _checkpoint_interval(start: float, d: dict[str, Any]) -> float:
+        span = float(d["simEndTime"]) - start
+        n = max(1, round(span / (CHECKPOINT_FLOW_TIMES * float(d["flowTime"]))))
+        return span / n
+
+    def checkpoint_restored(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any], time: str) -> None:
+        """Continue from the restored time: past a steady start (start_iter)
+        switch to the time-accurate setup now, as Allrun would after it, and
+        divide the time left into whole write intervals again."""
+        sysd = Path(case_dir) / "system"
+        if (sysd / "controlDict.transient").exists():
+            for name in TRANSIENT_FILES:
+                (sysd / name).replace(sysd / f"{name}.steady")
+                (sysd / f"{name}.transient").replace(sysd / name)
+        if not float(p.get("snapshot_interval") or 0.0) > 0:
+            set_entry(sysd / "controlDict", "writeInterval", self._checkpoint_interval(float(time), d))
 
     def _start_from(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> None:
         """Initial fields from an earlier case's final time (see start_from in
