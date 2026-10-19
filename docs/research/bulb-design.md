@@ -641,6 +641,24 @@ mass). In parallel, build the boundary-layer model that bulb drag needs.
 
 Then rerun the A2 winner's friction drag with the transition model.
 
+**Results so far** (2026-10-19; details in the findings logs):
+* **B1** ([validation-dress](../../projects/bulb2d/findings/validation-dress.md)):
+  the transition model at Tu 0.05-0.1 % follows Dress's fall of drag with
+  Re_L, 10-30 % low. Its laminar bubbles reattach too soon, so a separating
+  body's drag reads low. Fully turbulent RANS is no bracket (−45 % at low
+  Re, +17 % at 1.34e6).
+* **B2** ([fineness](../../projects/bulb2d/findings/fineness.md)): with
+  transition, longer is better at fixed lead, but from L/D 9.1 (343 mm) to
+  14.3 only 2 %. Fat bulbs (L/D 5-5.7) separate on the tail; from 9.1 the
+  flow stays attached and laminar to about 0.93 L. Fully turbulent ranks
+  them the other way and doubles the slender bulbs' drag. The direction
+  matches Gilbert's tow test; the size is about half at 1 m/s and an eighth
+  at 0.5 m/s. **B3 is dropped**: the market-like bulb doesn't separate.
+* **A1** ([bulb-endplate](../../projects/keel3d/findings/bulb-endplate.md)):
+  the bulb adds 13-15 % keel side force at the same leeway (Open 50:
+  17-24 %), T_eff +4 %, the fin's tip load +44 %. keel3d's bulb drag is
+  about twice the transitional value.
+
 **Assumptions in the plan:**
 * **Righting moment has no conversion to race time yet.** Bracket it from
   0 (light air) to about 0.5 % of speed per 1 % of righting moment
