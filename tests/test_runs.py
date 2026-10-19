@@ -112,7 +112,9 @@ def test_gcp_job_writes_into_its_run():
     assert "--no-fields" not in cmd  # final fields go to the bucket: `gcp fetch --fields` + `iomcfd viz` need them
     no_retry = job["taskGroups"][0]["taskSpec"]["lifecyclePolicies"][0]
     assert no_retry["action"] == "FAIL_TASK" and 50005 in no_retry["actionCondition"]["exitCodes"]  # time limit
-    name = gcp.job_name("a-very-long-study-name-that-goes-on-and-on-and-on", "20261012-045433")
+    nic = job["allocationPolicy"]["network"]["networkInterfaces"][0]
+    assert nic["noExternalIpAddress"] and nic["subnetwork"].startswith("regions/us-central1/")  # IP quota is 8
+    name =gcp.job_name("a-very-long-study-name-that-goes-on-and-on-and-on", "20261012-045433")
     assert len(name) <= 63 and name.endswith("-20261012-045433")
 
 
