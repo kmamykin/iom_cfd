@@ -32,6 +32,9 @@ gcloud artifacts repositories describe "$AR_REPO" --location "$GCP_REGION" >/dev
 gcloud storage buckets describe "gs://$GCS_BUCKET" >/dev/null 2>&1 || \
     gcloud storage buckets create "gs://$GCS_BUCKET" --location "$GCP_REGION" --uniform-bucket-level-access
 
+# Batch VMs have no external IP (gcp.py): they reach Google APIs this way
+gcloud compute networks subnets update default --region "$GCP_REGION" --enable-private-ip-google-access
+
 gcloud iam service-accounts describe "$BATCH_SA" >/dev/null 2>&1 || \
     gcloud iam service-accounts create "$SA_NAME" --display-name "iom-cfd Batch VMs"
 
