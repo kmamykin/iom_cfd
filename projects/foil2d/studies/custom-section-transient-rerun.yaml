@@ -11,8 +11,11 @@ description: >
   run 20261018-104120 blew up after 5.1 flow-throughs, Courant number 9.8 to
   30,748 in one step); run 2, cst-opt2 at 5 deg and 0.75 m/s
   (custom-section-transient-opt2 run 20261018-161314 blew up after 0.58
-  flow-throughs, Courant number 10 to 1.4e8). The cases list holds the
-  latest run's case only.
+  flow-throughs, Courant number 10 to 1.4e8); run 3, HT35 at 7.25 % at 3 deg
+  and 1.5 m/s (custom-section-transient-15 run 20261019-164044 blew up at
+  3.7 flow-throughs, time step 4.7e-11 s, Courant number 7.2e5; run 3 has
+  checkpoints, image 9b8cbb8). The cases list holds the latest run's case
+  only.
 report:
   fin_span: 0.36
   induced_drag: true
@@ -26,4 +29,4 @@ defaults:
   average_times: 8
   max_co: 5
 cases:
-  - {foil: "file:cst-opt2.dat", speed: 0.75, aoa: 5, start_from: [custom-section-optima/20261018-051126]}
+  - {foil: "file:ht35-t0725.dat", speed: 1.5, aoa: 3, start_from: [custom-section-screen/20261018-043724]}
