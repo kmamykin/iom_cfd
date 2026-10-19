@@ -140,6 +140,12 @@ addLayersControls
     minMedialAxisAngle  90;
     nBufferCellsNoExtrude 0;
     nLayerIter          50;
+    // Limit how far from the walls layer addition moves interior points
+    // (displacementMedialAxis). Unlimited, it inverted 12 cells in the fin's
+    // near-wake box above the bulb on the fine mesh (bulb-endplate, NACA 0011
+    // bulb, 4 deg); 40 did too. 20 gives a clean mesh at 81 % of the hull's
+    // layer thickness (89 % unlimited), 96 % on the fin, 98 % on the bulb.
+    nMedialAxisIter     20;
 }
 
 meshQualityControls

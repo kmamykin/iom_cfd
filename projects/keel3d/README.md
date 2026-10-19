@@ -180,6 +180,14 @@ With the wake box and the aligned grid, measured at 4° leeway:
 | fine | 3.28 / 3.32 M | 172k / 174k | 97.8 / 97.4 % | |
 | xfine | about 14 M (**estimate**; too big for 11.7 GB of local Docker memory) | | | |
 
+* **Layer addition is limited to 20 medial-axis iterations**
+  (`nMedialAxisIter`). Unlimited, it moved interior points far from the
+  walls and inverted 12 cells in the near-wake box above a NACA 0011 bulb on
+  fine (bulb-endplate run 20261019-020506; the solver then stopped on a
+  floating-point exception). With 20 that mesh is clean; the hull's layers
+  reach 81 % of their target thickness (89 % before), the fin's 96 % (98 %),
+  the bulb's 98 %. Meshes made before 2026-10-19 had no limit.
+
 Meshing takes about 3-4 minutes (medium) and 8 minutes (fine) on 8 cores.
 Every level now has 3 faces over the skewness limit (5.3) on the waterline
 plane at the stern tip, where the hull's pointed end meets the waterline;

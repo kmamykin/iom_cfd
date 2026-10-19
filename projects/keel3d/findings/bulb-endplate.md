@@ -112,3 +112,9 @@ The bulb's drag at 0°: friction 78.8 mN, pressure 11.6 mN.
    left none), so the layer stage's interior point motion
    (displacementMedialAxis) inverts small cells there. Investigating with
    the layer settings; then rerun this case with A2's mesh check.
+   * Done (2026-10-19, local, the same case): unlimited and
+     `nMedialAxisIter 40` give the same 12 negative cells; 20 and 10 give
+     "Mesh OK" (max skewness 2.2). Layer thickness reached, hull / fin /
+     bulb: 89 / 98 / 98 % unlimited, 81 / 96 / 98 % with 20, 73 / 96 / 98 %
+     with 10. keel3d now uses 20. A2 (bulb-section) has this case as its
+     fine round-bulb point.
