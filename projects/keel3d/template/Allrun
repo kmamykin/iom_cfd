@@ -7,6 +7,12 @@ cd "${0%/*}" || exit 1
 NP="${NP:-1}"
 app=$(getApplication)
 
+# snappyHexMesh can finish its layer stage with an illegal mesh (inverted
+# cells); the solver then dies at once. Stop with checkMesh's report instead.
+meshBroken() {
+    grep -q -E "Zero or negative cell volume|faces are incorrectly oriented" log.checkMesh
+}
+
 runApplication surfaceFeatureExtract || exit 1
 runApplication blockMesh || exit 1
 
@@ -17,6 +23,11 @@ if [ "$NP" -gt 1 ]; then
     runApplication decomposePar -force -copyZero || exit 1
     runParallel snappyHexMesh -overwrite || exit 1
     runParallel checkMesh
+    if meshBroken; then
+        runApplication reconstructParMesh -constant   # keep the bad mesh for inspection
+        echo "mesh has inverted cells or wrongly oriented faces, see log.checkMesh" >&2
+        exit 1
+    fi
     runParallel potentialFoam -writep
     runParallel "$app"
     rc=$?
@@ -25,6 +36,10 @@ if [ "$NP" -gt 1 ]; then
 else
     runApplication snappyHexMesh -overwrite || exit 1
     runApplication checkMesh
+    if meshBroken; then
+        echo "mesh has inverted cells or wrongly oriented faces, see log.checkMesh" >&2
+        exit 1
+    fi
     runApplication potentialFoam -writep
     runApplication "$app"
     rc=$?
