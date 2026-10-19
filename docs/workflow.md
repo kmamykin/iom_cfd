@@ -207,7 +207,9 @@ of the solver log.
   * the project's numbers. For foil2d these are the latest Cl and Cd. A
     transient case adds flow-throughs, the lift oscillation over the last
     flow-through and `Cl_drift`/`Cd_drift`. A steady case adds the
-    windowed change of the means against `conv_tol`.
+    windowed change of the means against `conv_tol`. keel3d gives the
+    boat's latest D_h and S_h [N] and `D_h_change`/`S_h_change` against
+    `conv_tol`.
 
   For example (illustrative):
 
