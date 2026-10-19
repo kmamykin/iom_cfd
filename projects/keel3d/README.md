@@ -13,8 +13,10 @@ IOM?** Then: **what bulb section and cant?** (Track A of
 **Status: runs end to end on GCP; not validated.** taper-selection run
 20261018-044718 (24 cases) showed that the medium mesh could not rank the
 planforms ([findings](findings/taper-selection.md)). The mesh has changed
-since (Mesh levels), and taper-mesh, a mesh ladder for the first two fins
-to compare, is the next run.
+since (Mesh levels). taper-mesh, a mesh ladder for the first two fins to
+compare, ran as 20261018-234733: 11 of 16 cases finished, 4 failed on
+inverted cells in the fine and xfine meshes (fixed since, see the
+medial-axis limit below), and the job was cancelled; it is to be run again.
 
 ## The question and how it is answered
 
@@ -202,6 +204,18 @@ of them; **estimate**):
   floating-point exception). With 20 that mesh is clean; the hull's layers
   reach 81 % of their target thickness (89 % before), the fin's 96 % (98 %),
   the bulb's 98 %. Meshes made before 2026-10-19 had no limit.
+  Inverted cells also broke the 90 mm constant-chord fin on the NACA 0007
+  bulb on fine at 0, 2 and 4° and on xfine at 4° (taper-mesh run
+  20261018-234733; at 4° fine, 12 cells 17 mm behind the trailing edge and
+  10 mm above the bulb, reproduced locally). With 20,
+  meshed locally: that fin at 0, 2 and 4° and the 100 → 80 mm fin at 4°
+  are clean, hull 80-82 %, fin 96.2-96.7 %, bulb 99 %, all mirror images of
+  themselves. (10 iterations with 90 `nSmoothDisplacement` passes are
+  clean too, but leave the hull at 72-74 %.)
+* **Allrun stops after meshing** when checkMesh finds negative-volume cells
+  or wrongly oriented faces: the case fails with checkMesh's report and the
+  mesh is kept, instead of the solver crashing on a floating-point
+  exception.
 
 Meshing takes about 3-4 minutes (medium) and 8 minutes (fine) on 8 cores.
 Every level has 3 faces over the skewness limit (5.3) on the waterline
