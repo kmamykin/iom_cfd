@@ -14,10 +14,13 @@ IOM?** Then: **what bulb section and cant?** (Track A of
 20261018-044718 (24 cases) showed that the medium mesh could not rank the
 planforms ([findings](findings/taper-selection.md)). The mesh has changed
 since (Mesh levels). taper-mesh, a mesh ladder for the first two fins to
-compare (run 20261019-213145, xfine still running): medium can't rank
-them, and on fine the 90 mm constant-chord fin and the 100 → 80 mm fin
-are within 0.07 % of race time; a half-cell grid shift moves the
-constant-chord fin's S_h by 4-7 % ([findings](findings/taper-mesh.md)).
+compare (run 20261019-213145): medium can't rank them; fine can (xfine
+moves their 4° differences by less than 0.4 points). On fine the 90 mm
+constant-chord fin is 0.07 % of race time slower than the 100 → 80 mm
+fin, a tie; the tapered fin makes 2 % more S_h per degree on every mesh.
+A half-cell grid shift moves the constant-chord fin's S_h by 4-7 %
+([findings](findings/taper-mesh.md)). Next: the planform comparison on
+fine.
 
 ## The question and how it is answered
 
@@ -196,7 +199,7 @@ of them; **estimate**):
 | coarse | not measured (0.47 M before) | | | |
 | medium | 1.07 / 1.08 M | 65k / 67k | 96.8 / 95.5 % | |
 | fine | 3.3 / 3.4 M | 172k / 175k | 97.8 / 97.5 % | |
-| xfine | about 14 M (**estimate**; too big for 11.7 GB of local Docker memory) | | | |
+| xfine | 16.4 / 16.5 M (λ 1.0 / 0.8 at 90 mm mean chord, taper-mesh; too big for 11.7 GB of local Docker memory) | | | |
 
 * **Layer addition is limited to 20 medial-axis iterations**
   (`nMedialAxisIter`). Unlimited, it moved interior points far from the

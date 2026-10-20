@@ -15,7 +15,7 @@ differences move by < 1 % from fine to xfine. Symbols:
 geometry: [README](../README.md); the first, coarser look at the question:
 [taper-selection](taper-selection.md).
 
-## Run 20261019-213145 (2026-10-19, git d8bdfe3, GCP, 16 cases; xfine still running)
+## Run 20261019-213145 (2026-10-19, git d8bdfe3, GCP, 16 cases)
 
 **Setup.**
 * λ 1.0 (90 → 90 mm) and λ 0.8 (100 → 80 mm), span 334.6 mm; β_Y 0, 2,
@@ -26,7 +26,8 @@ geometry: [README](../README.md); the first, coarser look at the question:
   (0.3 mean chords behind it), the grid aligned with the boat, mirror-image
   meshes when upright (`trailingEdge.obj` 1 µm either side of y = 0), layer
   addition limited to 20 medial-axis iterations, and Allrun stops on
-  inverted cells after meshing. Medium 1.13-1.21 M cells, fine 3.59-3.84 M.
+  inverted cells after meshing. Medium 1.13-1.21 M cells, fine 3.59-3.84 M,
+  xfine 16.4-16.5 M.
 * simpleFoam, kOmegaSST with wall functions (fully turbulent), Tu 0.5 %,
   5 prism layers. Image `iom-cfd:d8bdfe3`, c3d-standard-16 Spot, 8 ranks.
 * Replaces run 20261018-234733 (git 58ba0c7), which lost λ 1.0 on fine at
@@ -39,11 +40,13 @@ geometry: [README](../README.md); the first, coarser look at the question:
   has the drift check) into this run, and its export replaced the cloud
   case in the bucket.
 
-**Outcome.** 14 of 16 ok, all converged: 11 stopped on simpleFoam's
-`residualControl`, 2 on the windowed means (λ 1.0, 0° medium at 608
-iterations; λ 1.0, 2° fine at 808), and the re-run on `residualControl` at
-674. The two xfine cases were at iteration 520 of 3000 after 5.5 h when this
-was written; the entry is to be completed when they finish.
+**Outcome.** 16 of 16 ok, all converged: 11 stopped on simpleFoam's
+`residualControl`, 4 on the windowed means (λ 1.0, 0° medium at 608
+iterations; λ 1.0, 2° fine at 808; both xfine cases at 1139), and the
+re-run on `residualControl` at 674. The xfine stops are real: the drift
+test agrees (D_h and S_h flat within 0.03 % across the last window).
+Entry written in two steps: medium and fine on 2026-10-20 at 03:30 UTC,
+xfine added when it finished at 17:53 UTC.
 
 ### Conclusions
 
@@ -51,8 +54,13 @@ was written; the entry is to be completed when they finish.
    race time at the working load and 0.01 % at the light load.** At equal
    S_h (6.12 N) the tapered fin sails at 3.93° instead of 4.00° with
    0.0008 N less D_h; its D_h at β_Y = 0 is 0.0005 N higher (0.7009 against
-   0.7004 N). Confidence: low until xfine; medium to fine moved the
-   difference more than its size (conclusion 2).
+   0.7004 N). On xfine (4° only) the tapered fin's lead grows: 2.2 % more
+   S_h at 4° against 1.9 % on fine, D_h 0.16 % higher against 0.54 %. A
+   rough race-time estimate from those (**estimate**: fine's polar slope
+   dD_h/dS_h = 0.033-0.043 at 4° and fine's D_h at β_Y = 0) gives the
+   constant-chord fin about 0.2 % slower at the working load. Confidence:
+   medium that the tapered fin is not worse; low on the size, which is
+   inside the grid-shift uncertainty (conclusion 6).
 2. **The medium mesh can't rank these fins: the first pass test fails.**
    The constant-chord fin's loss at the working load moves from 0.39 % on
    medium to 0.07 % on fine, 0.32 percentage points against the 0.1
@@ -60,22 +68,31 @@ was written; the entry is to be completed when they finish.
    β_Y = 0, the downwind half: medium gives the tapered fin 0.0060 N less
    (fin 0.0036, hull 0.0024), fine 0.0005 N more. Two fins of the same
    section and area, fully turbulent, should have nearly the same drag at
-   zero side force, so fine is the plausible one. Confidence: high that
-   medium is not enough; whether fine is enough waits for xfine.
-3. **The tapered fin makes 1.8 % more S_h per degree of leeway, on both
-   meshes**: 1.531 against 1.504 N/° on medium, 1.558 against 1.530 on fine
-   (fit to 4°); +1.8 / +1.9 % at 4°, +2.5 / +1.8 % at 2°. From medium to
-   fine, S_h at 4° rose 1.6 % (λ 1.0) and 1.7 % (λ 0.8): the constant-chord
-   fin's 8 % jump of taper-selection is gone with the new mesh, and the
-   ladder now treats both fins alike (the highlight's question). Confidence
+   zero side force, so fine is the plausible one. Confidence: high.
+3. **Fine is enough for the difference between these fins: the second
+   pass test passes.** From fine to xfine at 4° the S_h difference
+   (λ 0.8 − 1.0) moves from +1.85 to +2.19 % (+0.34 points) and the D_h
+   difference from +0.54 to +0.16 % (−0.38 points), both under the 1 %
+   allowed. Only 4° was run on xfine, so the race-time ranking itself was
+   not repeated there; at the 0.1-point standard of the first test the
+   estimate in conclusion 1 (0.07 → about 0.2 %) is borderline.
+   Confidence medium.
+4. **The tapered fin makes about 2 % more S_h per degree of leeway, on
+   every mesh**: 1.531 against 1.504 N/° on medium, 1.558 against 1.530 on
+   fine (fit to 4°); at 4° +1.8 / +1.9 / +2.2 % on medium / fine / xfine,
+   at 2° +2.5 / +1.8 %. S_h at 4° rose 1.6 % (λ 1.0) and 1.7 % (λ 0.8)
+   from medium to fine, 1.9 and 2.2 % from fine to xfine: the
+   constant-chord fin's 8 % jump of taper-selection is gone with the new
+   mesh, and the ladder treats both fins alike (the highlight's question).
+   Confidence
    medium: shifting the grid moves the constant-chord fin's S_h by 4-7 %
-   (conclusion 5).
-4. **Taper raises the centre of lateral resistance by about 4 mm**:
-   z_clr −0.180 against −0.184 m at 2° and 4° on both meshes (4 of 4
-   comparisons, 3.7-4.1 mm). The heeling arm M_h,dyn / S_h is 2 % shorter.
+   (conclusion 6).
+5. **Taper raises the centre of lateral resistance by about 4 mm**:
+   z_clr −0.180 against −0.184 m at 2° and 4° on every mesh (5 of 5
+   comparisons, 3.6-4.1 mm). The heeling arm M_h,dyn / S_h is 2 % shorter.
    taper-selection found the same direction at 100 mm mean chord.
    Confidence high; the effect is small.
-5. **Where the grid lines fall moves the constant-chord fin's side force
+6. **Where the grid lines fall moves the constant-chord fin's side force
    more than the planform does.** Shifting the grid by half the finest fin
    cell in x and y changed S_h at 4° by −4.3 % on medium and +6.5 % on
    fine, and D_h by +2.0 / +2.2 %. The spanwise loading kept its shape (on
@@ -86,11 +103,16 @@ was written; the entry is to be completed when they finish.
    aligned mirror-image mesh gives both fins a symmetric edge. A shifted
    case at β_Y = 0 would show it as S_h ≠ 0. Confidence: high in the
    numbers, low in the cause.
-6. **Absolute D_h is not mesh-converged**: from medium to fine it fell 5.5 %
-   at 4° and 2-3 % at 0°, mostly fin friction (−11 % at 4°; mean fin y+
-   5.0 → 3.2, inside the buffer-layer blend of the wall functions) and the
-   bulb (−5 to −8 %); the hull moved < 0.6 %. The study uses differences
-   between fins at equal S_h, not absolute drag. Confidence high.
+7. **Absolute forces are not mesh-converged**: at 4° D_h fell 5.5 % from
+   medium to fine and another 4.1-4.5 % on xfine, mostly the fin (−11 to
+   −12 % per level, mostly friction; mean fin y+ 5.1 → 3.2 → 1.8, through
+   the buffer-layer blend of the wall functions) and the bulb (−5 to −7 %
+   per level). The hull moved < 0.6 % from medium to fine, then +2.6-3.0 %
+   on xfine, probably from the keel box at the fin root, refined one more
+   level there. S_h rose 1.6-1.7 % and then 1.9-2.2 %: the steps don't
+   shrink, so there is no extrapolation to zero cell size. At 0° D_h fell
+   2-3 % from medium to fine. The study uses differences between fins at
+   equal S_h, not absolute forces. Confidence high.
 
 ### Evidence
 
@@ -129,8 +151,14 @@ Mesh ladder and grid shift at 4°, λ 1.0 (`report/mesh_check.md`,
 | fine | 0 | 3.84 M | 0.8296 | 6.119 | 0.3283 | 0.455 |
 | fine | 0.5 | 3.71 M | 0.8479 (+2.2 %) | 6.515 (+6.5 %) | 0.3373 | 0.456 |
 
-λ 0.8 at 4°: medium 0.8827 N / 6.126 N, fine 0.8341 / 6.232 (−5.5 % /
-+1.7 %).
+Both fins at 4° on the three meshes (`report/mesh_check.md`; difference
+λ 0.8 against λ 1.0):
+
+| mesh | cells | λ 1.0 D_h / S_h [N] | λ 0.8 D_h / S_h [N] | ΔD_h | ΔS_h | mean fin y+ |
+|---|---|---|---|---|---|---|
+| medium | 1.20-1.21 M | 0.8791 / 6.020 | 0.8827 / 6.126 | +0.42 % | +1.77 % | 5.0-5.1 |
+| fine | 3.84 M | 0.8296 / 6.119 | 0.8341 / 6.232 | +0.54 % | +1.85 % | 3.2 |
+| xfine | 16.4-16.5 M | 0.7954 / 6.232 | 0.7967 / 6.369 | +0.16 % | +2.19 % | 1.8 |
 
 The falsely converged case (λ 0.8, 0°, fine), D_h of the whole boat:
 
@@ -148,11 +176,14 @@ the re-run made it a tie.
 
 * keel3d now stops a case only when D_h and S_h are also flat within the
   last window (`settled(..., drift=True)`, commit 163bed5). Replayed on
-  this run's 14 force histories it changes only the false stop.
-* The planform comparison runs on fine at least; medium is out. Whether
-  fine is enough waits for xfine.
+  this run's 16 force histories (xfine included), it changes only the
+  false stop.
+* The planform comparison runs on fine; medium is out (first pass test),
+  and xfine moves the fins' 4° differences by less than 0.4 points (second
+  pass test). Cost: a fine case is 1.4-1.7 h on 8 ranks, against
+  0.3 h on medium and 11 h on xfine.
 * The aligned mirror-image grid stays the reference; `mesh_shift` results
-  are an uncertainty estimate, not an equal alternative (conclusion 5).
+  are an uncertainty estimate, not an equal alternative (conclusion 6).
 
 ### Assumptions
 
@@ -171,7 +202,9 @@ the re-run made it a tie.
 * xfine only at 4°, the grid shift only for λ 1.0 at 4°: the shift
   sensitivity of the tapered fin is unknown.
 * Three leeways: the interpolation to equal S_h runs on three points.
-* One of 14 cases came from a local machine.
+* One of 16 cases came from a local machine.
+* xfine ran only at 4°, so the race-time comparison (which needs 0° and a
+  leeway sweep) exists only on medium and fine.
 
 ### Learnings
 
@@ -185,29 +218,29 @@ the re-run made it a tie.
   bulb studies, may hold such cases.
 * The fine meshes are valid for both fins at 0-4° with the medial-axis
   limit; both xfine meshes passed the mesh check too.
-* Compute: medium 16-22 min, fine 83-104 min per case (8 ranks,
-  c3d-standard-16 Spot), 12.3 case-hours for 14 cases on GCP; the re-run
-  took 1.8 h locally. xfine runs at about 35 s per iteration (fine about
-  7 s), so a case needs roughly 8-12 h if it converges in 800-1200
-  iterations (**estimate**).
+* Compute: medium 16-22 min, fine 83-104 min, xfine 11.3-11.5 h per case
+  (8 ranks, c3d-standard-16 Spot; xfine about 35 s per iteration against
+  fine's 7 s, 1139 iterations); 36.1 case-hours for the 16 results. One
+  Spot preemption restarted the λ 1.0 xfine case from scratch after about
+  8-9 h (**estimate** from the progress lines); its checkpoints were not
+  used. The re-run took 1.8 h locally.
 
 ### Open questions and next steps
 
-1. **xfine at 4°** (running): the second pass test, the 4° S_h and D_h
-   differences moving by < 1 % from fine to xfine. The xfine cases run
-   with the old convergence test, so their force histories need a check
-   for a false stop.
-2. **Mesh camber check**: λ 1.0 at β_Y = 0 on medium and fine with
-   `mesh_shift 0.5`; S_h ≠ 0 would confirm the cause in conclusion 5. A
+1. **Mesh camber check**: λ 1.0 at β_Y = 0 on medium and fine with
+   `mesh_shift 0.5`; S_h ≠ 0 would confirm the cause in conclusion 6. A
    shift in x only (keeping the mirror image) would separate the edge's
    position along the chord from its symmetry. That needs a new
    parameter. Cheap: 2-4 cases.
-3. If fine passes: the planform comparison on fine, both fins at β_Y 0-6°,
-   then 0.75 and 1.5 m/s and heel.
+2. **The planform comparison on fine**: both fins at β_Y 0-6° (6° for the
+   high load), then 0.75 and 1.5 m/s and heel. About 1.5 h per case.
+3. Why the λ 1.0 xfine case did not resume from a checkpoint after its
+   preemption.
 4. Check taper-selection run 20261018-044718 and the bulb studies' keel3d
    runs for false stops (replay their force histories).
 
 Highlights for the next run: the shifted 0° case against the aligned one
 (`compare: mesh_shift`, `why`: does the shifted grid give a symmetric fin
-side force, i.e. mesh camber?), and λ 1.0 against 0.8 at 4° on xfine
-(`compare: fin_taper`, `why`: does the 1.8 % S_h difference survive?).
+side force, i.e. mesh camber?), and λ 1.0 against 0.8 at the working load
+on fine (`compare: fin_taper`, `why`: where on the span does the tapered
+fin's 2 % extra S_h come from?).
