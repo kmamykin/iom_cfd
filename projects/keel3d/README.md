@@ -14,9 +14,10 @@ IOM?** Then: **what bulb section and cant?** (Track A of
 20261018-044718 (24 cases) showed that the medium mesh could not rank the
 planforms ([findings](findings/taper-selection.md)). The mesh has changed
 since (Mesh levels). taper-mesh, a mesh ladder for the first two fins to
-compare, ran as 20261018-234733: 11 of 16 cases finished, 4 failed on
-inverted cells in the fine and xfine meshes (fixed since, see the
-medial-axis limit below), and the job was cancelled; it is to be run again.
+compare (run 20261019-213145, xfine still running): medium can't rank
+them, and on fine the 90 mm constant-chord fin and the 100 → 80 mm fin
+are within 0.07 % of race time; a half-cell grid shift moves the
+constant-chord fin's S_h by 4-7 % ([findings](findings/taper-mesh.md)).
 
 ## The question and how it is answered
 
