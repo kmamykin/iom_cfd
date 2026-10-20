@@ -68,6 +68,7 @@ def test_hash_ignores_np():
 
 def test_case_name_is_filesystem_safe():
     assert case_name({"aoa": -2.5, "foil": "file:my-section.dat"}) == "aoam2.5_foilmymsection"
+    assert case_name({"mesh_shift_only": ""}) == "mesh_shift_onlynone"
     assert len(case_name({f"k{i}": "x" * 20 for i in range(10)})) <= 80
 
 

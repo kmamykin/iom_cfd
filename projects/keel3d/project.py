@@ -56,7 +56,7 @@ BULB_SHAPE = {"bulb_section": "naca0007", "bulb_aspect": 1.0, "bulb_top": 2.0, "
 # conditions it is compared under.
 DESIGN = ["fin_taper", "fin_sweep", "fin_mean_chord", "fin_section", "fin_x", "bulb", "bulb_section", "bulb_x",
           "bulb_aspect", "bulb_top", "bulb_bottom", "bulb_cant"]
-CONDITION = ["speed", "heel", "mesh", "mesh_shift", "fin_wake", "turbulence", "Tu"]
+CONDITION = ["speed", "heel", "mesh", "mesh_shift", "mesh_shift_only", "fin_wake", "turbulence", "Tu"]
 
 
 def bulb_spec(p: dict[str, Any], length: float, x_cg: float, z_axis: float) -> ap.FoilBulbSpec:
@@ -157,6 +157,20 @@ def hull_spec(p: dict[str, Any]) -> hulls.CanoeSpec:
         beam_at=float(p["hull_beam_at"]), draft_at=float(p["hull_draft_at"]),
         entry=float(p["hull_entry"]), run=float(p["hull_run"]), section=float(p["hull_section"]),
     )
+
+
+def _ok(df):
+    """Finished cases; mesh_shift_only "" (both axes) where a CSV read it as NaN."""
+    df = df[df["status"].isin(["ok", "not_converged"])]
+    if "mesh_shift_only" in df:
+        df = df.assign(mesh_shift_only=df["mesh_shift_only"].fillna(""))
+    return df
+
+
+def _grid_shift(df):
+    """mesh_shift and its axes as one label: "0", "0.5 xy", "0.5 x", ..."""
+    only = df["mesh_shift_only"].fillna("") if "mesh_shift_only" in df else [""] * len(df)
+    return [("0" if not s else f"{s:g} {o or 'xy'}") for s, o in zip(df["mesh_shift"].astype(float), only)]
 
 
 def read_spanload(case_dir: Path) -> tuple[np.ndarray, np.ndarray] | None:
@@ -267,8 +281,12 @@ class Keel3D(Project):
         # The domain ends on whole background cells from the origin (bow, centre
         # plane, waterline), so every refined cell sits the same way relative to
         # the boat whatever the leeway or taper. mesh_shift moves that grid in x
-        # and y by a fraction of the finest fin cell.
-        shift = float(p["mesh_shift"]) * h / 2 ** lv["feat"]
+        # and y by a fraction of the finest fin cell; mesh_shift_only "x" or
+        # "y" moves it along one axis (x keeps an upright mesh a mirror image).
+        only = p.get("mesh_shift_only") or ""
+        if only not in ("", "x", "y"):
+            raise ValueError(f"mesh_shift_only {only!r}: expected '', 'x' or 'y'")
+        shift = float(p["mesh_shift"]) * h / 2 ** lv["feat"] * np.array([only != "y", only != "x"], float)
         dom_lo = np.floor(np.array([-1.5 * L, -1.5 * L - 4 * L * tb, klo[2] - 1.2 * L]) / h) * h
         dom_hi = np.ceil(np.array([4.0 * L, 1.5 * L + 4 * L * tb, 0.0]) / h) * h
         n = np.maximum(np.round((dom_hi - dom_lo) / h).astype(int), 1)
@@ -590,7 +608,7 @@ class Keel3D(Project):
         ref_leeway = [float(a) for a in ref.pop("leeway", [2, 4, 6])]
         vdrdv = {float(k): float(v) for k, v in (opts.get("vdrdv") or VDRDV).items()}
         tan_t = math.tan(math.radians(float(opts.get("track_angle", TRACK_ANGLE))))
-        df = df[df["status"].isin(["ok", "not_converged"])]
+        df = _ok(df)
         design = [c for c in DESIGN if c in df and df[c].nunique() > 1] or ["fin_taper"]
         cond = [c for c in CONDITION if c in df and df[c].nunique() > 1]
         other = [c for c in cond if c != "heel"]
@@ -660,7 +678,7 @@ class Keel3D(Project):
         steep."""
         import pandas as pd
 
-        df = df[df["status"].isin(["ok", "not_converged"])]
+        df = _ok(df)
         design = [c for c in DESIGN if c in df and df[c].nunique() > 1] or ["fin_taper"]
         cond = [c for c in CONDITION if c in df and df[c].nunique() > 1]
         if max_leeway is not None:
@@ -689,7 +707,7 @@ class Keel3D(Project):
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
-        df = df[df["status"].isin(["ok", "not_converged"])]
+        df = _ok(df)
         if df.empty:
             return []
         out_dir = Path(out_dir)
@@ -728,7 +746,8 @@ class Keel3D(Project):
         if "mesh" in df and df["mesh"].nunique() > 1:
             files.append(self._check_md(df, design, "mesh", "medium", "Mesh check", out_dir / "mesh_check.md"))
         if "mesh_shift" in df and df["mesh_shift"].nunique() > 1:
-            files.append(self._check_md(df, design, "mesh_shift", 0.0, "Grid-shift check", out_dir / "shift_check.md"))
+            files.append(self._check_md(df.assign(grid_shift=_grid_shift(df)), design, "grid_shift", "0",
+                                        "Grid-shift check", out_dir / "shift_check.md"))
         files += self._spanload_figure(df, design, cond, out_dir, options)
         files.append(self._planform_figure(df, design, out_dir / "planforms.png"))
         return files
@@ -784,7 +803,9 @@ class Keel3D(Project):
         values = list(MESH_LEVELS) if col == "mesh" else sorted(df[col].unique())
         values = [v for v in values if v in set(df[col])]
         cols = [c for c in ("drag_N", "side_N", "drag_fin_N", "drag_bulb_N", "drag_hull_N", "eta_cp", "n_cells") if c in df]
-        nuisance = [c for c in ("mesh", "mesh_shift", "fin_wake") if c != col and c in df and df[c].nunique() > 1]
+        skip = {col, "mesh_shift", "mesh_shift_only"} if col == "grid_shift" else {col}
+        nuisance = [c for c in ("mesh", "mesh_shift", "mesh_shift_only", "fin_wake")
+                    if c not in skip and c in df and df[c].nunique() > 1]
         others = [c for c in [*design, "leeway", "speed", "heel", *nuisance] if c in df]
         L = [f"## {title}", "", f"Cases run with more than one {col} ({', '.join(map(str, values))}), all else equal. "
              f"In brackets: change from {col} {base_value}.", ""]

@@ -96,6 +96,25 @@ def test_mesh_shift_moves_the_background_grid(project, tmp_path):
     assert moved["xMin"] - base["xMin"] == pytest.approx(0.5 * cell)
     assert moved["yMin"] - base["yMin"] == pytest.approx(0.5 * cell)
     assert moved["zMax"] == base["zMax"] == 0.0  # the waterline stays the top
+    for axis, (dx, dy) in (("x", (0.5, 0.0)), ("y", (0.0, 0.5))):
+        one = project.prepare_case(tmp_path / axis, {**project.defaults, "mesh": "medium", "mesh_shift": 0.5,
+                                                     "mesh_shift_only": axis})
+        assert one["xMin"] - base["xMin"] == pytest.approx(dx * cell, abs=1e-12)
+        assert one["yMin"] - base["yMin"] == pytest.approx(dy * cell, abs=1e-12)
+    with pytest.raises(ValueError, match="mesh_shift_only"):
+        project.prepare_case(tmp_path / "z", {**project.defaults, "mesh_shift_only": "z"})
+
+
+def test_shift_axes_kept_apart_and_out_of_old_hashes(project):
+    from iomcfd.study import params_hash
+
+    grid_shift = type(project).report.__globals__["_grid_shift"]  # project modules load outside sys.modules
+    p = dict(project.defaults)
+    old = {k: v for k, v in p.items() if k != "mesh_shift_only"}  # a case from before the parameter
+    assert params_hash(p) == params_hash(old) != params_hash({**p, "mesh_shift_only": "x"})
+    df = pd.DataFrame({"mesh_shift": [0.0, 0.5, 0.5, 0.5], "mesh_shift_only": [np.nan, np.nan, "x", "y"]})
+    assert grid_shift(df) == ["0", "0.5 xy", "0.5 x", "0.5 y"]
+    assert grid_shift(df.drop(columns="mesh_shift_only")) == ["0", "0.5 xy", "0.5 xy", "0.5 xy"]
 
 
 def test_grid_aligned_with_the_boat_at_any_leeway(project, tmp_path):

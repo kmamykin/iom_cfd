@@ -187,7 +187,10 @@ the fin, bulb, near wake and boxes once more than `fine`, not the hull.
 * **`mesh_shift`** moves that grid in x and y by a fraction of the finest
   fin cell, to test how sensitive the forces are to where the grid lines
   fall. On medium, a shift of 0.5 broke the mirror image (by design) and
-  gave the constant-chord fin 10 % fewer faces (58k against 65k).
+  gave the constant-chord fin 10 % fewer faces (58k against 65k). In
+  taper-mesh it moved that fin's S_h at 4° by −4.3 % (medium) and +6.5 %
+  (fine). `mesh_shift_only: x` (or `y`) shifts along one axis; a shift in x
+  keeps an upright mesh a mirror image.
 
 With the wake box and the aligned grid, measured at β_Y = 4° with 100 mm
 mean chord (a 90 mm fin has cells 10 % smaller, so roughly 10-15 % more
@@ -301,7 +304,14 @@ slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
   resistance on every mesh ([findings](findings/taper-selection.md)).
 * `taper-mesh`: 0007/90 constant chord against 100 → 80 mm, β_Y 0, 2, 4° on
   medium and fine, 4° on xfine, and the constant-chord fin at 4° with the
-  grid shifted. Picks the mesh level for the planform comparison.
+  grid shifted. Picks the mesh level for the planform comparison: fine
+  (run 20261019-213145).
+* `taper-gridshift`: why the grid shift moves the constant-chord fin's S_h
+  by 4-7 %: shifted grids at 0° (mesh camber would show as S_h ≠ 0) and at
+  4° in x only, y only and both, for both fins. 8 cases, mostly fine.
+* `taper-compare`: the planform comparison on fine, both fins at β_Y 0, 2,
+  4, 6°, 1 m/s, upright; ranked at the constant-chord fin's S_h at 2, 4,
+  6°.
 * `bulb-smoke`: the bulb options on xcoarse (fin alone; flat bottom, canted,
   heeled; flat top).
 * `bulb-endplate` (Track A1): the λ 0.8 fin with and without the NACA 0011

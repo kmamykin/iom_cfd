@@ -69,7 +69,7 @@ EXECUTION_KEYS = {"np", "relax_U", "relax_turb", "relax_transition", "snapshot_i
 
 # Parameters added after runs existed, left out of the hash while empty
 # (their default), so finished cases of earlier runs keep their hash.
-OPTIONAL_KEYS = {"start_from"}
+OPTIONAL_KEYS = {"start_from", "mesh_shift_only"}
 
 
 # Scientific notation PyYAML (YAML 1.1) leaves as a string, e.g. 6.0e6 or 1e5.
@@ -232,6 +232,8 @@ class Study:
 def _slug_value(v: Any) -> str:
     if isinstance(v, float):
         v = f"{v:g}"
+    if v == "":  # an option left at its default, e.g. keel3d's mesh_shift_only
+        return "none"
     s = str(v).strip().lower()
     s = s.replace("file:", "").replace(".dat", "")
     s = re.sub(r"^-", "m", s)
