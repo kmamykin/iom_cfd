@@ -19,8 +19,14 @@ moves their 4° differences by less than 0.4 points). On fine the 90 mm
 constant-chord fin is 0.07 % of race time slower than the 100 → 80 mm
 fin, a tie; the tapered fin makes 2 % more S_h per degree on every mesh.
 A half-cell grid shift moves the constant-chord fin's S_h by 4-7 %
-([findings](findings/taper-mesh.md)). Next: the planform comparison on
-fine.
+([findings](findings/taper-mesh.md)). taper-gridshift traced that to a
+false camber when the grid is shifted across the centre plane; the aligned
+mirror-image grid doesn't have it ([findings](findings/taper-gridshift.md)).
+taper-compare (fine, β_Y 0-6°, 1 m/s, upright): the 100 → 80 mm fin is
+never slower than the constant 90 mm chord, 0.02 / 0.07 / 0.4-0.7 % faster
+at the light / working / high load, with its CLR 4 mm higher
+([findings](findings/taper-compare.md)). Provisional: fully turbulent,
+one speed, upright.
 
 ## The question and how it is answered
 
@@ -308,10 +314,14 @@ slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
   (run 20261019-213145).
 * `taper-gridshift`: why the grid shift moves the constant-chord fin's S_h
   by 4-7 %: shifted grids at 0° (mesh camber would show as S_h ≠ 0) and at
-  4° in x only, y only and both, for both fins. 8 cases, mostly fine.
+  4° in x only, y only and both, for both fins. 8 cases, mostly fine. Run
+  20261020-183155: a shift in y gives a false camber (S_h 0.23 N at 0° on
+  fine), a shift in x moves S_h 0.5 %; the tapered fin is far less
+  sensitive.
 * `taper-compare`: the planform comparison on fine, both fins at β_Y 0, 2,
   4, 6°, 1 m/s, upright; ranked at the constant-chord fin's S_h at 2, 4,
-  6°.
+  6°. Run 20261020-183208: the tapered fin is never slower, faster at
+  high load.
 * `bulb-smoke`: the bulb options on xcoarse (fin alone; flat bottom, canted,
   heeled; flat top).
 * `bulb-endplate` (Track A1): the λ 0.8 fin with and without the NACA 0011
