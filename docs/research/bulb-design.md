@@ -666,6 +666,22 @@ Then rerun the A2 winner's friction drag with the transition model.
   for transition and the upper righting-moment credit, only the flat bottom
   comes level with round, and only at the upright working load. Bulb lift
   and pitch are negligible. The differences survive the fine mesh.
+* **A3** ([bulb-cant](../../projects/keel3d/findings/bulb-cant.md)): for
+  the round bulb 2° nose up is best at the working load (25° heel) and 0°
+  at the light load, all within 0.1 % of race time; 4° loses downwind.
+  This agrees with the 2° "all round" practice. The bulb's pitching moment
+  says it is nearly aligned with the flow at 0.1-0.6° of cant, less than
+  Gilbert's leeway × sin(heel) (1.7° at 4° leeway); keel3d has no trim.
+
+**Not studied:** plate ("pancake") bulbs, width/height 3:1 and more. A2
+stopped at 2:1. keel3d can build them (`bulb_aspect` 3-4, superellipse
+exponents for flat faces), and the class rules allow the width in the lowest
+60 mm. A2's trend says they lose (about +30 mN at 3:1, half from the longer
+fin; **estimate**); their end-plate effect is the open part. Nor the beaver
+tail.
+
+**Next iteration:** the evaluation of a custom-designed bulb, in keel3d and
+bulb2d, against the round NACA 0011 at 2° nose up as the reference.
 
 **Assumptions in the plan:**
 * **Righting moment has no conversion to race time yet.** Bracket it from
