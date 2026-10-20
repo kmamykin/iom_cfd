@@ -254,10 +254,15 @@ Per case (`results.csv`):
 
 While a case runs, its progress line ([docs/workflow.md](../../docs/workflow.md),
 "Progress and divergence"; `iomcfd gcp progress <study>` on GCP) adds the boat's latest
-`D_h` and `S_h` [N] and `D_h_change`, `S_h_change`: how far their means
-over the last `conv_window` iterations moved from the window before,
-relative to D_h and to max(D_h, S_h). The case stops when both are below
-`conv_tol`.
+`D_h` and `S_h` [N]; `D_h_change`, `S_h_change`: how far their means
+over the last `conv_window` iterations moved from the window before; and
+`D_h_drift`, `S_h_drift`: how far the second half of the last window moved
+from its first half; all relative to D_h and to max(D_h, S_h). The case
+stops when all four are below `conv_tol` (or when simpleFoam's residuals
+reach their `residualControl` limits). The drift test came after taper-mesh
+run 20261019-213145: one case's window means agreed by chance, because the
+earlier window held the start-up transient, and it stopped at 402
+iterations with D_h still climbing 4 % per window.
 
 `iomcfd report`:
 * `keel_forces.png`: S_h and D_h against β_Y, and D_h against S_h;

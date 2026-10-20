@@ -2,6 +2,7 @@
 
 import math
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -147,9 +148,25 @@ def test_progress_reports_forces_and_their_drift(project, tmp_path):
     w = slice(-100, None), slice(-200, -100)
     assert prog["D_h_change"] == pytest.approx(abs(drag[w[0]].mean() - drag[w[1]].mean()) / drag[-1])
     assert prog["S_h_change"] == pytest.approx(abs(side[w[0]].mean() - side[w[1]].mean()) / side[-1])
+    last = drag[-100:]
+    assert prog["D_h_drift"] == pytest.approx(abs(last[50:].mean() - last[:50].mean()) / drag[-1])
     assert prog["conv_tol"] == p["conv_tol"]
-    assert project.converged(tmp_path, p, d) == (max(prog["D_h_change"], prog["S_h_change"]) < p["conv_tol"])
+    worst = max(prog[f"{k}_{m}"] for k in ("D_h", "S_h") for m in ("change", "drift"))
+    assert project.converged(tmp_path, p, d) == (worst < p["conv_tol"])
     assert project.progress(tmp_path / "none", p, d) == {}
+
+
+def test_not_converged_while_climbing_after_the_transient(project, tmp_path):
+    # taper-mesh run 20261019-213145, 0.8 at 0 deg on fine: the start-up
+    # transient's window had the same mean as the next, still-climbing window
+    p = {**project.defaults}
+    d = {"dragDir": [1.0, 0.0, 0.0], "sideDir": [0.0, 1.0, 0.0], "convWindow": 200}
+    n = np.arange(200)
+    drag = np.concatenate([0.68 + 0.2 * np.sin(2 * np.pi * n / 50), 0.66 + 0.04 * n / 199])
+    _total_forces(tmp_path, drag, 0 * drag)
+    prog = project.progress(tmp_path, p, d)
+    assert prog["D_h_change"] < p["conv_tol"] < prog["D_h_drift"]
+    assert not project.converged(tmp_path, p, d)
 
 
 def test_flatter_bulb_same_lead_lower_and_longer_fin(project):

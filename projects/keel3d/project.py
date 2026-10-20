@@ -19,7 +19,7 @@ import numpy as np
 
 from iomcfd import physics
 from iomcfd.foam import find_dat, read_dat
-from iomcfd.forces import forces_function, read_forces, settled, window_stats
+from iomcfd.forces import forces_function, read_forces, settled, window_drift, window_stats
 from iomcfd.geometry import appendages as ap
 from iomcfd.geometry import foils, hulls, stl
 from iomcfd.project import Project
@@ -400,19 +400,21 @@ class Keel3D(Project):
         return f[:, 1:4] @ np.array(d["dragDir"]), f[:, 1:4] @ np.array(d["sideDir"])
 
     def converged(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool:
-        """Windowed means of D_h and S_h stopped moving."""
+        """Windowed means of D_h and S_h stopped moving, and neither drifts
+        within the last window."""
         h = self._force_history(case_dir, d)
         if h is None:
             return False
         drag, side = h
         w, tol = int(d["convWindow"]), float(p["conv_tol"])
         scale = max(abs(drag[-1]), abs(side[-1]))
-        return settled(drag, w, tol, abs(drag[-1])) and settled(side, w, tol, scale)
+        return settled(drag, w, tol, abs(drag[-1]), drift=True) and settled(side, w, tol, scale, drift=True)
 
     def progress(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> dict[str, Any]:
-        """Latest D_h and S_h of the whole boat [N], and how far their windowed
-        means still move (relative, on the scales `converged` uses), against
-        conv_tol: the case stops once both changes are below it."""
+        """Latest D_h and S_h of the whole boat [N], how far their windowed
+        means still move and how much they drift within the last window
+        (relative, on the scales `converged` uses), against conv_tol: the case
+        stops once all four are below it."""
         h = self._force_history(case_dir, d)
         if h is None:
             return {}
@@ -424,6 +426,7 @@ class Keel3D(Project):
             st = window_stats(series, w)
             if st is not None and scales[key]:
                 out[f"{key}_change"] = st[1] / scales[key]
+                out[f"{key}_drift"] = window_drift(series, w) / scales[key]
         out["conv_tol"] = float(p["conv_tol"])
         return out
 

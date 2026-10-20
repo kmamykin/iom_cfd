@@ -80,7 +80,26 @@ def window_stats(series: np.ndarray, window: int) -> tuple[float, float, float] 
     return float(last.mean()), float(abs(last.mean() - prev.mean())), float(last.std())
 
 
-def settled(series: np.ndarray, window: int, tol: float, scale: float) -> bool:
-    """True when the windowed mean has stopped moving: |dmean| < tol*scale."""
+def window_drift(series: np.ndarray, window: int) -> float | None:
+    """|mean of the last half-window - mean of the half before|: the trend
+    inside the last window, which window_stats' change can miss."""
+    if len(series) < window or window < 2:
+        return None
+    last = series[-window:]
+    h = window // 2
+    return float(abs(last[h:].mean() - last[:h].mean()))
+
+
+def settled(series: np.ndarray, window: int, tol: float, scale: float, drift: bool = False) -> bool:
+    """True when the windowed mean has stopped moving: |dmean| < tol*scale.
+
+    The two windows' means can agree by chance while the series still
+    climbs: when the earlier window holds the start-up transient, whose mean
+    can land on the later one's (keel3d taper-mesh run 20261019-213145 stopped
+    a case at 402 iterations with its drag still rising 4 % per window).
+    `drift` also requires the last window itself to be flat (window_drift).
+    """
     st = window_stats(series, window)
-    return bool(st is not None and st[1] < tol * scale)
+    if st is None or st[1] >= tol * scale:
+        return False
+    return not drift or window_drift(series, window) < tol * scale
