@@ -152,3 +152,104 @@ flow-angle-sweep:
   study: fin-profile-selection
   runs: [20261012-175146]
   file: viz/boundary_layer_by_aoa_chord0.08foilnaca0009speed1.0.mp4   # 0009/80, 1 m/s, Tu 1 %, 0-8 deg
+
+# --- Keel bulb page (site/bulb-design/index.qmd) -------------------------------------------------
+# Track B, bulb2d: the bulb alone, axisymmetric, transition model
+bulb-dress:   # validation: Dress's laminar body (measured data: projects/bulb2d/validation/dress1988.csv)
+  study: validation-dress
+  runs: [20261019-020534]
+  file: results.csv
+  columns: [turbulence, Tu, mesh, Re_L, Cd_wet, friction_share, x_sep, x_reattach, status]
+bulb-fineness:   # 2380 g of lead as NACA bodies of L/D 5-14.3 at 0.5, 1 and 1.5 m/s
+  study: fineness
+  runs: [20261019-020546]
+  file: results.csv
+  columns: [fineness, speed, turbulence, Tu, length_m, diameter_m, wetted_area_m2, Re_L, drag_N, drag_friction_N,
+            drag_pressure_N, x_sep, x_reattach, x_cf_min, status]
+bulb-surface:   # skin friction and pressure along a fat (L/D 5.7) and a market-like (9.09) bulb, 1 m/s, Tu 0.1 %
+  study: fineness
+  runs: [20261019-020546]
+  file:
+    - Tu0.1_fineness5.7_speed1_turbulencekomegasstlm/surface.csv
+    - Tu0.1_fineness9.09_speed1_turbulencekomegasstlm/surface.csv
+  digits: 5
+# Track A, keel3d: hull, fin and bulb, fully turbulent
+bulb-endplate:   # the fin with and without the NACA 0011 bulb
+  study: bulb-endplate
+  runs: [20261019-020506]
+  file: results.csv
+  columns: [bulb, leeway, mesh, side_N, side_keel_N, side_fin_N, drag_N, drag_keel_N, drag_bulb_N, status]
+bulb-section:   # six cross-sections of the NACA 0011 bulb, heel 0 and 25 deg, leeway 0-4 deg
+  study: bulb-section
+  runs: [20261019-203823]
+  file: results.csv
+  columns: [bulb_aspect, bulb_top, bulb_bottom, heel, leeway, mesh, speed, dynamicPressure, draft, side_N, drag_N,
+            drag_hull_N, drag_fin_N, drag_fin_friction_N, drag_bulb_N, drag_bulb_friction_N, side_fin_N, side_bulb_N,
+            vertical_bulb_N, pitch_bulb_Nm, bulb_width, bulb_height, bulb_cg_above_draft, bulb_wetted_area_m2, fin_span,
+            status]
+bulb-cant:   # the round bulb and the flat bottom at 0, 2 and 4 deg nose up
+  study: bulb-cant
+  runs: [20261020-183634]
+  file: results.csv
+  columns: [bulb_aspect, bulb_top, bulb_bottom, bulb_cant, heel, leeway, mesh, speed, dynamicPressure, draft, side_N,
+            drag_N, drag_bulb_N, side_bulb_N, vertical_bulb_N, pitch_bulb_Nm, bulb_cg_above_draft, status]
+bulb-spanload:   # the fin's side force along its span, with and without the bulb, 4 deg, upright, medium
+  study: bulb-endplate
+  runs: [20261019-020506]
+  file:
+    - bulbtrue_leeway4_meshmedium/spanload.csv
+    - bulbfalse_leeway4_meshmedium/spanload.csv
+  digits: 5
+
+# Bulb flow pictures: ParaView renders (projects/bulb2d/viz.py tail_flow; projects/keel3d/viz.py tip_cp,
+# tip_vorticity) of the few cases fetched whole (`gcp fetch --only`), rendered with `iomcfd viz --views ...`.
+bulb-tail-251:
+  kind: file
+  study: fineness
+  runs: [20261019-020546]
+  file: Tu0.1_fineness5.7_speed1_turbulencekomegasstlm/viz/tail_flow.png   # 251 mm, 1 m/s, Tu 0.1 %
+bulb-tail-343:
+  kind: file
+  study: fineness
+  runs: [20261019-020546]
+  file: Tu0.1_fineness9.09_speed1_turbulencekomegasstlm/viz/tail_flow.png   # 343 mm, the same
+bulb-tip-cp-nobulb:
+  kind: file
+  study: bulb-endplate
+  runs: [20261019-020506]
+  file: bulbfalse_leeway4_meshmedium/viz/tip_cp.png   # fin alone, 4 deg, upright
+bulb-tip-cp-bulb:
+  kind: file
+  study: bulb-endplate
+  runs: [20261019-020506]
+  file: bulbtrue_leeway4_meshmedium/viz/tip_cp.png   # with the 343 mm bulb, 4 deg, upright
+bulb-tip-wx-nobulb:
+  kind: file
+  study: bulb-endplate
+  runs: [20261019-020506]
+  file: bulbfalse_leeway4_meshmedium/viz/tip_vorticity.png
+bulb-tip-wx-bulb:
+  kind: file
+  study: bulb-endplate
+  runs: [20261019-020506]
+  file: bulbtrue_leeway4_meshmedium/viz/tip_vorticity.png
+bulb-tip-wx-round:
+  kind: file
+  study: bulb-section
+  runs: [20261019-203823]
+  file: bulb_aspect1_bulb_bottom2_bulb_top2_heel25_leeway4_meshmedium/viz/tip_vorticity.png
+bulb-tip-wx-flat:
+  kind: file
+  study: bulb-section
+  runs: [20261019-203823]
+  file: bulb_aspect1.5_bulb_bottom6_bulb_top2_heel25_leeway4_meshmedium/viz/tip_vorticity.png
+bulb-tip-cp-cant0:
+  kind: file
+  study: bulb-cant
+  runs: [20261020-183634]
+  file: bulb_aspect1_bulb_bottom2_bulb_cant0_heel25_leeway4/viz/tip_cp.png   # round, 0 deg cant, 25 deg, 4 deg
+bulb-tip-cp-cant2:
+  kind: file
+  study: bulb-cant
+  runs: [20261020-183634]
+  file: bulb_aspect1_bulb_bottom2_bulb_cant2_heel25_leeway4/viz/tip_cp.png   # 2 deg nose up

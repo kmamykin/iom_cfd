@@ -178,7 +178,7 @@ class Ctx:
     def color(self, disp, array: str, preset: str, rng: tuple[float, float], title: str,
               component: str | None = None, bar: bool = True, log: bool = False, assoc: str = "POINTS",
               bar_position: tuple[float, float] = (0.92, 0.12), bar_length: float = 0.72,
-              horizontal: bool = False):
+              horizontal: bool = False, label_format: str | None = None, font_size: int = 16):
         pv.ColorBy(disp, (assoc, array) if component is None else (assoc, array, component))
         lut = pv.GetColorTransferFunction(array)
         if not lut.ApplyPreset(preset, True):
@@ -195,7 +195,9 @@ class Ctx:
             sb.Orientation = "Horizontal" if horizontal else "Vertical"
             sb.Position = [float(v) for v in bar_position]
             sb.ScalarBarLength = bar_length
-            sb.TitleFontSize = sb.LabelFontSize = 16
+            sb.TitleFontSize = sb.LabelFontSize = font_size
+            if label_format:  # e.g. "{:.1f}" (std::format): the end labels too
+                sb.AutomaticLabelFormat, sb.LabelFormat, sb.RangeLabelFormat = 0, label_format, label_format
         return lut
 
     def camera_2d(self, x0: float, x1: float, yc: float, normal_axis: str = "z", z: float = 0.0):

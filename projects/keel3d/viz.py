@@ -8,6 +8,12 @@ wake_slice                    streamwise vorticity in a plane behind the keel,
                               looking forward
 section                       speed/U on a horizontal section at mid-span of the
                               fin, with in-plane streamlines
+tip_cp                        Cp on the lower fin and the bulb, close up from the
+                              suction side (port), with isobars: the fin's tip or
+                              the fin-bulb junction
+tip_vorticity                 streamwise vorticity in a cross-flow plane 0.5 tip
+                              chord behind the fin's trailing edge, over the bulb,
+                              looking forward: the tip and junction vortices
 
 Views follow the heel: cameras and cut planes are in the boat frame (the boat
 heels about the x axis at the waterline). Options (study `viz: options:` or
@@ -44,7 +50,7 @@ def _bodies(ctx, gray=True):
     return s, disp
 
 
-def _title(ctx, what: str):
+def _title(ctx, what: str, size: int = 20):
     p, m = ctx.p, ctx.m
     parts = [f"taper {p['fin_taper']}", f"speed {p['speed']} m/s", f"leeway {p['leeway']} deg",
              f"heel {p['heel']} deg", f"mesh {p['mesh']}"]
@@ -57,7 +63,8 @@ def _title(ctx, what: str):
             parts.insert(1, "bulb " + ", ".join(shape))
     if "drag_N" in m and "side_N" in m:
         parts.append(f"drag {m['drag_N']:.3f} N  side {m['side_N']:.3f} N")
-    ctx.title(f"{what}\n" + "   ".join(parts))
+    parts.append(f"{p.get('turbulence', 'kOmegaSST')}, fully turbulent")
+    ctx.title(f"{what}\n" + "   ".join(parts), size=size)
 
 
 def _surface_cp(ctx, side: float, label: str):
@@ -129,10 +136,57 @@ def section(ctx):
     _title(ctx, "fin section at mid-span")
 
 
+def _tip(ctx):
+    """The fin's tip (boat frame, over the bulb's centre of mass), its tip chord and the x of its
+    trailing edge there. Without a bulb the tip is where the bulb's top would be."""
+    p, d = ctx.p, ctx.d
+    c_tip = float(d["fin_tip_chord"])
+    z_top = float(d["fin_z_root"]) - float(d["fin_span"])
+    x_te = float(p["fin_x"]) + np.tan(np.radians(float(p["fin_sweep"]))) * float(d["fin_span"]) + 0.75 * c_tip
+    return np.array([float(d.get("bulb_x_cg", p["fin_x"])), 0.0, z_top]), c_tip, x_te
+
+
+def tip_cp(ctx):
+    heel, box, chord, ey, ez = _setup(ctx)
+    tip, c_tip, x_te = _tip(ctx)
+    ctx.new_view(1200, 675)
+    s = ctx.surface(r"patch/boat_(fin|bulb)", arrays=["p"])
+    cp = ctx.calc(s, "Cp", f"p/{0.5 * ctx.U ** 2}")
+    ctx.color(ctx.show(cp), "Cp", "Cool to Warm", (-0.6, 0.6), "Cp", label_format="{:.1f}", horizontal=True,
+              bar_position=(0.6, 0.04), bar_length=0.36, font_size=18)
+    iso = ctx.contour(cp, "Cp", [-0.5, -0.4, -0.3, -0.2, -0.1])
+    ctx.solid(ctx.show(iso), (0.1, 0.1, 0.1), line_width=1.5)
+    c = heeled(np.array([x_te - 0.1 * c_tip, 0.0, tip[2] + 0.02]), heel, PIVOT)
+    ctx.camera(c, ey - 0.3 * ez, ez, 0.105)  # from port, the suction side at + leeway, a little below
+    _title(ctx, "pressure coefficient at the fin tip, suction (port) side, bow to the right\n"
+                "lines: Cp -0.5 to -0.1 in steps of 0.1", size=18)
+    ctx.note("flow right to left", size=18, corner="Lower Left Corner")
+
+
+def tip_vorticity(ctx):
+    heel, box, chord, ey, ez = _setup(ctx)
+    tip, c_tip, x_te = _tip(ctx)
+    x = x_te + 0.5 * c_tip
+    ctx.new_view(1200, 675)
+    g = ctx.gradient(ctx.reader(arrays=["U"]), q=False)
+    sl = ctx.slice((x, 0, 0), (1, 0, 0), source=g)
+    w = ctx.calc(sl, "wx", f"Vorticity_X*{chord / ctx.U}")
+    ctx.color(ctx.show(w), "wx", "Cool to Warm", (-4.0, 4.0), "streamwise vorticity  w_x c / U", label_format="{:g}",
+              font_size=18)
+    c = heeled(np.array([x, 0.0, tip[2] - 0.005]), heel, PIVOT)
+    ctx.camera(c, (1.0, 0.0, 0.0), ez, 0.06)
+    _title(ctx, f"cross-flow plane {1e3 * (x - x_te):.0f} mm behind the fin's trailing edge at its tip, looking forward",
+           size=18)
+    ctx.note("pressure (starboard) side", size=18, corner="Lower Left Corner")
+    ctx.note("suction (port) side", size=18, corner="Lower Right Corner")
+
+
 VIEWS = {
     "surface_cp_port": surface_cp_port,
     "surface_cp_starboard": surface_cp_starboard,
     "vortices": vortices,
     "wake_slice": wake_slice,
     "section": section,
+    "tip_cp": tip_cp,
+    "tip_vorticity": tip_vorticity,
 }

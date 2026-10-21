@@ -1,5 +1,6 @@
-"""Charts, diagrams and generated tables for the website's fin-selection study
-(site/fin-selection/index.qmd), and its card image on the front page.
+"""Charts, diagrams and generated tables for the website's study pages
+(site/fin-selection/index.qmd, site/bulb-design/index.qmd), and their card
+images on the front page.
 
 `iomcfd site build` calls make_all() before Quarto renders the page. Every
 figure is drawn from the committed files in site/data/ and site/assets/ (or from
@@ -536,10 +537,12 @@ def card_image(render: Path, out: Path) -> Path:
     return out
 
 
-def sources_table(data: Path, out: Path) -> Path:
+def sources_table(data: Path, out: Path, keep=lambda name: True) -> Path:
     src = json.loads((data / "sources.json").read_text())
     rows = ["| file | from | exported |", "|---|---|---|"]
     for name, s in src.items():
+        if not keep(name):
+            continue
         if s["kind"] == "manual":
             rows.append(f"| `{s['file']}` | {s['source']} | by hand |")
         else:
@@ -547,6 +550,640 @@ def sources_table(data: Path, out: Path) -> Path:
             runs = ", ".join(s["runs"])
             rows.append(f"| `{s['file']}` | {s['study']} run {runs}: `{what}` | {s['exported']} |")
     out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+# ---------------------------------------------------------------------------
+# The keel bulb page (site/bulb-design/index.qmd). Data: bulb-*.csv. Geometry
+# and the equal-side-force race time come from the keel3d project's own code.
+
+BULB_SECTIONS = [  # name, width/height, top and bottom superellipse exponents (keel3d bulb_aspect, bulb_top, bulb_bottom)
+    ("round", 1.0, 2.0, 2.0), ("elliptic 1.25", 1.25, 2.0, 2.0), ("elliptic 1.5", 1.5, 2.0, 2.0),
+    ("flat bottom 1.5", 1.5, 2.0, 6.0), ("flat top 1.5", 1.5, 6.0, 2.0), ("elliptic 2", 2.0, 2.0, 2.0),
+]
+BULB_COLOURS = {"round": ACCENT, "elliptic 1.25": "#e09a4f", "elliptic 1.5": "#b3a27f", "flat bottom 1.5": "#2f5d50",
+                "flat top 1.5": "#7fae94", "elliptic 2": "#5c4d7d"}
+FIN_COLOUR, BULB_GREY = "#c9d6e2", "#9aa3ab"
+# Sensitivity scenarios of keel3d findings bulb-section, conclusions 4 and 5 (estimates, not validated corrections)
+FIN_FRICTION = 0.80  # fin friction with transition / fully turbulent (foil2d: about 25 % high)
+RM_DRAFT_TO_CB = 0.40  # m, draft limit (0.42) to the hull's centre of buoyancy (about 0.02 m down): the bulb's
+# righting lever is this less its centre of mass above the draft, about 0.38 m
+RM_SPEED = 0.5  # % of upwind speed per 1 % of righting moment: the upper end of the bracket (0 is the lower)
+SCENARIOS = [  # key, label, marker
+    ("computed", "as computed (fully turbulent)", "o"),
+    ("corrected", "friction scaled towards transition (sensitivity)", "s"),
+    ("rm", "… plus the upper-end righting-moment credit", "D"),
+]
+
+
+def _keel3d():
+    from iomcfd.project import load_project
+
+    k = load_project("keel3d")
+    return k, {**k.defaults, "bulb_section": "naca0011", "fin_taper": 0.8, "fin_mean_chord": 0.090}
+
+
+def _section_name(df: pd.DataFrame) -> pd.Series:
+    names = {(a, t, b): n for n, a, t, b in BULB_SECTIONS}
+    return pd.Series([names.get((float(a), float(t), float(b))) for a, t, b in
+                      zip(df.bulb_aspect, df.bulb_top, df.bulb_bottom)], index=df.index)
+
+
+def _bulb_outline(k, p, **kw):
+    """The bulb's centre-plane outline [mm from its nose, mm above the draft] and the derived sizes."""
+    from iomcfd.geometry import appendages as ap
+
+    q = {**p, **kw}
+    g = k.derive(q)
+    spec = ap.FoilBulbSpec(section=q["bulb_section"], length=g["bulb_length"], x_cg=g["bulb_x_cg"], z_axis=g["bulb_z_axis"],
+                           aspect=float(q["bulb_aspect"]), top=float(q["bulb_top"]), bottom=float(q["bulb_bottom"]),
+                           cant=float(q["bulb_cant"]))
+    xt, zt, xb, zb = ap.foil_bulb_lines(spec, 400)
+    x0, draft = float(ap.foil_bulb_lines(ap.FoilBulbSpec(section=q["bulb_section"], length=g["bulb_length"],
+                                                         x_cg=g["bulb_x_cg"], z_axis=g["bulb_z_axis"]), 400)[0].min()), float(q["draft"])
+    X = (np.r_[xt, xb[::-1]] - x0) * 1e3
+    Z = (np.r_[zt, zb[::-1]] + draft) * 1e3
+    return X, Z, g, x0
+
+
+def bulb_side(out: Path) -> Path:
+    """The 3D studies' bulb from the side, with the foot of the fin, the draft limit and the 60 mm rule."""
+    k, p = _keel3d()
+    X, Z, g, x0 = _bulb_outline(k, p)
+    mm = 1e3
+    fig, a = plt.subplots(figsize=(8.6, 3.4))
+    le = (g["bulb_x_cg"] - 0.25 * g["fin_tip_chord"] - x0) * mm
+    a.fill([le, le + g["fin_tip_chord"] * mm, le + g["fin_tip_chord"] * mm + 1.5, le - 0.5], [18, 18, 80, 80],
+           color=FIN_COLOUR, lw=0)
+    a.text(le + 40, 72, "fin", ha="center", va="center", fontsize=9)
+    a.fill(X, Z, color=BULB_GREY, ec=INK, lw=1)
+    xcg = (g["bulb_x_cg"] - x0) * mm
+    a.plot(xcg, g["bulb_cg_above_draft"] * mm, "+", color=INK, ms=11, mew=2)
+    a.annotate(f"centre of mass, {g['bulb_cg_above_draft'] * mm:.1f} mm above the draft limit\n"
+               f"(about {abs(g['bulb_z_cg']) * mm:.0f} mm below the waterline upright)",
+               (xcg, g["bulb_cg_above_draft"] * mm), (xcg + 60, -18), fontsize=8.5, va="center",
+               arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.8))
+    a.axhline(0, color=ACCENT, lw=1, ls=(0, (3, 2)))
+    a.text(0, -1.5, "draft limit: the lowest point, 420 mm down", color=ACCENT, fontsize=8.5, ha="left", va="top")
+    a.axhline(60, color=MUTED, lw=0.8, ls=(0, (1, 2)))
+    a.text(0, 61.5, "60 mm: above it nothing may be wider than 20 mm (rule E.4.1)", color=MUTED, fontsize=8.5,
+           ha="left", va="bottom")
+    a.annotate("", (0, -30), (g["bulb_length"] * mm, -30), arrowprops=dict(arrowstyle="<->", color=INK, lw=0.8))
+    a.text(g["bulb_length"] * mm / 2, -33, f"length {g['bulb_length'] * mm:.0f} mm, largest diameter "
+           f"{g['bulb_diameter'] * mm:.1f} mm at 30 % of the length", ha="center", va="top", fontsize=8.5)
+    a.set_aspect("equal")
+    a.set(xlim=(-8, g["bulb_length"] * mm + 8), ylim=(-44, 82), xlabel="from the bulb's nose [mm]",
+          ylabel="above the draft limit [mm]",
+          title=f"The bulb of the 3D studies: {g['bulb_mass_kg'] * 1e3:.0f} g of lead, NACA 0011 thickness turned round its axis")
+    a.grid(False)
+    return _save(fig, out)
+
+
+def bulb_sections(out: Path) -> Path:
+    """The six cross-sections, three to a row, at the widest point: equal area = equal lead."""
+    from iomcfd.geometry import appendages as ap
+
+    k, p = _keel3d()
+    fig, axes = plt.subplots(2, 3, figsize=(8.4, 5.0))
+    for a, (name, asp, top, bot) in zip(axes.ravel(), BULB_SECTIONS):
+        d = k.derive({**p, "bulb_aspect": asp, "bulb_top": top, "bulb_bottom": bot})
+        ring = ap.section_ring(asp, top, bot, 240) * 0.5 * d["bulb_diameter"] * 1e3
+        zc = (d["bulb_z_axis"] + float(p["draft"])) * 1e3
+        a.fill(ring[:, 0], ring[:, 1] + zc, color=BULB_COLOURS[name], lw=0)
+        a.plot(0, d["bulb_cg_above_draft"] * 1e3, "+", color=PAPER, ms=10, mew=2)
+        a.axhline(0, color=ACCENT, lw=1, ls=(0, (3, 2)))
+        a.set_aspect("equal")
+        a.set(xlim=(-30, 30), ylim=(-4, 44), xticks=[-20, 0, 20], yticks=[0, 20, 40])
+        a.set_title(f"{name}\n{d['bulb_width'] * 1e3:.1f} wide × {d['bulb_height'] * 1e3:.1f} high,"
+                    f" CG {d['bulb_cg_above_draft'] * 1e3:.1f}", fontsize=9, loc="center", weight="normal")
+        a.grid(False)
+    for a in axes[:, 0]:
+        a.set_ylabel("above the draft [mm]")
+    fig.suptitle("Six cross-sections at the widest point (mm): the same area, so the same lead. "
+                 "+ = centre of mass (CG)", fontsize=10, weight="bold", x=0.02, ha="left")
+    fig.tight_layout(h_pad=2.2)
+    return _save(fig, out)
+
+
+def bulb_front(out: Path) -> Path:
+    """Round and flat-bottom keels seen from astern, with a common fin root and the same 420 mm draft:
+    the flatter bulb sits lower and its fin is longer. The waterline-to-bulb distance is broken."""
+    from iomcfd.geometry import appendages as ap
+
+    k, p = _keel3d()
+    fig, (top, bot) = plt.subplots(2, 1, figsize=(7.2, 5.6), sharex=True, gridspec_kw={"height_ratios": [1, 1.5]})
+    cases = [("round", 1.0, 2.0, 2.0, -40), ("flat bottom 1.5", 1.5, 2.0, 6.0, 40)]
+    for name, asp, tp, bm, xc in cases:
+        d = k.derive({**p, "bulb_aspect": asp, "bulb_top": tp, "bulb_bottom": bm})
+        zr, span = d["fin_z_root"] * 1e3, d["fin_span"] * 1e3
+        zaxis, h = d["bulb_z_axis"] * 1e3, d["bulb_height"] * 1e3
+        t = 0.07 * d["fin_tip_chord"] * 1e3  # NACA 0007 at the tip chord, from astern
+        ring = ap.section_ring(asp, tp, bm, 240) * 0.5 * d["bulb_diameter"] * 1e3
+        for a in (top, bot):
+            a.fill([xc - t / 2, xc + t / 2, xc + t / 2, xc - t / 2], [zr, zr, zaxis, zaxis], color=FIN_COLOUR, lw=0)
+            a.fill(ring[:, 0] + xc, ring[:, 1] + zaxis, color=BULB_COLOURS[name], lw=0)
+        bot.plot(xc, d["bulb_z_cg"] * 1e3, "+", color=PAPER, ms=10, mew=2)
+        ztop = zaxis + h / 2
+        bot.annotate("", (xc + 27, ztop), (xc + 27, -420), arrowprops=dict(arrowstyle="<->", color=INK, lw=0.7))
+        bot.text(xc + 29, (ztop - 420) / 2, f"{h:.1f}", fontsize=8.5, va="center")
+        bot.text(xc, -424, f"{name}\nfin span {span:.1f} mm\nCG {d['bulb_cg_above_draft'] * 1e3:.1f} mm above the draft",
+                 ha="center", va="top", fontsize=8.5)
+        top.text(xc, zr - 6, f"fin {span:.1f} mm long", ha="center", va="top", fontsize=8.5)
+    for a in (top, bot):
+        a.axhline(-53, color=MUTED, lw=0.8)
+        a.grid(False)
+    top.axhline(0, color="#5b8bb0", lw=1.2)
+    top.text(-95, 2, "waterline", fontsize=8.5, color="#5b8bb0", va="bottom")
+    top.text(-95, -51, "hull bottom: the fin root, the same for both", fontsize=8.5, color=MUTED, va="bottom")
+    top.set(ylim=(-75, 12), yticks=[0, -53])
+    bot.axhline(-420, color=ACCENT, lw=1, ls=(0, (3, 2)))
+    bot.text(-95, -419, "draft limit, 420 mm", fontsize=8.5, color=ACCENT, va="bottom")
+    bot.set(ylim=(-447, -365), yticks=[-420, -400, -380], xlim=(-100, 100), xticks=[], xlabel="seen from astern (mm)")
+    top.spines["bottom"].set_visible(False)
+    bot.spines["top"].set_visible(False)
+    for a, y in ((top, 0), (bot, 1)):  # break marks
+        a.plot([-0.012, 0.012], [y - 0.012, y + 0.012], transform=a.transAxes, color=MUTED, lw=1, clip_on=False)
+    fig.text(0.02, 0.985, "Same lead, same length, same draft: the flatter bulb sits lower, so its fin is longer",
+             fontsize=10.5, weight="bold", va="top")
+    fig.text(0.02, 0.945, "(z in mm from the waterline; the 300 mm between the two panels is cut out)",
+             fontsize=8.5, color=MUTED, va="top")
+    fig.subplots_adjust(top=0.9, hspace=0.06)
+    return _save(fig, out)
+
+
+def bulb_righting(out: Path) -> Path:
+    """Schematic: why the bulb's weight rights the boat only once it heels."""
+    fig, axes = plt.subplots(1, 2, figsize=(8.4, 4.4))
+    depth, B = 401.0, np.array([0.0, -18.0])
+    for a, phi, label in ((axes[0], 0.0, "upright"), (axes[1], 25.0, "heeled 25°")):
+        r = np.radians(phi)
+        rot = lambda x, z: (x * np.cos(r) + z * np.sin(r), -x * np.sin(r) + z * np.cos(r))  # heel to starboard (right)
+        th = np.linspace(np.pi, 2 * np.pi, 60)
+        hx, hz = rot(82 * np.cos(th), 53 * np.sin(th))
+        a.fill(np.r_[hx, hx[0]], np.r_[hz, hz[0]], color="#e8e2d4", ec=MUTED, lw=0.8)
+        mx, mz = rot(np.array([0.0, 0.0]), np.array([0.0, 230.0]))
+        a.plot(mx, mz, color=MUTED, lw=1.2)
+        fx, fz = rot(np.array([0.0, 0.0]), np.array([-53.0, -depth]))
+        a.plot(fx, fz, color="#8aa6bf", lw=3)
+        gx, gz = rot(0.0, -depth)
+        a.add_patch(plt.Circle((gx, gz), 19, color=ACCENT, zorder=3))
+        bx = B[0] + (14 if phi else 0)  # the centre of buoyancy moves to leeward as the hull heels
+        a.plot(bx, B[1], "o", color="#2f5d50", ms=6, zorder=4)
+        a.annotate("", (gx, gz - 72), (gx, gz - 22), arrowprops=dict(arrowstyle="-|>", color=ACCENT, lw=1.8))
+        a.text(gx - 6, gz - 50, "bulb's\nweight", ha="right", fontsize=8.5, color=ACCENT)
+        a.annotate("", (bx, B[1] + 120), (bx, B[1]), arrowprops=dict(arrowstyle="-|>", color="#2f5d50", lw=1.8))
+        a.text(bx + 6, B[1] + 70, "buoyancy", fontsize=8.5, color="#2f5d50")
+        a.axhline(0, color="#5b8bb0", lw=1)
+        if phi:
+            a.plot([gx, gx], [gz, B[1]], color=MUTED, lw=0.6, ls=":")
+            a.plot([bx, bx], [B[1], -330], color=MUTED, lw=0.6, ls=":")
+            a.annotate("", (gx, -300), (bx, -300), arrowprops=dict(arrowstyle="<->", color=INK, lw=0.9))
+            a.text(bx + 8, -300, "lever ≈ depth\n× sin φ", va="center", fontsize=8.5)
+            a.text(0.5, 0.02, "the weight and the buoyancy are a couple that turns the boat upright",
+                   transform=a.transAxes, ha="center", fontsize=8.5, color=INK)
+        else:
+            a.text(0.5, 0.02, "weight and buoyancy on one vertical line: no moment", transform=a.transAxes,
+                   ha="center", fontsize=8.5, color=INK)
+        a.set_aspect("equal")
+        a.set(xlim=(-260, 260), ylim=(-520, 250), title=f"Seen from astern, {label}")
+        a.axis("off")
+    fig.text(0.5, -0.02, "Schematic: only the bulb's weight is drawn. The hull's own shape also moves the buoyancy "
+             "(form stability); the rig's weight acts the other way.", ha="center", fontsize=8, color=MUTED)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def bulb_endplate_schematic(out: Path) -> Path:
+    """Schematic: the pressure difference across the fin drives water round a free tip; a bulb blocks part of it."""
+    from matplotlib.patches import Ellipse
+
+    fig, axes = plt.subplots(1, 2, figsize=(8.0, 3.6))
+    for a, bulb in zip(axes, (False, True)):
+        a.fill([-4, 4, 4, -4], [-10, -10, 100, 100], color=FIN_COLOUR, lw=0)
+        a.text(-14, 60, "low\npressure", ha="right", fontsize=8.5, color="#3b6ea5")
+        a.text(14, 60, "high\npressure", ha="left", fontsize=8.5, color=ACCENT)
+        if bulb:
+            a.add_patch(Ellipse((0, -18), 40, 38, color=BULB_GREY))
+            a.add_patch(FancyArrowPatch((22, -8), (-22, -8), connectionstyle="arc3,rad=1.25", arrowstyle="-|>",
+                                        mutation_scale=12, color=MUTED, lw=1.2))
+            a.text(0, -62, "the bulb blocks the leak at the fin's tip:\nthe fin keeps more of its load there",
+                   ha="center", va="top", fontsize=8.5)
+        else:
+            a.add_patch(FancyArrowPatch((10, -2), (-10, -2), connectionstyle="arc3,rad=1.6", arrowstyle="-|>",
+                                        mutation_scale=14, color=INK, lw=1.6))
+            a.text(0, -62, "water leaks round the free tip:\nthe tip carries little load (a tip vortex)",
+                   ha="center", va="top", fontsize=8.5)
+        a.set_aspect("equal")
+        a.set(xlim=(-70, 70), ylim=(-90, 105), title="fin alone" if not bulb else "fin with a bulb")
+        a.axis("off")
+    fig.text(0.5, 0.0, "Schematic, seen from astern, the boat making leeway to starboard (right). Not to scale.",
+             ha="center", fontsize=8, color=MUTED)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def bulb_spanload(data: Path, out: Path) -> Path:
+    s = pd.read_csv(data / "bulb-spanload.csv")
+    e = pd.read_csv(data / "bulb-endplate.csv")
+    e = e[(e["mesh"] == "medium") & (e.leeway == 4)]
+    fig, (a, b) = plt.subplots(1, 2, figsize=(9.0, 4.2), gridspec_kw={"width_ratios": [1.5, 1]})
+    for key, name, colour in (("bulbtrue", "fin with the bulb", ACCENT), ("bulbfalse", "the same fin alone", "#2f5d50")):
+        m = s[s.file.str.startswith(key)].sort_values("eta")
+        a.plot(m.side_N_per_m, m.eta, "-o", ms=3.5, color=colour, label=name)
+    a.axhspan(0.8, 1.0, color=RULE, alpha=0.5, lw=0)
+    a.text(1, 0.9, "last 20 % of the span:\nthe fin's load holds up\nnext to the bulb", fontsize=8.5, va="center")
+    a.invert_yaxis()
+    a.set(xlabel="fin side force per metre of span [N/m]", ylabel="along the fin: 0 = hull, 1 = top of the bulb",
+          xlim=(0, None), title="Along the fin, 4° leeway, upright, 1 m/s")
+    a.legend(loc="upper left")
+    w = e[e.bulb.astype(str) == "True"].iloc[0]
+    wo = e[e.bulb.astype(str) == "False"].iloc[0]
+    b.bar([0], [wo.side_fin_N], color="#2f5d50", width=0.55)
+    b.bar([1], [w.side_fin_N], color=ACCENT, width=0.55, label="fin")
+    b.bar([1], [w.side_keel_N - w.side_fin_N], bottom=[w.side_fin_N], color=BULB_GREY, width=0.55, label="bulb")
+    for x, v in ((0, wo.side_keel_N), (1, w.side_keel_N)):
+        b.text(x, v + 0.08, f"{v:.2f} N", ha="center", fontsize=9)
+    b.set(xticks=[0, 1], xticklabels=["fin alone", "fin + bulb"], ylabel="keel side force [N]", ylim=(0, 6.2),
+          title="The split at 4°")
+    from matplotlib.patches import Patch
+
+    b.legend(handles=[Patch(color=ACCENT, label="its fin"), Patch(color=BULB_GREY, label="the bulb")], loc="lower right")
+    b.grid(axis="x", visible=False)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def bulb_family(data: Path, out: Path) -> Path:
+    """The fineness study's bodies: 2380 g of lead as NACA bodies of six lengths, noses aligned."""
+    from iomcfd.geometry import axisym
+
+    f = pd.read_csv(data / "bulb-fineness.csv").groupby("fineness")[["length_m", "diameter_m"]].first()
+    fig, a = plt.subplots(figsize=(8.6, 4.2))
+    notes = {5.7: "Gilbert's 250 mm bulb", 7.5: "his 300 mm", 9.09: "the 3D studies' bulb; his 350 mm",
+             14.29: "the project's first bulb, NACA 0007"}
+    for i, (fn, r) in enumerate(f.iterrows()):
+        x, rad = axisym.naca_profile(1 / fn).dense(300)
+        L = r.length_m * 1e3
+        y0 = -i * 52
+        colour = ACCENT if abs(fn - 9.09) < 1e-6 else "#8a8f96"
+        a.fill(np.r_[x, x[::-1]] * L, np.r_[rad, -rad[::-1]] * L + y0, color=colour, alpha=0.8, lw=0)
+        a.text(L + 8, y0, f"{L:.0f} × {r.diameter_m * 1e3:.1f} mm (L/D {fn:g})" + (f" · {notes[fn]}" if fn in notes else ""),
+               va="center", fontsize=8.5)
+    a.set_aspect("equal")
+    a.set(xlim=(-5, 790), xlabel="from the nose [mm]", yticks=[],
+          title="The same 2380 g of lead at six lengths (largest diameter at 30 % of the length)")
+    a.spines["left"].set_visible(False)
+    a.grid(axis="y", visible=False)
+    return _save(fig, out)
+
+
+def bulb_length_mechanism(data: Path, out: Path) -> Path:
+    """251 vs 343 mm at 1 m/s (transition, Tu 0.1 %): the bodies at the same scale, Cp and signed Cf along x/L."""
+    from iomcfd.geometry import axisym
+
+    s = pd.read_csv(data / "bulb-surface.csv")
+    f = pd.read_csv(data / "bulb-fineness.csv")
+    f = f[(f.speed == 1.0) & (f.turbulence == "kOmegaSSTLM") & (f.Tu == 0.1)].set_index("fineness")
+    fig = plt.figure(figsize=(8.4, 7.4))
+    gs = fig.add_gridspec(3, 1, height_ratios=[0.8, 1, 1.2], hspace=0.45)
+    a0 = fig.add_subplot(gs[0])
+    cases = [(5.7, "fineness5.7_", "251 mm (L/D 5.7)", "#5c4d7d", 26), (9.09, "fineness9.09_", "343 mm (L/D 9.1)", ACCENT, -26)]
+    for fn, key, name, colour, y0 in cases:
+        L = f.loc[fn].length_m * 1e3
+        x, r = axisym.naca_profile(1 / fn).dense(300)
+        a0.fill(np.r_[x, x[::-1]] * L, np.r_[r, -r[::-1]] * L + y0, color=colour, alpha=0.85, lw=0)
+        sep = f.loc[fn].x_sep
+        if pd.notna(sep):
+            a0.plot(sep * L, y0 + np.interp(sep, x, r) * L, "v", color=INK, ms=7)
+            a0.text(sep * L + 4, y0 + np.interp(sep, x, r) * L + 3, f"separates at {sep:.2f} L = {sep * L:.0f} mm",
+                    fontsize=8.5)
+        else:
+            a0.text(L + 6, y0, "stays attached", fontsize=8.5, va="center")
+        a0.text(-6, y0, name, ha="right", va="center", fontsize=8.5)
+    a0.set_aspect("equal")
+    a0.set(xlim=(-110, 400), yticks=[], xlabel="from the nose [mm] (same physical scale; flow left to right)",
+           title="The same 2380 g of lead: short and fat against the 3D studies' bulb")
+    a0.spines["left"].set_visible(False)
+    a0.grid(False)
+    a1 = fig.add_subplot(gs[1])
+    a2 = fig.add_subplot(gs[2], sharex=a1)
+    for fn, key, name, colour, _ in cases:
+        m = s[s.file.str.contains(key)].sort_values("x_L")
+        a1.plot(m.x_L, m.Cp, color=colour, label=name)
+        a2.plot(m.x_L, m.Cf, color=colour, label=name)
+        sep, rea = f.loc[fn].x_sep, f.loc[fn].x_reattach
+        if pd.notna(sep):
+            a2.axvline(sep, color=colour, lw=0.8, ls=":")
+    a1.invert_yaxis()
+    a1.set(ylabel="pressure coefficient C$_p$", ylim=(0.25, -0.25),
+           title="Pressure along the bulb: it rises again over the tail (adverse gradient)")
+    a1.legend(loc="lower right")
+    a2.axhline(0, color=INK, lw=0.8)
+    a2.fill_between([0, 1], -0.004, 0, color="#d9e4f0", lw=0, zorder=0)
+    a2.text(0.02, -0.0025, "C$_f$ < 0: the flow at the wall runs backwards (separated)", fontsize=8.5, color="#3b6ea5")
+    a2.set(xlim=(0, 1), ylim=(-0.004, 0.012), xlabel="along the bulb, x / L (each bulb's own length)",
+           ylabel="skin friction C$_f$ (signed)", title="Skin friction: the fat bulb's laminar layer separates on its tail")
+    return _save(fig, out)
+
+
+def bulb_drag_parts(data: Path, out: Path) -> Path:
+    f = pd.read_csv(data / "bulb-fineness.csv")
+    lm = f[(f.speed == 1.0) & (f.turbulence == "kOmegaSSTLM") & (f.Tu == 0.1)].sort_values("length_m")
+    tb = f[(f.speed == 1.0) & (f.turbulence == "kOmegaSST")].sort_values("length_m")
+    L = lm.length_m * 1e3
+    fig, a = plt.subplots(figsize=(7.6, 3.8))
+    x = np.arange(len(L))
+    a.bar(x, lm.drag_friction_N * 1e3, color="#8aa6bf", width=0.6, label="skin friction")
+    a.bar(x, lm.drag_pressure_N * 1e3, bottom=lm.drag_friction_N * 1e3, color=ACCENT, width=0.6,
+          label="pressure (grows when the flow separates)")
+    a.plot(x, tb.drag_N * 1e3, "o", mfc="none", mec="#2f5d50", mew=1.5, label="fully turbulent total, for comparison")
+    a.set(xticks=x, xticklabels=[f"{v:.0f} mm" for v in L], ylim=(0, 118), ylabel="drag of the bulb alone [mN]",
+          title="Bulb drag at 1 m/s split in two (transition model, Tu 0.1 %)")
+    a.legend(loc="upper left", fontsize=8)
+    a.grid(axis="x", visible=False)
+    return _save(fig, out)
+
+
+def bulb_fineness(data: Path, out: Path) -> Path:
+    f = pd.read_csv(data / "bulb-fineness.csv")
+    f["L"] = f.length_m * 1e3
+    fig, a = plt.subplots(figsize=(7.2, 3.9))
+    for speed, colour in ((0.5, "#7fae94"), (1.0, ACCENT), (1.5, "#5c4d7d")):
+        m = f[(f.speed == speed) & (f.turbulence == "kOmegaSSTLM") & (f.Tu == 0.1)].sort_values("L")
+        ref = float(m[np.isclose(m.fineness, 9.09)].drag_N.iloc[0])
+        a.plot(m.L, 100 * (m.drag_N / ref - 1), "-o", ms=4, color=colour, label=f"{speed:g} m/s")
+    a.axhline(0, color=MUTED, lw=0.8)
+    a.axvspan(345, 365, color=RULE, alpha=0.6, lw=0)
+    a.text(355, 22, "bulbs\nsold", ha="center", fontsize=8, color=MUTED)
+    a.set(xlabel="bulb length [mm], 2380 g of lead", ylabel="bulb drag against the 343 mm bulb [%]",
+          title="Bulb drag by length (bulb alone, transition model, Tu 0.1 %)")
+    a.legend(title="boat speed")
+    return _save(fig, out)
+
+
+def bulb_dress(data: Path, ref_csv: Path, out: Path) -> Path:
+    v = pd.read_csv(data / "bulb-dress.csv")
+    v = v[v["mesh"] == "medium"]
+    ref = pd.read_csv(ref_csv, comment="#")
+    fig, a = plt.subplots(figsize=(7.4, 4.2))
+    a.plot(ref.Re_L, ref.Cd_wet, "s", color=INK, ms=5, label="measured, free transition (Dress 1988)")
+    for tu, colour in ((0.05, ACCENT), (0.1, "#e09a4f"), (0.2, "#b3a27f"), (0.5, "#8a8f96")):
+        m = v[(v.turbulence == "kOmegaSSTLM") & (v.Tu == tu)].sort_values("Re_L")
+        a.plot(m.Re_L, m.Cd_wet, "-o", color=colour, ms=3.5, label=f"transition model, Tu {tu:g} %")
+    m = v[v.turbulence == "kOmegaSST"].sort_values("Re_L")
+    a.plot(m.Re_L, m.Cd_wet, "--o", color="#2f5d50", ms=3.5, label="fully turbulent")
+    fin = pd.read_csv(data / "bulb-fineness.csv")  # the bulbs of this page: 230-464 mm at 0.5-1.5 m/s
+    a.axvspan(fin.Re_L.min(), fin.Re_L.max(), color=RULE, alpha=0.5, lw=0)
+    a.text(np.sqrt(fin.Re_L.min() * fin.Re_L.max()), 0.0127, "the bulbs of this page, 0.5–1.5 m/s", ha="center",
+           va="top", fontsize=8.5, color=MUTED)
+    a.set_xscale("log")
+    a.set(xlabel="length Reynolds number Re$_L$", ylabel="C$_D$ on the wetted area", ylim=(0.0020, 0.0130),
+          xlim=(0.85e5, 1.6e6), title="Drag of Dress's laminar body: measured and computed")
+    a.legend(loc="lower left", fontsize=8)
+    return _save(fig, out)
+
+
+def bulb_endplate(data: Path, out: Path) -> Path:
+    e = pd.read_csv(data / "bulb-endplate.csv")
+    e = e[e["mesh"] == "medium"].sort_values("leeway")
+    fig, a = plt.subplots(figsize=(6.4, 3.8))
+    w, wo = e[e.bulb.astype(str) == "True"], e[e.bulb.astype(str) == "False"]
+    a.plot(w.leeway, w.side_keel_N, "-o", color=ACCENT, label="fin + bulb")
+    a.plot(w.leeway, w.side_fin_N, ":o", color=ACCENT, ms=3.5, label="… of which the fin")
+    a.plot(wo.leeway, wo.side_keel_N, "-o", color="#2f5d50", label="the same fin alone")
+    for lw in (2, 4):
+        s1, s0 = float(w[w.leeway == lw].side_keel_N.iloc[0]), float(wo[wo.leeway == lw].side_keel_N.iloc[0])
+        a.annotate("", (lw, s1), (lw, s0), arrowprops=dict(arrowstyle="<->", color=ACCENT, lw=0.8))
+        right = lw == 4  # at 2 deg the lines run through the right-hand side: label above them, on the left
+        a.text(lw + 0.08 if right else lw - 0.08, (s1 + s0) / 2 if right else s1 + 0.2, f"+{100 * (s1 / s0 - 1):.0f} %",
+               va="center", ha="left" if right else "right", fontsize=9, color=ACCENT)
+    a.set(xlabel="leeway β$_Y$ [°]", ylabel="keel side force S$_h$ [N]", xlim=(-0.15, 4.6),
+          title="Side force at the same leeway, with and without the bulb")
+    a.legend(loc="upper left")
+    return _save(fig, out)
+
+
+def bulb_race(data: Path) -> pd.DataFrame:
+    """Race time lost against the best bulb section (keel3d's compare_at_equal_force), in three scenarios:
+    as computed; with the friction scaled towards transition; and with the upper-end righting-moment credit
+    too. Sensitivity scenarios (estimates), not validated corrections."""
+    k, _ = _keel3d()
+    df = pd.read_csv(data / "bulb-section.csv")
+    df = df[df["mesh"] == "medium"]
+    fn = pd.read_csv(data / "bulb-fineness.csv")
+    fr = fn[np.isclose(fn.fineness, 9.09) & (fn.speed == 1.0)]
+    r_b = float(fr[(fr.turbulence == "kOmegaSSTLM") & (fr.Tu == 0.1)].drag_friction_N.iloc[0]) / \
+        float(fr[fr.turbulence == "kOmegaSST"].drag_friction_N.iloc[0])
+    opts = {"compare_at": {"bulb_aspect": 1.0, "bulb_top": 2.0, "bulb_bottom": 2.0, "leeway": [2, 4]}}
+    frames = []
+    for variant, rb, rf in (("computed", 1.0, 1.0), ("corrected", r_b, FIN_FRICTION)):
+        d = df.copy()
+        d["drag_N"] = d.drag_N - (1 - rb) * d.drag_bulb_friction_N - (1 - rf) * d.drag_fin_friction_N
+        t = k.compare_at_equal_force(d, opts)
+        t["variant"] = variant
+        frames.append(t)
+    t = pd.concat(frames, ignore_index=True)
+    t["section"] = _section_name(t)
+    cg0 = float(t[t.section == "round"].bulb_cg_above_draft.iloc[0])
+    t["rm_pct"] = 100 * (cg0 - t.bulb_cg_above_draft) / (RM_DRAFT_TO_CB - t.bulb_cg_above_draft)
+    rm = t[t.variant == "corrected"].copy()
+    for c in ("loss_x1_pct", "loss_x2_pct"):
+        rm[c] = rm[c] - 0.5 * RM_SPEED * rm.rm_pct  # upwind is half the race
+    rm["variant"] = "rm"
+    t = pd.concat([t, rm], ignore_index=True)
+    t.attrs["r_b"] = r_b
+    return t
+
+
+def bulb_section_race(data: Path, out: Path) -> Path:
+    t = bulb_race(data)
+    names = [n for n, *_ in BULB_SECTIONS]
+    fig, axes = plt.subplots(2, 1, figsize=(7.4, 6.8), sharex=True)
+    for a, heel in zip(axes, (0, 25)):
+        s = t[(t.heel == heel) & (t.load == "working")]
+        y = np.arange(len(names))
+        for j, (key, label_, marker) in enumerate(SCENARIOS):
+            v = s[s.variant == key].set_index("section").reindex(names)
+            yy = y + (j - 1) * 0.22
+            a.hlines(yy, v.loss_x2_pct, v.loss_x1_pct, color=MUTED, lw=1)  # x2 to x1 resistance slope
+            a.scatter(v.loss_x1_pct, yy, marker=marker, s=34, c=[BULB_COLOURS[n] for n in names],
+                      edgecolors=INK if marker != "o" else "none", linewidths=0.6, zorder=3)
+        a.axvline(0, color=INK, lw=0.8)
+        a.set_yticks(y, names)
+        a.invert_yaxis()
+        f0 = s[(s.section == "round") & (s.variant == "computed")].side_N.iloc[0]
+        a.set_title(f"{'Upright' if heel == 0 else f'Heel {heel}°'}, working load (S$_h$ = {f0:.2f} N)",
+                    fontsize=10)
+        a.grid(axis="y", visible=False)
+    axes[1].set_xlabel("race time lost against the round bulb [%] (positive: slower; negative: a modelled gain)")
+    from matplotlib.lines import Line2D
+
+    axes[1].legend(handles=[Line2D([], [], ls="", marker=m, color=MUTED, mec=INK if m != "o" else MUTED, label=lb)
+                            for _, lb, m in SCENARIOS] + [Line2D([], [], color=MUTED, lw=1, label="to the same with the "
+                                                                 "resistance slope doubled")],
+                   loc="upper right", fontsize=7.5)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def bulb_race_table(data: Path, out: Path) -> Path:
+    t = bulb_race(data)
+    cols = [(0, "light"), (0, "working"), (25, "light"), (25, "working")]
+    rows = ["| section | scenario | upright, light | upright, working | 25°, light | 25°, working |",
+            "|:--|:--|--:|--:|--:|--:|"]
+    lab = {"computed": "as computed", "corrected": "friction scaled", "rm": "+ RM credit (upper)"}
+    for n, *_ in BULB_SECTIONS[1:]:
+        for key in ("computed", "corrected", "rm"):
+            vals = []
+            for heel, load in cols:
+                r = t[(t.section == n) & (t.variant == key) & (t.heel == heel) & (t.load == load)]
+                vals.append(f"{r.loss_x1_pct.iloc[0]:.2f}" if len(r) else "–")
+            rows.append(f"| {n if key == 'computed' else ''} | {lab[key]} | " + " | ".join(vals) + " |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def bulb_loads_table(data: Path, out: Path) -> Path:
+    t = bulb_race(data)
+    s = t[(t.section == "round") & (t.variant == "computed")]
+    rows = ["| | light load | working load |", "|:--|--:|--:|"]
+    for heel in (0, 25):
+        r = s[s.heel == heel].set_index("load").side_N
+        rows.append(f"| {'upright' if heel == 0 else f'heel {heel}°'} | {r['light']:.2f} N | {r['working']:.2f} N |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def bulb_drag_split(data: Path, out: Path) -> Path:
+    df = pd.read_csv(data / "bulb-section.csv")
+    df = df[(df["mesh"] == "medium") & (df.heel == 0) & (df.leeway == 0)].copy()
+    df["section"] = _section_name(df)
+    df = df.set_index("section")
+    base = df.loc["round"]
+    names = [n for n, *_ in BULB_SECTIONS][1:]
+    fin = [(df.loc[n].drag_fin_N - base.drag_fin_N) * 1e3 for n in names]
+    bulb = [(df.loc[n].drag_bulb_N - base.drag_bulb_N) * 1e3 for n in names]
+    fig, a = plt.subplots(figsize=(7.2, 3.4))
+    y = np.arange(len(names))
+    a.barh(y, fin, color="#8aa6bf")
+    a.barh(y, bulb, left=fin, color=[BULB_COLOURS[n] for n in names])
+    for i, n in enumerate(names):
+        a.text(fin[i] + bulb[i] + 0.3, i, f"fin {1e3 * (df.loc[n].fin_span - base.fin_span):+.0f} mm longer", va="center",
+               fontsize=8, color=MUTED)
+    a.set_yticks(y, names)
+    a.invert_yaxis()
+    a.set(xlim=(0, 24), xlabel=f"extra drag of the modelled hull + fin + bulb against the round bulb's "
+                                f"({base.drag_N * 1e3:.0f} mN), upright, 0° [mN]",
+          title="Where a flatter bulb's extra drag comes from (fully turbulent)")
+    from matplotlib.patches import Patch
+
+    a.legend(handles=[Patch(color="#8aa6bf", label="its longer fin"), Patch(color=MUTED, label="the bulb itself")],
+             loc="upper right")
+    a.grid(axis="y", visible=False)
+    return _save(fig, out)
+
+
+def bulb_cant_schematic(out: Path) -> Path:
+    """Cant on the real bulb (0 and 4 deg nose up, about the centre of mass, then moved to the draft), and how
+    heel turns part of the sideways flow into flow along the fin at the bulb (schematic)."""
+    k, p = _keel3d()
+    fig, (a, b) = plt.subplots(1, 2, figsize=(9.6, 3.9), gridspec_kw={"width_ratios": [1.6, 1]})
+    for cant, colour in ((0, BULB_GREY), (4, ACCENT)):
+        X, Z, g, x0 = _bulb_outline(k, p, bulb_cant=cant)
+        if cant == 0:
+            a.fill(X, Z, color=colour, lw=0, alpha=0.7, label="0°")
+        else:
+            a.plot(np.r_[X, X[:1]], np.r_[Z, Z[:1]], "--", color=colour, lw=1.4, label=f"{cant}° nose up")
+        a.plot((g["bulb_x_cg"] - x0) * 1e3, g["bulb_cg_above_draft"] * 1e3, "+", color=INK if cant == 0 else ACCENT,
+               ms=10, mew=1.8)
+    a.axhline(0, color=ACCENT, lw=1, ls=(0, (3, 2)))
+    a.text(2, -2, "draft limit: the lowest point stays here", color=ACCENT, fontsize=8.5, va="top")
+    a.annotate("nose up", (6, 30), (30, 54), fontsize=8.5, arrowprops=dict(arrowstyle="-|>", color=ACCENT, lw=0.9))
+    a.set_aspect("equal")
+    a.set(xlim=(-8, 352), ylim=(-16, 64), xlabel="from the nose [mm] (flow left to right)", ylabel="mm",
+          title="Cant, seen from the side (+ = centre of mass)")
+    a.legend(loc="upper right")
+    a.grid(False)
+    phi = np.radians(25)
+    ux, uz = -np.sin(phi), -np.cos(phi)  # down the fin: heeled to starboard, the keel swings to port (left)
+    b.plot([0, 300 * ux], [0, 300 * uz], color="#8aa6bf", lw=4)
+    b.add_patch(plt.Circle((330 * ux, 330 * uz), 22, color=BULB_GREY))
+    b.plot([0, 220 * np.sin(phi)], [0, 220 * np.cos(phi)], color=MUTED, lw=1.2)  # the mast, in line with the fin
+    b.axhline(0, color="#5b8bb0", lw=1)
+    o = np.array([300 * ux + 300, 300 * uz + 110])
+    flow = np.array([-150.0, 0.0])  # the boat slides to starboard (right): the water moves to port (left)
+    b.annotate("", o + flow, o, arrowprops=dict(arrowstyle="-|>", color=INK, lw=1.6))
+    b.text(o[0] - 75, o[1] + 10, "sideways flow (leeway)", ha="center", fontsize=8.2)
+    d = np.array([ux, uz])
+    along = (flow @ d) * d
+    b.annotate("", o + along, o, arrowprops=dict(arrowstyle="-|>", color=ACCENT, lw=1.4))
+    b.text(o[0] + along[0] + 6, o[1] + along[1] - 4, "its part along the fin,\nabout β$_Y$ sin φ of the flow:\n"
+           "it meets the bulb at\nan angle (from above)", fontsize=8, color=ACCENT, va="top")
+    b.set_aspect("equal")
+    b.set(xlim=(-190, 330), ylim=(-400, 230), title="Heeled 25°, seen from astern")
+    b.axis("off")
+    fig.tight_layout()
+    return _save(fig, out)
+
+def bulb_cant(data: Path, out: Path) -> Path:
+    k, _ = _keel3d()
+    df = pd.read_csv(data / "bulb-cant.csv")
+    t = k.compare_at_equal_force(df, {"compare_at": {"bulb_aspect": 1.0, "bulb_bottom": 2.0, "bulb_cant": 0.0,
+                                                      "leeway": [2, 4]}})
+    fig, axes = plt.subplots(1, 2, figsize=(8.8, 3.6), sharey=True)
+    for a, load in zip(axes, ("light", "working")):
+        s = t[t.load == load]
+        for asp, name, colour in ((1.0, "round", ACCENT), (1.5, "flat bottom 1.5", "#2f5d50")):
+            m = s[s.bulb_aspect == asp].sort_values("bulb_cant")
+            a.plot(m.bulb_cant, m.loss_x1_pct, "-o", color=colour, label=name)
+            for x, v in zip(m.bulb_cant, m.loss_x1_pct):
+                a.text(x, v + 0.035, f"{v:.2f}", ha="center", fontsize=8, color=colour)
+        f0 = s.side_N.iloc[0]
+        a.set(xticks=[0, 2, 4], xlabel="cant, nose up [°]", ylim=(-0.08, 1.15),
+              title=f"25° heel, {load} load (S$_h$ = {f0:.2f} N)")
+    axes[0].set_ylabel("race time lost against the best [%]")
+    axes[1].legend(loc="center right")
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def bulb_sections_table(data: Path, out: Path) -> Path:
+    df = pd.read_csv(data / "bulb-section.csv")
+    df = df[(df["mesh"] == "medium") & (df.heel == 0) & (df.leeway == 0)].copy()
+    df["section"] = _section_name(df)
+    df = df.set_index("section").reindex([n for n, *_ in BULB_SECTIONS])
+    rows = ["| section | W × H | CG | area | fin |", "|:--|--:|--:|--:|--:|"]
+    for n, r in df.iterrows():
+        rows.append(f"| {n} | {1e3 * r.bulb_width:.1f}&nbsp;×&nbsp;{1e3 * r.bulb_height:.1f} | "
+                    f"{1e3 * r.bulb_cg_above_draft:.1f} | {1e4 * r.bulb_wetted_area_m2:.0f} | {1e3 * r.fin_span:.1f} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def bulb_card(data: Path, out: Path) -> Path:
+    """The bulb page's card at 3:1: the bulb and the foot of the fin from the side, with two of the
+    cross-sections (round and flat bottom) beside it."""
+    from iomcfd.geometry import appendages as ap
+
+    k, p = _keel3d()
+    X, Z, g, x0 = _bulb_outline(k, p)
+    fig = plt.figure(figsize=(9, 3))
+    a = fig.add_axes([0, 0, 1, 1])
+    le = (g["bulb_x_cg"] - 0.25 * g["fin_tip_chord"] - x0) * 1e3
+    a.fill([le, le + g["fin_tip_chord"] * 1e3, le + g["fin_tip_chord"] * 1e3 + 4, le - 2], [20, 20, 140, 140],
+           color=FIN_COLOUR, lw=0)
+    a.fill(X, Z, color="#5d6670", lw=0)
+    for i, (name, asp, top, bot) in enumerate([BULB_SECTIONS[0], BULB_SECTIONS[3]]):
+        d = k.derive({**p, "bulb_aspect": asp, "bulb_top": top, "bulb_bottom": bot})
+        ring = ap.section_ring(asp, top, bot, 240) * 0.5 * d["bulb_diameter"] * 1e3
+        a.fill(ring[:, 0] + 395 + i * 58, ring[:, 1] + (d["bulb_z_axis"] + float(p["draft"])) * 1e3,
+               color=BULB_COLOURS[name], lw=0)
+    a.axhline(0, color=ACCENT, lw=1.4, ls=(0, (4, 3)))
+    a.set_aspect("equal")
+    a.set(xlim=(-16, 494), ylim=(-36, 134))  # 510 x 170: 3:1
+    a.axis("off")
+    fig.savefig(out, dpi=120, facecolor=PAPER)
+    plt.close(fig)
     return out
 
 
@@ -569,6 +1206,28 @@ def make_all(data: Path, out: Path) -> list[Path]:
         race_time_table(data, out / "race-time.md"),
         race_time_by_speed_table(data, out / "race-time-by-speed.md"),
         fin_choice_table(data, out / "fin-choice.md"),
-        sources_table(data, out / "sources.md"),
+        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith("bulb-")),
         card_image(data.parent / "assets" / "flow-shedding-vorticity.png", out / "fin-selection-card.png"),
+        # the keel bulb page
+        bulb_side(out / "bulb-side.svg"),
+        bulb_sections(out / "bulb-sections.svg"),
+        bulb_front(out / "bulb-front.svg"),
+        bulb_righting(out / "bulb-righting.svg"),
+        bulb_endplate_schematic(out / "bulb-endplate-schematic.svg"),
+        bulb_family(data, out / "bulb-family.svg"),
+        bulb_dress(data, data.parents[1] / "projects" / "bulb2d" / "validation" / "dress1988.csv", out / "bulb-dress.svg"),
+        bulb_fineness(data, out / "bulb-fineness.svg"),
+        bulb_length_mechanism(data, out / "bulb-length-mechanism.svg"),
+        bulb_drag_parts(data, out / "bulb-drag-parts.svg"),
+        bulb_endplate(data, out / "bulb-endplate.svg"),
+        bulb_spanload(data, out / "bulb-spanload.svg"),
+        bulb_section_race(data, out / "bulb-section-race.svg"),
+        bulb_race_table(data, out / "bulb-race.md"),
+        bulb_loads_table(data, out / "bulb-loads.md"),
+        bulb_drag_split(data, out / "bulb-drag-split.svg"),
+        bulb_cant_schematic(out / "bulb-cant-schematic.svg"),
+        bulb_cant(data, out / "bulb-cant.svg"),
+        bulb_sections_table(data, out / "bulb-sections.md"),
+        sources_table(data, out / "sources-bulb.md", keep=lambda n: n.startswith("bulb-")),
+        bulb_card(data, out / "bulb-design-card.png"),
     ]
