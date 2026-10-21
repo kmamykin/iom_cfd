@@ -8,6 +8,11 @@ wake_slice                    streamwise vorticity in a plane behind the keel,
                               looking forward
 section                       speed/U on a horizontal section at mid-span of the
                               fin, with in-plane streamlines
+section_root, section_tip     the same at 15 % and 85 % of the span (near the hull
+                              and near the bulb)
+reversed_flow                 where the flow runs backwards (streamwise velocity
+                              below -1 % of U): separation, seen from the port
+                              (suction) side
 
 Views follow the heel: cameras and cut planes are in the boat frame (the boat
 heels about the x axis at the waterline). Options (study `viz: options:` or
@@ -15,6 +20,8 @@ heels about the x axis at the waterline). Options (study `viz: options:` or
 """
 
 from __future__ import annotations
+
+import math
 
 import numpy as np
 
@@ -112,11 +119,13 @@ def wake_slice(ctx):
     _title(ctx, f"wake {x - te:.3f} m behind the fin root trailing edge, looking forward")
 
 
-def section(ctx):
+def _section(ctx, eta: float, label: str):
     heel, box, chord, ey, ez = _setup(ctx)
     p, d = ctx.p, ctx.d
-    zm = float(d["fin_z_root"]) - 0.5 * float(d["fin_span"])
-    xf = float(p["fin_x"]) + 0.25 * chord
+    zm = float(d["fin_z_root"]) - eta * float(d["fin_span"])
+    chord = float(d["fin_root_chord"]) + (float(d["fin_tip_chord"]) - float(d["fin_root_chord"])) * eta
+    # mid-chord: a quarter chord behind the quarter-chord line
+    xf = float(p["fin_x"]) + math.tan(math.radians(float(p["fin_sweep"]))) * eta * float(d["fin_span"]) + 0.25 * chord
     origin = heeled((xf, 0.0, zm), heel, PIVOT)
     ctx.new_view()
     sl = ctx.slice(origin, ez)
@@ -126,7 +135,34 @@ def section(ctx):
     st = ctx.streamlines_line(up - 0.8 * chord * ey, up + 0.8 * chord * ey, n=40, length=6 * chord, source=sl, surface=True)
     ctx.solid(ctx.show(st), (0.08, 0.08, 0.08), line_width=1.0)
     ctx.camera(origin + 0.3 * chord * np.array([1, 0, 0]), ez, ey, 1.4 * chord * 900 / 1600 * 1.6)
-    _title(ctx, "fin section at mid-span")
+    _title(ctx, f"fin section {label}, local chord {chord * 1e3:.0f} mm")
+
+
+def section(ctx):
+    _section(ctx, 0.5, "at mid-span")
+
+
+def section_root(ctx):
+    _section(ctx, 0.15, "at 15 % of the span (near the hull)")
+
+
+def section_tip(ctx):
+    _section(ctx, 0.85, "at 85 % of the span (near the bulb)")
+
+
+def reversed_flow(ctx):
+    heel, box, chord, ey, ez = _setup(ctx)
+    u = np.asarray(ctx.d["dragDir"], float)  # free-stream direction
+    ctx.new_view()
+    rd = ctx.reader(arrays=["U"])
+    ux = ctx.calc(rd, "ux", f"(U_X*{u[0]:.9g} + U_Y*{u[1]:.9g} + U_Z*{u[2]:.9g})/{ctx.U}")
+    iso = ctx.contour(ux, "ux", [-0.01])  # walls are 0 (no slip), so this keeps off them
+    ctx.solid(ctx.show(iso), (0.85, 0.15, 0.1))
+    _, disp = _bodies(ctx)
+    c = heeled(box_center(box), heel, PIVOT)
+    half = 0.55 * max((box[3] - box[0]) * 900 / 1600, box[5] - box[2])
+    ctx.camera(c, ey + 0.15 * ez, ez, half)
+    _title(ctx, "reversed flow (streamwise velocity < -1 % of U), from port (suction side), bow to the right")
 
 
 VIEWS = {
@@ -135,4 +171,7 @@ VIEWS = {
     "vortices": vortices,
     "wake_slice": wake_slice,
     "section": section,
+    "section_root": section_root,
+    "section_tip": section_tip,
+    "reversed_flow": reversed_flow,
 }

@@ -25,8 +25,11 @@ mirror-image grid doesn't have it ([findings](findings/taper-gridshift.md)).
 taper-compare (fine, β_Y 0-6°, 1 m/s, upright): the 100 → 80 mm fin is
 never slower than the constant 90 mm chord, 0.02 / 0.07 / 0.4-0.7 % faster
 at the light / working / high load, with its CLR 4 mm higher
-([findings](findings/taper-compare.md)). Provisional: fully turbulent,
-one speed, upright.
+([findings](findings/taper-compare.md)). With the transition correction
+(2D, foil2d transition-delta) the light- and high-load advantage stays
+(+0.06 and +0.6-0.7 %) and the working load becomes a tie (−0.11 to
++0.07 % with the water's turbulence and one uncertain 2D point). One
+speed, upright.
 
 ## The question and how it is answered
 
@@ -291,7 +294,17 @@ iterations with D_h still climbing 4 % per window.
 * `spanload.png`: local C_l and normalised load along the span near the
   working load, against elliptic;
 * `mesh_check.md` when a study runs cases on more than one mesh, and
-  `shift_check.md` when it runs cases with more than one `mesh_shift`.
+  `shift_check.md` when it runs cases with more than one `mesh_shift`;
+* `transition_compare.md` (and `transition_cases_tu*.csv`,
+  `transition_compare_tu*.csv`) when `data/<fin_section>-transition.csv`
+  exists: the comparison again with the fin's drag and leeway corrected
+  for laminar flow. Strip by strip along `spanload.csv`, the 2D difference
+  between the transition model and the fully turbulent model at the
+  strip's chord and C_l: drag Σ dC_d q c ds, leeway the side-force-weighted
+  mean dα (`transition_delta`, `transition_correction`). One table per
+  water turbulence Tu of the 2D polars; the loads stay the fully turbulent
+  ones. The table comes from a foil2d run
+  (`tools/keel3d_transition_table.py`; for NACA 0007: transition-delta).
 
 Study `report:` options: `compare_at` (reference design and leeway angles,
 default `{fin_taper: 1.0, leeway: [2, 4, 6]}`), `vdrdv` (the resistance
@@ -335,12 +348,14 @@ slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
 
 ## Limitations and next steps
 
-* **Transition.** Correct the fully turbulent 3D section drag strip by
-  strip with foil2d: for each strip in `spanload.csv`, the 2D drag difference
-  between kOmegaSSTLM and kOmegaSST at the local chord's Reynolds number and
-  the local C_l. Needs a foil2d run of NACA 0007 over the fins' chord range
-  (80-100 mm for taper-mesh's fins) with both turbulence models. Without it
-  the tapered tips get no penalty for low-Re laminar separation.
+* **Transition.** The flow is fully turbulent; the report corrects the
+  fin afterwards by 2D strip theory (`transition_compare.md`, for NACA 0007
+  at 80-100 mm chord and 1 m/s). Hull and bulb stay fully turbulent, the
+  steady 2D points at 4° are uncertain (the flow sheds), and the 80 mm, 4°,
+  Tu 0.1 % point decides the working-load comparison of taper-compare (a
+  time-accurate foil2d case would settle it). Fully turbulent kOmegaSST
+  also makes a laminar-like bubble at the leading edge at 6°
+  (taper-compare findings).
 * **Heel φ** (upwind 10-20°) and **other speeds** (V_b 0.75, 1.5 m/s) for
   the best two planforms.
 * **Market-like fins**: 100 → 70 mm (λ 0.7, mean 85 mm, less area) is a

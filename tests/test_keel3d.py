@@ -240,3 +240,49 @@ def test_effective_draft(project):
     assert fits.loc[1.0, "T_eff_m"] == pytest.approx(1 / math.sqrt(math.pi * 499.6 * 0.010))
     df.loc[df["leeway"] == 8, "drag_N"] += 1.0  # a separated point
     assert project.polar_fits(df, max_leeway=6).loc[0, "k_per_N"] == pytest.approx(0.010)
+
+
+def _polars(chords=(0.08, 0.10)):
+    rows = []
+    for c in chords:
+        for a in range(0, 8):
+            cl = 0.1 * a
+            rows.append({"chord": c, "aoa": a, "Cl": cl, "Cd": 0.02 + 0.05 * cl, "turbulence": "kOmegaSST", "Tu": 0.5})
+            # transition model: 10 % more angle for the same lift, less drag at zero lift, more so on the longer
+            # chord (linear in C_l, so that interpolation is exact)
+            rows.append({"chord": c, "aoa": a, "Cl": cl / 1.1, "Cd": 0.012 - 0.02 * (c - 0.08) + 0.08 * (cl / 1.1),
+                         "turbulence": "kOmegaSSTLM", "Tu": 0.1})
+    return pd.DataFrame(rows)
+
+
+def test_transition_delta_at_equal_section_lift(project):
+    g = type(project).report.__globals__
+    delta = g["transition_delta"](_polars(), 0.1)
+    dcd, da = delta([0.08, 0.10, 0.09], [0.3, 0.3, -0.3])
+    assert dcd[0] == pytest.approx((0.012 + 0.08 * 0.3) - (0.02 + 0.05 * 0.3))
+    assert dcd[1] == pytest.approx(dcd[0] - 0.02 * 0.02)
+    assert dcd[2] == pytest.approx(0.5 * (dcd[0] + dcd[1]))  # linear in chord; |C_l|
+    assert np.allclose(da, 0.3 * 10 * (1.1 - 1.0))  # 3.3 deg against 3.0 deg
+    assert np.isnan(delta(0.09, 0.69)[0])  # beyond the transition polar's highest C_l (0.636)
+
+
+def test_transition_correction_strip_by_strip(project):
+    g = type(project).report.__globals__
+    delta = g["transition_delta"](_polars(), 0.1)
+    span = pd.DataFrame({"eta": [0.25, 0.75], "chord_m": [0.10, 0.08], "side_N_per_m": [20.0, 10.0], "cl": [0.3, 0.3]})
+    d = {"fin_span": 0.3, "dynamicPressure": 500.0}
+    c = g["transition_correction"](span, d, delta)
+    dcd, da = delta(span["chord_m"], span["cl"])
+    assert c["dD_N"] == pytest.approx(float(np.sum(dcd * 500.0 * span["chord_m"] * 0.15)))
+    assert c["dbeta_deg"] == pytest.approx(0.3) and c["strips_out"] == 0
+    zero = g["transition_correction"](span.assign(side_N_per_m=[1e-4, -1e-4], cl=[0.0, 0.0]), d, delta)
+    assert zero["dbeta_deg"] == 0.0 and zero["dD_N"] < 0  # downwind: laminar friction only
+
+
+def test_compare_at_given_loads(project):
+    df = pd.DataFrame(_sweep(1.0, 1.5, 0.010) + _sweep(0.6, 1.5, 0.009, d0=0.62))
+    t0 = project.compare_at_equal_force(df, {"compare_at": {"fin_taper": 1.0, "leeway": [2, 4]}})
+    later = df.assign(leeway=df["leeway"] + 0.5)  # e.g. a leeway correction
+    t = project.compare_at_equal_force(later, {"compare_at": {"fin_taper": 1.0, "leeway": [2, 4]}}, loads=t0)
+    assert np.allclose(t["side_N"], t0["side_N"])
+    assert np.allclose(t["leeway"], t0["leeway"] + 0.5)

@@ -48,6 +48,11 @@ VDRDV = {0.5: 0.40, 0.75: 0.81, 1.0: 1.354, 1.5: 2.71}
 TRACK_ANGLE = 42.0
 LOAD_NAMES = ("light", "working", "high")
 
+# 2D tables for the transition correction: data/<fin_section>-transition.csv,
+# foil2d polars with the transition model and fully turbulent (see
+# transition_delta).
+DATA_DIR = Path(__file__).parent / "data"
+
 # Bulb shape parameters and their defaults (results of runs made before
 # they existed have the defaults).
 BULB_SHAPE = {"bulb_section": "naca0007", "bulb_aspect": 1.0, "bulb_top": 2.0, "bulb_bottom": 2.0, "bulb_cant": 0.0}
@@ -171,6 +176,81 @@ def _grid_shift(df):
     """mesh_shift and its axes as one label: "0", "0.5 xy", "0.5 x", ..."""
     only = df["mesh_shift_only"].fillna("") if "mesh_shift_only" in df else [""] * len(df)
     return [("0" if not s else f"{s:g} {o or 'xy'}") for s, o in zip(df["mesh_shift"].astype(float), only)]
+
+
+def transition_table(section: str):
+    """The 2D polars for the fin section's transition correction, or None."""
+    import pandas as pd
+
+    f = DATA_DIR / f"{section}-transition.csv"
+    return pd.read_csv(f, comment="#") if f.is_file() else None
+
+
+def transition_delta(table, tu: float):
+    """From 2D polars (columns chord, aoa, Cl, Cd, turbulence, Tu): a function
+    (chord [m], |C_l|) -> (dC_d, dalpha [deg]), the transition model
+    (kOmegaSSTLM at `tu` %) minus fully turbulent (kOmegaSST) at equal C_l,
+    linear in C_l along each polar's rising branch and in chord between the
+    tabulated chords (held at the end chords outside them). NaN where C_l
+    is beyond either polar."""
+    chords = np.array(sorted(table["chord"].unique()), float)
+
+    def polar(rows):
+        rows = rows.sort_values("aoa")
+        a, cl, cd = (rows[c].to_numpy(float) for c in ("aoa", "Cl", "Cd"))
+        keep = np.concatenate([[True], np.diff(cl) > 0])
+        keep &= np.cumprod(keep).astype(bool)  # the rising branch
+        return a[keep], cl[keep], cd[keep]
+
+    pairs = []
+    for c in chords:
+        at = table[np.isclose(table["chord"], c)]
+        lam = polar(at[(at["turbulence"] == "kOmegaSSTLM") & np.isclose(at["Tu"], tu)])
+        turb = polar(at[at["turbulence"] == "kOmegaSST"])
+        pairs.append((lam, turb))
+
+    def at_chord(i, cl):
+        (al, cll, cdl), (at_, clt, cdt) = pairs[i]
+        hi = min(cll[-1], clt[-1])
+        f = lambda x, y: np.interp(cl, x, y, left=y[0])
+        dcd, da = f(cll, cdl) - f(clt, cdt), f(cll, al) - f(clt, at_)
+        return np.where(cl <= hi, dcd, np.nan), np.where(cl <= hi, da, np.nan)
+
+    def delta(chord, cl):
+        chord, cl = np.broadcast_arrays(np.asarray(chord, float), np.abs(np.asarray(cl, float)))
+        per = [at_chord(i, cl) for i in range(len(chords))]
+        out = []
+        for k in (0, 1):
+            vals = np.stack([v[k] for v in per])  # (n_chords, ...)
+            if len(chords) == 1:
+                out.append(vals[0])
+                continue
+            x = np.clip(chord, chords[0], chords[-1])
+            j = np.clip(np.searchsorted(chords, x) - 1, 0, len(chords) - 2)
+            w = (x - chords[j]) / (chords[j + 1] - chords[j])
+            lo = np.take_along_axis(vals, j[None], 0)[0]
+            hi = np.take_along_axis(vals, (j + 1)[None], 0)[0]
+            out.append((1 - w) * lo + w * hi)
+        return out[0], out[1]
+
+    return delta
+
+
+def transition_correction(spanload, d: dict[str, Any], delta) -> dict[str, float]:
+    """Strip by strip along the fin (spanload.csv rows: eta, chord_m,
+    side_N_per_m, cl): the fin's extra drag dD = sum dC_d q c ds and the
+    leeway change, the side-force-weighted mean dalpha (at equal section
+    C_l, so equal loading: the fin needs that much more angle). NaN when a
+    strip's C_l is beyond the 2D polars."""
+    eta = spanload["eta"].to_numpy(float)
+    chord = spanload["chord_m"].to_numpy(float)
+    side = spanload["side_N_per_m"].to_numpy(float)
+    ds = float(d["fin_span"]) * (eta[1] - eta[0]) if len(eta) > 1 else float(d["fin_span"])
+    dcd, da = delta(chord, spanload["cl"].to_numpy(float))
+    dD = float(np.sum(dcd * float(d["dynamicPressure"]) * chord * ds))
+    w = side * ds
+    dbeta = float(np.sum(da * w) / w.sum()) if abs(w.sum()) > 0.05 else 0.0  # none at zero side force
+    return {"dD_N": dD, "dbeta_deg": dbeta, "strips_out": int(np.isnan(dcd).sum())}
 
 
 def read_spanload(case_dir: Path) -> tuple[np.ndarray, np.ndarray] | None:
@@ -587,7 +667,7 @@ class Keel3D(Project):
 
     # ------------------------------------------------------------------
     @staticmethod
-    def compare_at_equal_force(df, options: dict | None = None):
+    def compare_at_equal_force(df, options: dict | None = None, loads=None):
         """Drag and leeway of every keel design at the side forces a reference
         design makes at a few leeway angles, and the race time each loses
         against the best (foil2d/methodology.md, with 3D leeway and drag).
@@ -599,6 +679,10 @@ class Keel3D(Project):
         Downwind the boat sails upright, so when the study has an upright
         case at 0 deg of the same design (and speed, mesh, ...), heeled rows
         take their downwind drag from it.
+
+        loads: the table of an earlier call; its side forces are used instead
+        of the reference design's at the leeways of this frame (e.g. when the
+        leeways were corrected: the sails set S_h, not the fin).
         """
         import pandas as pd
         from scipy.interpolate import PchipInterpolator
@@ -635,9 +719,14 @@ class Keel3D(Project):
             if not refkey:
                 continue
             rb, rF, *_ = curves[refkey[0]]
-            loads = [float(np.interp(a, rb, rF)) if rb.min() <= a <= rb.max() else float("nan") for a in ref_leeway]
+            given = None
+            if loads is not None and not loads.empty:
+                lg = loads[np.logical_and.reduce([loads[c] == v for c, v in zip(cond, ckey)])] if cond else loads
+                given = lg.groupby("ref_leeway")["side_N"].first()
+            side_at = [(float(given[a]) if a in given.index else float("nan")) if given is not None else
+                       (float(np.interp(a, rb, rF)) if rb.min() <= a <= rb.max() else float("nan")) for a in ref_leeway]
             V = float(dict(zip(cond, ckey)).get("speed", df["speed"].iloc[0]))
-            for li, (a, F0) in enumerate(zip(ref_leeway, loads)):
+            for li, (a, F0) in enumerate(zip(ref_leeway, side_at)):
                 if np.isnan(F0):
                     continue
                 for dkey, (b, F, D, d0, cg_h) in curves.items():
@@ -750,7 +839,73 @@ class Keel3D(Project):
                                         "Grid-shift check", out_dir / "shift_check.md"))
         files += self._spanload_figure(df, design, cond, out_dir, options)
         files.append(self._planform_figure(df, design, out_dir / "planforms.png"))
+        files += self._transition_report(df, design, cond, out_dir, options)
         return files
+
+    def _transition_report(self, df, design, cond, out_dir: Path, options) -> list[Path]:  # pragma: no cover - formatting
+        """The comparison again with the transition correction (DATA_DIR
+        table for the fin section), one table per turbulence level Tu of the
+        transition model."""
+        import pandas as pd
+
+        if "fin_section" not in df or df["fin_section"].nunique() != 1 or df["leeway"].nunique() < 3:
+            return []
+        name = df["fin_section"].iloc[0]
+        table = transition_table(name)
+        if table is None:
+            return []
+        run_dir = out_dir.parent
+        L = ["## Transition correction", "",
+             f"keel3d is fully turbulent. From 2D polars of {name} (`projects/keel3d/data/{name}-transition.csv`), "
+             "each fin strip of `spanload.csv` gets the drag difference dC_d between the transition model "
+             "(kOmegaSSTLM) and the fully turbulent model at its chord and C_l, and the fin the side-force-weighted "
+             "angle difference as extra leeway dβ_Y. Hull and bulb stay fully turbulent. Loads: the S_h of the "
+             "fully turbulent comparison (the sails set them).", ""]
+        out: list[Path] = []
+        tus = sorted(table.loc[table["turbulence"] == "kOmegaSSTLM", "Tu"].unique())
+        for tu in tus:
+            delta = transition_delta(table, float(tu))
+            rows = []
+            for _, r in df.iterrows():
+                f = run_dir / r["case"] / "spanload.csv"
+                if not f.is_file():
+                    continue
+                c = transition_correction(pd.read_csv(f), r, delta)
+                rows.append({"case": r["case"], **c})
+            if not rows:
+                return []
+            corr = pd.DataFrame(rows).set_index("case")
+            df2 = df[df["case"].isin(corr.index)].copy()
+            df2["dD_N"] = corr.loc[df2["case"], "dD_N"].to_numpy()
+            df2["dbeta_deg"] = corr.loc[df2["case"], "dbeta_deg"].to_numpy()
+            df2["strips_out"] = corr.loc[df2["case"], "strips_out"].to_numpy()
+            fixed = df2.assign(drag_N=df2["drag_N"] + df2["dD_N"], leeway=df2["leeway"] + df2["dbeta_deg"])
+            fixed = fixed[fixed["strips_out"] == 0]
+            t = self.compare_at_equal_force(fixed, options, loads=self.compare_at_equal_force(df, options))
+            df2.to_csv(out_dir / f"transition_cases_tu{tu:g}.csv", index=False)
+            if not t.empty:
+                t.to_csv(out_dir / f"transition_compare_tu{tu:g}.csv", index=False)
+            keys = [*cond, *design, "leeway"]
+            L += [f"### Tu {tu:g} %", "", "| " + " | ".join([*keys, "D_h [N]", "dD [N]", "dβ_Y [deg]", "strips beyond the polars"]) + " |",
+                  "|" + "---|" * (len(keys) + 4)]
+            for _, r in df2.sort_values(keys).iterrows():
+                L.append("| " + " | ".join([*(str(r[k]) for k in keys), f"{r['drag_N']:.4f}",
+                                            f"{r['dD_N']:+.4f} ({100 * r['dD_N'] / r['drag_N']:+.1f} %)",
+                                            f"{r['dbeta_deg']:+.3f}", str(int(r["strips_out"]))]) + " |")
+            if not t.empty:
+                head = [*cond, *design, "load", "S_h [N]", "β_Y [deg]", "D_h [N]", "D_h at β_Y = 0 [N]", "loss x1 / x2 [%]"]
+                L += ["", "| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
+                for _, r in t.iterrows():
+                    loss = "-" if np.isnan(r["loss_x1_pct"]) else (
+                        "best" if r["loss_x1_pct"] < 1e-9 and r["loss_x2_pct"] < 1e-9
+                        else f"{r['loss_x1_pct']:.2f} / {r['loss_x2_pct']:.2f}")
+                    L.append("| " + " | ".join([*(str(r[c]) for c in [*cond, *design]), r["load"], f"{r['side_N']:.3f}",
+                                                f"{r['leeway']:.2f}", f"{r['drag_N']:.4f}", f"{r['drag0_N']:.4f}", loss]) + " |")
+            L.append("")
+        path = out_dir / "transition_compare.md"
+        path.write_text("\n".join(L) + "\n")
+        out.append(path)
+        return out
 
     @staticmethod
     def _planform_figure(df, design, path: Path) -> Path:  # pragma: no cover - plotting
