@@ -318,6 +318,62 @@ def optimise(obj: Objective, x0: list[np.ndarray], bounds, popsize: int = 12, ma
 # Figure
 
 
+def polar_figure(df: pd.DataFrame, path: Path, loads: pd.DataFrame | None = None, title: str | None = None,
+                 course: racetime.Course | None = None) -> Path:  # pragma: no cover - plotting
+    """Whole-fin drag D_h (section + induced) against side force S_h, one
+    panel per speed, one line per candidate (cfd_table rows, Cl and Cd), with
+    the comparison loads as vertical lines; below, each candidate's D_h as %
+    above or below the first candidate's at the same S_h (linear along each
+    pre-stall branch). Lower is better."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    loads = loads if loads is not None else design_loads()
+    f = racetime.fin_forces(df, course)
+    speeds = sorted(f["speed"].unique())
+    cands = list(dict.fromkeys(f["candidate"]))
+    colors = ["#9aa5b1", "#d1495b", "#0b4f9c", "#3c9d5d", "#e0a030"]
+    fig, axs = plt.subplots(2, len(speeds), figsize=(4.6 * len(speeds), 7.6), squeeze=False,
+                            gridspec_kw={"height_ratios": [1.3, 1]})
+
+    def branch(g):
+        idx = racetime.prestall_branch(g["aoa"].to_numpy(), g["side_force"].to_numpy())
+        return g["side_force"].to_numpy()[idx], g["drag"].to_numpy()[idx]
+
+    for j, v in enumerate(speeds):
+        ax, ax2 = axs[0, j], axs[1, j]
+        sel = {c: f[(f["candidate"] == c) & np.isclose(f["speed"], v)].sort_values("aoa") for c in cands}
+        sf0, d0 = branch(sel[cands[0]])
+        for k, c in enumerate(cands):
+            g = sel[c]
+            lab = c.removeprefix("file:").replace(".dat", "")
+            ax.plot(g["side_force"], g["drag"], "o-", ms=3.5, color=colors[k % len(colors)], label=lab)
+            sf, d = branch(g)
+            grid = np.linspace(max(sf0[0], sf[0]), min(sf0[-1], sf[-1]), 200)
+            ax2.plot(grid, 100 * (np.interp(grid, sf, d) / np.interp(grid, sf0, d0) - 1), color=colors[k % len(colors)])
+        for a in (ax, ax2):
+            for _, ld in loads[np.isclose(loads["speed"], v)].iterrows():
+                a.axvline(ld["force"], color="0.6", lw=0.8, ls=":")
+            a.grid(alpha=0.3)
+        for _, ld in loads[np.isclose(loads["speed"], v)].iterrows():
+            ax.text(ld["force"], ax.get_ylim()[1], f"{ld['load']} ", rotation=90, va="top", ha="right", fontsize=7,
+                    color="0.4")
+        ax.set_title(f"V_b = {v:g} m/s", fontsize=10)
+        ax.set_ylabel("drag D_h [N]")
+        ax2.set_xlabel("side force S_h [N]")
+        ax2.set_ylabel(f"D_h vs {cands[0].removeprefix('file:').replace('.dat', '')} [%]")
+    axs[0, 0].legend(fontsize=8, loc="upper left")
+    fig.suptitle(title or "Whole fin, drag against side force (lower is better)", fontsize=11, x=0.01, ha="left")
+    fig.tight_layout()
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=110)
+    plt.close(fig)
+    return path
+
+
 def section_figure(spec: str, compare: list[str], path: Path, chord: float = 0.10,
                    title: str | None = None) -> Path:  # pragma: no cover - plotting
     """One sheet for a section: at true scale, its upper surface against the
@@ -425,6 +481,9 @@ def _main(argv=None) -> None:  # pragma: no cover - thin CLI
     r.add_argument("--tu", type=float, default=0.1)
     r.add_argument("--speeds", type=float, nargs="+", default=[0.75, 1.0, 1.5])
     r.add_argument("--angles", type=float, nargs="*", help="use only these angles (e.g. 0 2 4 6: the coarse grid)")
+    r.add_argument("--only", nargs="*", help="rank only these candidates ('foil/chord mm'; the baseline is added)")
+    r.add_argument("--figure", type=Path, help="also draw drag against side force per speed (PNG)")
+    r.add_argument("--title", help="the figure's title")
     o = sub.add_parser("optimise", help="differential evolution of a CST section against the baseline (XFOIL)")
     o.add_argument("--start", nargs="+", default=["naca0007", "file:ht35.dat@0.07", "file:ht34.dat@0.07"],
                    help="sections whose CST fits seed the population")
@@ -478,7 +537,13 @@ def _main(argv=None) -> None:  # pragma: no cover - thin CLI
         df = cfd_table(a.results, a.replace, a.tu, a.speeds).assign(Tu=a.tu)
         if a.angles:
             df = df[np.isin(np.round(df["aoa"], 2), np.round(a.angles, 2))]
+        if a.only:
+            df = df[df["candidate"].isin([a.baseline, *a.only])]
         rk = rank(df, a.baseline)
+        if a.figure:
+            order = [a.baseline, *(a.only or [c for c in df["candidate"].unique() if c != a.baseline])]
+            df["_o"] = df["candidate"].map({c: i for i, c in enumerate(order)})
+            print(polar_figure(df.sort_values(["_o", "speed", "aoa"]).drop(columns="_o"), a.figure, title=a.title))
         pd.set_option("display.width", 200)
         print(rank_summary(rk).round(2).to_string())
         per = rk[rk["slope"] == 1.0].pivot_table(index="candidate", columns="speed", values="vs_base", aggfunc="mean")

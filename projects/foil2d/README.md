@@ -254,7 +254,8 @@ NACA 0007 at 100 mm, 0-6° with 3° and 5°: the CFD screen of
 settings), `custom-section-transient` (HT35 at 7.25 % and NACA 0007,
 time-accurate at 2-5°), `custom-section-tu` (the same two, steady, at Tu 1
 and 2 %), `custom-section-transient-opt2` and `custom-section-tu-opt2`
-(both again for cst-opt2), `custom-section-transient-rerun` (failed
+(both again for cst-opt2), `custom-section-transient-15` (the 1.5 m/s
+cases again, with checkpoints), `custom-section-transient-rerun` (failed
 time-accurate cases again, at max_co 5).
 
 What the runs showed, and the assumptions behind them, is logged per study
