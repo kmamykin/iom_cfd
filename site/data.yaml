@@ -39,10 +39,16 @@ transient-run3:
 
 surface-0007-100-4deg:
   study: transient-check
-  runs: [20261017-000816]   # final instant, not a time average
+  runs: [20261017-000816]   # final instant, not a time average; 1.5 m/s started from the steady solution
   file:
     - aoa4_chord0.1_foilnaca0007_speed0.75/surface.csv
     - aoa4_chord0.1_foilnaca0007_speed1.5/surface.csv
+  digits: 5
+
+surface-0007-100-4deg-rest:
+  study: transient-check
+  runs: [20261018-231921]   # 0007/100, 4 deg, 1.5 m/s started from rest, max_co 5; final instant
+  file: aoa4_chord0.1_foilnaca0007_speed1.5/surface.csv
   digits: 5
 
 force-history-4deg:
@@ -67,10 +73,11 @@ race-time-1ms:
 race-time-by-speed:
   kind: manual
   source: >-
-    projects/foil2d/findings/transient-check.md, run 20261017-000816, conclusion 6.
-    Top four, race-time loss, % behind the best of the four, mean over the light,
-    working and high loads, at 0.75, 1 and 1.5 m/s with time-accurate 4 deg points;
-    loss_x1 / loss_x2 as above.
+    projects/foil2d/findings/transient-check.md, run 20261018-231921, conclusion 4
+    (0007/100 at 1.5 m/s: its 4 deg point started from rest, run 20261017-193613,
+    max_co 10), and run 20261017-000816, conclusion 6 (the rest). Top four, race-time
+    loss, % behind the best of the four, mean over the light, working and high loads,
+    at 0.75, 1 and 1.5 m/s with time-accurate 4 deg points; loss_x1 / loss_x2 as above.
 
 # Vortex shedding on 0007/100, 4 deg, 1 m/s, time-accurate: 150 snapshots over 3 flow-throughs
 # (study shedding-video), rendered with --options '{"time_fps": 15}' (10 s each).

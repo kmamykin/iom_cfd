@@ -457,14 +457,17 @@ def race_time_by_speed(data: Path, out: Path) -> Path:
 
 
 def leading_edge_bubble(data: Path, out: Path) -> Path:
-    s = pd.read_csv(data / "surface-0007-100-4deg.csv")
-    s = s[s.upper.astype(str) == "True"]
+    """The two flows the model finds on 0007/100 at 4 deg and 1.5 m/s: from rest it sheds (one instant),
+    from its steady solution it settles into a leading-edge bubble with attached turbulent flow behind."""
+    steady_start = pd.read_csv(data / "surface-0007-100-4deg.csv")
+    steady_start = steady_start[steady_start.file.str.contains("speed1.5")]
+    rest = pd.read_csv(data / "surface-0007-100-4deg-rest.csv")
     fig, (a, b) = plt.subplots(1, 2, figsize=(9.4, 3.3))
-    for name, colour, label in (("speed0.75", "#2f5d50", "0.75 m/s: sheds from mid-chord"),
-                                ("speed1.5", ACCENT, "1.5 m/s: leading-edge bubble, then attached")):
-        g = s[s.file.str.contains(name)].sort_values("x_c")
-        a.plot(g.x_c, -g.Cp, color=colour, label=label)
-        b.plot(g.x_c, g.Cf, color=colour)
+    for s, colour, label, lw in ((rest, "#2f5d50", "started from rest: sheds (one instant)", 1.1),
+                                 (steady_start, ACCENT, "from its steady solution: leading-edge\nbubble, then attached", 1.6)):
+        g = s[s.upper.astype(str) == "True"].sort_values("x_c")
+        a.plot(g.x_c, -g.Cp, color=colour, label=label, lw=lw)
+        b.plot(g.x_c, g.Cf, color=colour, lw=lw)
     b.axhline(0, color=INK, lw=0.8)
     b.text(0.99, -0.0115, "Cf < 0: reversed flow", ha="right", fontsize=8, color=MUTED)
     a.set(title="Suction side: −Cp", xlabel="x / c", ylabel="−C$_p$", xlim=(0, 1))
