@@ -48,6 +48,30 @@ def test_render_smoke_study(tmp_path, name):
     json.loads((case / "params.json").read_text())
 
 
+@pytest.mark.parametrize("name", list_projects())
+def test_every_project_resumes_from_checkpoints(tmp_path, name):
+    """Every case must survive a lost Spot VM (src/iomcfd/checkpoint.py): the
+    project checkpoints it, the solver can write on a signal or writes by
+    itself, old writes are purged, it starts from latestTime, and Allrun goes
+    straight to the solver when a checkpoint was restored."""
+    from iomcfd.checkpoint import enable_signal_writes
+
+    project = load_project(name)
+    allrun = (project.template / "Allrun").read_text()
+    assert "IOMCFD_RESUME" in allrun, f"{name}/template/Allrun has no resume path"
+    study = Study.load(config.projects_dir() / name / "studies" / "smoke.yaml")
+    case = study.expand(project.defaults)[0]
+    cdir = tmp_path / case.name
+    derived = project.prepare_case(cdir, case.params)
+    mode = project.checkpoint_setup(cdir, case.params, derived)
+    assert mode in (True, "signal"), f"{name} cases can't be resumed"
+    enable_signal_writes(cdir)
+    cd = (cdir / "system" / "controlDict").read_text()
+    assert re.search(r"^startFrom\s+latestTime;", cd, re.M)
+    assert int(re.search(r"^purgeWrite\s+(\d+);", cd, re.M).group(1)) > 0
+    assert mode is True or "writeNowSignal  10;" in cd
+
+
 def test_template_files_parse_as_text():
     for p in config.projects_dir().glob("*/template/**/*"):
         if p.is_file() and p.suffix not in (".stl",):

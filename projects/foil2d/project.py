@@ -275,16 +275,16 @@ class Foil2D(Project):
 
     # ------------------------------------------------------------------
     # checkpoints (iomcfd.checkpoint): resume a time-accurate case on a new VM
-    def checkpoint_setup(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool:
-        """A time-accurate case on one rank writes its fields every
-        CHECKPOINT_FLOW_TIMES flow-throughs and keeps the last two (purgeWrite
-        2: the older is complete while the newer is written). A snapshot run
-        already writes every snapshot_interval and keeps them all. Adjustable
-        writes count from the start time, so the interval divides the time
-        left exactly and the last write is at the end time. Steady cases are
-        short and decomposed ones (np > 1) not supported: False."""
-        if p["solver"] != "transient" or int(p.get("np") or 1) > 1:
-            return False
+    def checkpoint_setup(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool | str:
+        """A time-accurate case writes its fields every CHECKPOINT_FLOW_TIMES
+        flow-throughs and keeps the last two (purgeWrite 2: the older is
+        complete while the newer is written), on any number of ranks. A
+        snapshot run already writes every snapshot_interval and keeps them
+        all. Adjustable writes count from the start time, so the interval
+        divides the time left exactly and the last write is at the end time.
+        Steady cases: the runner's signal writes ("signal")."""
+        if p["solver"] != "transient":
+            return "signal"
         if not float(p.get("snapshot_interval") or 0.0) > 0:
             sysd = Path(case_dir) / "system"
             cd = sysd / "controlDict.transient" if (sysd / "controlDict.transient").exists() else sysd / "controlDict"
@@ -301,7 +301,10 @@ class Foil2D(Project):
     def checkpoint_restored(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any], time: str) -> None:
         """Continue from the restored time: past a steady start (start_iter)
         switch to the time-accurate setup now, as Allrun would after it, and
-        divide the time left into whole write intervals again."""
+        divide the time left into whole write intervals again. A steady case
+        just continues (its endTime is an iteration count)."""
+        if p["solver"] != "transient":
+            return
         sysd = Path(case_dir) / "system"
         if (sysd / "controlDict.transient").exists():
             for name in TRANSIENT_FILES:
