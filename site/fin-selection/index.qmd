@@ -4,7 +4,7 @@ subtitle: "2D simulations of symmetric NACA fin sections, ranked by the race tim
 # the card on the front page (and link previews): image, title, description
 description: >-
   Symmetric NACA fin sections, 6–12 % thick and 80–100 mm in chord, compared in 2D simulations by
-  the race time each would cost. Provisional answer: NACA 0007 with a 100 mm chord, for every wind.
+  the race time each would cost. Answer from the 2D simulations: NACA 0007 with a 100 mm chord, for every wind.
 image: ../_generated/fin-selection-card.png
 author: Kliment Mamykin
 date: 2026-10-16
@@ -21,7 +21,7 @@ abstract: |
   An IOM radio yacht's fin has to make sideways force with as little drag as possible. This page
   compares symmetric NACA fin sections, 6–12\ % thick and 80–100 mm in chord, by the race time each
   would cost. It uses 2D computer simulations of a horizontal slice of the fin, not tests of a finished
-  fin. **Provisional answer:** a 7\ % thick section with a 100 mm chord (NACA 0007/100) is the best
+  fin. **Answer from the 2D simulations:** a 7\ % thick section with a 100 mm chord (NACA 0007/100) is the best
   fin for every wind. In fresh air (1.5 m/s boat speed) it ties with the 8\ % section 0008/100.
   There the model also allows a second, higher-drag flow on it, and which one a real fin gets is
   still open. **Main caveat:** the leading choices differ by less than 1\ % of race time. That is small
@@ -43,7 +43,7 @@ abstract: |
 ::: {.key-results}
 ::: {}
 [0007/100]{.big-number}<br>
-NACA 0007, 100 mm chord: the best fin in light, medium and fresh air (provisional; 2D model)
+NACA 0007, 100 mm chord: the best fin in light, medium and fresh air (2D simulations; medium confidence)
 :::
 ::: {}
 [0008/100]{.big-number}<br>
@@ -686,8 +686,9 @@ near 0° at low speed, and why light air is hard for them.](../assets/flow-lift-
 
 ## Conclusion {#sec-conclusion}
 
-*Everything here comes from a 2D model of the fin section, not from tests of a finished fin, and is
-provisional.*
+*Everything here comes from a 2D model of the fin section, not from tests of a finished fin. The checks
+the answer was waiting for are done. Confidence in it is medium, for the reasons under "Why the order
+is not certain" below.*
 
 **One fin for every wind: NACA 0007/100.**
 
@@ -841,6 +842,8 @@ this page are under CC BY 4.0. Reference data from other sources keeps its own t
 
 ## Revision history {.appendix .unnumbered}
 
+* **22 October 2026 (later).** "Provisional answer" reworded to "Answer from the 2D simulations". The
+  checks it was waiting for are done; the 2D model's caveats stand.
 * **22 October 2026.** The fresh-air check is finished (time-accurate checks 4 and 5: 0007/100 at
   1.25 and 1.5 m/s, started from rest). From rest it sheds like the other sections and ties for best
   at 1.5 m/s, so one fin, 0007/100, suits every wind. The higher-drag flow from a steady start is
