@@ -260,3 +260,8 @@ bulb-tip-cp-cant2:
   study: bulb-cant
   runs: [20261020-183634]
   file: bulb_aspect1_bulb_bottom2_bulb_cant2_heel25_leeway4/viz/tip_cp.png   # 2 deg nose up
+bulb-streamlines-orbit:   # the round bulb, 2 deg cant, 25 deg heel, 4 deg leeway: view streamlines,
+  kind: file              # --options '{"orbit": 240, "orbit_crf": 28}' (the camera once round, 10 s)
+  study: bulb-cant
+  runs: [20261020-183634]
+  file: bulb_aspect1_bulb_bottom2_bulb_cant2_heel25_leeway4/viz/streamlines_orbit.mp4

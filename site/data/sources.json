@@ -68,6 +68,17 @@
     "exported": "2026-10-21",
     "git": "624f248-dirty"
   },
+  "bulb-streamlines-orbit": {
+    "kind": "file",
+    "file": "assets/bulb-streamlines-orbit.mp4",
+    "study": "bulb-cant",
+    "runs": [
+      "20261020-183634"
+    ],
+    "source": "bulb_aspect1_bulb_bottom2_bulb_cant2_heel25_leeway4/viz/streamlines_orbit.mp4",
+    "exported": "2026-10-22",
+    "git": "720fbc4-dirty"
+  },
   "bulb-surface": {
     "kind": "table",
     "file": "data/bulb-surface.csv",
