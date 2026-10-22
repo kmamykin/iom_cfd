@@ -9,7 +9,7 @@ description: >-
 image: ../_generated/bulb-design-card.png
 author: Kliment Mamykin
 date: 2026-10-20
-date-modified: 2026-10-20
+date-modified: 2026-10-22
 license: "CC BY"
 code-links:
   - text: Source on GitHub
@@ -60,7 +60,7 @@ Not a speed gain (@sec-endplate)
 
 [**Jump to:** [the answer](#sec-conclusion) · [the bulb and its job](#sec-basics) ·
 [method](#sec-method) · results: [how long](#sec-length) · [end plate](#sec-endplate) ·
-[how flat](#sec-section) · [how much cant](#sec-cant)]{.jump-links}
+[how flat](#sec-section) · [how much cant](#sec-cant) · [in 3D](#sec-flow3d)]{.jump-links}
 
 ## The bulb and its job {#sec-basics}
 
@@ -473,6 +473,26 @@ as the 0.06–0.07\ % race-time gap would suggest. Same scale as @fig-bulb-tip.
 :::
 :::
 
+### The recommended bulb in 3D {#sec-flow3d}
+
+The round 343 mm bulb set 2° nose up, heeled 25° at 4° leeway and 1 m/s: the best case of the cant
+study at the working load (0° of cant is 0.07\ % of race time behind, @sec-cant).
+
+::: {#fig-bulb-orbit}
+{{< video ../assets/bulb-streamlines-orbit.mp4 >}}
+
+**How does the water pass the heeled keel?** Streamlines drawn as tubes, coloured by speed relative to
+the boat speed: green is about the boat speed, orange and red faster, blue slower. They start on a
+line just ahead of the fin and on two crossed lines ahead of the bulb's nose, and pass through a 15 mm
+ball just behind the fin's tip. The camera turns once round the keel, below the waterline: from the
+starboard (pressure) side at the start, from astern at 2.5 s, from port (the suction side) at 5 s and
+from ahead at 7.5 s. Only the camera moves: this is one steady solution (3D, fully turbulent).
+**Look for:** orange and red lines over the fin's port side, where the water speeds up; the flow
+splitting round the bulb's nose; and blue, slow water behind the corner where the fin meets the bulb.
+The lines past that corner stay bunched but don't wind into a tight spiral, as the cross-flow plane
+showed (@fig-bulb-section-tip).
+:::
+
 ## Conclusion {#sec-conclusion}
 
 *Everything here comes from simulations, not from tests of real bulbs, and is provisional.*
@@ -556,5 +576,6 @@ this page are under CC BY 4.0. Reference data from other sources keeps its own t
 
 ## Revision history {.appendix .unnumbered}
 
+* **22 October 2026.** A 3D streamline video of the recommended bulb (@sec-flow3d).
 * **20 October 2026.** First version: the bulb alone (validation on Dress's body, length at the same
   lead) and the hull, fin and bulb together (end plate, cross-section, cant).
