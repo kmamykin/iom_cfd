@@ -1,4 +1,197 @@
 {
+  "bulb-cant": {
+    "kind": "table",
+    "file": "data/bulb-cant.csv",
+    "study": "bulb-cant",
+    "runs": [
+      "20261020-183634"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-dress": {
+    "kind": "table",
+    "file": "data/bulb-dress.csv",
+    "study": "validation-dress",
+    "runs": [
+      "20261019-020534"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-endplate": {
+    "kind": "table",
+    "file": "data/bulb-endplate.csv",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-fineness": {
+    "kind": "table",
+    "file": "data/bulb-fineness.csv",
+    "study": "fineness",
+    "runs": [
+      "20261019-020546"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-section": {
+    "kind": "table",
+    "file": "data/bulb-section.csv",
+    "study": "bulb-section",
+    "runs": [
+      "20261019-203823"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-spanload": {
+    "kind": "table",
+    "file": "data/bulb-spanload.csv",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": [
+      "bulbtrue_leeway4_meshmedium/spanload.csv",
+      "bulbfalse_leeway4_meshmedium/spanload.csv"
+    ],
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-surface": {
+    "kind": "table",
+    "file": "data/bulb-surface.csv",
+    "study": "fineness",
+    "runs": [
+      "20261019-020546"
+    ],
+    "source": [
+      "Tu0.1_fineness5.7_speed1_turbulencekomegasstlm/surface.csv",
+      "Tu0.1_fineness9.09_speed1_turbulencekomegasstlm/surface.csv"
+    ],
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-tail-251": {
+    "kind": "file",
+    "file": "assets/bulb-tail-251.png",
+    "study": "fineness",
+    "runs": [
+      "20261019-020546"
+    ],
+    "source": "Tu0.1_fineness5.7_speed1_turbulencekomegasstlm/viz/tail_flow.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tail-343": {
+    "kind": "file",
+    "file": "assets/bulb-tail-343.png",
+    "study": "fineness",
+    "runs": [
+      "20261019-020546"
+    ],
+    "source": "Tu0.1_fineness9.09_speed1_turbulencekomegasstlm/viz/tail_flow.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-cp-bulb": {
+    "kind": "file",
+    "file": "assets/bulb-tip-cp-bulb.png",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "bulbtrue_leeway4_meshmedium/viz/tip_cp.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-cp-cant0": {
+    "kind": "file",
+    "file": "assets/bulb-tip-cp-cant0.png",
+    "study": "bulb-cant",
+    "runs": [
+      "20261020-183634"
+    ],
+    "source": "bulb_aspect1_bulb_bottom2_bulb_cant0_heel25_leeway4/viz/tip_cp.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-cp-cant2": {
+    "kind": "file",
+    "file": "assets/bulb-tip-cp-cant2.png",
+    "study": "bulb-cant",
+    "runs": [
+      "20261020-183634"
+    ],
+    "source": "bulb_aspect1_bulb_bottom2_bulb_cant2_heel25_leeway4/viz/tip_cp.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-cp-nobulb": {
+    "kind": "file",
+    "file": "assets/bulb-tip-cp-nobulb.png",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "bulbfalse_leeway4_meshmedium/viz/tip_cp.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-wx-bulb": {
+    "kind": "file",
+    "file": "assets/bulb-tip-wx-bulb.png",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "bulbtrue_leeway4_meshmedium/viz/tip_vorticity.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-wx-flat": {
+    "kind": "file",
+    "file": "assets/bulb-tip-wx-flat.png",
+    "study": "bulb-section",
+    "runs": [
+      "20261019-203823"
+    ],
+    "source": "bulb_aspect1.5_bulb_bottom6_bulb_top2_heel25_leeway4_meshmedium/viz/tip_vorticity.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-wx-nobulb": {
+    "kind": "file",
+    "file": "assets/bulb-tip-wx-nobulb.png",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "bulbfalse_leeway4_meshmedium/viz/tip_vorticity.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-wx-round": {
+    "kind": "file",
+    "file": "assets/bulb-tip-wx-round.png",
+    "study": "bulb-section",
+    "runs": [
+      "20261019-203823"
+    ],
+    "source": "bulb_aspect1_bulb_bottom2_bulb_top2_heel25_leeway4_meshmedium/viz/tip_vorticity.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
   "flow-angle-sweep": {
     "kind": "file",
     "file": "assets/flow-angle-sweep.mp4",

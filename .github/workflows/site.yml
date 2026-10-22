@@ -17,6 +17,9 @@ on:
       - "projects/foil2d/project.py"
       - "projects/foil2d/defaults.yaml"
       - "projects/foil2d/validation/**"
+      - "projects/keel3d/project.py"
+      - "projects/keel3d/defaults.yaml"
+      - "projects/bulb2d/validation/**"
       - ".github/workflows/site.yml"
   workflow_dispatch:
 
