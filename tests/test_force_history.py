@@ -87,3 +87,35 @@ def test_report_table_and_figure(tmp_path, project):
             line.startswith("| b")}
     assert "**" not in rows["a"].split(" | ")[7] and "**+" in rows["b"].split(" | ")[7]  # Cl drift column
     assert "| 30.0 | 24-30 |" in rows["a"]
+
+
+# --- forces along the chord (surface_forces) ----------------------------------------
+
+
+def _surface(cp, cf, n=200, t=0.06):
+    """A closed symmetric contour (ellipse-like, unit chord) as surface.csv rows."""
+    x = 0.5 * (1 - np.cos(np.linspace(0, np.pi, n)))
+    y = t / 2 * 2 * np.sqrt(np.clip(x * (1 - x), 0, None))
+    up = pd.DataFrame({"upper": True, "x_c": x, "y_c": y, "Cp": cp(x), "Cf": cf(x)})
+    lo = pd.DataFrame({"upper": False, "x_c": x, "y_c": -y, "Cp": cp(x), "Cf": cf(x)})
+    return pd.concat([up, lo], ignore_index=True)
+
+
+def _forces():
+    """foil2d's project module (load_project doesn't register it in sys.modules)."""
+    import types
+
+    return types.SimpleNamespace(**type(load_project("foil2d")).extract.__globals__)
+
+
+def test_surface_forces_closed_contour():
+    mod = _forces()
+    # a uniform pressure exerts no net force on a closed body
+    s = _surface(lambda x: np.full_like(x, 0.7), lambda x: np.zeros_like(x))
+    f = mod.surface_forces(s, 4.0)
+    assert abs(f["d_pressure"].sum()) < 1e-3 and abs(f["d_lift"].sum()) < 1e-3
+    # uniform skin friction on both sides of a thin body at 0 deg: Cd_f ~ 2 Cf
+    s = _surface(lambda x: np.zeros_like(x), lambda x: np.full_like(x, 0.004), t=0.01)
+    f = mod.surface_forces(s, 0.0)
+    assert f["d_friction"].sum() == pytest.approx(0.008, rel=0.01)
+    assert abs(f["d_pressure"].sum()) < 1e-9

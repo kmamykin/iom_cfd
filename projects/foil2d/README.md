@@ -119,6 +119,16 @@ a laminar separation bubble where it is short and followed by reattachment,
 trailing-edge separation where it runs to the trailing edge. No field data
 is needed, so it works on a default (light) `gcp fetch`.
 
+Each highlight also gets `report/highlight_<name>_drag.png`: the drag
+gathered from the leading edge to x/c, both surfaces together. It is shown
+in total and split into pressure and friction drag, with a stepped
+section's steps as dotted lines, so it shows where along the chord a section
+loses or gains drag. It is integrated from `surface.csv` (`surface_forces`
+in project.py), which matches the solver's forces to about 1 % for steady
+flow; an unsteady case's `surface.csv` is one instant. Studies that compare
+a handful of sections at a few fixed points also get `report/breakdown.png`:
+friction and pressure drag stacked per section, with Cl.
+
 Induced drag depends on side force and span, not on chord or section, so at
 equal side force it is the same for every candidate: it shows how much the
 section differences matter in the total, it does not reorder them. Questions
