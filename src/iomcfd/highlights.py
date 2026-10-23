@@ -136,7 +136,7 @@ def layout(h: Highlight, cases: list) -> Layout:
     columns = _order(list({str(c.params[cmp]): c.params[cmp] for c in cases}.values()), cases, cmp) if cmp else [None]
     groups: dict[tuple, dict] = {}
     for c in cases:
-        key = tuple(c.params[k] for k in others)
+        key = tuple(_hashable(c.params[k]) for k in others)
         groups.setdefault(key, {})[c.params[cmp] if cmp else None] = c
     keys = list(groups)
     for i in reversed(range(len(others))):  # sort rows by each parameter, numbers ascending
@@ -147,7 +147,14 @@ def layout(h: Highlight, cases: list) -> Layout:
     return Layout(cmp, columns, others, rows)
 
 
+def _hashable(v):
+    """A parameter value as part of a dict key: lists (start_from) become tuples."""
+    return tuple(_hashable(x) for x in v) if isinstance(v, list) else v
+
+
 def _fmt(v) -> str:
+    if isinstance(v, tuple):
+        return " ".join(_fmt(x) for x in v)
     return f"{v:g}" if isinstance(v, float) else str(v)
 
 
