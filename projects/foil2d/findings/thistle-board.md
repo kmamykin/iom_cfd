@@ -13,7 +13,15 @@ the numbers that support a conclusion are copied here. Symbols follow
 [docs/nomenclature.md](../../../docs/nomenclature.md) (S_h, D_h = D_v + D_i,
 leeway β_Y, section angle α_n, rake Λ).
 
-## Where the study stands (updated 2026-10-23, after the XFOIL screen)
+## Where the study stands (updated 2026-10-23, thistle-screen submitted)
+
+**CFD.** Since the XFOIL screen below, two things have happened:
+* `thistle-mesh` finished and picked the **fine** mesh (entry below).
+* `thistle-screen` is running: run 20261023-125405, 320 cases.
+* `thistle-validation-r824` is running: run 20261023-141306, 28 cases,
+  image af02c27, fine mesh.
+
+The rest of this summary is as of the XFOIL screen.
 
 **No CFD answer yet.** XFOIL (2D panel method with e^N transition) says
 NACA 0006, the baseline, is already about as good upwind as any section
@@ -40,6 +48,79 @@ maximum lift, so the CFD decides.
 4. In thistle-mesh, the plank board diverged on the coarse mesh at 5 kn and
    4° (C_l 1e34 after 60 s, stopped by the divergence guard). Its finer
    meshes are still running.
+
+## 2026-10-23: thistle-mesh, run 20261023-052134
+
+**Run.** Image f3cf606 on GCP Spot, 7.4 h wall clock.
+* 96 cases: 95 succeeded, 1 failed. The plank board diverged on the coarse
+  mesh at 5 kn and 4° within 60 s (C_l 1e34; the divergence guard stopped
+  it).
+* 6 did not converge, all plank-board cases at 1 and 5 kn and 0-4°. They
+  are flagged `unsteady`.
+* Report: `runs/thistle-mesh/20261023-052134/report/` (not in git).
+
+**C_d × 10⁴ by mesh level** (steady; Tu 0.1 %, kOmegaSSTLM unless marked):
+
+| section | point | coarse | medium | fine | xfine | fine vs xfine |
+|---|---|---|---|---|---|---|
+| NACA 0006 | 1 kn, 0° | 66.4 | 66.6 | 66.6 | 66.2 | +0.6 % |
+| NACA 0006 | 1 kn, 4° | 136.5 | 138.6 | 146.5 | 143.5 | +2.1 % |
+| NACA 0006 | 5 kn, 0° | 32.4 | 31.4 | 31.0 | 30.8 | +0.7 % |
+| NACA 0006 | 5 kn, 2° | 41.7 | 39.1 | 37.5 | 35.1 | +6.8 % |
+| NACA 0006 | 5 kn, 4° | 87.5 | 83.6 | 85.8 | 96.1 (xfine unsteady) | −10.7 % |
+| NACA 0006 | 15 kn, 0° | 36.6 | 34.9 | 33.5 | 26.9 (see below) | +24.5 % |
+| NACA 0006 | 15 kn, 2° | 44.0 | 41.6 | 41.1 | 40.6 | +1.3 % |
+| NACA 0006 SST | 5 / 15 / 15 kn, 0 / 0 / 2° | 88.6 / 74.3 / 76.7 | 88.5 / 74.2 / 76.3 | 89.0 / 74.6 / 76.7 | 89.5 / 75.1 / 77.2 | −0.6 to −0.7 % |
+| NACA 64-006 | the 7 points | | | | | −1.0 to +2.4 % |
+| plank-typical | the 7 points | | | | | −3.2 to +1.7 %, but +7.8 % at 1 kn, 4° |
+
+* **Two xfine outliers.** Neither is a mesh effect.
+  * 15 kn, 0°: the convergence test stopped the xfine case after 1239
+    iterations, against 2286-4932 on the other levels. Its C_l is 0.00075
+    on a symmetric section at 0°, and it oscillates (`unsteady`). So it
+    stopped while its transition was still moving.
+  * 5 kn, 4°: the xfine case settled into a different leading-edge bubble
+    (C_dp 0.0049 against 0.0035-0.0039) and oscillates.
+* **Transition moves aft with refinement** under the transition model.
+  * NACA 0006 at 5 kn and 2°: x/c 0.72, 0.75, 0.78, 0.83 on the upper side,
+    estimated from the steepest rise of C_f, and C_d falls with it. This
+    point is still 6.8 % from xfine on the fine mesh.
+  * At 15 kn and 0° the shift is smaller: 0.68 to 0.73.
+  * The fully turbulent C_d is within 1.2 % on every level from medium up:
+    the mesh resolves the turbulent boundary layer; it is the transition
+    that is mesh-sensitive.
+* **Medium is not enough.** It is 4-5 % off fine at the thin sections'
+  working-load points (0006 and 64-006 at 5 kn and 2°, 15 kn), and 17-23 %
+  off on the plank board at 1 kn and 4° and 5 kn and 0°.
+* **Cost** (median and maximum wall time per case, kOmegaSSTLM):
+
+  | mesh | median | maximum |
+  |---|---|---|
+  | coarse | 0.19 h | 1.0 h |
+  | medium | 0.72 h | 2.4 h |
+  | fine | 2.1 h | 3.2 h |
+  | xfine | 4.0 h | 7.3 h |
+
+  y+ max on fine is 2.0, at the leading-edge suction peak.
+* **Concern for the validation.** The transition model at Tu 0.1 % keeps
+  NACA 0006 laminar to x/c 0.7 at 15 kn and 0° (Re 3.5e6): C_d 0.0034 on
+  the fine mesh. Report 824 measured 0.0045 at Re 3e6 in a quieter tunnel,
+  and XFOIL at Ncrit 9 gives 0.0036. Both computations may be too laminar
+  at these Reynolds numbers. `thistle-validation-r824` will measure it,
+  because it matters for any section whose advantage is a longer laminar
+  run (the 6-series).
+
+**Decision.**
+* **Mesh.** `mesh: fine` for thistle-screen, thistle-extend and the
+  validation. Expect about ±2-3 % mesh uncertainty in drag, up to about 7 %
+  where transition sits mid-chord at the working load. So upwind
+  differences under about 3 % between sections are not resolved.
+* **Convergence window.** `conv_window: 1000` (default 500), so a moving
+  transition front doesn't pass the convergence test early. That costs
+  about 20 % more iterations.
+* **Screen submitted.** thistle-screen, 2026-10-23: run 20261023-125405,
+  image af02c27, 320 cases. The user asked for it to go when this run
+  finished.
 
 ## 2026-10-23: XFOIL screen and Report 824 check
 

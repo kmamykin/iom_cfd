@@ -15,8 +15,7 @@ description: >
   share. Run at the board's chord in water at 20 C with `speed` set for
   Re 3e6 (6.5848 m/s; `Re` would leave `speed` at its default and merge the
   report's groups). Angles 0-12 deg: lift slope, drag polar and the stall of
-  a thin section. The mesh is the level thistle-mesh picks (set before
-  submitting; fine until then). Report 824's NACA 0006 has an open trailing
+  a thin section. The fine mesh, as thistle-mesh picked. Report 824's NACA 0006 has an open trailing
   edge (0.13 % c); ours is closed (foils.naca4).
 reference: validation/naca6_r824.csv
 report:
@@ -42,7 +41,8 @@ defaults:
   temperature: 20
   speed: 6.5848
   Tu: 0.05
-  mesh: fine
+  mesh: fine            # thistle-mesh run 20261023-052134 (findings 2026-10-23)
+  conv_window: 1000     # 500 let an xfine case stop at 1239 iterations, its transition still moving
   max_iter: 12000
 sweep:
   foil: [naca0006, "file:naca64-006.dat"]

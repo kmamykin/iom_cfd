@@ -20,8 +20,9 @@ description: >
   kOmegaSSTLM at Tu 0.1 and 1 %; max_iter 12000: 320 cases. Rank with
   `boardrank cfd ... --up-kn 1 3 5 --down-kn 1 3 5 15`. thistle-extend then
   runs the other 37 points of the full grid for the sections that survive;
-  the two runs rank together. The mesh level is the one thistle-mesh
-  picks (set before submitting). report.fin_span is the board's length along
+  the two runs rank together. The fine mesh (thistle-mesh: medium is 4-23 %
+  off fine, fine within about 2-3 % of xfine) and a 1000-iteration
+  convergence window. report.fin_span is the board's length along
   the leading edge, so selection.csv holds the whole board's S_h and D_h at
   each V_n (methodology §2).
 report:
@@ -57,7 +58,8 @@ defaults:
   chord: 0.4572
   temperature: 20
   turbulence: kOmegaSSTLM
-  mesh: medium          # set to thistle-mesh's choice before submitting
+  mesh: fine            # thistle-mesh run 20261023-052134 (findings 2026-10-23)
+  conv_window: 1000     # 500 let an xfine case stop at 1239 iterations, its transition still moving
   max_iter: 12000
 sweep:
   foil:

@@ -22,7 +22,8 @@ defaults:
   chord: 0.4572
   temperature: 20
   turbulence: kOmegaSSTLM
-  mesh: medium          # the same level as thistle-screen
+  mesh: fine            # thistle-mesh run 20261023-052134 (findings 2026-10-23)
+  conv_window: 1000     # 500 let an xfine case stop at 1239 iterations, its transition still moving
   max_iter: 12000
 sweep:
   foil:                 # trim to the survivors of thistle-screen; keep NACA 0006 (the baseline)
