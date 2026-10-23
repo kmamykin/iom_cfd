@@ -1190,6 +1190,363 @@ def bulb_card(data: Path, out: Path) -> Path:
     return out
 
 
+# ---------------------------------------------------------------------------
+# The fin section page (site/custom-section/index.qmd). Data: custom-*.csv. The ranking is
+# `python -m iomcfd.sectiondesign cfd`'s (projects/foil2d/findings/custom-section.md), and the shapes
+# come from the section coordinates in geometry/foils/.
+
+BASE, HT35, OPT2 = "naca0007/100", "file:ht35-t0725.dat/100", "file:cst-opt2.dat/100"
+CUSTOM_NAMES = {
+    BASE: "NACA 0007", HT35: "HT35 at 7.25 %", OPT2: "cst-opt2", "file:ht35-t070.dat/100": "HT35 at 7 %",
+    "file:sd8020-t070.dat/100": "SD8020 at 7 %", "file:cst-opt1.dat/100": "cst-opt1",
+    "file:ht14-t070.dat/100": "HT14 at 7 %", "file:naca0007-73.dat/100": "NACA 0007-73",
+    "file:naca64-007.dat/100": "NACA 64-007",
+}
+CUSTOM_COLOURS = {BASE: "#3c4a57", HT35: ACCENT, OPT2: "#2f5d50"}
+# the shapes: HT35 from the UIUC coordinates scaled to 7.25 % (ht35-t0725.dat, which the CFD meshed, has
+# the same shape to 1e-7 c, but its 7 decimals spoil a nose radius read back from it)
+CUSTOM_SPECS = {BASE: "naca0007", HT35: "file:ht35.dat@0.0725", OPT2: "file:cst-opt2.dat"}
+CUSTOM_SPEEDS = (0.75, 1.0, 1.5)
+WIND = {0.75: "light air", 1.0: "medium", 1.5: "fresh"}
+
+
+def custom_polars(data: Path, tu: float = 0.1) -> pd.DataFrame:
+    """The section polars behind the ranking (candidate, foil, chord, speed, aoa, Cl, Cd, Tu). Tu 0.1 %: the
+    steady screen and optima runs, with the time-accurate points replacing theirs, later files winning
+    (NACA 0007 at 4 deg and 1.5 m/s: started from rest); `steady_only` leaves them out. Tu 1 and 2 %:
+    the steady runs (the flow is steady there)."""
+    from iomcfd import sectiondesign as sd
+
+    if tu == 0.1:
+        base = [data / "custom-steady.csv", data / "custom-optima.csv"]
+        replace = [data / f"custom-{n}.csv" for n in
+                   ("transient", "transient-opt2", "transient-15", "transient-rerun", "0007-rest")]
+    else:
+        base, replace = [data / "custom-tu.csv", data / "custom-tu-opt2.csv"], []
+    return sd.cfd_table(base, replace, tu=tu, speeds=list(CUSTOM_SPEEDS)).assign(Tu=tu)
+
+
+def custom_rank(data: Path, tu: float = 0.1, candidates=(BASE, HT35, OPT2), steady_only: bool = False) -> pd.DataFrame:
+    """sectiondesign.rank against NACA 0007/100: `vs_base` per candidate, slope (x1, x2), speed and load,
+    % of race time (negative = faster)."""
+    from iomcfd import sectiondesign as sd
+
+    if steady_only:
+        t = sd.cfd_table([data / "custom-steady.csv", data / "custom-optima.csv"], tu=0.1,
+                         speeds=list(CUSTOM_SPEEDS)).assign(Tu=0.1)
+    else:
+        t = custom_polars(data, tu)
+    return sd.rank(t[t.candidate.isin(candidates)] if candidates else t, BASE)
+
+
+def custom_parts(data: Path) -> pd.DataFrame:
+    """The race-time gain of HT35 and cst-opt2 over NACA 0007 (Tu 0.1 %, slope x1) per speed and load, split
+    as methodology.md adds it up (half the race upwind, half downwind): extra drag upwind, extra leeway,
+    extra drag downwind at 0 deg. Positive = a gain."""
+    from iomcfd import racetime
+
+    c = racetime.Course()
+    rk = custom_rank(data)
+    rk = rk[rk.slope == 1.0].set_index(["speed", "load"])
+    base = rk[rk.candidate == BASE]
+    rows = []
+    for cand in (HT35, OPT2):
+        r = rk[rk.candidate == cand]
+        slope = np.array([c.vdrdv_at(v) for v, _ in r.index])
+        rows.append(pd.DataFrame({
+            "candidate": cand,
+            "upwind drag": -50 * (r.drag_up - base.drag_up).to_numpy() / slope,
+            "leeway": -50 * np.tan(np.radians(c.track_deg)) * np.radians(r.aoa - base.aoa).to_numpy(),
+            "downwind drag": -50 * (r.drag_0 - base.drag_0).to_numpy() / slope,
+            "total": -r.vs_base.to_numpy(),
+        }, index=r.index))
+    return pd.concat(rows).reset_index()
+
+
+def custom_shapes(out: Path) -> Path:
+    """NACA 0007, HT35 at 7.25 % and cst-opt2 at 100 mm: at true scale, the half-thickness stretched,
+    HT35 and cst-opt2 minus NACA 0007, and the nose and tail at true scale."""
+    from iomcfd import sectiondesign as sd
+
+    C = 100.0
+    secs = {k: sd.load(s) for k, s in CUSTOM_SPECS.items()}
+    props = {k: sd.properties(f) for k, f in secs.items()}
+    x = np.linspace(0, 1, 4001)
+    half = {k: np.interp(x, *f.surface("upper", 1600).T) * C for k, f in secs.items()}
+    order = (BASE, OPT2, HT35)  # HT35 drawn last, on top
+    lw = {BASE: 1.6, OPT2: 1.1, HT35: 2.0}
+    ls = {BASE: "-", OPT2: (0, (4, 2)), HT35: "-"}
+    fig = plt.figure(figsize=(9.6, 7.4))
+    gs = fig.add_gridspec(3, 2, height_ratios=[0.55, 1.15, 1.25], width_ratios=[1.75, 1], hspace=0.6, wspace=0.22)
+    a = fig.add_subplot(gs[0, :])
+    up = secs[BASE].surface("upper", 800) * C
+    a.fill(np.r_[up[:, 0], up[::-1, 0]], np.r_[up[:, 1], -up[::-1, 1]], color="#d9d3c4", lw=0)
+    for k in (BASE, HT35):
+        u = secs[k].surface("upper", 800) * C
+        a.plot(np.r_[u[:, 0], u[::-1, 0]], np.r_[u[:, 1], -u[::-1, 1]], color=CUSTOM_COLOURS[k], lw=lw[k] * 0.7)
+    a.set_aspect("equal")
+    a.set(xlim=(-1, 101), ylim=(-4.5, 4.5), yticks=[], title="At true scale: 100 mm chord, about 7 mm thick")
+    a.grid(False)
+    a.spines["left"].set_visible(False)
+    b = fig.add_subplot(gs[1, :])
+    for k in order:
+        b.plot(x * C, half[k], color=CUSTOM_COLOURS[k], lw=lw[k], ls=ls[k], label=CUSTOM_NAMES[k])
+        p = props[k]
+        b.plot(p["x_t"] * C, p["t"] * C / 2, "o", color=CUSTOM_COLOURS[k], ms=5)
+    p0, p1 = props[BASE], props[HT35]
+    b.annotate(f"thickest {p1['t'] * C:.2f} mm\nat {p1['x_t'] * C:.0f} mm", (p1["x_t"] * C, p1["t"] * C / 2),
+               (14, 1.2), color=ACCENT, fontsize=8.5, arrowprops=dict(arrowstyle="-", color=ACCENT, lw=0.8))
+    b.annotate(f"thickest {p0['t'] * C:.2f} mm\nat {p0['x_t'] * C:.0f} mm", (p0["x_t"] * C, p0["t"] * C / 2),
+               (42, 3.9), color=CUSTOM_COLOURS[BASE], fontsize=8.5,
+               arrowprops=dict(arrowstyle="-", color=CUSTOM_COLOURS[BASE], lw=0.8))
+    b.set(xlim=(0, 100), ylim=(0, 4.6), xlabel="from the leading edge [mm]", ylabel="half-thickness [mm]",
+          title="Half the section, vertical scale stretched about 7 times")
+    b.legend(loc="upper right")
+    d = fig.add_subplot(gs[2, 0])
+    for k in (OPT2, HT35):
+        d.plot(x * C, half[k] - half[BASE], color=CUSTOM_COLOURS[k], lw=lw[k], ls=ls[k])
+    d.axhline(0, color=CUSTOM_COLOURS[BASE], lw=1)
+    d.text(21, 0.31, "fuller than NACA 0007", color=MUTED, fontsize=8.5)
+    d.text(48, -0.31, "thinner", color=MUTED, fontsize=8.5, va="top")
+    d.set(xlim=(0, 100), ylim=(-0.4, 0.4), xlabel="from the leading edge [mm]", ylabel="mm",
+          title="Half-thickness minus NACA 0007's")
+    n = fig.add_subplot(gs[2, 1])
+    for k in order:
+        u = secs[k].surface("upper", 4000) * C
+        for sgn in (1, -1):
+            n.plot(u[:, 0], sgn * u[:, 1], color=CUSTOM_COLOURS[k], lw=lw[k], ls=ls[k])
+    n.set_aspect("equal")
+    n.set(xlim=(-0.3, 3.2), ylim=(-1.75, 1.75), xlabel="mm",
+          title=f"Nose at true scale: radius\n{p1['r_le'] * C:.2f} mm (HT35), {p0['r_le'] * C:.2f} mm (NACA)")
+    return _save(fig, out)
+
+
+def custom_screen(data: Path, out: Path) -> Path:
+    """The steady CFD screen: nine sections at 100 mm against NACA 0007, mean race-time gain over the three
+    speeds and three loads, Tu 0.1 %."""
+    rk = custom_rank(data, candidates=None, steady_only=True)
+    m = rk.pivot_table(index="candidate", columns="slope", values="vs_base", aggfunc="mean")
+    m = -m.sort_values(1.0, ascending=False)
+    fig, ax = plt.subplots(figsize=(8.4, 3.9))
+    y = np.arange(len(m))
+    colours = [CUSTOM_COLOURS.get(c, "#b3a27f") for c in m.index]
+    ax.barh(y, m[1.0], color=colours, height=0.6)
+    ax.scatter(m[2.0], y, marker="|", s=200, color=INK, lw=2, zorder=3, label="resistance slope doubled")
+    for yi, (c, v1, v2) in enumerate(zip(m.index, m[1.0], m[2.0])):
+        text = "reference" if c == BASE else f"{v1:+.2f}"
+        ax.text(max(v1, v2, 0) + 0.04 if v1 >= 0 else min(v1, v2) - 0.04, yi, text, va="center",
+                ha="left" if v1 >= 0 else "right", fontsize=8.5)
+    ax.axvline(0, color=INK, lw=0.9)
+    names = {**CUSTOM_NAMES, "file:ht35-t070.dat/100": "HT35 at 7 % (less stiff)"}
+    ax.set_yticks(y, [names.get(c, c) for c in m.index])
+    ax.set(xlim=(-1.9, 1.25), xlabel="race time gained against NACA 0007 [%]   (← slower · faster →)",
+           title="Steady screen at Tu 0.1 %: mean of three speeds and three loads")
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="lower right", fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def custom_gain(data: Path, out: Path) -> Path:
+    """HT35 and cst-opt2 against NACA 0007: race time gained by boat speed (Tu 0.1 %, time-accurate where
+    the flow sheds) and by the water's turbulence (Tu 1 and 2 %: steady)."""
+    rk = {tu: custom_rank(data, tu) for tu in (0.1, 1.0, 2.0)}
+    fig, (a, b) = plt.subplots(1, 2, figsize=(9.6, 3.7), sharey=True, gridspec_kw={"width_ratios": [1.35, 1]})
+    w = 0.34
+    for i, cand in enumerate((HT35, OPT2)):
+        r = rk[0.1][rk[0.1].candidate == cand]
+        by = -r.pivot_table(index="speed", columns="slope", values="vs_base", aggfunc="mean")
+        vals = [by.loc[v] for v in CUSTOM_SPEEDS] + [by.mean()]
+        xs = np.arange(4) + (i - 0.5) * w
+        a.bar(xs, [v[1.0] for v in vals], width=w * 0.9, color=CUSTOM_COLOURS[cand], label=CUSTOM_NAMES[cand])
+        a.scatter(xs, [v[2.0] for v in vals], marker="_", s=110, color=INK, lw=2, zorder=3)
+        tus = []
+        for tu in (0.1, 1.0, 2.0):
+            g = rk[tu][rk[tu].candidate == cand]
+            tus.append(-g.groupby("slope").vs_base.mean())
+        xs = np.arange(3) + (i - 0.5) * w
+        b.bar(xs, [t[1.0] for t in tus], width=w * 0.9, color=CUSTOM_COLOURS[cand])
+        b.scatter(xs, [t[2.0] for t in tus], marker="_", s=110, color=INK, lw=2, zorder=3)
+        for xi, t in zip(xs, tus):
+            b.text(xi, max(t[1.0], 0) + 0.03, f"{t[1.0]:.2f}", ha="center", fontsize=7.8)
+    a.scatter([], [], marker="_", s=110, color=INK, lw=2, label="resistance slope doubled")
+    a.set_xticks(range(4), [f"{v:g} m/s\n({WIND[v]})" for v in CUSTOM_SPEEDS] + ["mean"])
+    a.set(ylabel="race time gained against\nNACA 0007 [%]", title="By boat speed (calm water, Tu 0.1 %)")
+    b.set_xticks(range(3), ["Tu 0.1 %\n(calm)", "Tu 1 %", "Tu 2 %\n(rough)"])
+    b.set(title="By the water's turbulence (mean)")
+    sec = b.secondary_yaxis("right", functions=(lambda v: v * BOAT_LENGTHS_PER_PCT, lambda v: v / BOAT_LENGTHS_PER_PCT))
+    sec.set_ylabel("boat lengths per race (estimate)")
+    for ax in (a, b):
+        ax.axhline(0, color=INK, lw=0.9)
+        ax.grid(axis="x", visible=False)
+    a.set_ylim(-0.1, 1.0)
+    a.legend(loc="upper left", fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def custom_breakdown(data: Path, out: Path) -> Path:
+    """Where HT35's gain comes from, per boat speed: less drag upwind, less leeway, less drag downwind."""
+    p = custom_parts(data)
+    p = p[p.candidate == HT35]
+    parts = [("upwind drag", ACCENT, "less drag upwind, at the same side force"),
+             ("leeway", "#e09a4f", "less leeway (angle) for that side force"),
+             ("downwind drag", "#2f5d50", "less drag downwind, at 0°")]
+    by = p.groupby("speed")[[k for k, *_ in parts]].mean()
+    by.loc["all"] = p[[k for k, *_ in parts]].mean()
+    fig, ax = plt.subplots(figsize=(8.6, 3.3))
+    y = np.arange(len(by))[::-1]
+    left = np.zeros(len(by))
+    for key, colour, text in parts:
+        ax.barh(y, by[key], left=left, color=colour, height=0.58, label=text)
+        for yi, l0, v in zip(y, left, by[key]):
+            if v > 0.07:
+                ax.text(l0 + v / 2, yi, f"{v:.2f}", ha="center", va="center", fontsize=8, color=PAPER)
+        left += by[key].to_numpy()
+    for yi, v in zip(y, left):
+        ax.text(v + 0.02, yi, f"{v:.2f} %", va="center", fontsize=8.5, weight="bold")
+    ax.set_yticks(y, [f"{v:g} m/s ({WIND[v]})" if v != "all" else "all three" for v in by.index])
+    ax.set(xlim=(0, 1.05), xlabel="race time gained against NACA 0007 [%] (estimated resistance slope)",
+           title="HT35 at 7.25 %: where the gain comes from (mean of three loads, Tu 0.1 %)")
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.45, -0.2), ncols=3, fontsize=7.8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def custom_upwind(data: Path, out: Path) -> Path:
+    """Upwind, at equal side force: each section's drag and angle against NACA 0007's, per boat speed,
+    linear between the computed angles along the pre-stall branch (as the ranking interpolates)."""
+    from iomcfd import racetime, sectiondesign as sd
+
+    f = racetime.fin_forces(custom_polars(data))
+    loads = sd.design_loads()
+    fig, axs = plt.subplots(2, 3, figsize=(10, 5.4), sharey="row")
+
+    def branch(cand, v):
+        g = f[(f.candidate == cand) & np.isclose(f.speed, v) & (f.aoa >= 0)]
+        i = racetime.prestall_branch(g.aoa.to_numpy(), g.side_force.to_numpy())
+        return g.side_force.to_numpy()[i], g.drag.to_numpy()[i], g.aoa.to_numpy()[i]
+
+    for j, v in enumerate(CUSTOM_SPEEDS):
+        s0, d0, a0 = branch(BASE, v)
+        for cand in (OPT2, HT35):
+            s, d, al = branch(cand, v)
+            grid = np.linspace(max(s0[0], s[0]), min(s0[-1], s[-1]), 400)
+            st = dict(color=CUSTOM_COLOURS[cand], lw=1.9 if cand == HT35 else 1.2,
+                      ls="-" if cand == HT35 else (0, (4, 2)), label=CUSTOM_NAMES[cand])
+            axs[0, j].plot(grid, 100 * (np.interp(grid, s, d) / np.interp(grid, s0, d0) - 1), **st)
+            axs[1, j].plot(grid, np.interp(grid, s, al) - np.interp(grid, s0, a0), **st)
+        for ax in axs[:, j]:
+            ax.axhline(0, color=CUSTOM_COLOURS[BASE], lw=1)
+            for _, ld in loads[np.isclose(loads.speed, v)].iterrows():
+                ax.axvline(ld.force, color=MUTED, lw=0.8, ls=":")
+        for _, ld in loads[np.isclose(loads.speed, v)].iterrows():
+            axs[0, j].text(ld.force, 1.0, {"light": "low", "working": "working", "high": "high"}[ld.load],
+                           transform=axs[0, j].get_xaxis_transform(), rotation=90, ha="right", va="top",
+                           fontsize=7.5, color=MUTED)
+        axs[0, j].set_title(f"{v:g} m/s ({WIND[v]})")
+        axs[1, j].set_xlabel("side force $S_h$ [N]")
+    axs[0, 0].set(ylabel="drag $D_h$ against\nNACA 0007's [%]", ylim=(-13, 8))
+    axs[1, 0].set(ylabel="angle α against\nNACA 0007's [°]", ylim=(-0.9, 0.4))
+    axs[1, 0].legend(loc="lower right", fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def _surface_forces():
+    """foil2d's surface_forces (projects/foil2d/project.py): each surface point's share of Cd and Cl."""
+    from iomcfd.project import load_project
+
+    return type(load_project("foil2d")).extract.__globals__["surface_forces"]
+
+
+def custom_friction(data: Path, out: Path) -> Path:
+    """Downwind (0 deg, 1 m/s, Tu 0.1 %, steady): pressure and skin friction along the surface, and the
+    friction drag gathered from the leading edge, NACA 0007 against HT35 at 7.25 %."""
+    s = pd.read_csv(data / "custom-surface-0deg.csv")
+    forces = _surface_forces()
+    fig, axs = plt.subplots(1, 3, figsize=(10, 3.3))
+    for key, tag in ((BASE, "naca0007"), (HT35, "ht35")):
+        g = s[s.file.str.contains(tag)]
+        up = g[(g.upper.astype(str) == "True") & (g.x_c < 0.995)].sort_values("x_c")  # without the TE corner
+        st = dict(color=CUSTOM_COLOURS[key], lw=1.6, label=CUSTOM_NAMES[key])
+        axs[0].plot(up.x_c, -up.Cp, **st)
+        axs[1].plot(up.x_c, up.Cf, **st)
+        sf = forces(g, 0.0).sort_values("x_c", kind="stable")
+        cum = sf.d_friction.cumsum().to_numpy()
+        axs[2].plot(sf.x_c, cum, **st)
+        axs[2].text(1.01, cum[-1], f"{cum[-1]:.4f}", color=CUSTOM_COLOURS[key], fontsize=8, va="center")
+    axs[1].axhline(0, color=INK, lw=0.8)
+    axs[0].set(title="Pressure: −C$_p$", xlabel="x / c", ylabel="−C$_p$", xlim=(0, 1), ylim=(-0.15, 0.3))
+    axs[1].set(title="Skin friction C$_f$", xlabel="x / c", xlim=(0, 1), ylim=(-0.002, 0.012))
+    axs[2].set(title="Friction drag from the nose to x/c", xlabel="x / c", ylabel="C$_d$ (both sides)",
+               xlim=(0, 1.0))
+    axs[1].text(0.97, -0.0016, "C$_f$ < 0: reversed flow", ha="right", fontsize=7.5, color=MUTED)
+    axs[0].legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def custom_gain_table(data: Path, out: Path) -> Path:
+    """Race time gained against NACA 0007 (positive = faster), x1 / x2, by speed (Tu 0.1 %), the least
+    favourable of the nine speed-load points, and at Tu 1 and 2 %."""
+    rk = {tu: custom_rank(data, tu) for tu in (0.1, 1.0, 2.0)}
+
+    def cell(s):
+        return f"{-s[1.0]:.2f} / {-s[2.0]:.2f}"
+
+    rows = ["| section | 0.75 m/s | 1 m/s | 1.5 m/s | mean | least favourable point | Tu 1 % | Tu 2 % |",
+            "|---|---|---|---|---|---|---|---|"]
+    for cand in (HT35, OPT2):
+        r = rk[0.1][rk[0.1].candidate == cand]
+        by = r.pivot_table(index="speed", columns="slope", values="vs_base", aggfunc="mean")
+        worst = r[r.slope == 1.0].vs_base.max()
+        cells = [cell(by.loc[v]) for v in CUSTOM_SPEEDS] + [f"**{cell(by.mean())}**", f"{-worst:.2f}"]
+        cells += [cell(rk[tu][rk[tu].candidate == cand].groupby("slope").vs_base.mean()) for tu in (1.0, 2.0)]
+        rows.append(f"| {CUSTOM_NAMES[cand]} | " + " | ".join(cells) + " |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def custom_properties_table(out: Path) -> Path:
+    """Thickness, crest, nose radius, trailing-edge angle and bending stiffness at 100 mm."""
+    from iomcfd import sectiondesign as sd
+
+    p = {k: sd.properties(sd.load(s)) for k, s in CUSTOM_SPECS.items()}
+    rows = ["| section | thickness | thickest at | nose radius | trailing-edge angle | bending stiffness |",
+            "|---|--:|--:|--:|--:|--:|"]
+    for k in (BASE, HT35, OPT2):
+        q = p[k]
+        stiff = "reference" if k == BASE else \
+            f"{q['i_solid'] / p[BASE]['i_solid']:.2f} solid, {q['i_skin'] / p[BASE]['i_skin']:.2f} skin"
+        rows.append(f"| {CUSTOM_NAMES[k]} | {100 * q['t']:.2f} mm | {100 * q['x_t']:.0f} mm | "
+                    f"{100 * q['r_le']:.2f} mm | {q['te_angle']:.1f}° | {stiff} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def custom_card(out: Path) -> Path:
+    """The page's card at 3:1: HT35 at 7.25 % over NACA 0007, the thickness stretched three times."""
+    from iomcfd import sectiondesign as sd
+
+    fig = plt.figure(figsize=(9, 3))
+    a = fig.add_axes([0, 0, 1, 1])
+    for k, fill in ((HT35, True), (BASE, False)):
+        u = sd.load(CUSTOM_SPECS[k]).surface("upper", 800)
+        xs, ys = np.r_[u[:, 0], u[::-1, 0]], 3 * np.r_[u[:, 1], -u[::-1, 1]]
+        if fill:
+            a.fill(xs, ys, color=ACCENT, alpha=0.85, lw=0)
+        else:
+            a.plot(xs, ys, color=INK, lw=1.6, ls=(0, (5, 3)))
+    a.set_aspect("equal")
+    a.set(xlim=(-0.08, 1.08), ylim=(-0.193, 0.193))  # 1.16 x 0.387: 3:1
+    a.axis("off")
+    fig.savefig(out, dpi=120, facecolor=PAPER)
+    plt.close(fig)
+    return out
+
+
 def make_all(data: Path, out: Path) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     ref = data.parents[1] / "projects" / "foil2d" / "validation" / "naca0009_re1e5_princeton.csv"
@@ -1209,7 +1566,7 @@ def make_all(data: Path, out: Path) -> list[Path]:
         race_time_table(data, out / "race-time.md"),
         race_time_by_speed_table(data, out / "race-time-by-speed.md"),
         fin_choice_table(data, out / "fin-choice.md"),
-        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith("bulb-")),
+        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith(("bulb-", "custom-"))),
         card_image(data.parent / "assets" / "flow-shedding-vorticity.png", out / "fin-selection-card.png"),
         # the keel bulb page
         bulb_side(out / "bulb-side.svg"),
@@ -1233,4 +1590,15 @@ def make_all(data: Path, out: Path) -> list[Path]:
         bulb_sections_table(data, out / "bulb-sections.md"),
         sources_table(data, out / "sources-bulb.md", keep=lambda n: n.startswith("bulb-")),
         bulb_card(data, out / "bulb-design-card.png"),
+        # the fin section page
+        custom_shapes(out / "custom-shapes.svg"),
+        custom_screen(data, out / "custom-screen.svg"),
+        custom_gain(data, out / "custom-gain.svg"),
+        custom_breakdown(data, out / "custom-breakdown.svg"),
+        custom_upwind(data, out / "custom-upwind.svg"),
+        custom_friction(data, out / "custom-friction.svg"),
+        custom_gain_table(data, out / "custom-gain.md"),
+        custom_properties_table(out / "custom-properties.md"),
+        sources_table(data, out / "sources-custom.md", keep=lambda n: n.startswith("custom-")),
+        custom_card(out / "custom-section-card.png"),
     ]

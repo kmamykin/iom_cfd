@@ -203,6 +203,181 @@
     "exported": "2026-10-21",
     "git": "624f248-dirty"
   },
+  "custom-0007-rest": {
+    "kind": "table",
+    "file": "data/custom-0007-rest.csv",
+    "study": "transient-check",
+    "runs": [
+      "20261017-193613"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-flow-2deg-ht35": {
+    "kind": "file",
+    "file": "assets/custom-flow-2deg-ht35.png",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "aoa2_foilht35mt0725_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-flow-2deg-naca0007": {
+    "kind": "file",
+    "file": "assets/custom-flow-2deg-naca0007.png",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "aoa2_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-flow-4deg-ht35": {
+    "kind": "file",
+    "file": "assets/custom-flow-4deg-ht35.png",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "aoa4_foilht35mt0725_speed1_start_fromx/viz/boundary_layer.png",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-flow-4deg-naca0007": {
+    "kind": "file",
+    "file": "assets/custom-flow-4deg-naca0007.png",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "aoa4_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-optima": {
+    "kind": "table",
+    "file": "data/custom-optima.csv",
+    "study": "custom-section-optima",
+    "runs": [
+      "20261018-051126"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-steady": {
+    "kind": "table",
+    "file": "data/custom-steady.csv",
+    "study": "custom-section-screen",
+    "runs": [
+      "20261018-043724"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-surface-0deg": {
+    "kind": "table",
+    "file": "data/custom-surface-0deg.csv",
+    "study": "custom-section-screen",
+    "runs": [
+      "20261018-043724"
+    ],
+    "source": [
+      "aoa0_foilnaca0007_speed1/surface.csv",
+      "aoa0_foilht35mt0725_speed1/surface.csv"
+    ],
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-surface-ta": {
+    "kind": "table",
+    "file": "data/custom-surface-ta.csv",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": [
+      "aoa2_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv",
+      "aoa2_foilht35mt0725_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv",
+      "aoa4_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv",
+      "aoa4_foilht35mt0725_speed1_start_fromx/surface.csv"
+    ],
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-transient": {
+    "kind": "table",
+    "file": "data/custom-transient.csv",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-transient-15": {
+    "kind": "table",
+    "file": "data/custom-transient-15.csv",
+    "study": "custom-section-transient-15",
+    "runs": [
+      "20261019-164044"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-transient-opt2": {
+    "kind": "table",
+    "file": "data/custom-transient-opt2.csv",
+    "study": "custom-section-transient-opt2",
+    "runs": [
+      "20261018-161314"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-transient-rerun": {
+    "kind": "table",
+    "file": "data/custom-transient-rerun.csv",
+    "study": "custom-section-transient-rerun",
+    "runs": [
+      "20261018-195326",
+      "20261019-203535",
+      "20261019-214537"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-tu": {
+    "kind": "table",
+    "file": "data/custom-tu.csv",
+    "study": "custom-section-tu",
+    "runs": [
+      "20261018-104350"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-tu-opt2": {
+    "kind": "table",
+    "file": "data/custom-tu-opt2.csv",
+    "study": "custom-section-tu-opt2",
+    "runs": [
+      "20261018-155808"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
   "flow-angle-sweep": {
     "kind": "file",
     "file": "assets/flow-angle-sweep.mp4",

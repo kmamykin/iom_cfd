@@ -8,7 +8,7 @@ description: >-
 image: ../_generated/fin-selection-card.png
 author: Kliment Mamykin
 date: 2026-10-16
-date-modified: 2026-10-22
+date-modified: 2026-10-23
 license: "CC BY"
 code-links:
   - text: Source on GitHub
@@ -30,6 +30,11 @@ abstract: |
 
 ::::: {.callout-note appearance="simple" icon=false}
 ::: {.status}
+**Follow-up, 23 October: a better section than NACA 0007.** At the same 100 mm chord and the same
+bending stiffness, Mark Drela's HT35 scaled to 7.25\ % beats NACA 0007/100 in the 2D simulations, by
+about 0.4–0.7\ % of race time in calm water. See [the fin section study](../custom-section/). This
+page's ranking of the NACA sections stands.
+
 **Updated 22 October: the fresh-air check is finished.**
 
 * Started from rest, NACA 0007/100 at 1.25 and 1.5 m/s sheds vortices like the other sections.
@@ -717,7 +722,8 @@ resistance slope / doubled).
 * **Boat lengths:** about 4 per 1\ % over 2 laps of 90 m legs (an estimate).
 :::
 
-**Best all-round: NACA 0007/100**, on current evidence.
+**Best all-round: NACA 0007/100**, of the NACA sections. A section from outside the family, HT35 at
+7.25\ %, does better at the same chord ([the fin section study](../custom-section/)).
 
 * **It is the best, or within 0.05\ % of the best, in every wind.**
   * Against changing fins with the wind it gives away 0.00\ % of race time on average (0.02\ % with
@@ -842,6 +848,8 @@ this page are under CC BY 4.0. Reference data from other sources keeps its own t
 
 ## Revision history {.appendix .unnumbered}
 
+* **23 October 2026.** A pointer to the follow-up study, [a better section than
+  NACA 0007](../custom-section/), in the status note and the conclusion. Nothing else changed.
 * **22 October 2026 (later).** "Provisional answer" reworded to "Answer from the 2D simulations". The
   checks it was waiting for are done; the 2D model's caveats stand.
 * **22 October 2026.** The fresh-air check is finished (time-accurate checks 4 and 5: 0007/100 at

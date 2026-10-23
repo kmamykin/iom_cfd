@@ -1,0 +1,379 @@
+---
+title: "IOM fin: a better section than NACA 0007"
+subtitle: "Published and optimised fin sections against NACA 0007/100 in 2D CFD, by the race time they save"
+# the card on the front page (and link previews): image, title, description
+description: >-
+  Can a custom section beat NACA 0007/100, the answer of the fin-selection study? In 2D simulations,
+  yes: Mark Drela's HT35, scaled to 7.25 % so it is as stiff, saves about 0.4–0.7 % of race time in
+  calm water, half that in moderately disturbed water, and nothing in rough water.
+image: ../_generated/custom-section-card.png
+author: Kliment Mamykin
+date: 2026-10-23
+date-modified: 2026-10-23
+license: "CC BY"
+code-links:
+  - text: Source on GitHub
+    icon: github
+    href: https://github.com/kmamykin/iom_cfd
+  - text: Findings log
+    icon: journal-text
+    href: https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/findings/custom-section.md
+abstract: |
+  The [fin-selection study](../fin-selection/) found NACA 0007 with a 100 mm chord the best of the
+  symmetric NACA sections. This study asks whether a section from outside that family does better at
+  the same chord and the same bending stiffness. XFOIL screened 28 published and modified sections,
+  an optimiser searched a family of smooth shapes, and about 330 2D CFD simulations checked the
+  leaders. **Answer from the 2D simulations:** Mark Drela's HT35, scaled to 7.25\ % thick, beats
+  NACA 0007/100 at every boat speed and every load tested. It saves 0.66\ % of race time in calm
+  water (0.38\ % with the resistance slope doubled), about 2.8 boat lengths per race. **Main
+  caveat:** the gain depends on how disturbed the water is. It halves at 1\ % turbulence and is gone
+  at 2\ %, and nobody has measured a pond's turbulence. It is also a 2D result, smaller than the 2D
+  model's uncertainty in absolute drag.
+---
+
+::::: {.callout-note appearance="simple" icon=false}
+::: {.status}
+**First version, 23 October 2026.** Every result here comes from 2D simulations, none from a real
+fin. The terms, the simulation setup and the race-time comparison are explained on the
+[fin-selection page](../fin-selection/) and not repeated here.
+:::
+:::::
+
+::: {.key-results}
+::: {}
+[HT35 at 7.25\ %]{.big-number}<br>
+the recommended section at 100 mm chord: 7.25 mm thick, as stiff in bending as NACA 0007/100 (medium
+confidence)
+:::
+::: {}
+[0.66\ %]{.big-number}<br>
+race time saved against NACA 0007/100 in calm water (Tu 0.1\ %), 0.38\ % with the resistance slope
+doubled: about 2.8 boat lengths per race (estimate)
+:::
+::: {}
+[9 of 9]{.big-number}<br>
+speed and load combinations where it is ahead: 0.75, 1 and 1.5 m/s, low, working and high load
+:::
+::: {}
+[0.34\ % → 0]{.big-number}<br>
+its gain in more disturbed water: at Tu 1\ % and at Tu 2\ % (@sec-turbulence)
+:::
+:::
+
+[**Jump to:** [the answer](#sec-conclusion) · [the shapes](#sec-shapes) · [how it was
+found](#sec-method) · [the gain](#sec-gain) · [where it comes from](#sec-where) · [the flow](#sec-flow)]{.jump-links}
+
+## The question {#sec-question}
+
+The fin-selection study compared symmetric NACA four-digit sections, 6–12\ % thick, and chose NACA 0007
+at 100 mm chord (0007/100). Those sections are one family with one shape rule: the thickest point is
+always 30\ % of the chord back, and the nose radius follows from the thickness. Sections designed for
+low Reynolds numbers, as on model gliders, distribute their thickness differently. Could one of them,
+or a new shape, do better on an IOM fin?
+
+The comparison is kept fair in two ways:
+
+* **Same chord, 100 mm.** Only the section shape changes. Every number on this page is at 100 mm.
+* **Same bending stiffness.** A section that is thinner where it matters would be faster and softer.
+  So each candidate is scaled to the smallest thickness at which its bending stiffness matches
+  NACA 0007/100's: HT35 needs 7.25\ % instead of its 7\ %. The
+  [fin-selection page](../fin-selection/#sec-conclusion) explains why stiffness matters for holding
+  the bulb.
+
+Everything else is as on the fin-selection page: 2D simulations of a horizontal slice of the fin,
+the race-time comparison at three side-force loads plus the downwind leg, and the results at three
+boat speeds, 0.75, 1 and 1.5 m/s (light air, medium and fresh).
+
+## The sections {#sec-shapes}
+
+![NACA 0007, HT35 at 7.25\ % and cst-opt2, the optimiser's best shape, all at 100 mm chord. At true
+scale (top) they are hard to tell apart; the differences are a few tenths of a millimetre. HT35 is
+thickest further forward, fuller over the first 40\ % of the chord and thinner behind, and has a
+rounder nose and a straighter tail. Drawn from the coordinates used for the
+simulations.](../_generated/custom-shapes.svg){#fig-shapes}
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-properties}
+{{< include ../_generated/custom-properties.md >}}
+
+The three sections at 100 mm chord. Bending stiffness is relative to NACA 0007/100, for a solid
+section and for a thin skin over a core. Thickness positions are from the leading edge.
+:::
+
+**HT35** is one of Mark Drela's HT sections, from the UIUC airfoil coordinate database
+[@uiuc-coords]. As published it is 7\ % thick; here every ordinate is scaled by 7.25/7. Against
+NACA 0007 at 100 mm it:
+
+* is thickest at 26 mm instead of 30 mm;
+* is up to 0.26 mm fuller on each side over the first 40 mm, and up to 0.25 mm thinner on each side
+  from there to the tail;
+* has a 0.74 mm nose radius against 0.54 mm, and a 7.1° trailing edge against 9.7°.
+
+**cst-opt2** is the optimiser's best shape (@sec-method). It has the same forward crest and thinner
+rear as HT35, NACA 0007's nose radius, and a fuller tail with a 10.4° trailing edge.
+
+**The coordinates** are in the repository:
+[`geometry/foils/ht35-t0725.dat`](https://github.com/kmamykin/iom_cfd/blob/main/geometry/foils/ht35-t0725.dat),
+as a fraction of the chord. That file has 7 decimals, which is ample for the shape but not for reading
+the nose radius back from it. For a mould or CAD, export it at 10 decimals with
+`python -m iomcfd.sectiondesign export "file:ht35.dat@0.0725"`.
+
+## How the section was found {#sec-method}
+
+The work went in five steps, from fast and rough to slow and careful. The CFD is the same as on the
+[fin-selection page](../fin-selection/#sec-method), with one change: angles of 3° and 5° were added
+to 0, 2, 4 and 6°.
+
+1. **XFOIL screen.** XFOIL [@drela1989] computes a section's polar in about a second. It was first
+   checked against the project's CFD on the seven NACA finalists, and ranked them almost as the CFD
+   does, provided the angles are spaced 0.5° apart (rank correlation about 0.9). Then it screened 28
+   sections: published low-Reynolds-number sections scaled to 7\ %, and NACA 0007 with a rounder or
+   sharper nose and its crest further forward or aft.
+2. **CFD screen.** The seven most informative went into steady CFD, 126 simulations: the leaders, and
+   tests of what XFOIL might get wrong (a sharp nose, a round nose on NACA 0007, a laminar 6-series
+   section).
+3. **Optimiser.** XFOIL inside an optimiser (differential evolution, 2460 shapes) searched a family
+   of smooth symmetric shapes (CST [@kulfan2008], five shape parameters). Every shape was scaled to
+   NACA 0007/100's stiffness. The nose could not be sharper than NACA 0007's, where XFOIL and the CFD
+   disagree. The score was the worst case over calm and disturbed water and both resistance slopes.
+   Two optima went into the CFD: cst-opt1, with a steep "boat-tail" trailing edge, and cst-opt2,
+   with the trailing-edge angle capped at 10.5°.
+4. **Time-accurate check.** At 2–5° the flow on these thin sections sheds vortices, and the steady
+   solver gets it wrong (as on the [fin-selection page](../fin-selection/#sec-transient)). So
+   NACA 0007, HT35 at 7.25\ % and cst-opt2 were run time-accurately at 2, 3, 4 and 5° at all three
+   speeds: 20 flow-throughs, averaged over the last 8.
+5. **Turbulence check.** The same three sections at Tu 1\ % and 2\ %, steady: there the flow
+   settles, and steady results can be trusted.
+
+**Why 3° and 5°.** The race time reads each section's angle and drag at the required side force by
+straight lines between the computed angles. Near 0–4° the curves bend, and a 2° grid misplaces the
+working load. Leaving out the 3° and 5° points reordered the CFD screen by up to 0.46\ % of race time,
+as much as the whole spread of the NACA finalists. This applies to the fin-selection rankings too,
+which use a 2° grid; how much it moves them is not yet known.
+
+## Results {#sec-results}
+
+Click any chart to see it larger.
+
+### The steady screen {#sec-screen}
+
+![The steady CFD screen at Tu 0.1\ %: race time gained against NACA 0007, mean of three speeds and
+three loads. Bars use the estimated resistance slope; ticks use it doubled. HT35 at 7\ % gains most
+but is 7\ % less stiff; at equal stiffness (7.25\ %) it is level with
+cst-opt2.](../_generated/custom-screen.svg){#fig-screen}
+
+* **HT35 and cst-opt2 lead,** level with each other within the steady solver's error.
+* **Ruled out, in XFOIL and the CFD alike:**
+  * a rounder nose on NACA 0007 (NACA 0007-73, 0.4\ % slower);
+  * a laminar 6-series section (NACA 64-007, 1.5\ % slower), and thickness further aft;
+  * cst-opt1's steep boat-tail. XFOIL credited it with 0.59\ % but the CFD found 0.16\ %: it is the
+    one feature where XFOIL misled the optimiser.
+* SD8020, with a sharp nose, also beat NACA 0007 (by 0.33\ %); it was not taken further.
+
+These are steady solutions of a flow that sheds at 2–5°, so the screen only chose what to check
+time-accurately.
+
+### The gain {#sec-gain}
+
+![Race time gained against NACA 0007/100. Left: by boat speed, in calm water (Tu 0.1\ %), with
+time-accurate points at 2–5°. Right: the mean over the three speeds at three levels of water
+turbulence; Tu 1 and 2\ % are steady. Bars use the estimated resistance slope, ticks use it doubled.
+The right axis converts to boat lengths per race: about 4 per 1\ % (an
+estimate).](../_generated/custom-gain.svg){#fig-gain}
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-gain}
+{{< include ../_generated/custom-gain.md >}}
+
+Race time gained against NACA 0007/100, % (positive = faster): estimated resistance slope / doubled.
+Columns 0.75–1.5 m/s and the mean are at Tu 0.1\ %, each the mean of the low, working and high load.
+"Least favourable point" is the smallest gain at any of the nine speed and load combinations
+(estimated slope). The Tu 1 and 2\ % columns are means over all nine.
+:::
+
+* **HT35 at 7.25\ % is ahead at every speed and every load,** by 0.41\ % in light air, 0.71\ % at
+  1 m/s and 0.86\ % in fresh air. Even its least favourable point gains 0.21\ %.
+* **cst-opt2 is second,** about 0.1\ % behind HT35. At two points it is level with NACA 0007 or a
+  little behind. The optimiser's XFOIL score and the CFD disagree in detail.
+* **What the time-accurate points changed.** In the steady screen HT35's gain was at 0.75 and
+  1 m/s (0.87 and 0.86\ %) with little at 1.5 m/s (0.35\ %). With the time-accurate points the gain
+  moved to 1.5 m/s. The mean barely moved: 0.69\ % steady, 0.66\ % time-accurate.
+
+**Fresh air and the two flows on NACA 0007.** At 4° and 1.5 m/s the model finds two flows on
+NACA 0007/100, depending on how the simulation starts
+([fin-selection](../fin-selection/#sec-by-speed)). The numbers here use the flow found from rest, as
+the fin-selection page does. With the other, higher-drag flow HT35's gain at 1.5 m/s would be 1.34\ %
+instead of 0.86\ %. Whether HT35 has a second flow too was not tested.
+
+### Calm or disturbed water {#sec-turbulence}
+
+The water's turbulence, Tu, sets how long the boundary layer stays laminar. Nobody has measured it on
+a model-yacht pond: a towing tank is under 0.1\ %, and open water is probably 0.5–2\ % (an estimate).
+
+* **Tu 0.1\ % (calm):** 0.66 / 0.38\ % (estimated / doubled resistance slope).
+* **Tu 1\ %:** 0.34 / 0.20\ %. The steady solutions settle here (HT35's drag varies by at most 0.6\ %
+  between iterations), so no time-accurate check is needed.
+* **Tu 2\ % (rough):** break-even on average, 0.01 / 0.00\ %. In light and medium air HT35 still
+  gains about 0.5\ % at the high load and loses 0.1–0.2\ % at the working load. In fresh air it
+  loses 0.2–0.5\ % at every load: its drag at 0° is now 3\ % above NACA 0007's.
+
+HT35's advantage comes from its laminar boundary layer (@sec-where), and turbulent water takes that
+away. On average it is never worse than NACA 0007, so changing to it is a low-risk change: something
+to gain in calm water, little to lose in rough.
+
+### Where the gain comes from {#sec-where}
+
+![HT35's gain split as the race-time method adds it up, in calm water (Tu 0.1\ %): less drag upwind
+at the same side force, less leeway for that side force, and less drag downwind at
+0°.](../_generated/custom-breakdown.svg){#fig-breakdown}
+
+Averaged over all speeds and loads, about half of the 0.66\ % is upwind drag (0.32\ %), a third is
+downwind drag (0.24\ %) and a sixth is leeway (0.10\ %). Upwind, the gain is not at the working load:
+
+![Upwind, at equal side force: drag (top) and angle of attack (bottom) of HT35 at 7.25\ % and cst-opt2
+against NACA 0007, per boat speed. Below zero is better. The dotted lines are the three loads. The
+points at 2–5° are time-accurate, 0° and 6° steady; the lines join them as the ranking does, so
+their kinks are at computed
+points.](../_generated/custom-upwind.svg){#fig-upwind}
+
+* **At the high load** HT35 has 2.6–4.5\ % less drag. At 5° it makes 4\ % more lift than NACA 0007 with
+  2–5\ % less drag.
+* **At the working load** the two are level, within 1\ % in drag and 0.06° in angle. The flows at 4°
+  look alike too (@fig-flow-4deg-naca, @fig-flow-4deg-ht35).
+* **At the low load** HT35 needs less angle: 0.61° against 1.01° at 1 m/s. Near 2° NACA 0007 loses
+  lift (@sec-flow); HT35 doesn't. At 1.5 m/s it also has 5\ % less drag there.
+* **Downwind,** at 0°, HT35 has 1.8\ % (0.75 m/s) to 4.6\ % (1.5 m/s) less drag, from less skin
+  friction (@fig-friction).
+
+### The flow {#sec-flow}
+
+**Downwind, 0°.**
+
+![NACA 0007 and HT35 at 0°, 1 m/s, Tu 0.1\ %, steady. Left: pressure along the surface (above zero,
+the water moves faster than the boat). Middle: skin friction. Right: friction drag added up from the
+nose, both sides. HT35's water speeds up more over the front and less over the back, and over the
+back 70\ % it rubs less. Its friction drag is 5\ % lower; its pressure drag is the same
+(C~d~ 0.0030).](../_generated/custom-friction.svg){#fig-friction}
+
+On both sections the boundary layer stays laminar almost to the trailing edge at 0°. HT35's crest is
+further forward, so the water slows down earlier and more gently over its thinner back half. A
+slower laminar boundary layer has less friction. On NACA 0007 the flow separates very near the
+trailing edge (from 94\ % of the chord); on HT35 only at the last half-percent. That costs little
+here; the friction is what differs.
+
+**Low load, 2°: lift lost near 0°.** The colours are those of the
+[fin-selection gallery](../fin-selection/#sec-gallery): pale is the free stream, dark the slow water
+near the wall, blue reversed flow. Each picture is one instant of a time-accurate run, not an average.
+
+![NACA 0007, 100 mm, 2°, 1 m/s, Tu 0.1\ %, time-accurate, one instant. The laminar boundary layer
+on the suction side separates at about 70\ % of the chord, and the separated layer reattaches only
+at about 94\ %, with a pocket of reversed flow at the trailing edge. A long bubble at the back of
+the suction side costs lift: C~l~ 0.127 (time average), C~d~ 0.0122.](../assets/custom-flow-2deg-naca0007.png){#fig-flow-2deg-naca}
+
+![HT35 at 7.25\ %, the same conditions. The boundary layer separates earlier, at about 62\ %, but the
+separated layer rolls up into vortices (the two blue pockets) and reattaches by about 79\ %, before
+separating again at 85\ %. C~l~ 0.209 (65\ % more, time average), C~d~ 0.0125.](../assets/custom-flow-2deg-ht35.png){#fig-flow-2deg-ht35}
+
+The 2° time-accurate runs are the least certain part of the comparison. HT35's lift there swings by
+about 20\ % and was still drifting after 20 flow-throughs. The mechanism, a separated layer that
+closes before the trailing edge or not, is the same one the fin-selection page shows for thick
+sections in light air ([lift lost near 0°](../fin-selection/#fig-flow-lift-loss)).
+
+**Working load, 4°: much the same.**
+
+![NACA 0007, 100 mm, 4°, 1 m/s, Tu 0.1\ %, time-accurate, one instant. A short laminar bubble near the
+leading edge, then vortices travelling along the rear half (the blue pockets). C~l~ 0.399, C~d~ 0.0140
+(time averages).](../assets/custom-flow-4deg-naca0007.png){#fig-flow-4deg-naca}
+
+![HT35 at 7.25\ %, the same conditions. The same pattern; the first bubble starts a little later
+(about 13\ % of the chord, against 7\ %). C~l~ 0.405, C~d~ 0.0142.](../assets/custom-flow-4deg-ht35.png){#fig-flow-4deg-ht35}
+
+## Conclusion {#sec-conclusion}
+
+*Everything here comes from 2D simulations of the fin section, not from tests of a fin. Confidence in
+the answer is medium, for the reasons below.*
+
+**Recommended: HT35 scaled to 7.25\ % thickness, at 100 mm chord.** This replaces the section of the
+fin-selection page's answer, NACA 0007/100; the chord stays at 100 mm, the only chord tested here.
+
+* **It is as stiff in bending as NACA 0007/100,** 0.25 mm thicker, with its thickness further
+  forward.
+* **In calm water it saves 0.66\ % of race time** (0.38\ % with the resistance slope doubled), about
+  2.8 boat lengths per race (1.6), and it is ahead at every speed and load tested.
+* **In moderately disturbed water (Tu 1\ %)** it saves about half that; **in rough water (Tu 2\ %)**
+  it breaks even.
+* **cst-opt2**, the optimiser's shape, comes second, about 0.1\ % behind. It is not a published
+  section and has no advantage over HT35, so it is not recommended.
+
+**How much is at stake.** About 0.4–0.7\ % of race time in calm water, 2–3 boat lengths per race.
+That is similar to what the choice between the best NACA sections was worth, and smaller than the 2D
+model's uncertainty in absolute drag. A dirty or unfair fin can cost as much (see the
+[fin-selection conclusion](../fin-selection/#sec-conclusion)).
+
+**Why the confidence is not higher:**
+
+* **The model.** The transition model was checked against one section at one Reynolds number, and
+  its weak spot is separation bubbles. The ranking assumes its errors are similar for similar
+  sections; no measurement confirms that for these shapes.
+* **The water.** The gain depends on Tu, which hasn't been measured on a pond, and the model
+  represents pond turbulence by one number.
+* **The least certain points.** The 2° points, where much of the leeway gain comes from, oscillate
+  and drift. 0° and 6° are steady solutions.
+* **2D, constant chord.** Tip, bulb, hull junction, heel and taper are not modelled.
+* **Estimated inputs,** as on the fin-selection page: the resistance slope and the course.
+
+**What would change it:**
+
+* a 3D simulation of HT35 at 7.25\ % on a tapered fin against NACA 0007 on the same planform;
+* whether HT35 also has a second, higher-drag flow at 1.5 m/s, as NACA 0007 does;
+* a check of how accurately a mould must follow the coordinates (XFOIL suggests errors of 0.05 mm
+  cost little);
+* a tow test or two boats sailing side by side.
+
+## How the work went {#sec-studies}
+
+Each study has a dated entry in the
+[findings log](https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/findings/custom-section.md).
+
+::: {.callout-note collapse="true"}
+## The studies, one by one (click to open)
+
+::: {#tbl-studies}
+| when | study | question | answer |
+|:----|:----------------|:----------------|:------------------------|
+| 18\ Oct | XFOIL calibration | Does XFOIL rank sections as the project's CFD does? | Yes on 0.5° steps (rank correlation 0.89–0.96); it misses the CFD's penalty on sharp noses. On the 2° grid it ranks them wrongly. |
+| 18\ Oct | XFOIL screen: 28 sections | Which published or modified sections beat NACA 0007? | SD8020, E168, HT35 and HT34 at 7\ %. A rounder nose alone, or thickness further aft, doesn't help. |
+| 18\ Oct | optimiser: 2460 shapes in XFOIL | Can a new shape do better at equal stiffness? | Two optima, both of HT35's family: crest at 25\ %, fuller front, thinner middle. |
+| 18\ Oct | CFD screen: 7 sections; 126 cases | Do the XFOIL leaders hold in CFD? | HT35 beats NACA 0007 at every speed. XFOIL ranks the seven exactly as the steady CFD does. |
+| 18\ Oct | CFD optima: 54 cases | And the optimiser's shapes? | cst-opt2 is level with HT35; cst-opt1's boat-tail doesn't pay. |
+| 18\ Oct | Tu 1 and 2\ %: 108 cases | What if the water is more disturbed? | The gain halves at Tu 1\ % and is gone at 2\ %. The flow is steady there. |
+| 18–21\ Oct | time-accurate check: 36 cases, 7 again after Spot VMs were lost, 3 reruns | Does the gain hold when the shedding is resolved? | Yes, at every speed and load. HT35 first, cst-opt2 second. |
+| 23\ Oct | analysis | NACA 0007 started from rest at 1.5 m/s | HT35's gain revised from 0.82\ % to 0.66\ %. |
+
+The studies so far.
+:::
+:::
+
+## Reproducing this {.appendix .unnumbered}
+
+Everything is in [the repository](https://github.com/kmamykin/iom_cfd): the simulation setup
+(`projects/foil2d/`), every study file, the section coordinates (`geometry/foils/`), the XFOIL
+wrapper and the section tools (`src/iomcfd/xfoil.py`, `src/iomcfd/sectiondesign.py`), and the
+findings log with the numbers behind each conclusion. This page's charts are drawn from the small
+data files below, which `iomcfd site export` copies out of the runs; the race times are computed
+from them with the same code (`sectiondesign.cfd_table` and `rank`) that produced the findings. The
+flow pictures are ParaView renders (`iomcfd viz`) of the few cases fetched whole. The code is under
+the [MIT licence](https://github.com/kmamykin/iom_cfd/blob/main/LICENSE); the text, figures and data
+on this page are under CC BY 4.0. The HT35 coordinates come from the UIUC database and keep its terms.
+
+## Data behind the figures {.appendix .unnumbered}
+
+{{< include ../_generated/sources-custom.md >}}
+
+## Revision history {.appendix .unnumbered}
+
+* **23 October 2026.** First version: the XFOIL screen and optimiser, the steady CFD screen, the
+  time-accurate check at Tu 0.1\ % and the steady check at Tu 1 and 2\ %, with NACA 0007/100's
+  1.5 m/s point started from rest.

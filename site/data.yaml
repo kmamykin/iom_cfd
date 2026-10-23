@@ -265,3 +265,94 @@ bulb-streamlines-orbit:   # the round bulb, 2 deg cant, 25 deg heel, 4 deg leewa
   study: bulb-cant
   runs: [20261020-183634]
   file: bulb_aspect1_bulb_bottom2_bulb_cant2_heel25_leeway4/viz/streamlines_orbit.mp4
+
+# --- Fin section page (site/custom-section/index.qmd; findings: projects/foil2d/findings/custom-section.md) --------
+# Race time as `python -m iomcfd.sectiondesign cfd`: the steady screen and optima runs at Tu 0.1 %, with the
+# time-accurate points replacing theirs (later files win; failed cases dropped), at design/loads.csv.
+custom-steady:   # the CFD screen: seven sections at 100 mm, 0.75-1.5 m/s, 0-6 deg, Tu 0.1 %, steady
+  study: custom-section-screen
+  runs: [20261018-043724]
+  file: results.csv
+  columns: &custom-cols [foil, chord, speed, aoa, Tu, rhoInf, Cl, Cd, Cl_std, Cd_std, Cd_friction, Cd_pressure,
+                         x_sep_upper, x_reattach_upper, x_te_sep_upper, unsteady, status]
+custom-optima:   # the two XFOIL optima (cst-opt1, cst-opt2) and NACA 0007, the same settings
+  study: custom-section-optima
+  runs: [20261018-051126]
+  file: results.csv
+  columns: *custom-cols
+custom-transient:   # NACA 0007 and HT35 at 7.25 %, 2-5 deg, 0.75 and 1 m/s (+ NACA 0007 at 3 deg, 1.5 m/s), time-accurate
+  study: custom-section-transient
+  runs: [20261018-104120]
+  file: results.csv
+  columns: *custom-cols
+custom-transient-opt2:   # cst-opt2, 2-5 deg, 0.75-1.5 m/s, time-accurate
+  study: custom-section-transient-opt2
+  runs: [20261018-161314]
+  file: results.csv
+  columns: *custom-cols
+custom-transient-15:   # NACA 0007 and HT35 at 1.5 m/s, time-accurate (NACA 0007 at 4 deg from its steady solution)
+  study: custom-section-transient-15
+  runs: [20261019-164044]
+  file: results.csv
+  columns: *custom-cols
+custom-transient-rerun:   # the three cases that blew up at max_co 10, again at max_co 5
+  study: custom-section-transient-rerun
+  runs: [20261018-195326, 20261019-203535, 20261019-214537]
+  file: results.csv
+  columns: *custom-cols
+custom-0007-rest:   # NACA 0007/100 at 4 deg and 1.5 m/s started from rest (max_co 10): replaces the steady-start point
+  study: transient-check
+  runs: [20261017-193613]
+  file: results.csv
+  where: {speed: 1.5}
+  columns: *custom-cols
+custom-tu:   # NACA 0007 and HT35 at Tu 1 and 2 %, steady
+  study: custom-section-tu
+  runs: [20261018-104350]
+  file: results.csv
+  columns: *custom-cols
+custom-tu-opt2:   # cst-opt2 at Tu 1 and 2 %, steady
+  study: custom-section-tu-opt2
+  runs: [20261018-155808]
+  file: results.csv
+  columns: *custom-cols
+custom-surface-0deg:   # pressure and skin friction, NACA 0007 and HT35 at 0 deg, 1 m/s, Tu 0.1 %, steady
+  study: custom-section-screen
+  runs: [20261018-043724]
+  file:
+    - aoa0_foilnaca0007_speed1/surface.csv
+    - aoa0_foilht35mt0725_speed1/surface.csv
+  digits: 5
+custom-surface-ta:   # the same at 2 and 4 deg, 1 m/s, time-accurate: the final instant, not a time average
+  study: custom-section-transient
+  runs: [20261018-104120]
+  file:
+    - aoa2_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv
+    - aoa2_foilht35mt0725_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv
+    - aoa4_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv
+    - aoa4_foilht35mt0725_speed1_start_fromx/surface.csv
+  digits: 5
+
+# Flow pictures for the fin section page: projects/foil2d/viz.py boundary_layer, of cases fetched whole
+# (`gcp fetch --only`) and rendered with `iomcfd viz --views boundary_layer --no-time`. Time-accurate, the
+# final instant, 1 m/s, Tu 0.1 %.
+custom-flow-2deg-naca0007:
+  kind: file
+  study: custom-section-transient
+  runs: [20261018-104120]
+  file: aoa2_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png
+custom-flow-2deg-ht35:
+  kind: file
+  study: custom-section-transient
+  runs: [20261018-104120]
+  file: aoa2_foilht35mt0725_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png
+custom-flow-4deg-naca0007:
+  kind: file
+  study: custom-section-transient
+  runs: [20261018-104120]
+  file: aoa4_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png
+custom-flow-4deg-ht35:
+  kind: file
+  study: custom-section-transient
+  runs: [20261018-104120]
+  file: aoa4_foilht35mt0725_speed1_start_fromx/viz/boundary_layer.png
