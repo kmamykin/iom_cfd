@@ -22,14 +22,16 @@ resistance slope dD_h/dV_b (was dR/dV). Only the notation changed. `Cl`,
 **Update 2026-10-21: a non-NACA section beats the NACA 0007/100
 recommended below** ([custom-section.md](custom-section.md)). M. Drela's
 HT35 scaled to 7.25 % at 100 mm, as stiff as 0007/100:
-* time-accurate CFD at Tu 0.1 %: 0.82 / 0.44 % of race time ahead, at
-  every speed and load;
+* time-accurate CFD at Tu 0.1 %: 0.66 / 0.38 % of race time ahead, at
+  every speed and load (with 0007/100's from-rest point at 1.5 m/s;
+  revised 2026-10-23 from 0.82 / 0.44 %);
 * Tu 1 %: 0.34 / 0.20 %;
 * Tu 2 %: break-even.
 
 Two points there also bear on the NACA ranking below:
-* NACA 0007/100's high-drag leading-edge bubble at 1.5 m/s and 4° came
-  back in a second run;
+* NACA 0007/100's high-drag leading-edge bubble at 1.5 m/s and 4° comes
+  only from a start at its steady solution; from rest it sheds
+  (transient-check.md);
 * the 2° angle grid used here moves candidates by up to 0.5 % of race time.
 
 The rest of this summary is as of 2026-10-17.

@@ -27,7 +27,7 @@ Tools (all in this repository):
 * `figures/`: section figures for this log (committed, unlike `runs/`),
   each with the command that draws it.
 
-## Where the research stands (updated 2026-10-21, after the time-accurate check)
+## Where the research stands (updated 2026-10-23, with NACA 0007 from rest at 1.5 m/s)
 
 **Answer: yes, a section other than NACA 0007 is better. Recommended: M.
 Drela's HT35 scaled to 7.25 % thickness, 100 mm chord**
@@ -52,14 +52,17 @@ methodology.md; slope ×1 / ×2):
 
 | water | gain | source | confidence |
 |---|---|---|---|
-| calm, Tu 0.1 % | 0.82 / 0.44 % of race time, about 3.4 / 1.8 boat lengths (**estimate**) | time-accurate at 2-5° | medium |
+| calm, Tu 0.1 % | 0.66 / 0.38 % of race time, about 2.8 / 1.6 boat lengths (**estimate**) | time-accurate at 2-5°, NACA 0007 at 1.5 m/s from rest | medium |
 | moderate, Tu 1 % | 0.34 / 0.20 % | steady (steady flow at this Tu) | medium |
 | rough, Tu 2 % | break-even (−0.01 / −0.00 %) | steady | medium |
 
 * At Tu 0.1 % it is ahead at every speed (0.41 % at 0.75 m/s, 0.71 % at
-  1 m/s, 1.34 % at 1.5 m/s) and every load.
-* The largest gain is at 1.5 m/s. There NACA 0007/100 falls into a
-  high-drag leading-edge bubble at 4° and HT35 doesn't.
+  1 m/s, 0.86 % at 1.5 m/s) and every load.
+* **Revised 2026-10-23.** The first time-accurate check had 0.82 / 0.44 %
+  and 1.34 % at 1.5 m/s. There NACA 0007/100, started from its steady
+  solution, settled into a high-drag leading-edge bubble at 4°. Started
+  from rest, it sheds with 18 % less drag (main's transient-check.md), and
+  the figures above use that point. Analysis 2026-10-23.
 
 ![Time-accurate drag against side force, and drag relative to NACA 0007](figures/custom-section-transient-polars.png)
 
@@ -84,7 +87,8 @@ The taper and 3D are out of scope here: they are the `keel3d` project's
 * SD8020 is third in the steady screen and was not checked further.
 
 **What would firm it up** (proposed):
-* NACA 0007/100 at 1.5 m/s from rest (running in transient-check).
+* Whether the custom sections also have a second flow at 1.5 m/s, or NACA
+  0007 at 5° (Analysis 2026-10-23, conclusion 3).
 * A 3D check in `keel3d`.
 * A mould-tolerance check.
 * Eventually, a tow or two-boat test.
@@ -98,6 +102,45 @@ The taper and 3D are out of scope here: they are the `keel3d` project's
 **How much a better section is worth** (estimate, from methodology.md at
 1 m/s): 1 % less section drag on both legs saves about 0.17 % of race time
 (0.08 % with the slope doubled), roughly 0.7 boat lengths.
+
+## Analysis 2026-10-23: NACA 0007/100 from rest at 1.5 m/s (no new cases)
+
+**Setup.** Main's transient-check run 20261018-231921 (findings
+transient-check.md, 2026-10-22) ran NACA 0007/100 at 4° and 1.5 m/s from
+rest. Run 20261017-193613 did the same at max_co 10. Here that max_co 10
+point (Cl 0.4024, Cd 0.01238) replaces the one the time-accurate check
+used. That point started from the steady solution and settled into the
+leading-edge-bubble flow (Cd 0.0151). Everything else is as in the
+time-accurate check.
+
+### Conclusions
+
+1. **Started from rest, NACA 0007/100 at 4° and 1.5 m/s sheds, with 18 %
+   less drag than the bubble flow.** The model has two flows at that point,
+   and which one it finds depends on the start (transient-check.md). This
+   **revises conclusion 3 of the time-accurate check**: the leading-edge
+   bubble is not a property of NACA 0007 there, only of a start from the
+   steady solution. The custom sections shed from the same start, so the
+   fair comparison is shedding against shedding.
+2. **HT35 at 7.25 % still beats NACA 0007/100 at every speed and load, by
+   less.** Race-time gain, % (slope ×1 / ×2):
+
+   | NACA 0007 at 4°, 1.5 m/s | overall | 0.75 m/s | 1.0 m/s | 1.5 m/s |
+   |---|---|---|---|---|
+   | from the steady solution (bubble), as before | −0.82 / −0.44 | −0.41 | −0.71 | −1.34 |
+   | **from rest (shedding)** | **−0.66 / −0.38** | −0.41 | −0.71 | **−0.86** |
+
+   cst-opt2: −0.54 / −0.30 (1.5 m/s: −0.66). Confidence: medium.
+3. **Other NACA 0007 points may have the same two flows.** At 5° and
+   1.5 m/s its time-accurate flow is steady (lift oscillation 0.02 %),
+   while HT35's sheds (2.2 %). Their drag differs by only 2.7 % there, so
+   the ranking can't move much from it. Not checked.
+
+### Decisions
+
+* **The recommendation stands: HT35 at 7.25 %.** Its gain is now quoted
+  with NACA 0007's from-rest point: 0.66 / 0.38 % of race time at Tu 0.1 %,
+  about 2.8 / 1.6 boat lengths (**estimate**).
 
 ## Time-accurate check: custom-section-transient, -transient-opt2, -transient-15 and -transient-rerun (2026-10-18 to 2026-10-21, images 6d541d0 and 9b8cbb8, GCP, 36 cases + 7 again + 3 reruns)
 
