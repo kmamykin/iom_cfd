@@ -152,3 +152,74 @@ def test_cfd_table_replace_fills_failed_points(tmp_path):
     t = sectiondesign.cfd_table([tmp_path / "a.csv"], [tmp_path / "b.csv"], tu=0.1).set_index("aoa")
     assert list(t.index) == [2, 4]
     assert t.loc[2, "Cl"] == 0.13 and t.loc[4, "Cd"] == 0.014
+
+
+def test_cfd_table_keeps_drag_split_and_unsteady(tmp_path):
+    cols = ["foil", "chord", "speed", "aoa", "Tu", "turbulence", "status", "Cl", "Cd", "Cd_pressure", "Cd_friction",
+            "unsteady"]
+    d = pd.DataFrame([["naca0006", 0.4572, 2.5, 4, 1.0, "kOmegaSSTLM", "ok", 0.4, 0.008, 0.002, 0.006, False],
+                      ["naca0006", 0.4572, 2.5, 4, 1.0, "kOmegaSSTLM", "ok", 0.4, 0.010, 0.003, 0.007, True],
+                      ["naca0006", 0.4572, 2.5, 4, 1.0, "kOmegaSST", "ok", 0.4, 0.012, 0.003, 0.009, False]], columns=cols)
+    d.to_csv(tmp_path / "a.csv", index=False)
+    t = sectiondesign.cfd_table([tmp_path / "a.csv"], tu=1.0, turbulence="kOmegaSSTLM")
+    assert len(t) == 1
+    r = t.iloc[0]
+    assert r["Cd"] == pytest.approx(0.009) and r["Cd_friction"] == pytest.approx(0.0065) and bool(r["unsteady"])
+
+
+# --- table fit and parallel-sided sections ---------------------------------------------
+
+
+def test_cst_fit_recovers_naca_table():
+    # NACA 0006's own ordinates at Report 824's 26 stations, slopes and nose radius
+    x = np.array([0, .005, .0075, .0125, .025, .05, .075, .1, .15, .2, .25, .3, .35, .4, .45, .5, .55, .6, .65, .7,
+                  .75, .8, .85, .9, .95, 1.0])
+    f = foils.load("naca0006")
+    up = f.surface("upper", 4000)
+    y = np.interp(x, *up.T)
+    c = sectiondesign.cst_fit(x, y, 1.1019 * 0.06**2, np.interp(x, up[:, 0], np.gradient(up[:, 1], up[:, 0])))
+    g = sectiondesign.cst_symmetric(c)
+    yg = np.interp(x, *g.surface("upper", 4000).T)
+    assert np.max(np.abs(yg - y)) < 1e-4
+    assert sectiondesign.properties(g)["r_le"] == pytest.approx(1.1019 * 0.06**2, rel=0.02)
+
+
+@pytest.mark.parametrize("le,te,r,a", [(0.2, 0.4, 0.1, 0.2), (0.1, 0.25, 0.5, 0.6), (0.1, 0.2, 0.02, 1.0)])
+def test_parallel_sided_geometry(le, te, r, a):
+    t = 1 / 18
+    f = sectiondesign.parallel_sided(t, le, te, r, a)
+    p = sectiondesign.properties(f)
+    up = f.surface("upper", 800)
+    flat = up[(up[:, 0] > le + 0.01) & (up[:, 0] < 1 - te - 0.01)]
+    assert np.allclose(flat[:, 1], t / 2, atol=t * 1e-4)  # parallel sides at exactly t
+    assert up[:, 1].max() <= t / 2 * (1 + 1e-4)
+    assert p["r_le"] == pytest.approx(r * t, rel=0.02)
+    assert p["te_angle"] == pytest.approx(2 * math.degrees(a * math.atan(1.5 * t / te)), abs=1.0)
+    dy = np.diff(up[:, 1])
+    assert int(np.sum(np.diff(np.sign(dy[np.abs(dy) > 1e-9])) != 0)) == 1  # rises, then falls: no bumps
+    assert up[-1, 0] == pytest.approx(1.0) and up[-1, 1] == pytest.approx(0.0, abs=1e-12)  # sharp trailing edge
+
+
+def test_parallel_sided_spec_and_dat_roundtrip(tmp_path):
+    spec = "parallel:t=0.0555556,le=0.2,te=0.4,r=0.1,a=0.2"
+    f = sectiondesign.load(spec)
+    assert f.thickness()[0] == pytest.approx(0.0555556, rel=1e-4)
+    f.write_dat(tmp_path / "p.dat", n=201, digits=10)
+    g = foils.from_dat(tmp_path / "p.dat")
+    xs = np.linspace(0.002, 0.998, 300)
+    assert np.max(np.abs(np.interp(xs, *g.surface("upper", 2000).T) - np.interp(xs, *f.surface("upper", 2000).T))) < 2e-6
+    with pytest.raises(ValueError):
+        sectiondesign.parallel_sided(0.05, le=0.6, te=0.5)
+
+
+def test_xfoil_xtr_command(monkeypatch, tmp_path):
+    sent = {}
+
+    def fake_run(cmd, input, cwd, **kw):
+        sent["input"] = input
+
+    monkeypatch.setattr(xfoil, "find_xfoil", lambda: "xfoil")
+    monkeypatch.setattr(xfoil.subprocess, "run", fake_run)
+    xfoil.polar(foils.load("naca0006"), 1e6, [0], xtr=(0.05, 0.1))
+    lines = sent["input"].splitlines()
+    assert lines[lines.index("VPAR") + 2] == "XTR 0.05 0.1"

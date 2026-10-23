@@ -103,10 +103,14 @@ marked *project*.
 | C_l, C_d, C_m | section lift, drag and pitching-moment coefficients, per unit span on q c (`Cl`, `Cd`, `Cm`) | project |
 | D_f, D_p | skin-friction and pressure drag of a section. Together they are its profile drag, D_v = D_f + D_p (`Cd_friction`, `Cd_pressure`) | project |
 | e | span efficiency of the lifting-line induced drag (0.9 in foil2d) | project |
+| Λ | sweep of a raked board's leading edge from the vertical (the Thistle's rake) | project |
+| c_n, V_n, α_n | chord, velocity and section angle square to a swept leading edge: V_n = V_b cos Λ, β_Y = α_n cos Λ (simple sweep theory; foil2d's `chord`, `speed`, `aoa` in the Thistle study) | project |
+| b_LE, b_v | span of a swept board along its leading edge, and its depth b_v = b_LE cos Λ | project |
 
 * **α and leeway.** At equal span and side force, the induced part of the
   angle, S_h / (2π e q b²), is the same for every fin. So a difference in α
-  is a difference in leeway: Δβ_Y = Δα.
+  is a difference in leeway: Δβ_Y = Δα. On a swept board
+  (projects/foil2d/methodology-thistle.md) Δβ_Y = Δα_n cos Λ.
 
 ## Balance equations
 

@@ -131,3 +131,20 @@ def test_stepped_surface_order():
     order = np.argsort(-s[up])  # upper surface LE -> TE
     x = pts[up][order, 0]
     assert x[0] < 0.01 and x[-1] > 0.99 and np.all(np.diff(x) > -1e-9)
+
+
+@pytest.mark.parametrize("path", sorted((config.projects_dir() / "foil2d" / "studies").glob("thistle-*.yaml")),
+                         ids=lambda p: p.stem)
+def test_render_thistle_studies(tmp_path, path):
+    """Every section a Thistle study names is in geometry/foils/ and meshes at
+    the board's chord and Reynolds numbers (one case per section); outside
+    the validation study every one is 1 in thick on 18 in."""
+    project = load_project("foil2d")
+    study = Study.load(path)
+    cases = list({c.params["foil"]: c for c in study.expand(project.defaults)}.values())
+    run_study(project, study, cases, RunOptions(render_only=True), tmp_path / "run", log=lambda *a: None)
+    for c in cases:
+        d = json.loads((tmp_path / "run" / c.name / "params.json").read_text())["derived"]
+        assert d["n_cells"] > 0
+        if "validation" not in path.stem:
+            assert d["thickness"] == pytest.approx(1 / 18, rel=2e-3), c.params["foil"]

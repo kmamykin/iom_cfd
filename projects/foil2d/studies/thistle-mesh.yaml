@@ -1,0 +1,67 @@
+study: thistle-mesh
+project: foil2d
+description: >
+  Mesh check for the Thistle centreboard study (findings:
+  projects/foil2d/findings/thistle-board.md; method:
+  projects/foil2d/methodology-thistle.md). The board's own section, 457.2 mm
+  chord square to the leading edge (18 in) and 1 in thick (t/c 5.56 %), is
+  run at the normal velocity V_n = V_b cos 10 deg (rake 10 deg, assumed) in
+  fresh water at 20 C: Re 2.3e5 at 1 kn to 3.5e6 at 15 kn, 3 to 30 times the
+  IOM range the medium mesh was checked at (mesh-finalists). foil2d keeps
+  128 wall-normal cells at medium whatever the Reynolds number, so at 15 kn
+  the first cell is 7.4e-6 c and the wall-normal growth ratio rises to about
+  1.11 on the medium mesh and 1.08 on the fine (the Langtry-Menter guidance
+  is 1.1 or less); mid-chord cells reach an aspect ratio of about 700. Three
+  sections: NACA 0006 at 1 in (the baseline), NACA 64-006 at 1 in (laminar
+  flow, the most sensitive to transition) and the assumed plank board (its
+  nose-to-flat junction). Seven points (zip): 1 kn at 0 and 4 deg, 5 kn at
+  0, 2 and 4 deg (the loads are about 1, 2 and 4 deg), 15 kn at 0 and 2 deg;
+  coarse to xfine, each level twice the cells (report/ has the GCI table).
+  Tu 0.1 %, where laminar runs and bubbles are longest. NACA 0006 also fully
+  turbulent (kOmegaSST) at 5 kn 0 deg and 15 kn 0 and 2 deg on every level,
+  a check without transition. Steady, max_iter 12000 (high-Re cases converge
+  slowly from a uniform start: validation-naca0012-tmr). Picks the mesh
+  level of thistle-screen.
+report:
+  fin_span: 1.24          # m along the leading edge below the hull (assumed; design/thistle.yaml)
+  induced_drag: true
+highlights:
+  - name: laminar-run
+    why: >
+      NACA 64-006 at 5 kn and 0 deg: where the boundary layer turns turbulent, and whether that moves
+      with the mesh at Re 1.15e6.
+    where: {foil: "file:naca64-006-t0556.dat", speed: 2.5331, aoa: 0, turbulence: kOmegaSSTLM}
+    compare: mesh
+    views: [transition, separation]
+  - name: plank-junction
+    why: >
+      The plank board's nose meets its flat at x/c 0.1 and its tail starts at 0.75: is there a laminar
+      bubble at either junction at 5 kn and 2-4 deg, and is it resolved?
+    where: {foil: "file:plank-typical.dat", speed: 2.5331, aoa: [2, 4], turbulence: kOmegaSSTLM}
+    compare: mesh
+    views: [separation, transition]
+defaults:
+  chord: 0.4572
+  temperature: 20
+  turbulence: kOmegaSSTLM
+  Tu: 0.1
+  max_iter: 12000
+sweep:
+  foil: ["file:naca0006-t0556.dat", "file:naca64-006-t0556.dat", "file:plank-typical.dat"]
+  mesh: [coarse, medium, fine, xfine]
+zip:                      # V_n [m/s] = V_b [kn] x 0.514444 x cos 10 deg: 1, 1, 5, 5, 5, 15, 15 kn
+  speed: [0.5066, 0.5066, 2.5331, 2.5331, 2.5331, 7.5994, 7.5994]
+  aoa:   [0, 4, 0, 2, 4, 0, 2]
+cases:                    # fully turbulent check: NACA 0006, 5 kn 0 deg and 15 kn 0 and 2 deg, every level
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 2.5331, aoa: 0, mesh: coarse}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 2.5331, aoa: 0, mesh: medium}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 2.5331, aoa: 0, mesh: fine}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 2.5331, aoa: 0, mesh: xfine}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 7.5994, aoa: 0, mesh: coarse}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 7.5994, aoa: 0, mesh: medium}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 7.5994, aoa: 0, mesh: fine}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 7.5994, aoa: 0, mesh: xfine}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 7.5994, aoa: 2, mesh: coarse}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 7.5994, aoa: 2, mesh: medium}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 7.5994, aoa: 2, mesh: fine}
+  - {foil: "file:naca0006-t0556.dat", turbulence: kOmegaSST, speed: 7.5994, aoa: 2, mesh: xfine}

@@ -78,13 +78,14 @@ def _parse_polar(text: str) -> np.ndarray:
 
 
 def polar(foil: Foil, re: float, alphas, ncrit: float = 9.0, panels: int = 220, iters: int = 300,
-          timeout: float = 10.0) -> Polar:
+          timeout: float = 10.0, xtr: tuple[float, float] | None = None) -> Polar:
     """Viscous polar of `foil` at Reynolds number `re` over the angles `alphas`.
 
     The angles are run in increasing order, each from the previous solution
     (boundary layer kept between points), from the angle nearest 0 outward on
     each side so the first point starts from an easy flow. Angles that don't
-    converge are left out of the result."""
+    converge are left out of the result. `xtr` = (top, bottom) forces
+    transition at those x/c at the latest (XFOIL's XTR; a trip, roughness)."""
     xfoil = find_xfoil()
     alphas = sorted({round(float(a), 4) for a in alphas})
     pos = [a for a in alphas if a >= 0]
@@ -92,8 +93,9 @@ def polar(foil: Foil, re: float, alphas, ncrit: float = 9.0, panels: int = 220, 
     with tempfile.TemporaryDirectory(prefix="xfoil-") as tmp:
         tmpd = Path(tmp)
         foil.write_dat(tmpd / "foil.dat", n=121, digits=10)  # XFOIL holds at most 365 points; it re-panels anyway
+        vpar = [f"N {ncrit:.4g}"] + ([f"XTR {xtr[0]:.4g} {xtr[1]:.4g}"] if xtr else [])
         cmds = ["PLOP", "G F", "", "LOAD foil.dat", "PPAR", f"N {panels}", "", "", "OPER", f"ITER {iters}",
-                f"VISC {re:.6g}", "VPAR", f"N {ncrit:.4g}", "", "PACC", "polar.txt", ""]
+                f"VISC {re:.6g}", "VPAR", *vpar, "", "PACC", "polar.txt", ""]
         for k, branch in enumerate(b for b in (pos, neg) if b):
             if k:
                 cmds.append("INIT")  # toggles: before the first solution it would corrupt the boundary layer

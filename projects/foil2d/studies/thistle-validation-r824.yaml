@@ -1,0 +1,50 @@
+study: thistle-validation-r824
+project: foil2d
+description: >
+  Validation for the Thistle centreboard study (findings:
+  projects/foil2d/findings/thistle-board.md): does the transition model
+  (kOmegaSSTLM) predict thin sections at the board's Reynolds numbers? The
+  only check so far is NACA 0009 at Re 1e5 (README); the board runs at
+  Re 2.3e5-3.5e6. NACA 0006 and NACA 64-006 at their true 6 % (64-006
+  fitted to its Report 824 table, geometry/README.md) at Re 3e6, against the
+  smooth-model data of NACA Report 824 (Abbott, von Doenhoff & Stivers 1945,
+  Langley two-dimensional low-turbulence tunnel; digitised by hand into
+  validation/naca6_r824.csv, see its header for figures and uncertainty).
+  The tunnel's turbulence was very low, so Tu 0.05 %; fully turbulent
+  kOmegaSST alongside, a bound and a check of the transition model's
+  share. Run at the board's chord in water at 20 C with `speed` set for
+  Re 3e6 (6.5848 m/s; `Re` would leave `speed` at its default and merge the
+  report's groups). Angles 0-12 deg: lift slope, drag polar and the stall of
+  a thin section. The mesh is the level thistle-mesh picks (set before
+  submitting; fine until then). Report 824's NACA 0006 has an open trailing
+  edge (0.13 % c); ours is closed (foils.naca4).
+reference: validation/naca6_r824.csv
+report:
+  fin_span: 1.24
+  induced_drag: true
+highlights:
+  - name: laminar-bucket
+    why: >
+      NACA 64-006 against 0006 at 0 and 2 deg: does the transition model give the 6-series its laminar
+      run (Report 824's low-drag bucket), and where does transition sit on each?
+    where: {aoa: [0, 2], turbulence: kOmegaSSTLM}
+    compare: foil
+    views: [transition, separation]
+  - name: thin-stall
+    why: >
+      The leading-edge stall of a 6 % section at 8-10 deg: steady RANS near stall is indicative only;
+      compare the maximum lift with Report 824's.
+    where: {aoa: [8, 10], turbulence: kOmegaSSTLM}
+    compare: foil
+    views: [separation]
+defaults:
+  chord: 0.4572
+  temperature: 20
+  speed: 6.5848
+  Tu: 0.05
+  mesh: fine
+  max_iter: 12000
+sweep:
+  foil: [naca0006, "file:naca64-006.dat"]
+  turbulence: [kOmegaSSTLM, kOmegaSST]
+  aoa: [0, 2, 4, 6, 8, 10, 12]
