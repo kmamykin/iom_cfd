@@ -18,8 +18,10 @@ leeway β_Y, section angle α_n, rake Λ).
 **CFD.** Since the XFOIL screen below, two things have happened:
 * `thistle-mesh` finished and picked the **fine** mesh (entry below).
 * `thistle-screen` is running: run 20261023-125405, 320 cases.
-* `thistle-validation-r824` is running: run 20261023-141306, 28 cases,
-  image af02c27, fine mesh.
+* `thistle-validation-r824` is running: run 20261023-195013, 28 cases,
+  image af02c27, fine mesh, on c2d-standard-16. Run 20261023-141306, on
+  C3D, was cancelled before it started: the screen held the whole C3D
+  quota.
 
 The rest of this summary is as of the XFOIL screen.
 
@@ -227,6 +229,12 @@ Tu 0.1 %, NACA 0006 at 2°). Both converged.
 
 Options: swap #6 for NACA 0006 at 7/8 in, if a thinner board is in scope.
 Each candidate is 57 points × 2 Tu = 114 cases, about $3-6 (estimate).
+
+**Figure.** `figures/thistle-screen-sections.pdf` shows the eight sections:
+true scale, half-thickness against NACA 0006, noses and tails, a properties
+table with the XFOIL estimates, and one sheet each. It is drawn by
+`uv run python tools/thistle_sections_pdf.py
+projects/foil2d/findings/figures/thistle-screen-sections.pdf <work dir>`.
 
 **Decided (user, 2026-10-23).**
 * The CFD is split into a screen of all eight sections at the points that
