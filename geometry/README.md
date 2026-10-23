@@ -42,6 +42,8 @@ Files in `foils/` (2026-10-23, for projects/foil2d/findings/thistle-board.md):
   `naca0006-45-t0556` (modified 4-digit, the 16-series shape),
   `ht35-t0556`, and the parallel-sided `plank-typical` (an assumed
   home-built wood-lead board: le 0.1, te 0.25, r 0.5, a 0.6) and
-  `parallel-l20-t40-r10-a20` (Saporito et al. 2020's best thin family);
+  `parallel-l20-t40-r10-a20` (Saporito et al. 2020's best thin family) and
+  `parallel-l30-t50-r05-a20` (the XFOIL screen's best of that family),
+  `sd8020-t0556` and `naca0006-64-t0556` (thistle-screen candidates);
   the first line of each says from what spec.
 

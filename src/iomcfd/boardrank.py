@@ -20,7 +20,8 @@ reach load, as tie-break or veto. There is no Thistle resistance curve, so
 drag and leeway are reported apart, not as race time.
 
     uv run python -m iomcfd.boardrank screen file:naca64-006-t0556.dat ... --out runs/section-design/<name>
-    uv run python -m iomcfd.boardrank cfd runs/thistle-screen/<run>/results.csv --tu 1
+    uv run python -m iomcfd.boardrank cfd runs/thistle-screen/<run>/results.csv --up-kn 1 3 5 --down-kn 1 3 5 15
+    uv run python -m iomcfd.boardrank cfd runs/thistle-screen/<run>/results.csv runs/thistle-extend/<run>/results.csv
 """
 
 from __future__ import annotations
@@ -404,6 +405,9 @@ def _main(argv=None) -> None:  # pragma: no cover - thin CLI
     c.add_argument("--tu", type=float, help="only this Tu (default: rank each Tu)")
     c.add_argument("--turbulence", help="only this model, e.g. kOmegaSST")
     c.add_argument("--loads", type=Path, help="loads CSV (speed [kn], load, force [N]); default: the baseline's")
+    c.add_argument("--up-kn", type=float, nargs="+", help="upwind boat speeds [kn] (default: the design's); "
+                   "only those the runs have, e.g. thistle-screen's 1 3 5")
+    c.add_argument("--down-kn", type=float, nargs="+", help="downwind boat speeds [kn] (default: the design's)")
     c.add_argument("--out", type=Path)
     k = sub.add_parser("calibrate", help="does XFOIL rank the CFD candidates as the CFD does?")
     k.add_argument("results", nargs="+", type=Path)
@@ -420,6 +424,10 @@ def _main(argv=None) -> None:  # pragma: no cover - thin CLI
     o.add_argument("--out", type=Path, required=True)
     a = ap.parse_args(argv)
     d = load_design(a.design)
+    if getattr(a, "up_kn", None):
+        d = dataclasses.replace(d, up_speeds=a.up_kn)
+    if getattr(a, "down_kn", None):
+        d = dataclasses.replace(d, down_speeds=a.down_kn)
 
     if a.cmd == "screen":
         df = xfoil_polars(d, a.specs, variants=a.variants)

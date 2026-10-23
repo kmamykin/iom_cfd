@@ -65,6 +65,11 @@ at 10°:
 * Upwind speeds (1-5 kn) run at α_n = 0, 1, 2, 3, 4, 5, 6, 8 and 10°.
 * Downwind speeds (7.5 kn up) run at 0, 1 and 2°; downwind below 7.5 kn
   uses the upwind speeds' points.
+* The CFD runs this grid in two stages.
+  * `thistle-screen` takes every section at the 20 points that can reject
+    one: 1, 3 and 5 kn at 0, 1, 2, 4, 6 and 8°; 15 kn at 0 and 2°.
+  * `thistle-extend` adds the other 37 points for the survivors.
+  * The screen alone is ranked with `--up-kn 1 3 5 --down-kn 1 3 5 15`.
 
 ## 3. Loads
 

@@ -1,0 +1,81 @@
+study: thistle-screen
+project: foil2d
+description: >
+  CFD screen of centreboard sections for the Thistle (findings:
+  projects/foil2d/findings/thistle-board.md; method:
+  projects/foil2d/methodology-thistle.md; ranking: python -m iomcfd.boardrank
+  cfd). Eight sections picked by the user on 2026-10-23 from the XFOIL
+  screen, all 1 in thick on the board's 18 in chord square to the leading
+  edge (457.2 mm, t/c 5.556 %): NACA 0006 (baseline), SD8020 (XFOIL's upwind
+  leader at Tu 0.1 %, half NACA's nose radius: XFOIL's blind spot in the IOM
+  work), HT35 (the IOM winner), NACA 63-006 and 64-006 (laminar flow: 3-5 %
+  more drag upwind, 12-16 % less downwind at Tu 1 % in XFOIL), NACA 0006-64
+  (crest at 40 %), the best parallel-sided board of the XFOIL screen
+  (le 0.3, te 0.5, r 0.05 t, a 0.2) and an assumed home-built plank board.
+  First of two stages (split 2026-10-23, user): the points that can reject
+  a section, 20 per section and Tu (zip): V_b = 1, 3 and 5 kn upwind at 0,
+  1, 2, 4, 6 and 8 deg (the loads are about 1, 2 and 4 deg; 6-8 for the stall
+  margin) and 15 kn downwind at 0 and 2 deg, with speed V_n = V_b cos 10 deg
+  (rake 10 deg, assumed); Re 2.3e5-3.5e6 in fresh water at 20 C. Steady
+  kOmegaSSTLM at Tu 0.1 and 1 %; max_iter 12000: 320 cases. Rank with
+  `boardrank cfd ... --up-kn 1 3 5 --down-kn 1 3 5 15`. thistle-extend then
+  runs the other 37 points of the full grid for the sections that survive;
+  the two runs rank together. The mesh level is the one thistle-mesh
+  picks (set before submitting). report.fin_span is the board's length along
+  the leading edge, so selection.csv holds the whole board's S_h and D_h at
+  each V_n (methodology §2).
+report:
+  fin_span: 1.24
+  induced_drag: true
+  compare_at: {foil: "file:naca0006-t0556.dat", chord: 0.4572, aoa: [1, 2, 4]}
+highlights:
+  - name: laminar-run
+    why: >
+      3 kn, 0 and 2 deg (the working load): how far the laminar run goes on the 6-series against NACA 0006
+      and SD8020, and whether the working load's C_l of about 0.2 is past the 6-series' low-drag bucket.
+    where: {speed: 1.5199, aoa: [0, 2], foil: ["file:naca0006-t0556.dat", "file:sd8020-t0556.dat",
+                                               "file:naca63-006-t0556.dat", "file:naca64-006-t0556.dat"]}
+    compare: foil
+    views: [transition, separation]
+  - name: thin-stall
+    why: >
+      1 kn, 4 and 8 deg: the leading-edge bubble and stall of a 1 in section at Re 2.3e5, where the stall
+      margin is smallest; SD8020's sharp nose against NACA 0006 and HT35.
+    where: {speed: 0.5066, aoa: [4, 8], foil: ["file:naca0006-t0556.dat", "file:sd8020-t0556.dat",
+                                               "file:ht35-t0556.dat", "file:naca64-006-t0556.dat"]}
+    compare: foil
+    views: [separation, transition]
+  - name: plank-nose
+    why: >
+      The parallel-sided boards at 3 kn and 2 deg: a bubble where the nose meets the flat, and separation
+      ahead of the tail, against NACA 0006.
+    where: {speed: 1.5199, aoa: 2, foil: ["file:naca0006-t0556.dat", "file:parallel-l30-t50-r05-a20.dat",
+                                          "file:plank-typical.dat"]}
+    compare: foil
+    views: [separation, transition]
+defaults:
+  chord: 0.4572
+  temperature: 20
+  turbulence: kOmegaSSTLM
+  mesh: medium          # set to thistle-mesh's choice before submitting
+  max_iter: 12000
+sweep:
+  foil:
+    - "file:naca0006-t0556.dat"
+    - "file:sd8020-t0556.dat"
+    - "file:ht35-t0556.dat"
+    - "file:naca63-006-t0556.dat"
+    - "file:naca64-006-t0556.dat"
+    - "file:naca0006-64-t0556.dat"
+    - "file:parallel-l30-t50-r05-a20.dat"
+    - "file:plank-typical.dat"
+  Tu: [0.1, 1.0]
+zip:                    # V_n [m/s] for V_b 1, 3, 5 kn (0, 1, 2, 4, 6, 8 deg) and 15 kn (0, 2 deg)
+  speed: [0.5066, 0.5066, 0.5066, 0.5066, 0.5066, 0.5066,
+          1.5199, 1.5199, 1.5199, 1.5199, 1.5199, 1.5199,
+          2.5331, 2.5331, 2.5331, 2.5331, 2.5331, 2.5331,
+          7.5994, 7.5994]
+  aoa:   [0, 1, 2, 4, 6, 8,
+          0, 1, 2, 4, 6, 8,
+          0, 1, 2, 4, 6, 8,
+          0, 2]
