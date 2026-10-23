@@ -388,7 +388,12 @@ def section_figure(spec: str, compare: list[str], path: Path, chord: float = 0.1
     C = chord * 1000
     names = [spec, *compare]
     secs = {sp: load(sp) for sp in names}
-    label = {sp: sp.removeprefix("file:").removesuffix(".dat") for sp in names}
+    def nice(sp: str) -> str:  # 'file:ht35.dat@0.0725' -> 'ht35 @ 7.25 %'
+        base, _, t = sp.removeprefix("file:").partition("@")
+        base = base.removesuffix(".dat")
+        return f"{base} @ {float(t) * 100:g} %" if t else base
+
+    label = {sp: nice(sp) for sp in names}
     colors = dict(zip(names, ["#0b4f9c", "#9aa5b1", "#d1495b", "#3c9d5d", "#e0a030"]))
     width = {sp: 2.2 if sp == spec else 1.4 for sp in names}
     p = properties(secs[spec])

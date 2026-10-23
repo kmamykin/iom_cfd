@@ -34,8 +34,18 @@ Drela's HT35 scaled to 7.25 % thickness, 100 mm chord**
 (`geometry/foils/ht35-t0725.dat`). Proposed, not yet agreed with the user.
 * It is as stiff in bending as NACA 0007/100.
 * Its maximum thickness is further forward (x/c 0.26 against 0.30), its
-  nose a little rounder, and its tail straighter (trailing edge 7° against
-  9.7°).
+  nose rounder (0.74 against 0.54 mm radius at 100 mm), and its tail
+  straighter (trailing edge 7.1° against 9.7°).
+
+![HT35 scaled to 7.25 % against NACA 0007, 100 mm chord](figures/custom-section-ht35-t0725.png)
+
+Drawn by `python -m iomcfd.sectiondesign figure "file:ht35.dat@0.0725"
+--compare naca0007 --out ...`, from the UIUC coordinates scaled to 7.25 %.
+`geometry/foils/ht35-t0725.dat`, the file the CFD meshed, has the same
+shape (to 1e-7 c). But it was written at 7 decimals, so a nose radius read
+back from it comes out low (0.58 mm; Analysis 3, Learnings). For CAD or a
+mould, export at 10 decimals:
+`python -m iomcfd.sectiondesign export "file:ht35.dat@0.0725" --names <name>`.
 
 **What it gains over NACA 0007/100** (2D CFD, race-time metric of
 methodology.md; slope ×1 / ×2):
