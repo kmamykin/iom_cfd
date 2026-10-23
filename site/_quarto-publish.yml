@@ -1,0 +1,29 @@
+# Settings for the published site only: Quarto merges this into _quarto.yml
+# when QUARTO_PROFILE=publish, which .github/workflows/site.yml sets. Local
+# builds and previews leave it out, so they send nothing to Google Analytics.
+# Try it locally with `QUARTO_PROFILE=publish uv run iomcfd site build`.
+website:
+  # Opt-in: the scripts marked cookie-consent="tracking" below run only after a
+  # visitor accepts; the footer link changes the choice later
+  cookie-consent:
+    type: express
+    style: simple
+    palette: light
+    language: en_gb
+    policy-url: https://kmamykin.github.io/iom_cfd/privacy/
+    prefs-text: Cookie preferences
+
+# Google Analytics (GA4 web stream for kmamykin.github.io/iom_cfd/; the ID is
+# public, in every page). Not Quarto's `google-analytics:` key: that loads
+# gtag.js from Google before consent and gates only the config call.
+format:
+  html:
+    include-in-header:
+      text: |
+        <script type="text/plain" cookie-consent="tracking" async src="https://www.googletagmanager.com/gtag/js?id=G-JZ1MZXRSD3"></script>
+        <script type="text/plain" cookie-consent="tracking">
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-JZ1MZXRSD3');
+        </script>

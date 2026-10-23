@@ -1,7 +1,8 @@
 # Laminar-flow body of revolution of Dress (1988), Table II: x and radius z in inches.
 # 12 in long, 2.6666 in maximum diameter at x = 6.666 in, blunt base of radius 0.4 in.
 # Source: D. A. Dress, Drag measurements on a laminar flow body of revolution in Langley's
-# 13-inch magnetic suspension and balance system, MS thesis, GWU (NASA CR-4170 / 19880016048), 1988.
+# 13" magnetic suspension and balance system, MS thesis, George Washington University, April 1988
+# (NASA NTRS 19880016048).
 # One value corrected: at x = 6.0 in the table prints 1.3243; 1.3234 is used (two digits swapped,
 # by the slopes either side: 0.0435, 0.0395, 0.0205, 0.0165 in/in as printed, a smooth 0.0435,
 # 0.035, 0.025, 0.0165 corrected). As printed it puts a 0.0009 in kink at x/L = 0.5.

@@ -13,34 +13,46 @@ meshBroken() {
     grep -q -E "Zero or negative cell volume|faces are incorrectly oriented" log.checkMesh
 }
 
-runApplication surfaceFeatureExtract || exit 1
-runApplication blockMesh || exit 1
+# IOMCFD_RESUME set: iomcfd restored a checkpoint (the mesh, the meshing logs
+# and a time directory, per processor if decomposed; src/iomcfd/checkpoint.py),
+# so skip meshing and initial fields and let the solver continue from latestTime.
+resume="${IOMCFD_RESUME:-}"
+[ -n "$resume" ] && echo "resuming from the checkpoint at t = $resume: no meshing"
+
+if [ -z "$resume" ]; then
+    runApplication surfaceFeatureExtract || exit 1
+    runApplication blockMesh || exit 1
+fi
 
 if [ "$NP" -gt 1 ]; then
     foamDictionary -entry numberOfSubdomains -set "$NP" system/decomposeParDict > /dev/null
-    # -copyZero: copy 0/ as-is (patch-group BCs), so the patches that
-    # snappyHexMesh adds later are covered without re-decomposing fields.
-    runApplication decomposePar -force -copyZero || exit 1
-    runParallel snappyHexMesh -overwrite || exit 1
-    runParallel checkMesh
-    if meshBroken; then
-        runApplication reconstructParMesh -constant   # keep the bad mesh for inspection
-        echo "mesh has inverted cells or wrongly oriented faces, see log.checkMesh" >&2
-        exit 1
+    if [ -z "$resume" ]; then
+        # -copyZero: copy 0/ as-is (patch-group BCs), so the patches that
+        # snappyHexMesh adds later are covered without re-decomposing fields.
+        runApplication decomposePar -force -copyZero || exit 1
+        runParallel snappyHexMesh -overwrite || exit 1
+        runParallel checkMesh
+        if meshBroken; then
+            runApplication reconstructParMesh -constant   # keep the bad mesh for inspection
+            echo "mesh has inverted cells or wrongly oriented faces, see log.checkMesh" >&2
+            exit 1
+        fi
+        runParallel potentialFoam -writep
     fi
-    runParallel potentialFoam -writep
     runParallel "$app"
     rc=$?
     runApplication reconstructParMesh -constant
     runApplication reconstructPar -latestTime
 else
-    runApplication snappyHexMesh -overwrite || exit 1
-    runApplication checkMesh
-    if meshBroken; then
-        echo "mesh has inverted cells or wrongly oriented faces, see log.checkMesh" >&2
-        exit 1
+    if [ -z "$resume" ]; then
+        runApplication snappyHexMesh -overwrite || exit 1
+        runApplication checkMesh
+        if meshBroken; then
+            echo "mesh has inverted cells or wrongly oriented faces, see log.checkMesh" >&2
+            exit 1
+        fi
+        runApplication potentialFoam -writep
     fi
-    runApplication potentialFoam -writep
     runApplication "$app"
     rc=$?
 fi

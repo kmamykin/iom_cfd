@@ -1,0 +1,20 @@
+---
+title: "Privacy"
+toc: false
+number-sections: false
+---
+
+This site uses Google Analytics to count visits: which pages are read, roughly where visitors come
+from (country, referring site) and what device and browser they use. There are no ads, and the
+data isn't used to identify anyone.
+
+Google Analytics loads only if you accept cookies in the banner. If you decline, or ignore the banner,
+nothing is sent to Google and no cookies are set. You can change your choice at any time with
+"Cookie preferences" at the bottom of every page.
+
+When enabled, Google Analytics sets cookies (`_ga`, `_ga_*`) that keep a random visitor identifier for
+up to two years, and Google processes the data under its own
+[privacy policy](https://policies.google.com/privacy). The site itself is hosted on GitHub Pages,
+which keeps its own server logs ([GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)).
+
+Questions: open an issue on [the repository](https://github.com/kmamykin/iom_cfd/issues).

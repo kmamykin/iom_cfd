@@ -13,6 +13,270 @@ Symbols follow [docs/nomenclature.md](../../../docs/nomenclature.md); on
 2026-10-18 the notation of earlier entries was changed to it (course at
 β_TW, resistance slope V_b dD_h/dV_b). Only the notation changed.
 
+## Run 20261018-231921 (2026-10-22, git fe840a0-dirty, GCP, 2 cases)
+
+**Setup.** 0007/100 at 4°, from rest, at 1.5 and 1.25 m/s.
+* Settings as run 20261017-193613 (below): Tu 0.1 %, kOmegaSSTLM, medium
+  mesh, 30 flow-throughs averaged over 24-30.
+* The only change is `max_co: 5` instead of 10.
+* Image `fe840a0-dirty-monitor-202610182318`: this code, with the runner's
+  progress lines and divergence stop, but without checkpoints.
+* One c3d-standard-4 Spot VM for both cases, `--max-hours 48`.
+
+Why: at max_co 10 the 1.25 m/s case blew up at 4.87 flow-throughs (run
+20261017-193613). 0009/100 had diverged the same way from rest at max_co 10
+(run 20261014-040114), while 0007/100 at max_co 5 had not. Both speeds were
+run again so that they share one time step.
+
+**Outcome.** 2 ok, both shedding, neither drifting: drift ≤ 0.7 %.
+* **Spot preempted the VM twice**, at 21.2 h and 24.4 h. Each time both
+  cases started again from scratch: about 91 task-hours lost. The third
+  attempt finished:
+
+  | speed | wall [h] | time steps |
+  |---|---|---|
+  | 1.25 m/s | 28.0 | 10779 |
+  | 1.5 m/s | 37.3 | 12054 |
+
+  The job ran 83 h in all.
+* This led to checkpoints for every case (commit 09bd833, docs/cloud-gcp.md).
+* The time step was halved, and 1.5 m/s took 2.3× the wall time of run
+  20261017-193613 (16.4 h), with 2.0× the time steps.
+
+### Conclusions
+
+1. **Started from rest, 0007/100 at 1.5 m/s sheds like the other sections.
+   The low-drag result of run 20261017-193613 holds.**
+   * Cl 0.4065 and Cd 0.01246 here, against 0.4024 and 0.01238 at max_co 10
+     from rest.
+   * Lift oscillates 8.5 %, as in the other three sections' shedding at
+     1.5 m/s (9 %).
+   * The leading-edge-bubble flow of run 20261017-000816 (Cd 0.0152, 22 %
+     more) comes only from a start at the steady solution.
+
+   The model has two flows here, and which one a real fin gets is not known.
+   They differ mostly in friction drag:
+
+   | start | Cd friction | Cd pressure | flow behind the leading edge |
+   |---|---|---|---|
+   | steady solution | 0.0077 | 0.0075 | attached turbulent flow to the trailing edge |
+   | rest | 0.0055 | 0.0069 | vortices along the rear half |
+
+   Confidence: high that the model gives two flows; low on which one is
+   real.
+2. **At 1.25 m/s it sheds too, so from rest there is no switch between 1
+   and 1.5 m/s.**
+   * Cl 0.4002, Cd 0.01323.
+   * Drag falls smoothly with speed, from rest at 4°:
+
+     | speed | Cd | source |
+     |---|---|---|
+     | 1.0 m/s | 0.01425 | run 20261015-161112, max_co 10 |
+     | 1.25 m/s | 0.01323 | this run |
+     | 1.5 m/s | 0.01246 | this run |
+
+   * The 1.25 m/s run was meant to find where the bubble flow sets in. From
+     rest it never does.
+
+   Confidence: high, for this model and start.
+3. **Halving the time step at 1.5 m/s moves Cl by +1.0 % and Cd by +0.6 %.**
+   Run 20261014-040114 found 1-2 % for 0007/100 at 1 m/s. The max_co 10
+   points of the other sections stay comparable. Confidence: high.
+4. **With the from-rest point, 0007/100 is first or tied at 1.5 m/s, and
+   the best fin in every wind.** The race-time metric of methodology.md,
+   with only 0007/100's 4° point at 1.5 m/s replaced. Mean over the three
+   loads, % behind the best of the four, estimated resistance slope /
+   doubled. The max_co 10 point is used, like the other three.
+
+   | section | 1.5 m/s before | 1.5 m/s now | mean of 0.75, 1, 1.5 m/s now |
+   |---|---|---|---|
+   | 0007/100 | 1.58 / 0.68 | 0.49 / 0.19 | **0.38 / 0.17** |
+   | 0008/100 | 0.58 / 0.14 | 0.58 / 0.14 | 0.91 / 0.41 |
+   | 0008/90 | 0.70 / 0.39 | 0.70 / 0.39 | 1.20 / 0.74 |
+   | 0007/90 | 0.83 / 0.50 | 0.83 / 0.50 | 0.83 / 0.53 |
+
+   * **At 1.5 m/s,** 0007/100 leads 0008/100 by 0.09 at the estimated slope.
+     0008/100 leads by 0.05 with the slope doubled. Either way it's a tie
+     within the uncertainties.
+   * **With the max_co 5 point,** 0007/100's 1.5 m/s mean is 0.43 / 0.15.
+   * **One fin for every wind** (each fin's loss at each speed minus the
+     best fin's there):
+
+     | fin | gives away on average | boat lengths |
+     |---|---|---|
+     | 0007/100 | 0.00 / 0.02 % | 0.0 / 0.1 |
+     | 0007/90 | 0.45 / 0.38 % | 1.9 / 1.6 |
+     | 0008/100 | 0.52 / 0.27 % | 2.2 / 1.1 |
+     | 0008/90 | 0.82 / 0.59 % | 3.4 / 2.5 |
+
+     Before, 0007/100 gave away 0.33 / 0.18 %.
+
+   **This supersedes** the 1.5 m/s part of run 20261017-000816's conclusion
+   6: "last of the four at 1.5 m/s", and "fresh air: 0008/100" in
+   fin-profile-selection.md. They rested on the steady-start flow.
+
+   Confidence: medium. It depends on which of the two flows is real, and
+   the 2D and input caveats stand.
+5. **From rest, the start-up is the hard part for the solver.**
+   * Between 3 and 5 flow-throughs the forces swing wildly (force-history
+     figure) before regular shedding sets in.
+   * At max_co 10 two cases blew up there: 0009/100 at 4.7 and 0007/100 at
+     4.87 flow-throughs.
+   * At max_co 5 none has.
+
+   Confidence: medium (three cases).
+
+### Evidence
+
+`report/transient.md` (window 24-30):
+
+| case | Cl | Cl osc | Cd | Cd friction | Cd pressure | Cl drift | Cd drift | Cl blocks | Cd blocks |
+|---|---|---|---|---|---|---|---|---|---|
+| 1.25 m/s | 0.4002 | 8.6 % | 0.01323 | 0.00602 | 0.00721 | +0.6 % | +0.7 % | 0.3977, 0.3993, 0.3991, 0.4014 | 0.01335, 0.01325, 0.01318, 0.01327 |
+| 1.5 m/s | 0.4065 | 8.5 % | 0.01246 | 0.00553 | 0.00693 | −0.0 % | −0.4 % | 0.4010, 0.4047, 0.4065, 0.4065 | 0.01243, 0.01250, 0.01248, 0.01243 |
+
+0007/100 at 4° and 1.5 m/s in the three runs (`results.csv`):
+
+| run | start | max_co | flow-throughs, window | Cl | Cd | Cd friction | Cd pressure |
+|---|---|---|---|---|---|---|---|
+| 20261017-000816 | steady solution | 10 | 20, 12-20 | 0.4284 | 0.01520 | 0.00768 | 0.00753 |
+| 20261017-193613 | rest | 10 | 30, 24-30 | 0.4024 | 0.01238 | 0.00554 | 0.00684 |
+| 20261018-231921 | rest | 5 | 30, 24-30 | 0.4065 | 0.01246 | 0.00553 | 0.00693 |
+
+Separation points at the final instant (`surface.csv`, not means):
+* 1.25 m/s: laminar separation at x/c 0.047, reattachment 0.19, rear
+  separation 0.53;
+* 1.5 m/s: 0.032, 0.17 and 0.54.
+
+Behind x/c 0.2 the friction changes sign repeatedly: the vortices passing
+(`report/highlight_leading-edge-bubble.png`).
+
+**How the ranking was computed.** A script rebuilt from methodology.md:
+* the inputs are those of run 20261017-000816's ranking;
+* the loads are the steady 0009/80 forces;
+* the 1 m/s points are at max_co 10.
+
+It reproduces that run's published tables exactly for the top four at 0.75,
+1 and 1.5 m/s, and its steady-only 1.5 m/s means (0.30 / 0.10). (At 1 m/s
+it differs by up to 0.2 for 0009/100 and 0009/80, which don't enter here.)
+Then only 0007/100's 4° point at 1.5 m/s was replaced. The fin-choice table
+comes from the rounded by-speed table, as on the website.
+
+### Decisions
+
+* **The fin-choice and fresh-air conclusions in fin-profile-selection.md
+  are updated** ("Where the selection stands"): one fin, 0007/100, for
+  every wind.
+* **The study keeps `max_co: 5`** for starts from rest.
+
+### Assumptions
+
+* **The from-rest flow is the one a fin on a moving boat gets** (**not
+  verified**).
+  * A real fin never starts impulsively.
+  * It reaches 1.5 m/s by accelerating through shedding at lower speeds,
+    which is closer to the from-rest history than to a converged steady
+    solution. That is an argument, not a check.
+* **The other three sections' 1.5 m/s points** (run 20261017-000816) started
+  from their steady solutions and shed. That they have no second,
+  higher-drag flow is assumed.
+* **The rest as run 20261017-000816:** 2D URANS, the race-time inputs, and
+  mixing steady and time-accurate points (**not verified**).
+
+### Compromises
+
+* At 1.5 m/s the 2° and 6° points are still steady.
+* The runs differ:
+  * the other three have 20 flow-throughs averaged over 12-20 at max_co 10;
+  * 0007/100 has 30 averaged over 24-30.
+* 1.25 m/s can't be ranked: no other section and no steady sweep has
+  points there.
+
+### Learnings
+
+* **A steady solution as a start can pick the flow.** At 1.5 m/s the steady
+  start led to a different, persistent flow. Mid-chord separation of the
+  steady solution would have become a leading-edge bubble with turbulent
+  flow behind it (**estimate** of the mechanism).
+  * From rest, every case so far sheds.
+  * A flow that depends on its history is a sign of hysteresis. A fin
+    sailing through gusts could switch between the two.
+* **Divergence costs, and so do preemptions.**
+  * Run 20261017-193613's blown-up case ran on for 25 h.
+  * This run lost two attempts to Spot preemption.
+  * Both are fixed now: the runner stops a diverging case (monitor.py), and
+    every case is checkpointed (checkpoint.py).
+* **max_co 5 costs about 2.3× the wall time at 1.5 m/s.** Use it for starts
+  from rest; continuing from a settled time-accurate case can stay at 10.
+
+### Open questions and next steps
+
+* **Does a moving boat get the bubble flow?** (proposed, not agreed)
+  * **Ramp test:** continue the 1.25 m/s shedding solution to 1.5 m/s, and
+    the 1.5 m/s bubble solution down to 1.25 m/s. This needs `start_from`
+    across speeds, a small code change.
+  * **Tu 1 %:** does more turbulent water make the bubble flow disappear?
+    1 case, about 15 h.
+  * **On water,** a trip strip would decide it: it fixes transition
+    (on hold, user, 2026-10-15).
+* **Run 20261017-000816's `Cl_std` of 8.2 for 0007/100 at 1.5 m/s doesn't
+  match its averaging window,** where Cl varies by ±0.0001. Probably a bug
+  in how the joined history is windowed for cases started from a steady
+  solution. The means are right. Not yet traced.
+* **Highlights for a next run:** the ramp pair above. Compare along start,
+  views `separation` and `transition`.
+
+## Run 20261017-193613 (2026-10-22, written after the fact, git 1ca7ce7-dirty, GCP, 2 cases, 1 finished)
+
+**Setup.** 0007/100 at 4°, from rest (`start_from: []`, `start_iter: 0`),
+at 1.5 and 1.25 m/s.
+* Tu 0.1 %, kOmegaSSTLM, medium mesh, max_co 10.
+* 30 flow-throughs, averaged over 24-30.
+* Image `1ce5be2`, one c3d-standard-4 Spot VM, `--max-hours 30`.
+
+Why: run 20261017-000816's 1.5 m/s case, started from its steady solution,
+ended in a leading-edge bubble with 22 % more drag. Was that flow robust?
+
+**Outcome.** 1 ok, 1 diverged (cancelled).
+* **1.5 m/s: ok** after 16.4 h (5895 time steps). Cl 0.4024, Cd 0.01238.
+  Lift oscillates 8.2 %; drift +0.03 % (Cl), −0.5 % (Cd).
+* **1.25 m/s blew up after 2.1 h, at 4.87 flow-throughs (t = 0.3897 s).**
+  * ω was clipped to −4.5 × 10⁸ in one time step. In the next, the velocity
+    residuals jumped to about 0.9 and the maximum Courant number to
+    125,000.
+  * The time step then collapsed to 10⁻²³ s, and the solver sat at that
+    instant for 25 h without writing.
+  * Cancelled on 2026-10-18.
+  * Its logs and force history were copied from the VM:
+    `gs://<bucket>/salvage/transient-check/20261017-193613/`.
+
+### Conclusions
+
+1. **From rest, 0007/100 at 1.5 m/s sheds, with Cd 0.01238: the
+   leading-edge bubble does not return.** The full analysis is in run
+   20261018-231921 above, which repeated the case at max_co 5. Confidence:
+   high for the result; the meaning is discussed there.
+2. **At max_co 10, a start from rest can blow up in the start-up phase.**
+   * This case did it at 4.87 flow-throughs; 0009/100 did at 4.7 in run
+     20261014-040114.
+   * The turbulence model's ω went negative first.
+
+   Confidence: medium.
+
+### Decisions
+
+* **Rerun both speeds at max_co 5** (run 20261018-231921, user,
+  2026-10-18).
+* **The runner now logs progress and stops diverging cases** (monitor.py,
+  `iomcfd gcp progress`). Here the blow-up would have been stopped within
+  30 s instead of 25 h.
+
+### Learnings
+
+* **A collapsed time step looks like progress in the job state.** Batch
+  reported RUNNING and the VM was busy. Only the solver log showed that
+  time had stopped. The progress lines now show it.
+
 ## Run 20261017-000816 (2026-10-17, git 1ce5be2, GCP, 16 cases, 15 finished)
 
 **Setup.** The top four of the 1 m/s ranking (0007/100, 0007/90, 0008/100,

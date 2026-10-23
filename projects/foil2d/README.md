@@ -77,9 +77,10 @@ reattachment and trailing-edge separation, x/c, per side); `yplus_max`;
 both surfaces). `iomcfd report` draws polars with any reference data.
 
 Transient cases (`solver: transient`) add the outputs below. On the cloud
-(and with `iomcfd run --checkpoint`), a time-accurate case on one rank
-writes its fields every flow-through and resumes from the last one if its
-VM is preempted (docs/cloud-gcp.md, Checkpoints).
+(and with `iomcfd run --checkpoint`), a time-accurate case writes its fields
+every flow-through and resumes from the last one if its VM is preempted.
+Steady cases are checkpointed by the runner's signal writes every 15 min
+(docs/cloud-gcp.md, Checkpoints).
 
 Transient cases add:
 * `flow_times_done`;
