@@ -202,8 +202,11 @@ screen and optima runs with the time-accurate points replacing theirs
    ![Time-accurate drag against side force, and drag relative to NACA 0007](figures/custom-section-transient-polars.png)
 
    Drawn by `python -m iomcfd.sectiondesign cfd <screen and optima
-   results.csv> --replace <the six time-accurate results.csv> --only
-   file:ht35-t0725.dat/100 file:cst-opt2.dat/100 --figure ...`.
+   results.csv> --replace <the six time-accurate results.csv>
+   <transient-check run 20261017-193613's results.csv> --only
+   file:ht35-t0725.dat/100 file:cst-opt2.dat/100 --figure ...`. Since
+   2026-10-23 the figure shows NACA 0007 at 4° and 1.5 m/s from rest
+   (Analysis 2026-10-23); the table above has the steady-start point.
 2. **The time-accurate points move the gain from 0.75-1 m/s to 1.5 m/s.**
    HT35 at 7.25 %, slope ×1:
 
