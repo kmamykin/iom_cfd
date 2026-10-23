@@ -166,13 +166,21 @@ and in October 2026 the Spot VMs in us-central1 were preempted every 11-14 h
 * Tasks are retried up to 6 times.
 
 Which cases have checkpoints is up to the project (`Project.checkpoint_setup`).
-foil2d: time-accurate cases on one rank. They then write their fields
-every flow-through (keeping the last two), so at most about one flow-through
-of work is lost per preemption. Those writes land the adjustable time step
-on the write times, so the time steps differ slightly from a run without
-checkpoints. Steady cases are short and run without; decomposed cases
-(np > 1) are not supported yet. Locally, `iomcfd run --checkpoint DIR` does
-the same.
+foil2d: every case on one rank.
+* Time-accurate cases write their fields every flow-through (keeping the last
+  two), so at most about one flow-through of work is lost per preemption.
+  Those writes land the adjustable time step on the write times, so the time
+  steps differ slightly from a run without checkpoints.
+* Steady cases write every 1000 iterations, or the largest divisor of
+  `max_iter` below that: simpleFoam writes only on whole write intervals, not
+  at the end time otherwise. A `max_iter` without a divisor near 1000 (a
+  prime) runs without checkpoints. The convergence check, the progress line
+  and the result read the force history of every restart joined, so a
+  resumed case reads as one run. Writing the fields doesn't change the
+  solution. A restart does, slightly (next paragraph).
+
+Decomposed cases (np > 1) are not supported yet. Locally,
+`iomcfd run --checkpoint DIR` does the same.
 
 Checked with a real case (2026-10-19). foil2d NACA 0009, xcoarse mesh,
 4 flow-throughs after a 200-iteration steady start; the solver was killed
@@ -184,6 +192,21 @@ empty directory:
 * its force history is continuous across the restart;
 * it finished ok with 4.0 flow-throughs, the last fields written at the
   end time, and the checkpoint deleted.
+
+Steady, checked 2026-10-23. foil2d NACA 0009, xcoarse, 4 deg, max_iter 6000
+with conv_tol 1e-12 so it runs to the end; the solver was killed (SIGKILL) at
+iteration 1041, just after the 1000-iteration checkpoint, and the case run
+again in an empty directory:
+* it resumed at 1000, wrote checkpoints at 2000-5000 and the last fields at
+  6000, and the checkpoint was deleted;
+* the force history reads as one run of 6000 iterations (starts 0 and 1000
+  joined);
+* against the same case run without interruption, the history is identical
+  up to 1040 with the 1000 write. So writing the fields changes nothing.
+* The restart changes Cl at iteration 1001 by 4.5e-5 (1e-4 relative). This
+  case's forces oscillate (Cl std 6 %, flagged `unsteady`), so after that the
+  two runs are out of phase: Cl and Cd over the last 500 iterations differ by
+  1.1 % and 0.6 %. A case that converges should reach the same solution.
 
 ## Choosing machines
 

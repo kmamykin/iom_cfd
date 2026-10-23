@@ -54,6 +54,7 @@ STEP_FIRST_CELL = 0.05  # first cell at most this fraction of the smallest step 
 TRANSIENT_FILES = ("controlDict", "fvSchemes", "fvSolution")  # system/ files that differ from steady
 MIN_DT_FLOW_TIMES = 1e-6  # abort below this time step, in c/U (at Co 10: stair1 2e-3, NACA 0009 8e-3)
 CHECKPOINT_FLOW_TIMES = 1.0  # with checkpoints, a time-accurate case writes its fields this often (c/U)
+CHECKPOINT_ITERATIONS = 1000  # with checkpoints, a steady case writes its fields at most this many iterations apart
 
 
 class Foil2D(Project):
@@ -274,17 +275,29 @@ class Foil2D(Project):
         return None
 
     # ------------------------------------------------------------------
-    # checkpoints (iomcfd.checkpoint): resume a time-accurate case on a new VM
+    # checkpoints (iomcfd.checkpoint): resume a case on a new VM
     def checkpoint_setup(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool:
         """A time-accurate case on one rank writes its fields every
         CHECKPOINT_FLOW_TIMES flow-throughs and keeps the last two (purgeWrite
         2: the older is complete while the newer is written). A snapshot run
         already writes every snapshot_interval and keeps them all. Adjustable
         writes count from the start time, so the interval divides the time
-        left exactly and the last write is at the end time. Steady cases are
-        short and decomposed ones (np > 1) not supported: False."""
-        if p["solver"] != "transient" or int(p.get("np") or 1) > 1:
+        left exactly and the last write is at the end time. A steady case
+        writes every CHECKPOINT_ITERATIONS iterations or less, an interval
+        that divides max_iter: simpleFoam writes only on whole intervals, not
+        at the end time otherwise (if max_iter has no divisor near it, the case
+        runs without checkpoints). Decomposed ones (np > 1) are not supported:
+        False."""
+        if int(p.get("np") or 1) > 1:
             return False
+        if p["solver"] != "transient":
+            n = int(d["maxIter"])
+            every = max(k for k in range(1, min(CHECKPOINT_ITERATIONS, n) + 1) if n % k == 0)
+            if every < min(CHECKPOINT_ITERATIONS, n) / 4:
+                return False
+            set_entry(Path(case_dir) / "system" / "controlDict", "writeInterval", every)
+            set_entry(Path(case_dir) / "system" / "controlDict", "purgeWrite", 2)
+            return True
         if not float(p.get("snapshot_interval") or 0.0) > 0:
             sysd = Path(case_dir) / "system"
             cd = sysd / "controlDict.transient" if (sysd / "controlDict.transient").exists() else sysd / "controlDict"
@@ -301,7 +314,10 @@ class Foil2D(Project):
     def checkpoint_restored(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any], time: str) -> None:
         """Continue from the restored time: past a steady start (start_iter)
         switch to the time-accurate setup now, as Allrun would after it, and
-        divide the time left into whole write intervals again."""
+        divide the time left into whole write intervals again. A steady case
+        just continues (its write interval divides max_iter already)."""
+        if p["solver"] != "transient":
+            return
         sysd = Path(case_dir) / "system"
         if (sysd / "controlDict.transient").exists():
             for name in TRANSIENT_FILES:
@@ -391,14 +407,7 @@ class Foil2D(Project):
         replaces what it overlaps), else from force_history.csv (written by
         extract, already joined, and downloaded by a light fetch)."""
         case_dir = Path(case_dir)
-        h = None
-        for f in find_dat(case_dir, "forceCoeffs", "coefficient.dat"):
-            names, data = read_dat(f)
-            if data.size == 0:
-                continue
-            col = {n: i for i, n in enumerate(names)}
-            part = np.c_[data[:, 0], data[:, col["Cl"]], data[:, col["Cd"]], data[:, col["CmPitch"]]]
-            h = part if h is None else np.vstack([h[h[:, 0] < part[0, 0]], part])
+        h = self._join(find_dat(case_dir, "forceCoeffs", "coefficient.dat"))
         if h is None:
             saved = case_dir / "force_history.csv"
             if saved.is_file():
@@ -428,23 +437,36 @@ class Foil2D(Project):
         out["drifting"] = bool(max(abs(out["Cl_drift"]), abs(out["Cd_drift"])) > DRIFT_TOL)
         return out
 
+    @staticmethod
+    def _join(files: list[Path]) -> np.ndarray | None:
+        """forceCoeffs files of successive starts (postProcessing/forceCoeffs/
+        <start>/coefficient.dat, in start order) as one history, shape (n, 4):
+        t, Cl, Cd, Cm. A later start replaces what it overlaps."""
+        h = None
+        for f in files:
+            names, data = read_dat(f)
+            if data.size == 0:
+                continue
+            col = {n: i for i, n in enumerate(names)}
+            part = np.c_[data[:, 0], data[:, col["Cl"]], data[:, col["Cd"]], data[:, col["CmPitch"]]]
+            h = part if h is None else np.vstack([h[h[:, 0] < part[0, 0]], part])
+        return h
+
     # ------------------------------------------------------------------
-    def _coeffs(self, case_dir: Path):
+    def _coeffs(self, case_dir: Path, p: dict[str, Any]):
+        """Time (iteration), Cl, Cd, Cm of the running solver. Steady: every
+        start joined, so a case resumed from a checkpoint reads as one run.
+        Time-accurate: the latest start only."""
         files = find_dat(case_dir, "forceCoeffs", "coefficient.dat")
-        if not files:
-            return None
-        names, data = read_dat(files[-1])
-        if data.size == 0:
-            return None
-        col = {n: i for i, n in enumerate(names)}
-        return data[:, 0], data[:, col["Cl"]], data[:, col["Cd"]], data[:, col["CmPitch"]]
+        h = self._join(files[-1:] if self._time_accurate_now(case_dir, p) else files)
+        return None if h is None else tuple(h.T)
 
     def converged(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool:
         """Windowed means of Cl and Cd stopped moving (relative conv_tol).
         Transient runs always run for flow_times."""
         if p["solver"] == "transient":
             return False
-        c = self._coeffs(case_dir)
+        c = self._coeffs(case_dir, p)
         if c is None:
             return False
         _, cl, cd, _ = c
@@ -462,7 +484,7 @@ class Foil2D(Project):
         the last flow-through and the drift of the means over the averaging
         window (as `extract`). Steady: how far the windowed means still move,
         relative, against conv_tol (as `converged`)."""
-        c = self._coeffs(case_dir)
+        c = self._coeffs(case_dir, p)
         if c is None:
             return {}
         t, cl, cd, _ = c
@@ -491,7 +513,7 @@ class Foil2D(Project):
         samples, once past the start-up (100 samples and, for a transient
         start from rest, half a flow-through: the impulsive start gives Cl in
         the hundreds for a few steps)."""
-        c = self._coeffs(case_dir)
+        c = self._coeffs(case_dir, p)
         if c is None or len(c[0]) < 100:
             return None
         t, cl, cd, _ = c
@@ -505,7 +527,7 @@ class Foil2D(Project):
 
     def extract(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> dict[str, Any]:
         out: dict[str, Any] = {}
-        c = self._coeffs(case_dir)
+        c = self._coeffs(case_dir, p)
         if c is None:
             return {"_status": "failed"}
         it, cl, cd, cm = c
@@ -1188,8 +1210,11 @@ class Foil2D(Project):
         preset = stepped.parse_spec(str(p["foil"]))[0] if stepped.is_stepped(p.get("foil", "")) else None
         if preset:
             k = {"stair5": 3.0, "stair10": 4.0}.get(preset, 2.0)
-        hours = 2 * f * f * k
+        # steady: up to ~1.05 s an iteration on the medium mesh (fin-profile-selection's
+        # 8000-iteration cases took up to 7330 s), so 2.5 h per 8000 iterations
+        hours = 2.5 * f * f * k * int(p.get("max_iter") or 8000) / 8000
         if p.get("solver") == "transient":
+            hours = 2 * f * f * k  # mesh and the steady start (start_iter)
             # 15 c/U at Co 10 on the medium mesh took 1.3 h for NACA 0009 (4
             # ranks); a stair1 step's cells cut the time step 3.6x and add
             # cells (~5x). stair5/stair10 are guesses from their smallest cells.

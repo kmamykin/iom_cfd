@@ -171,7 +171,7 @@ def test_gcp_task_hours_fit_the_longest_case():
     cases = study.expand(project.defaults)
     first = float(project.resources({**cases[0].params, "np": 1})["max_hours"])
     hours = gcp.task_hours(project, cases, 1)
-    assert hours == pytest.approx(1 + 2 * 4.0)
+    assert hours == pytest.approx(1 + 2.5 * 4.0)
     assert hours > 2 * first
 
 
@@ -185,7 +185,7 @@ def test_transient_hours():
     stair1 = project.resources({**p, "foil": "stair1:naca0009:x=0.5,d=0.3", "max_co": 5})["max_hours"]
     assert naca == pytest.approx(1 + 2 + 2)
     assert stair1 == pytest.approx(1 + 2 * 2.0 + 2 * 5.0 * 2)
-    assert project.resources({**p, "foil": "naca0009", "solver": "steady"})["max_hours"] == pytest.approx(3)
+    assert project.resources({**p, "foil": "naca0009", "solver": "steady"})["max_hours"] == pytest.approx(3.5)
     one = project.resources({**p, "foil": "naca0009", "np": 1})["max_hours"]
     assert one == pytest.approx(1 + 2 + 2 * 4**0.72) and one > 3.5 + 2  # transient-check's ~3.5 h estimate
 

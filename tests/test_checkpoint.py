@@ -113,7 +113,64 @@ def test_foil2d_steady_start_switches_on_restore(tmp_path):
     assert _entry(case / "system" / "controlDict", "application") == "pimpleFoam"
 
 
-@pytest.mark.parametrize("kw", [{"solver": "steady"}, {"np": 2}])
+@pytest.mark.parametrize("max_iter, every", [(8000, 1000), (12000, 1000), (2500, 625), (300, 300)])
+def test_foil2d_steady_writes_on_whole_intervals(tmp_path, max_iter, every):
+    """simpleFoam writes only on whole write intervals (not at the end time),
+    so the interval divides max_iter; a restored steady case just continues."""
+    project = load_project("foil2d")
+    p = _params(project, solver="steady", max_iter=max_iter)
+    case = tmp_path / "case"
+    d = project.prepare_case(case, p)
+    assert project.checkpoint_setup(case, p, d)
+    cd = case / "system" / "controlDict"
+    assert int(_entry(cd, "writeInterval")) == every and max_iter % every == 0
+    assert _entry(cd, "purgeWrite") == "2"
+    assert "writeInterval   1;" in cd.read_text()  # the function objects' intervals are left alone
+    before = cd.read_text()
+    project.checkpoint_restored(case, p, d, str(every))
+    assert cd.read_text() == before
+
+
+HEADER = "# Time    \tCd    \tCd(f)    \tCd(r)    \tCl    \tCl(f)    \tCl(r)    \tCmPitch\n"
+
+
+def _coeffs(case, start, its, cl):
+    path = case / "postProcessing" / "forceCoeffs" / start / "coefficient.dat"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(HEADER + "".join(f"{i}\t0.02\t0\t0\t{cl:g}\t0\t0\t0.01\n" for i in its))
+
+
+def test_foil2d_steady_history_joins_across_a_resume(tmp_path):
+    """Resumed at iteration 2500 (the checkpoint's postProcessing runs on to
+    3000): the later start replaces the overlap, and convergence, progress
+    and the result see one run of 4200 iterations."""
+    project = load_project("foil2d")
+    p = _params(project, solver="steady", max_iter=8000)
+    case = tmp_path / "case"
+    d = project.prepare_case(case, p)
+    _coeffs(case, "0", range(1, 3001), 0.3)
+    _coeffs(case, "2500", range(2501, 4201), 0.4)
+    it, cl, _, _ = project._coeffs(case, p)
+    assert len(it) == 4200 and it[-1] == 4200 and cl[2499] == pytest.approx(0.3) and cl[2500] == pytest.approx(0.4)
+    assert project.converged(case, p, d)
+    assert project.progress(case, p, d)["Cl"] == pytest.approx(0.4)
+    out = project.extract(case, p, d)
+    assert out["iterations"] == 4200 and out["converged"] and out["Cl"] == pytest.approx(0.4)
+
+
+def test_foil2d_steady_convergence_spans_the_restart(tmp_path):
+    """300 iterations since the resume are fewer than two windows (2 x 500):
+    only the joined history can show the means have settled."""
+    project = load_project("foil2d")
+    p = _params(project, solver="steady", max_iter=8000)
+    case = tmp_path / "case"
+    d = project.prepare_case(case, p)
+    _coeffs(case, "0", range(1, 2001), 0.4)
+    _coeffs(case, "2000", range(2001, 2301), 0.4)
+    assert project.converged(case, p, d)
+
+
+@pytest.mark.parametrize("kw", [{"np": 2}, {"solver": "steady", "max_iter": 7919}])
 def test_foil2d_no_checkpoints(tmp_path, kw):
     project = load_project("foil2d")
     p = _params(project, **kw)
