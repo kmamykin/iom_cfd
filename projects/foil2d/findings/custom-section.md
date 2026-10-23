@@ -31,7 +31,10 @@ Tools (all in this repository):
 
 **Answer: yes, a section other than NACA 0007 is better. Recommended: M.
 Drela's HT35 scaled to 7.25 % thickness, 100 mm chord**
-(`geometry/foils/ht35-t0725.dat`). Proposed, not yet agreed with the user.
+(`geometry/foils/ht35-t0725.dat`). The recommendation for now (user,
+2026-10-23). Website: `site/custom-section/`.
+* HT35 is one of Drela's HT3x tail sections for F3B sailplanes (UIUC
+  database, "Drela HT35 airfoil"; added there in June 2023).
 * It is as stiff in bending as NACA 0007/100.
 * Its maximum thickness is further forward (x/c 0.26 against 0.30), its
   nose rounder (0.74 against 0.54 mm radius at 100 mm), and its tail

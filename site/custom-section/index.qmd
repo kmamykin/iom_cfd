@@ -101,7 +101,8 @@ The three sections at 100 mm chord. Bending stiffness is relative to NACA 0007/1
 section and for a thin skin over a core. Thickness positions are from the leading edge.
 :::
 
-**HT35** is one of Mark Drela's HT sections, from the UIUC airfoil coordinate database
+**HT35** is one of Mark Drela's HT3x sections, designed for the tail surfaces of F3B competition
+radio-controlled gliders; the coordinates are from the UIUC airfoil coordinate database
 [@uiuc-coords]. As published it is 7\ % thick; here every ordinate is scaled by 7.25/7. Against
 NACA 0007 at 100 mm it:
 
@@ -366,7 +367,8 @@ data files below, which `iomcfd site export` copies out of the runs; the race ti
 from them with the same code (`sectiondesign.cfd_table` and `rank`) that produced the findings. The
 flow pictures are ParaView renders (`iomcfd viz`) of the few cases fetched whole. The code is under
 the [MIT licence](https://github.com/kmamykin/iom_cfd/blob/main/LICENSE); the text, figures and data
-on this page are under CC BY 4.0. The HT35 coordinates come from the UIUC database and keep its terms.
+on this page are under CC BY 4.0. The HT35 coordinates come from the UIUC Airfoil Coordinates
+Database (UIUC Applied Aerodynamics Group), which states no licence for them.
 
 ## Data behind the figures {.appendix .unnumbered}
 
