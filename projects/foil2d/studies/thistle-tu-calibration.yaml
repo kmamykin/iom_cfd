@@ -1,0 +1,41 @@
+study: thistle-tu-calibration
+project: foil2d
+description: >
+  Which inlet Tu makes the transition model reproduce NACA Report 824 at the
+  Thistle board's Reynolds numbers? (findings:
+  projects/foil2d/findings/thistle-board.md). thistle-validation-r824 run
+  20261023-195013 (Tu 0.05 %, the tunnel's own level) put kOmegaSSTLM's drag
+  23-40 % under Report 824 at C_l 0-0.2 on NACA 0006 and 64-006 at Re 3e6,
+  and kept 64-006 in a laminar bucket at C_l 0.2 that the measurements
+  don't show, while it matched to 2 % at C_l 0.45-0.65: the model at low Tu
+  is too laminar at low lift. This sweeps the inlet Tu over 0.15-1.5 % on
+  the same two true 6 % sections, same chord, water, Re 3e6 (speed 6.5848),
+  fine mesh and conv_window as the validation, at 0-4 deg (the low-lift
+  range where they disagree; the Thistle loads are about 1-4 deg), to find
+  the effective Tu that matches the smooth-model drag polars. Saporito et
+  al. (2020) used Tu 0.6 % with STAR-CCM+'s gamma model for the same
+  64-006 data. The validation run's Tu 0.05 % cases complete the sweep.
+reference: validation/naca6_r824.csv
+report:
+  fin_span: 1.24
+  induced_drag: true
+highlights:
+  - name: transition-by-tu
+    why: >
+      Where the boundary layer turns turbulent on each section at 2 deg as Tu rises, against the
+      drag Report 824 measured.
+    where: {aoa: 2}
+    compare: Tu
+    views: [transition]
+defaults:
+  chord: 0.4572
+  temperature: 20
+  speed: 6.5848
+  turbulence: kOmegaSSTLM
+  mesh: fine
+  conv_window: 1000
+  max_iter: 12000
+sweep:
+  foil: [naca0006, "file:naca64-006.dat"]
+  Tu: [0.15, 0.3, 0.6, 1.0, 1.5]
+  aoa: [0, 1, 2, 4]

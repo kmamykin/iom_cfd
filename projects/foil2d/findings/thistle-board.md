@@ -22,6 +22,30 @@ leeway β_Y, section angle α_n, rake Λ).
   image af02c27, fine mesh, on c2d-standard-16. Run 20261023-141306, on
   C3D, was cancelled before it started: the screen held the whole C3D
   quota.
+* **Preliminary validation result** (19 of 28 cases, 2026-10-23 22:00 UTC).
+  * At Tu 0.05 %, kOmegaSSTLM's drag is 23-40 % under Report 824's at C_l
+    0-0.2 on both sections. 64-006 keeps a laminar bucket at C_l 0.2 that
+    the data don't show.
+  * It is within 2 % at C_l 0.45-0.65.
+  * Fully turbulent runs are 18-90 % over.
+  * So the screen's Tu 0.1 % results flatter laminar flow at the working
+    load and downwind.
+* **`thistle-tu-calibration` finished** (run 20261023-221604). The model
+  matches Report 824 at Tu 0.3 % for NACA 0006 and about 0.45 % for
+  64-006. The screen's 0.1 % is too laminar and its 1 % effectively fully
+  turbulent, so the ranking will be decided at Tu 0.3 and 0.6 % in
+  `thistle-extend` (user's decision, entry below).
+* **Literature on Tu** (user's request): docs/research/turbulence-intensity.md.
+  * For a dinghy board on a lake, about 0.1-0.3 % at 4-15 kn and 0.3-1 %
+    at 1-2 kn. Tu falls with boat speed, roughly as 1/V (Remmlinger 2013,
+    from measured near-surface dissipation).
+  * Saporito et al. used 0.25 % for the sea, and 0.6 % to match Report 824
+    with their transition model.
+  * Eça et al. (2022) found γ-Re_θ too laminar at low Tu, as here.
+* In thistle-screen, 3 near-stall cases (6-8° at 3-5 kn, Tu 0.1 %) timed
+  out at the 8.5 h task limit with 94 % of 12000 iterations done. Their
+  checkpoints are kept in the bucket; more 6-8° cases are likely to time
+  out the same way.
 
 The rest of this summary is as of the XFOIL screen.
 
@@ -50,6 +74,101 @@ maximum lift, so the CFD decides.
 4. In thistle-mesh, the plank board diverged on the coarse mesh at 5 kn and
    4° (C_l 1e34 after 60 s, stopped by the divergence guard). Its finer
    meshes are still running.
+
+## 2026-10-24: thistle-tu-calibration, run 20261023-221604
+
+**Run.** NACA 0006 and 64-006 at their true 6 %, Re 3e6, kOmegaSSTLM,
+fine mesh, inlet Tu 0.15, 0.3, 0.6, 1.0 and 1.5 % (decay control holds it
+to the foil), 0-4°. Run on n2-standard-16, image af02c27, 3.9 h. All 40
+cases succeeded. The Tu 0.05 % points are the validation run's.
+
+**C_d against Report 824 at the computed C_l** [%]:
+
+| Tu | 0006 at 0° | 1° | 2° | 4° | rms | 64-006 at 0° | 1° | 2° | 4° | rms |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0.05 % | −40 | | −23 | −2 | 27 | −32 | | −39 | −1 | 29 |
+| 0.15 % | −23 | −18 | −16 | −1 | 17 | −25 | −19 | −30 | +1 | 22 |
+| **0.3 %** | **−3** | **0** | **0** | **+6** | **3** | −12 | −10 | −22 | +5 | 14 |
+| 0.6 % | +20 | +29 | +27 | +22 | 25 | **+7** | **+19** | **+3** | **+11** | **12** |
+| 1.0 % | +60 | +57 | +50 | +34 | 51 | +69 | +60 | +24 | +26 | 49 |
+| 1.5 % | +62 | +57 | +49 | +31 | 51 | +79 | +63 | +23 | +23 | 53 |
+
+C_l hardly moves with Tu (2°: 0.205-0.219; Report 824 0.235 for 0006 and
+0.204 for 64-006).
+
+* **The effective Tu that reproduces the quiet tunnel** is **0.3 %** for
+  NACA 0006, within ±6 % at 0-4°. For 64-006 it lies between 0.3 and
+  0.6 %, about 0.45 % (interpolated, not run).
+* **Tu 1 % and above is effectively fully turbulent.** C_d at 1.0 and
+  1.5 % is the same, close to kOmegaSST's (0006 at 0°: 0.0072-0.0073
+  against SST's 0.0077).
+* **Both of the screen's levels are off.** Tu 0.1 % is too laminar (about
+  −20 to −30 % at low lift) and Tu 1 % too turbulent (+50 to +60 %). The
+  calibrated band, 0.3-0.6 %, lies between.
+* **The bias depends on the section.** At every Tu, 64-006's drag comes
+  out 10-20 % lower relative to its measurement than 0006's does at C_l
+  0-0.2 (Tu 0.3 %: −10 to −22 % against 0 to −3 %). So the model favours
+  the 6-series at low lift by about that much. A 6-series gain over a
+  4-digit section smaller than about 15 % at the working load or downwind
+  is within the model's error.
+* **Calibration only, not physics.** Report 824's tunnel had a very low
+  Tu, about 0.03 %. The 0.3-0.6 % is what *this model* needs to reproduce
+  a quiet, smooth test. A lake adds real turbulence on top: about
+  0.1-0.3 % at 4-15 kn and more at 1-2 kn (docs/research/turbulence-intensity.md).
+  So model inputs of about 0.3-0.6 % are a defensible lower bound for
+  Thistle conditions; the screen's Tu 1 % is a rough-water bound.
+* **Scope.** One Reynolds number (3e6) and two sections. The board runs
+  from 2.3e5 to 3.5e6, and no data were found below 3e6 for these
+  sections.
+
+**Decided (user, 2026-10-24).**
+* The screen (Tu 0.1 and 1 %) bounds the answer. A section is rejected
+  only if it loses at both levels.
+* The survivors run the full 57-point grid at the calibrated Tu 0.3 and
+  0.6 % (`thistle-extend`, redesigned), and that decides the ranking.
+* Near-stall cases need about 9.2 h, so `thistle-extend` is submitted with
+  `--max-hours 14`.
+
+## 2026-10-24: thistle-validation-r824, run 20261023-195013
+
+**Run.** NACA 0006 and 64-006 at their true 6 %, Re 3e6, fine mesh, Tu
+0.05 %, kOmegaSSTLM and fully turbulent kOmegaSST, 0-12°, on
+c2d-standard-16, image af02c27, 3.3 h.
+* 25 of 28 cases succeeded.
+* The 3 failures are fully turbulent past stall: 0006 at 12°, 64-006 at
+  10° and 12°. They diverged (C_l 1e18 to 1e51) and the guard stopped them.
+* 10-12° under the transition model and 64-006 at 8° did not converge and
+  oscillate.
+
+Against Report 824 (validation/naca6_r824.csv, digitised: C_d ±0.0001,
+C_l ±0.01). Drag is compared at the computed C_l, lift at the same angle:
+
+| section, model | 0° C_d | 2° C_d | 4° C_d | 6° C_d | C_l at 2 / 4 / 6 / 8° (Report 824) |
+|---|---|---|---|---|---|
+| 0006, SSTLM Tu 0.05 % | −40 % | −23 % | −2 % | +1 % | 0.205 / 0.446 / 0.651 / 0.836 (0.235 / 0.446 / 0.646 / 0.828) |
+| 0006, SST | +72 % | +55 % | +34 % | +18 % | 0.217 / 0.433 / 0.645 / 0.849; 1.034 at 10° (0.819) |
+| 64-006, SSTLM Tu 0.05 % | −32 % | −39 % | −1 % | stalled: C_d 0.035 | 0.215 / 0.431 / 0.584 / 0.639 (0.204 / 0.433 / 0.631 / 0.814) |
+| 64-006, SST | +90 % | +28 % | +26 % | | 0.220 / 0.439 / 0.653 / 0.645 (stalled) |
+
+* **Lift is right below stall** for both models and sections: within
+  about 0.03 of the measurements up to 6°, and for 0006 under the
+  transition model up to 8°.
+* **The transition model is too laminar at low lift.** At C_l 0-0.2 its
+  drag is 23-40 % low, and it gives 64-006 a laminar bucket at C_l 0.2
+  that the data put past the bucket's edge (Report 824: C_d 0.0061 there).
+  At C_l 0.45-0.65 it is within 2 %. This is the bias Eça et al. (2022)
+  describe at very low Tu (docs/research/turbulence-intensity.md);
+  thistle-tu-calibration measures how much Tu removes it.
+* **Fully turbulent is too draggy at low lift** (+18 to +90 %). The truth
+  lies between the two models, nearer the transition model as C_l grows.
+* **64-006 stalls early under the transition model.**
+  * The model has C_l falling off past 6°, maximum about 0.64; the
+    measurements reach about 0.83 at 8-9°.
+  * NACA 0006, with its rounder nose, is right to 8°.
+  * The screen's stall margins for the sharp-nosed sections (6-series,
+    SD8020) may be pessimistic, so a stall veto on them needs care.
+  * Fully turbulent SST misses stall the other way (0006: C_l 1.03 at
+    10°). Steady RANS past maximum lift is not to be trusted.
 
 ## 2026-10-23: thistle-mesh, run 20261023-052134
 

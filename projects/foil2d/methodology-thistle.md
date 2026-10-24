@@ -68,8 +68,11 @@ at 10°:
 * The CFD runs this grid in two stages.
   * `thistle-screen` takes every section at the 20 points that can reject
     one: 1, 3 and 5 kn at 0, 1, 2, 4, 6 and 8°; 15 kn at 0 and 2°.
-  * `thistle-extend` adds the other 37 points for the survivors.
+  * `thistle-extend` runs the survivors over all 57 points at the
+    calibrated Tu 0.3 and 0.6 %. The screen's Tu 0.1 and 1 % only bound
+    the answer (findings, thistle-tu-calibration).
   * The screen alone is ranked with `--up-kn 1 3 5 --down-kn 1 3 5 15`.
+    `thistle-extend` is ranked on its own.
 
 ## 3. Loads
 
@@ -111,9 +114,11 @@ Why 1, 2 and 4° (A): an estimate, to be refined.
    more downwind than it gains upwind is vetoed (A). Within ±1 % upwind,
    downwind decides (A).
 4. **Variants.**
-   * **CFD.** Steady kOmegaSSTLM at Tu 0.1 and 1 %. The finalists also run
-     at Tu 2 % and fully turbulent kOmegaSST, which stands in for a rough
-     or painted board.
+   * **CFD.** Steady kOmegaSSTLM. The screen runs at Tu 0.1 and 1 %, which
+     bound the answer. The finalists run at Tu 0.3 and 0.6 %, the inlet
+     values at which the model reproduces NACA Report 824's quiet-tunnel
+     drag (thistle-tu-calibration). Fully turbulent kOmegaSST stands in for
+     a rough or painted board.
    * **XFOIL.** Ncrit 8.15, 4.0 and 2.6 (Tu 0.1, 0.5 and 1 %, Mack), plus a
      variant tripped at x/c 0.05.
    * **Rake.** Every variant is ranked at rake 10, 5 and 15°.

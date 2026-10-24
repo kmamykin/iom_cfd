@@ -137,8 +137,9 @@ def test_stepped_surface_order():
                          ids=lambda p: p.stem)
 def test_render_thistle_studies(tmp_path, path):
     """Every section a Thistle study names is in geometry/foils/ and meshes at
-    the board's chord and Reynolds numbers (one case per section); outside
-    the validation study every one is 1 in thick on 18 in."""
+    the board's chord and Reynolds numbers (one case per section); in the
+    studies without reference data (not compared with Report 824's true
+    6 % sections) every one is 1 in thick on 18 in."""
     project = load_project("foil2d")
     study = Study.load(path)
     cases = list({c.params["foil"]: c for c in study.expand(project.defaults)}.values())
@@ -146,5 +147,5 @@ def test_render_thistle_studies(tmp_path, path):
     for c in cases:
         d = json.loads((tmp_path / "run" / c.name / "params.json").read_text())["derived"]
         assert d["n_cells"] > 0
-        if "validation" not in path.stem:
+        if not study.reference:
             assert d["thickness"] == pytest.approx(1 / 18, rel=2e-3), c.params["foil"]
