@@ -37,3 +37,6 @@ cloud/gcp/jobs/
 /site/_generated/
 /site/.quarto/
 /site/**/index_files/
+
+# Private boats (licensed hull lines and their derived parameters)
+boats/private/
