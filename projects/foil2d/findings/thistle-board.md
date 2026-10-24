@@ -30,6 +30,10 @@ leeway β_Y, section angle α_n, rake Λ).
   * Fully turbulent runs are 18-90 % over.
   * So the screen's Tu 0.1 % results flatter laminar flow at the working
     load and downwind.
+* **`thistle-screen` finished** (entry below). It rejects the two
+  parallel-sided boards. `thistle-extend` is running NACA 0006, 63-006 and
+  64-006 at the calibrated Tu 0.3 and 0.6 %: run 20261024-154540, 342
+  cases.
 * **`thistle-tu-calibration` finished** (run 20261023-221604). The model
   matches Report 824 at Tu 0.3 % for NACA 0006 and about 0.45 % for
   64-006. The screen's 0.1 % is too laminar and its 1 % effectively fully
@@ -74,6 +78,73 @@ maximum lift, so the CFD decides.
 4. In thistle-mesh, the plank board diverged on the coarse mesh at 5 kn and
    4° (C_l 1e34 after 60 s, stopped by the divergence guard). Its finer
    meshes are still running.
+
+## 2026-10-24: thistle-screen, run 20261023-125405
+
+**Run.** 8 sections × 20 points × Tu 0.1 and 1 %, fine mesh, image
+af02c27, C3D Spot, 18 h.
+* 312 of 320 cases have results: 275 ok and 37 not converged. 36 of the
+  37 are at 8° and the other is at 6° (all near stall); they ran all
+  12000 iterations.
+* 8 cases are missing: they were stopped at the 8.5 h limit, all at Tu
+  0.1 %. They are near-stall points and plank-board points at 3 kn
+  (1-2°).
+* Ranked by `boardrank cfd ... --up-kn 1 3 5 --down-kn 1 3 5 15`, output
+  in `runs/thistle-screen/20261023-125405/boardrank/`.
+
+Board drag against NACA 0006 [%] (negative = less drag). Upwind is the
+mean over 1, 3 and 5 kn and the 1/2/4° loads; downwind is 0° over 1, 3, 5
+and 15 kn, and at 15 kn alone. Stall margin is in degrees past the high
+load; on a 2° grid it is coarse. Rake 10°, with the 5° and 15° upwind
+figures in the last column.
+
+| section | up, Tu 0.1 | up, Tu 1 | down, Tu 0.1 / at 15 kn | down, Tu 1 / at 15 kn | stall margin, Tu 0.1 / 1 | up at rake 5 / 15°, Tu 0.1; Tu 1 |
+|---|---|---|---|---|---|---|
+| NACA 0006 | 0 | 0 | 0 / 0 | 0 / 0 | 4.0 / 4.0 (censored) | 0 / 0; 0 / 0 |
+| HT35 | +1.0 | +1.9 | −0.2 / +11.9 | +2.5 / +0.4 | 2.0 / 4.0 | −0.1 / −2.3; +1.6 / +1.1 |
+| SD8020 | +2.2 | +0.8 | +0.7 / +2.9 | 0.0 / −1.8 | 3.9 / 2.0 | +0.5 / +0.4; +0.6 / +1.0 |
+| NACA 0006-64 | +5.0 | −0.9 | +4.8 / −2.6 | −4.6 / +2.1 | 4.0 / 1.9 | +4.8 / +1.3; −1.6 / −1.1 |
+| NACA 63-006 | +10.4 | −0.2 | −4.3 / −11.9 | −10.2 / −4.4 | 3.8 / 2.1 | +7.9 / +7.5; −1.0 / +0.6 |
+| NACA 64-006 | +12.0 | −0.2 | −3.8 / −13.9 | −11.4 / −4.4 | 3.8 / 2.1 | +9.3 / +9.0; −1.2 / +0.8 |
+| parallel-l30-t50-r05-a20 | +13.9 | +4.2 | +12.3 / −10.9 | +0.2 / −0.8 | 3.8 / 2.1 | +10.8 / +11.0; +3.6 / +3.5 |
+| plank-typical | +63.4 | +35.0 | +75.8 / +122 | +45.2 / +16.1 | 1.2 / 1.7 | +62.5 / +55.6; +34.7 / +32.6 |
+
+* **The two bounds disagree about the 6-series.**
+  * At Tu 0.1 % (too laminar) NACA 0006 leads upwind, and 63-006 and
+    64-006 are 10-12 % behind (15-17 % at 3-5 kn).
+  * At Tu 1 % (effectively fully turbulent) 63-006, 64-006 and 0006-64
+    are level or ahead upwind (−0.2 to −0.9 %; −1 to −5 % at 3-5 kn, +4 to
+    +9 % at 1 kn). The two 6-series are 10-11 % ahead downwind and 0006-64
+    5 %.
+  * The calibrated Tu (0.3-0.6 %) lies between, so `thistle-extend`
+    decides. Remember the model's 10-20 % bias towards the 6-series at low
+    lift (calibration entry).
+* **HT35 and SD8020 match NACA 0006** within the mesh uncertainty (about
+  ±3 %) at both bounds. They are never ahead by more than that.
+* **The two parallel-sided boards lose at both bounds.**
+  * The plank board is +35 to +63 % upwind and +45 to +76 % downwind.
+  * The best parallel-sided board is +4 to +14 % upwind. It loses 12 %
+    downwind at Tu 0.1 % and breaks even at Tu 1 %.
+* **Rake 5-15° changes upwind figures by up to 3 %** (HT35 at Tu 0.1 %:
+  −0.1 to −2.3 %), but no ordering beyond that.
+* **Stall margins.**
+  * At Tu 1 % the sharp-nosed sections (6-series, 0006-64, SD8020,
+    parallel) reach maximum side force about 2° past the high load (4°).
+    NACA 0006 and HT35 are still rising at 8° (censored at 4°).
+  * The validation found the model stalls 64-006 early. On this coarse
+    2° grid the margins are indicative only; `thistle-extend` has 5, 6, 8
+    and 10°.
+* **By the agreed rule**, a section is rejected only if it is worse than
+  NACA 0006 upwind beyond the mesh uncertainty (about 3 %) at both bounds.
+  That rejects **plank-typical** and **parallel-l30-t50-r05-a20**.
+
+**Decided (user, 2026-10-24).**
+* `thistle-extend` runs **NACA 0006, 63-006 and 64-006** only. HT35,
+  SD8020 and 0006-64 are dropped too: they never led beyond the mesh
+  noise, or (0006-64) trade less than the 6-series.
+* 342 cases (57 points × Tu 0.3 and 0.6 % × 3 sections), submitted
+  2026-10-24: run 20261024-154540, image af02c27, C3D Spot,
+  `--max-hours 14`.
 
 ## 2026-10-24: thistle-tu-calibration, run 20261023-221604
 
