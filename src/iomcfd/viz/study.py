@@ -12,6 +12,7 @@ directory); never modifies them. Re-run as often as you like.
 Outputs (in one run of the study, runs/<study>/<run id>/ = <run>)
     <run>/<case>/viz/<view>.png        per-case views
     <run>/<case>/viz/<view>_time.mp4   time series (transient runs with snapshots)
+    <run>/<case>/viz/<view>_orbit.mp4  the camera once round (ORBIT_VIEWS, --options '{"orbit": 240}')
     <run>/viz/highlights/<name>_<view>.png   montage per highlight and view
     <run>/viz/highlights.md            what each highlight shows and why (for the findings)
     <run>/viz/<view>_by_<param>[_<group>].mp4/.gif   study animations (no highlights, or --animate)
@@ -316,6 +317,9 @@ def write_gallery(study, sdir: Path, cases, views: list[str], animations: list[d
             if mp4.is_file():
                 parts.append(f"<figure><video src='../{c.name}/viz/{v}_time.mp4' controls loop muted></video>"
                              f"<figcaption>{e(v)} over time</figcaption></figure>")
+            if (cdir / "viz" / f"{v}_orbit.mp4").is_file():
+                parts.append(f"<figure><video src='../{c.name}/viz/{v}_orbit.mp4' controls loop muted></video>"
+                             f"<figcaption>{e(v)}, the camera once round</figcaption></figure>")
         parts.append("</div>")
     parts.append("</body></html>")
     index = sdir / "viz" / "index.html"

@@ -1,0 +1,2 @@
+run,foil,chord,speed,aoa,Tu,rhoInf,Cl,Cd,Cl_std,Cd_std,Cd_friction,Cd_pressure,x_sep_upper,x_reattach_upper,x_te_sep_upper,unsteady,status
+20261017-193613,naca0007,0.1,1.5,4,0.1,999.129,0.402401,0.0123811,0.0330334,0.00230867,0.00554163,0.00683683,0.0357577,0.164577,0.524396,True,ok

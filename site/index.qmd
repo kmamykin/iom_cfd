@@ -10,6 +10,8 @@ listing:
   # takes the page's `image`, `title` and `description`. Add it here to publish it.
   contents:
     - fin-selection/index.qmd
+    - custom-section/index.qmd
+    - bulb-design/index.qmd
   sort: false
   type: grid
   grid-columns: 2

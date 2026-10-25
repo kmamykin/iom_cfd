@@ -165,22 +165,42 @@ and in October 2026 the Spot VMs in us-central1 were preempted every 11-14 h
 * A case that finishes deletes its checkpoint; a failed one keeps it.
 * Tasks are retried up to 6 times.
 
-Which cases have checkpoints is up to the project (`Project.checkpoint_setup`).
-foil2d: every case on one rank.
-* Time-accurate cases write their fields every flow-through (keeping the last
-  two), so at most about one flow-through of work is lost per preemption.
+**Every case is checkpointed**, in every project, steady or time-accurate,
+on one rank or many. `Project.checkpoint_setup` picks how the solver writes:
+* **"signal"** (the default). Every 15 minutes the runner sends the solver
+  `SIGUSR1`. The case's `system/controlDict` gets `OptimisationSwitches {
+  writeNowSignal 10; }`, so OpenFOAM writes its fields at the end of that
+  time step and carries on. For a parallel case the signal goes to
+  `mpirun`, which passes it on to every rank. The templates' `purgeWrite`
+  removes the older writes.
+  * The signal is sent only once the solver has installed its handler: its
+    log says `sigWriteNow : Enabling writing upon signal 10` and has a first
+    time step.
+  * It is never sent to meshing or initialisation tools, which `SIGUSR1`
+    would kill.
+* **True**: the project makes the solver write periodically itself.
+  foil2d's time-accurate cases write every flow-through, keeping the last
+  two, so at most about one flow-through of work is lost per preemption.
   Those writes land the adjustable time step on the write times, so the time
   steps differ slightly from a run without checkpoints.
-* Steady cases write every 1000 iterations, or the largest divisor of
-  `max_iter` below that: simpleFoam writes only on whole write intervals, not
-  at the end time otherwise. A `max_iter` without a divisor near 1000 (a
-  prime) runs without checkpoints. The convergence check, the progress line
-  and the result read the force history of every restart joined, so a
-  resumed case reads as one run. Writing the fields doesn't change the
-  solution. A restart does, slightly (next paragraph).
 
-Decomposed cases (np > 1) are not supported yet. Locally,
-`iomcfd run --checkpoint DIR` does the same.
+**What a checkpoint holds.**
+* A decomposed case (np > 1): `processor*/<time>`. A serial case: `<time>`.
+* Once per case:
+  * the final mesh, `processor*/constant/polyMesh` or `constant/polyMesh`;
+  * the logs of the steps before the solver (blockMesh, snappyHexMesh,
+    checkMesh, decomposePar, a steady start).
+
+**How a resumed task restarts.** It restores the mesh, the logs and the
+fields, and sets `IOMCFD_RESUME`. Every template's Allrun then skips meshing,
+decomposition and field initialisation and goes straight to the solver. A
+3D case doesn't run snappyHexMesh again, whose mesh might not match the saved
+fields cell for cell. A checkpoint is only restored into a case with the
+same parameters (`params_hash`) and the same number of MPI ranks.
+
+`tests/test_projects.py` checks that every project can be resumed, so a new
+project or template can't leave this out. Locally, `iomcfd run --checkpoint
+DIR [--checkpoint-every SECONDS]` does the same.
 
 Checked with a real case (2026-10-19). foil2d NACA 0009, xcoarse mesh,
 4 flow-throughs after a 200-iteration steady start; the solver was killed
@@ -193,7 +213,24 @@ empty directory:
 * it finished ok with 4.0 flow-throughs, the last fields written at the
   end time, and the checkpoint deleted.
 
-Steady, checked 2026-10-23. foil2d NACA 0009, xcoarse, 4 deg, max_iter 6000
+Signal checkpoints were checked with real cases in Docker on 2026-10-22.
+Each case was killed after its first checkpoint and run again in an empty
+directory:
+* **foil2d smoke, steady, 1 rank:** it saved iteration 1001 and resumed at
+  1002.
+* **foil2d smoke, 2 ranks:** it saved iteration 1849, with both processors'
+  fields and meshes, and resumed at 1850 without running decomposePar
+  again. It was then reconstructed and extracted.
+* **appendage3d smoke, 2 ranks:** it saved the snappyHexMesh mesh (32 MB)
+  and the meshing logs with iteration 78, and resumed at 79 without meshing.
+
+Each case then finished: the foil2d ones at their iteration limit, and
+appendage3d converged ok at iteration 254. The decomposed ones were
+reconstructed, every case was extracted, and its checkpoint was deleted.
+
+Steady, checked 2026-10-23 on the thistle-fin branch, with the periodic
+writes it used before the signal writes reached it (every 1000 iterations,
+a divisor of max_iter). foil2d NACA 0009, xcoarse, 4 deg, max_iter 6000
 with conv_tol 1e-12 so it runs to the end; the solver was killed (SIGKILL) at
 iteration 1041, just after the 1000-iteration checkpoint, and the case run
 again in an empty directory:

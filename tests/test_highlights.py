@@ -47,6 +47,10 @@ def test_layout_columns_follow_compare_rows_the_rest():
     assert auto.compare == "chord" and auto.columns == [0.08, 0.1] and auto.row_keys == ["speed"]  # tie: first
     one = hl.layout(hl.Highlight("z"), CASES[:1])
     assert one.compare is None and len(one.cases) == 1
+    # a list-valued parameter that differs between cases (start_from) still makes rows
+    mixed = _cases([{"foil": f, "start_from": s} for f, s in (("a", ["run/1"]), ("b", ["run/1"]), ("b", ["x"]))])
+    lay = hl.layout(hl.Highlight("w", compare="foil"), mixed)
+    assert [label for label, _ in lay.rows] == ["start_from run/1", "start_from x"]
 
 
 def test_plan_skips_what_does_not_fit_this_run():

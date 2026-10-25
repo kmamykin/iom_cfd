@@ -142,6 +142,25 @@ class Ctx:
             st.SurfaceStreamlines = 1
         return st
 
+    def streamlines_cloud(self, center, radius: float, n: int = 50, length: float = 1.0, source=None,
+                          direction: str = "BOTH"):
+        """Streamlines through n random points in a sphere: the flow that passes one region."""
+        st = self.track(pv.StreamTracer(Input=source or self.reader(), SeedType="Point Cloud"))
+        st.Vectors = ["POINTS", "U"]
+        st.SeedType.Center = [float(v) for v in center]
+        st.SeedType.Radius = float(radius)
+        st.SeedType.NumberOfPoints = int(n)
+        st.MaximumStreamlineLength = float(length)
+        st.IntegrationDirection = direction
+        return st
+
+    def tubes(self, source, radius: float, sides: int = 8):
+        """Lines (streamlines) as tubes, so they read in 3D."""
+        t = self.track(pv.Tube(Input=source))
+        t.Radius = float(radius)
+        t.NumberofSides = int(sides)
+        return t
+
     def reflect_y(self, source):
         """Mirror about y = 0 (half-domain runs), keeping the original."""
         r = self.track(pv.AxisAlignedReflect(Input=source))  # ParaView >= 6 name of 'Reflect'
@@ -178,7 +197,7 @@ class Ctx:
     def color(self, disp, array: str, preset: str, rng: tuple[float, float], title: str,
               component: str | None = None, bar: bool = True, log: bool = False, assoc: str = "POINTS",
               bar_position: tuple[float, float] = (0.92, 0.12), bar_length: float = 0.72,
-              horizontal: bool = False):
+              horizontal: bool = False, label_format: str | None = None, font_size: int = 16):
         pv.ColorBy(disp, (assoc, array) if component is None else (assoc, array, component))
         lut = pv.GetColorTransferFunction(array)
         if not lut.ApplyPreset(preset, True):
@@ -195,7 +214,9 @@ class Ctx:
             sb.Orientation = "Horizontal" if horizontal else "Vertical"
             sb.Position = [float(v) for v in bar_position]
             sb.ScalarBarLength = bar_length
-            sb.TitleFontSize = sb.LabelFontSize = 16
+            sb.TitleFontSize = sb.LabelFontSize = font_size
+            if label_format:  # e.g. "{:.1f}" (std::format): the end labels too
+                sb.AutomaticLabelFormat, sb.LabelFormat, sb.RangeLabelFormat = 0, label_format, label_format
         return lut
 
     def camera_2d(self, x0: float, x1: float, yc: float, normal_axis: str = "z", z: float = 0.0):
@@ -249,6 +270,22 @@ class Ctx:
         path.parent.mkdir(parents=True, exist_ok=True)
         pv.SaveScreenshot(str(path), self.view, ImageResolution=list(self.view.ViewSize), TransparentBackground=0)
         return path
+
+    def orbit(self, frames_dir: Path, n: int) -> list[Path]:
+        """Turn the camera once round its view-up axis through the focal point: n frames."""
+        v = self.view
+        f = np.array(v.CameraFocalPoint, float)
+        p0 = np.array(v.CameraPosition, float) - f
+        k = np.array(v.CameraViewUp, float)
+        k /= np.linalg.norm(k)
+        frames = []
+        for i in range(n):
+            a = 2 * math.pi * i / n  # Rodrigues: the camera's offset from the focal point turned about k
+            p = p0 * math.cos(a) + np.cross(k, p0) * math.sin(a) + k * np.dot(k, p0) * (1 - math.cos(a))
+            v.CameraPosition = [float(x) for x in f + p]
+            frames.append(self.save(frames_dir / f"f_{i:04d}.png"))
+        v.CameraPosition = [float(x) for x in f + p0]
+        return frames
 
     def end_view(self):
         for p in reversed(self._tracked):

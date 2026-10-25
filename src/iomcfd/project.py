@@ -61,12 +61,18 @@ class Project:
         the time step, Courant number and a stalled solver (monitor.py)."""
         return None
 
-    def checkpoint_setup(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any]) -> bool:
+    def checkpoint_setup(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any]) -> bool | str:
         """Called on a rendered case when the run keeps checkpoints
-        (checkpoint.py): make the solver write its fields periodically and
-        return True, or return False if this case can't be resumed (the
-        default)."""
-        return False
+        (checkpoint.py). Every case must be resumable after a lost Spot VM:
+        * "signal" (the default): the runner makes the solver write its fields
+          every checkpoint interval (writeNowSignal) and saves them;
+        * True: the project has made the solver write periodically itself;
+        * False: this case can't be resumed. Don't: a preempted task then
+          starts from scratch.
+        The template's Allrun must go straight to the solver when
+        IOMCFD_RESUME is set (the mesh and a time directory were restored);
+        tests/test_projects.py checks every project."""
+        return "signal"
 
     def checkpoint_restored(self, case_dir: Path, params: dict[str, Any], derived: dict[str, Any],
                             time: str) -> None:

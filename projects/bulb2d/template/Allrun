@@ -9,9 +9,14 @@ NP="${NP:-1}"
 
 runApplication checkMesh -allGeometry -allTopology
 
+# IOMCFD_RESUME set: iomcfd restored a checkpoint (a time directory, per
+# processor if decomposed; src/iomcfd/checkpoint.py): don't decompose again,
+# the solver continues from latestTime.
 if [ "$NP" -gt 1 ]; then
     foamDictionary -entry numberOfSubdomains -set "$NP" system/decomposeParDict > /dev/null
-    runApplication decomposePar -force
+    if [ -z "${IOMCFD_RESUME:-}" ]; then
+        runApplication decomposePar -force
+    fi
 fi
 
 # Run the solver system/controlDict names. A clean OpenFOAM exit prints

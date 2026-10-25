@@ -1,0 +1,93 @@
+study: stepped-vs-baseline
+project: foil2d
+description: >
+  Why don't stepped (Kline-Fogleman) sections, or a trip step, help an IOM
+  fin? A small study to explain a negative result with pictures (findings:
+  projects/foil2d/findings/stepped-vs-baseline.md). Replaces the never-run
+  150-case stepped-vs-naca. Baseline NACA 0007 at 100 mm, the selection's
+  NACA pick (fin-profile-selection; custom-section recommends HT35 at
+  7.25 %). Every stepped section is cut from it, so the steps are the only
+  difference. One operating point, 1 m/s (Re 88,000), Tu 1 %, 4 deg (the
+  working load), plus 0 and 2 deg for the trip.
+  Sections. The three stairs each remove about half the thickness near the
+  trailing edge, so they differ only in how many steps carry it:
+  stair1:naca0007:d=0.5, one 1.54 mm step per side at x/c 0.5 (50 % of the
+  local half-thickness; the hobby KFm4 layout); stair5:naca0007:h=0.002,
+  five 0.2 mm steps per side from x/c 0.3 to 0.9; stair10:naca0007:h=0.001,
+  ten 0.1 mm steps. The trip, stair1:naca0007:x=0.5,h=0.002, is one 0.2 mm
+  step per side at x/c 0.5: the back edge of a thin strip, the only trip
+  shape the geometry can make (a backward-facing step; no forward face or
+  zigzag). At 2-3 deg NACA 0007 separates at x/c 0.6-0.7 (custom-section-tu
+  run 20261018-104350), so x/c 0.5 is just ahead of it, the classic
+  turbulator place; at 4 deg its laminar bubble is at the leading edge
+  (x/c 0.02-0.24) and the trip sits in turbulent flow; at 0 deg the flow
+  stays laminar to x/c 0.95. So the trip is run at 0, 2 and 4 deg against the
+  baseline at the same angles.
+  Solvers. Every case steady. Time-accurate, 20 flow-throughs averaged over
+  12-20, max_co 5, from 2000 steady iterations: NACA 0007, stair1 and the
+  trip at 4 deg, NACA 0007 and the trip at 2 deg. stair5 and stair10 only 6
+  flow-throughs averaged over 3-6: their 0.1-0.2 mm steps need cells of a
+  few microns, a time step near 4.5e-5 s, so 20 flow-throughs would take
+  about 100 h on 4 ranks (local probe, 2026-10-23). Their short runs show
+  whether the steps make the flow shed and give indicative means. Medium
+  mesh, the steps' meshes refined to a fraction of the step height
+  (cmesh.py; stepped-checks run 20261013-190301). 4 ranks per case;
+  checkpoints (docs/cloud-gcp.md).
+report:
+  fin_span: 0.36
+  induced_drag: true
+highlights:
+  - name: steps
+    why: >
+      The three stairs against the plain section at the working load: where the boundary layer
+      separates ahead of and behind the steps, how far each step's recirculation reaches, and where
+      the flow turns turbulent. stepped-checks found one 30 % step cost 13 % drag on NACA 0009.
+    where: {aoa: 4, solver: steady, foil: [naca0007, "stair1:naca0007:d=0.5", "stair5:naca0007:h=0.002", "stair10:naca0007:h=0.001"]}
+    compare: foil
+    views: [boundary_layer, step, separation, transition]
+  - name: trip
+    why: >
+      A 0.2 mm trip step at x/c 0.5 against the plain section at 0, 2 and 4 deg: does it shorten the
+      mid-chord bubble at 2 deg, and what does it cost where the flow was laminar (0 deg) or already
+      turbulent (4 deg)?
+    where: {solver: steady, foil: [naca0007, "stair1:naca0007:x=0.5,h=0.002"]}
+    compare: foil
+    views: [boundary_layer, transition]
+  - name: steps-in-time
+    why: >
+      The same sections time-accurate at 4 deg (final instant): do the steps shed vortices, and does
+      the plain section's leading-edge bubble survive in time? stair5 and stair10 ran 6 flow-throughs only.
+    where: {aoa: 4, solver: transient}
+    compare: foil
+    views: [vorticity, boundary_layer]
+defaults:
+  chord: 0.10
+  speed: 1.0
+  turbulence: kOmegaSSTLM
+  Tu: 1.0
+  mesh: medium
+  max_co: 5
+  flow_times: 20
+  average_times: 8
+  np: 4
+cases:
+  # steady: the three stairs and the trip at the working load
+  - {solver: steady, aoa: 4, foil: naca0007}
+  - {solver: steady, aoa: 4, foil: "stair1:naca0007:d=0.5"}
+  - {solver: steady, aoa: 4, foil: "stair5:naca0007:h=0.002"}
+  - {solver: steady, aoa: 4, foil: "stair10:naca0007:h=0.001"}
+  - {solver: steady, aoa: 4, foil: "stair1:naca0007:x=0.5,h=0.002"}
+  # steady: the trip where the flow is laminar (0 deg) or has a mid-chord bubble (2 deg)
+  - {solver: steady, aoa: 0, foil: naca0007}
+  - {solver: steady, aoa: 0, foil: "stair1:naca0007:x=0.5,h=0.002"}
+  - {solver: steady, aoa: 2, foil: naca0007}
+  - {solver: steady, aoa: 2, foil: "stair1:naca0007:x=0.5,h=0.002"}
+  # time-accurate, 20 flow-throughs
+  - {solver: transient, aoa: 4, foil: naca0007}
+  - {solver: transient, aoa: 4, foil: "stair1:naca0007:d=0.5"}
+  - {solver: transient, aoa: 4, foil: "stair1:naca0007:x=0.5,h=0.002"}
+  - {solver: transient, aoa: 2, foil: naca0007}
+  - {solver: transient, aoa: 2, foil: "stair1:naca0007:x=0.5,h=0.002"}
+  # time-accurate, short: 6 flow-throughs (cost)
+  - {solver: transient, aoa: 4, foil: "stair5:naca0007:h=0.002", flow_times: 6, average_times: 3}
+  - {solver: transient, aoa: 4, foil: "stair10:naca0007:h=0.001", flow_times: 6, average_times: 3}

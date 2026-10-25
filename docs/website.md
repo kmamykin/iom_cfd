@@ -15,7 +15,10 @@ site/
 ├── index.qmd        the front page: a card per published study, in order
 ├── fin-selection/
 │   └── index.qmd    a study's page, written by hand (which fin section; foil2d)
+├── privacy/
+│   └── index.qmd    what Google Analytics collects (the cookie banner links to it)
 ├── _quarto.yml      Quarto settings (navbar, footer; for study pages: contents, numbering, references)
+├── _quarto-publish.yml  the published site only: Google Analytics, cookie consent
 ├── styles.scss      the look: fonts, colours, cards (figures.py uses the same palette)
 ├── references.bib   cited sources
 ├── data.yaml        which run each data file comes from
@@ -42,6 +45,9 @@ uv run iomcfd site build --preview   # serve it locally, rebuild on save
 make site / make site-preview        # the same
 ```
 
+Local builds leave out Google Analytics and the cookie banner; add
+`QUARTO_PROFILE=publish` to build exactly what is published.
+
 Quarto is used from `PATH` if installed (`brew install --cask quarto`);
 otherwise `uvx` runs the PyPI build of the same version
 (`iomcfd.site.QUARTO_VERSION`; the first run downloads it).
@@ -54,6 +60,19 @@ main that changes `site/`, or the code its figures use (the mesh generator,
 tab. Website-only pushes don't rebuild the solver image (`image.yml`).
 
 One-time setup: repository Settings → Pages → Source: **GitHub Actions**.
+
+## Analytics
+
+The published site counts visits with Google Analytics (GA4), set in
+`site/_quarto-publish.yml`, which the workflow turns on with
+`QUARTO_PROFILE=publish`. Visitors opt in: Quarto's cookie-consent banner
+holds back every script marked `cookie-consent="tracking"` until they
+accept, and "Cookie preferences" in the footer changes the choice. The GA
+tags are written by hand rather than with Quarto's `google-analytics:` key,
+which loads gtag.js from Google before consent;
+`tests/test_site.py` checks they stay gated. `site/privacy/` says what is
+collected; keep it in step if the analytics change. The banner's wording is
+the consent library's own (it mentions ads; Quarto can't change it).
 
 ## Publishing a study
 
@@ -68,7 +87,8 @@ its front matter:
   function in `figures.py` (`card_image` for fin-selection).
 
 Every `site/*/index.qmd` is built, but only pages listed under `contents:`
-in `site/index.qmd` get a card, in that order. A page that isn't listed can
+in `site/index.qmd` get a card, in that order (`privacy/` is the one page
+that isn't a study). A page that isn't listed can
 still be reached by its address, so keep unfinished pages out of `site/`.
 
 ## Updating it after new findings
