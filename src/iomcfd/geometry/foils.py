@@ -15,6 +15,7 @@ Sources:
                           exported as points...)
   load("naca0009") / load("file:my_section.dat")  string spec used by studies
   load("stair1:naca0009:d=0.3")  stepped (Kline-Fogleman) section, see stepped.py
+  load("film:naca0009:x=0.5,t=0.002")  a film wrapped round the nose, see stepped.py
 """
 
 from __future__ import annotations
@@ -319,7 +320,7 @@ def load(spec: str, search_dirs: list[Path] | None = None) -> Foil:
     search_dirs (default: geometry/foils of the repository)
     """
     s = spec.strip()
-    if re.match(r"(?i)(?:stair|kfm)\d+:", s):  # kfm: renamed, stepped.py explains
+    if re.match(r"(?i)(?:(?:stair|kfm)\d+|film):", s):  # kfm: renamed, stepped.py explains
         from . import stepped
 
         return stepped.from_spec(s, search_dirs)

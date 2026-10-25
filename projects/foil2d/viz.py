@@ -202,15 +202,15 @@ def vorticity(ctx):
 
 
 def step(ctx):
-    """First step of a stepped (stair) section. Its position comes from the
-    spec string and its height from the case's derived stepHeight, so the
-    ParaView image needs no geometry code."""
-    m = re.match(r"(?i)(stair\d+):", str(ctx.p["foil"]))
+    """First step of a stepped (stair) section, or a film's edge. Its position
+    comes from the spec string and its height from the case's derived
+    stepHeight, so the ParaView image needs no geometry code."""
+    m = re.match(r"(?i)(stair\d+|film):", str(ctx.p["foil"]))
     if not m or "stepHeight" not in ctx.d:
         raise Skip("not a stepped section")
     preset = m.group(1).lower()
     opts = dict(kv.split("=") for kv in str(ctx.p["foil"]).split(":")[-1].split(",") if "=" in kv)
-    xs = float(opts.get("x", 0.5 if preset == "stair1" else 0.3))  # stepped.STAIRS defaults
+    xs = float(opts.get("x", 0.5 if preset in ("stair1", "film") else 0.3))  # stepped.STAIRS / FILM defaults
     side, sgn = "upper", 1.0
     c, span, a = _geom(ctx)
     h = float(ctx.d["stepHeight"])

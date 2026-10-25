@@ -1,0 +1,52 @@
+study: ht35-film
+project: foil2d
+description: >
+  Does a self-adhesive film wrapped round the nose of an existing HT35 fin
+  pay? (findings: projects/foil2d/findings/ht35-film.md). In
+  stepped-vs-baseline (run 20261023-201101) a 0.2 mm step cut into NACA 0007
+  at x/c 0.5 (stair1:naca0007:x=0.5,h=0.002) gave 3 % less drag and 19 %
+  more lift at 2 deg, 1 m/s, Tu 1 %: it closed the plain section's laminar
+  separation at x/c 0.72. A film is the buildable version: 0.2 mm thick, from
+  x/c 0.5 on one surface round the LE to x/c 0.5 on the other. Unlike the
+  cut, it adds material ahead of the step (stepped.py film): the LE moves
+  0.2 mm forward and its radius grows by 0.2 mm, and the maximum thickness
+  is 7.4 mm. Base: HT35 at 7.0 % (an existing 7 mm fin; user, 2026-10-25),
+  with and without the film, so the film is the only difference. HT35 at
+  7.25 % is the custom-section recommendation; NACA 0007 at these settings:
+  custom-section-screen (Tu 0.1 %, run 20261018-043724) and
+  custom-section-tu (Tu 1 and 2 %, run 20261018-104350). Steady first, at
+  the custom-section settings: 100 mm, 0.75-1.5 m/s, 0-6 deg with 3 and 5,
+  Tu 0.1, 1 and 2 %, medium mesh, the step's mesh refined to a fraction of
+  its height (cmesh.py). Time-accurate checks of the closest points follow
+  (a 0.2 mm step needs a time step near 7e-5 s: about 48 h for 20
+  flow-throughs at 4 deg). 4 ranks per case; checkpoints (docs/cloud-gcp.md).
+report:
+  fin_span: 0.36
+  induced_drag: true
+  compare_at: {foil: "file:ht35-t070.dat", chord: 0.1, aoa: [2, 4, 6]}
+highlights:
+  - name: film-edge
+    why: >
+      Does the film's edge trip the boundary layer where plain HT35 separates laminar (2 deg), and what
+      does it cost where the flow is already turbulent (4 deg)? 1 m/s, Tu 1 %.
+    where: {speed: 1.0, aoa: [2, 4], Tu: 1.0}
+    compare: foil
+    views: [boundary_layer, step, transition]
+  - name: film-by-tu
+    why: >
+      A trip matters most where the boundary layer stays laminar longest: the film against plain HT35 at
+      0 and 2 deg, 1 m/s, as Tu rises from 0.1 to 2 %.
+    where: {speed: 1.0, aoa: [0, 2]}
+    compare: foil
+    views: [transition]
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  mesh: medium
+  solver: steady
+  np: 4
+sweep:
+  foil: ["file:ht35-t070.dat", "film:file:ht35-t070.dat:x=0.5,t=0.002"]
+  Tu: [0.1, 1.0, 2.0]
+  speed: [0.75, 1.0, 1.5]
+  aoa: [0, 2, 3, 4, 5, 6]
