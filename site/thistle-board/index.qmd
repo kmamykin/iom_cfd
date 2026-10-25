@@ -1,13 +1,12 @@
 ---
 title: "Thistle centreboard: which section?"
 subtitle: "Eight board sections, 1 in thick, compared in 2D CFD from 1 to 15 knots against NACA 0006"
-# the card on the front page (and link previews): image, title, description. Not listed on the
-# front page yet (site/index.qmd); the page can still be reached by its address.
+# the card on the front page (and link previews): image, title, description
 description: >-
-  Which section should a Thistle's 18 in centreboard have, at the class maximum of 1 in thick? Of the
-  eight sections simulated, NACA 0006 at 1 in had the least upwind drag at the model's calibrated
-  turbulence input, and is recommended as the reference. The laminar NACA 6-series sections trade
-  2-11 % more upwind drag for 5-8 % less downwind; parallel-sided boards lose both ways.
+  A side study for a friend's dinghy, not an IOM: which section should a Thistle's 18 in centreboard
+  have, at the class maximum of 1 in thick? Of the eight sections simulated, NACA 0006 had the least
+  upwind drag at the model's calibrated turbulence input, and is the recommended reference. The
+  laminar NACA 6-series sections trade 2-11 % more upwind drag for 5-8 % less downwind.
 image: ../_generated/thistle-board-card.png
 author: Kliment Mamykin
 date: 2026-10-25
@@ -34,6 +33,9 @@ abstract: |
 
 ::::: {.callout-note appearance="simple" icon=false}
 ::: {.status}
+**A side study.** This is an exploration for a friend who sails a Thistle, a 17 ft dinghy; the rest of
+this site is about IOM radio yachts.
+
 **First version, 25 October 2026.** Every result here comes from 2D simulations of the board's
 section, none from a real board. The section a Thistle carries today is not known to this study, so
 NACA 0006 is the reference it chose, not a measured standard board. Whether the class allows a
@@ -641,4 +643,5 @@ Database, which states no licence for them; the Report 824 data were digitised f
   Tu 0.3 and 0.6\ %; flow pictures of NACA 0006, parallel-l30-t50 and the plank. Revised the same day
   after review: claims scoped (the Tu 0.6\ % near-tie, the rule outcome, stall margins, the Tu input),
   terms and score definitions, Δ leeway, figures redrawn for phone width, annotated surface plots and a
-  boundary-layer schematic, flow pictures labelled with their own colour bars.
+  boundary-layer schematic, flow pictures labelled with their own colour bars. Listed on the front
+  page, marked as a side study for a friend.
