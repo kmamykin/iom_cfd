@@ -6,13 +6,282 @@ Both have the same 0.2 mm edge at x/c 0.5. The film adds material ahead of
 the edge; the trip removes it behind the edge. This is the
 [ht35-film](ht35-film.md) study on NACA 0007 at 100 mm, the all-round
 recommendation of [fin-profile-selection.md](fin-profile-selection.md).
-The trip runs in its own study, `naca0007-trip`, and is analysed here.
+The trip runs in its own study, `naca0007-trip`, and is analysed here; so
+is `naca0007-faired`, the trip with its step faired out, which separates the
+step's effect from its thinner rear's.
 
-Newest entry first. Results live in `runs/naca0007-film/<run id>/` and
-`runs/naca0007-trip/<run id>/` (not in git), so the numbers that support a
-conclusion are copied here. Symbols follow
+Newest entry first. Results live in `runs/naca0007-film/<run id>/`,
+`runs/naca0007-trip/<run id>/` and `runs/naca0007-faired/<run id>/` (not in
+git), so the numbers that support a conclusion are copied here. Symbols follow
 [docs/nomenclature.md](../../../docs/nomenclature.md): S_h, D_h = D_v + D_i,
 section angle α.
+
+## Run 20261025-211238 (faired step) (2026-10-25, git 631baad, GCP, 54 cases)
+
+**Setup.**
+* One section, `faired:naca0007:x=0.5,h=0.002,l=0.1` (stepped.py
+  `faired`): the cut trip of the entry below with its step filled in and
+  sanded smooth.
+  * Plain NACA 0007 to x/c 0.5. From there the thickness factor F falls
+    from 1 to the trip's 0.935 over x/c 0.5-0.6 by a quintic smoothstep
+    (continuous curvature). Behind x/c 0.6 it is the trip's section.
+  * No step, so it is a smooth section: meshed like plain NACA 0007 (90,112
+    cells, max non-orthogonality 23.6°, the same as plain).
+  * Against plain it isolates the thinner rear (plus the ramp); against the
+    trip, the step.
+  * The 10 mm fairing length is a choice: shorter is closer to the trip,
+    longer is a milder pressure gradient.
+* Swept as the entry below: Tu 0.1, 1 and 2 %; 0.75, 1.0 and 1.5 m/s; α 0,
+  2, 3, 4, 5 and 6°. kOmegaSSTLM, steady, medium mesh, 100 mm chord.
+* Image `iom-cfd:631baad`. Plain and trip ran on a5641dc; between the two
+  `git diff` shows only the new `faired` option in `geometry/stepped.py`
+  and `foils.py` (no change to src/ otherwise, the foil2d template,
+  project.py, defaults.yaml, docker/ or geometry/). Plain was not rerun in
+  this job.
+
+**Outcome.** 48 ok, 6 not converged, 0 failed.
+* Not converged: 5 at Tu 0.1 %, 1 at Tu 1 % (1 m/s, 4°; plain's twin in
+  the entry below is not converged either).
+* Unsteady: 14 of 18 at Tu 0.1 %, 6 of 18 at Tu 1 % (all three 0° cases,
+  0.75 m/s 2°, 1 and 1.5 m/s 4°), none at Tu 2 %.
+* 4.6 case-hours (median 3.7 min, max 14.9). The job took 22 min of wall
+  time at 18 tasks at once.
+
+### Conclusions
+
+1. **The thinner rear alone is worth +0.17 % of race time at Tu 1 % (slope
+   ×1; +0.09 % with ×2), about 40 % of the trip's +0.40 %.**
+   * Faster than plain at 7 of 9 load points (−0.27 to +0.42 %).
+   * Per load, faired against trip: light +0.26 / +0.23, working +0.18 /
+     +0.32, high +0.06 / +0.64. So the rear accounts for all of the trip's
+     light-load gain and none of its high-load gain.
+   * Upwind +0.06 % (trip +0.31 %); downwind +0.11 % (trip +0.09 %).
+   * Confidence: medium. All 0° cases at Tu 1 % are unsteady, in all three
+     sections, and the light loads (α 0.7-1.5°) interpolate from 0°. The
+     differences at 0° are about 1 %, above plain's repeat noise at most
+     Tu 1 % points (14 of 18 within 0.25 %, entry below).
+2. **The trip's 0° gain is its thinner rear, not its step. This confirms
+   conclusion 4 of the entry below, which was an estimate.**
+   * 0° Cd at Tu 1 %, against plain: faired −1.2 / −1.3 / −1.9 %, trip
+     −0.7 / −0.8 / −2.0 % (0.75 / 1 / 1.5 m/s).
+   * Friction is 1.0-1.2 % lower than plain's (the trip's 1.4-2.4 %), from
+     results.csv Cd_friction.
+   * At Tu 0.1 % and 2 % (0.75 and 1 m/s) the faired section is as good as
+     the trip or better at 0°.
+   * Confidence: medium (0° flow unsteady at Tu 0.1 and 1 %; steady at
+     Tu 2 %).
+3. **At 2° the fairing does what the step does: a 0.2 mm ramp over 10 mm
+   sets off a laminar bubble on the ramp, and Cl and Cd come out the same as
+   the trip's.**
+   * 1 m/s, Tu 1 % (report/highlights.md of each run):
+
+     | section | Cl | Cd | upper surface |
+     |---|---|---|---|
+     | plain | 0.1633 | 0.01225 | laminar separation at x/c 0.72, no reattachment |
+     | trip | 0.1930 | 0.01188 | step bubble 0.50-0.57; separates again at 0.72 |
+     | faired | 0.1945 | 0.01193 | bubble 0.57-0.63 on the ramp; separates again at 0.66 |
+
+   * At equal side force S_h the trip's fin drag is within 0.3 % of the
+     faired section's at 2°, Tu 1 %, at all three speeds.
+   * **Correction:** the naca0007-trip and naca0007-faired study
+     descriptions say the trip "closed" plain's separation at x/c 0.72. In
+     these steady runs neither the trip nor the faired section reattaches
+     before the TE: Cf is negative from x/c 0.72 (trip) or 0.66 (faired) to
+     the TE (figure). What both do is lift Cl by 0.03 and cut Cd by 2.6-3.0 %.
+   * Confidence: medium. One speed, steady. The trip's 2° case repeats
+     time-accurate (entry below); the faired 2° case at 1 m/s is steady
+     flow, not checked time-accurate.
+4. **What the step adds over the faired section, +0.23 % at Tu 1 % (×1),
+   comes from the working and high loads and rests on unsteady 4° cases.
+   Low confidence.**
+   * Trip minus faired per load: light −0.03, working +0.14, high +0.58 %.
+   * At equal S_h, trip against faired at 4°, Tu 1 %: +0.7 % at 0.75 m/s
+     (no unsteady case involved), −6.5 %* at 1 m/s, −4.0 %* at 1.5 m/s.
+   * At 4° all three sections have a long leading-edge bubble on the upper
+     surface: separation at x/c 0.027-0.033, reattachment at 0.22 (plain),
+     0.32 (trip) and 0.38 (faired), in the last steady iterate. Only the
+     trip's is steady flow. The trip's lower drag there is mostly friction
+     (0.00574 against plain's 0.00624).
+   * The steady solver overstates plain's drag there:
+     * stepped-vs-baseline (run 20261023-201101, image 094ffb4) ran plain
+       at 4°, 1 m/s, Tu 1 % both ways: steady Cd 0.01418, unsteady;
+       time-accurate 0.01382 (20 flow-throughs, Cd std 0.00033), 2.5 %
+       lower.
+     * With the time-accurate value in place of plain's steady one, the
+       trip's Tu 1 % gain becomes +0.37 % and the faired +0.14 %.
+     * If the faired section's unsteady 4° case is 2.5 % high too (an
+       assumption, **not verified**), faired is back to +0.17 % and the
+       step's share is +0.21 %.
+   * The high loads (α 3.8-4.4°) interpolate across a steep drag rise:
+     plain's Cd goes from 0.01416 at 4° to 0.02139 at 5° (1 m/s, +51 %), so
+     they are sensitive to the 4° case's Cl.
+   * The trip's time-accurate 4° case (stepped-vs-baseline task 11) is
+     still running. There is no time-accurate faired case.
+5. **At Tu 2 % the faired section breaks even (−0.02 %, faster at 6 of 9);
+   the trip loses 0.15 %.**
+   * Both lose at 1.5 m/s. Per load (light / working / high): faired −0.37
+     / −0.20 / −0.19 %, trip −0.75 / −0.49 / −0.43 %.
+   * At 0.75 and 1 m/s the faired section gains up to 0.18 %.
+   * 0° friction at 1.5 m/s: plain 0.00772, faired 0.00816 (+5.7 %), trip
+     0.00836 (+8.3 %). Plausibly both move transition forward on a boundary
+     layer that plain keeps laminar further; inferred from friction, the
+     transition positions at 1.5 m/s were not extracted.
+   * Confidence: medium-high. Tu 2 % is steady flow throughout, and plain
+     repeats to 0.01 % there.
+6. **At Tu 0.1 % the faired section gains +0.06 % (faster at 6 of 9, −1.25
+   to +0.73 %). This is noise-limited:** 14 of 18 cases are unsteady, 5 not
+   converged, and plain's repeat noise reaches 11 % (entry below).
+7. **The ranking doesn't change: plain HT35 at 7 % is still the best section
+   at every Tu.** Among NACA 0007 variants:
+   * the trip has the most upside, at Tu 1 %;
+   * the faired section has the least downside: it never averages below
+     −0.02 %.
+
+### Evidence
+
+**Race-time gain over plain NACA 0007**, % of race time (+ = faster):
+* Mean of 9 points: 3 speeds × 3 loads of `design/loads.csv`; up and down
+  are each leg's share, slope ×1.
+* `iomcfd.racetime` (`fin_forces`, `race_time`) on the three runs'
+  results.csv: plain from naca0007-film 20261025-161234, trip from
+  naca0007-trip 20261025-173646, faired from this run.
+* The trip rows repeat the entry below.
+
+| Tu | section | slope ×1 | slope ×2 | up | down | faster at | range | light / working / high |
+|---|---|---|---|---|---|---|---|---|
+| 0.1 % | faired | +0.06 | +0.04 | −0.11 | +0.17 | 6/9 | −1.25..+0.73 | +0.37 / +0.24 / −0.43 |
+| 0.1 % | trip | +0.24 | +0.17 | +0.21 | +0.03 | 5/9 | −0.86..+2.34 | +0.30 / −0.13 / +0.54 |
+| 1 % | faired | +0.17 | +0.09 | +0.06 | +0.11 | 7/9 | −0.27..+0.42 | +0.26 / +0.18 / +0.06 |
+| 1 % | trip | +0.40 | +0.22 | +0.31 | +0.09 | 9/9 | +0.12..+0.73 | +0.23 / +0.32 / +0.64 |
+| 2 % | faired | −0.02 | −0.01 | +0.02 | −0.04 | 6/9 | −0.37..+0.18 | −0.04 / −0.05 / +0.04 |
+| 2 % | trip | −0.15 | −0.07 | −0.04 | −0.11 | 4/9 | −0.75..+0.21 | −0.19 / −0.21 / −0.04 |
+
+**All six sections, race-time gain over plain NACA 0007**, % (slope ×1 /
+×2). The others from the entry below (image a5641dc); faired on 631baad.
+
+| section | Tu 0.1 % | Tu 1 % | Tu 2 % |
+|---|---|---|---|
+| HT35 7.0 % | +0.59 / +0.36 | +0.45 / +0.25 | +0.10 / +0.04 |
+| NACA 0007 trip | +0.24 / +0.17 | +0.40 / +0.22 | −0.15 / −0.07 |
+| HT35 7.0 % + film | +0.46 / +0.37 | +0.30 / +0.19 | −0.37 / −0.18 |
+| NACA 0007 faired | +0.06 / +0.04 | +0.17 / +0.09 | −0.02 / −0.01 |
+| NACA 0007 + film | −0.29 / −0.09 | +0.05 / +0.06 | −0.37 / −0.18 |
+
+**Fin drag D_h at equal side force S_h** (whole fin, 360 mm span, section
++ induced drag; `iomcfd.racetime.at_force` at the force plain makes at the
+reference α; '*' = an unsteady or not-converged case among the bracketing
+points):
+
+| speed [m/s] | ref α | faired/plain, Tu 0.1 % | Tu 1 % | Tu 2 % | trip/faired, Tu 0.1 % | Tu 1 % | Tu 2 % |
+|---|---|---|---|---|---|---|---|
+| 0.75 | 2° | +0.6 %* | −0.5 %* | −0.3 % | −1.0 %* | −0.2 %* | +0.0 % |
+| 0.75 | 4° | +4.4 %* | −0.8 % | −0.1 % | +2.4 %* | +0.7 % | +0.5 % |
+| 0.75 | 6° | −0.4 %* | −0.5 % | −0.4 % | −3.8 %* | −2.3 % | −1.1 % |
+| 1.0 | 2° | +1.4 %* | −1.5 %* | +0.6 % | −0.2 %* | −0.3 %* | +0.6 % |
+| 1.0 | 4° | +2.0 %* | +4.2 %* | −0.4 % | +10.0 %* | −6.5 %* | +0.6 % |
+| 1.0 | 6° | −0.3 %* | −0.4 % | −0.3 % | −5.0 %* | −1.1 % | −0.7 % |
+| 1.5 | 2° | +0.7 %* | −1.0 %* | +1.0 % | −1.5 %* | −0.3 %* | +1.8 % |
+| 1.5 | 4° | −0.1 %* | −0.8 %* | −0.3 % | +1.3 %* | −4.0 %* | +0.2 % |
+| 1.5 | 6° | +0.3 %* | −0.2 % | −0.2 % | +0.8 %* | −0.1 % | +0.2 % |
+
+**Section drag Cd at 0°** (results.csv; plain and trip as in the entry
+below):
+
+| Tu | speed [m/s] | plain | trip | faired |
+|---|---|---|---|---|
+| 0.1 % | 0.75 | 0.01258 | 0.01281 (+1.8 %) | 0.01239 (−1.5 %) |
+| 0.1 % | 1.0 | 0.01115 | 0.01101 (−1.3 %) | 0.01083 (−2.9 %) |
+| 0.1 % | 1.5 | 0.00932 | 0.00913 (−2.1 %) | 0.00910 (−2.4 %) |
+| 1 % | 0.75 | 0.01288 | 0.01279 (−0.7 %) | 0.01273 (−1.2 %) |
+| 1 % | 1.0 | 0.01124 | 0.01114 (−0.8 %) | 0.01109 (−1.3 %) |
+| 1 % | 1.5 | 0.00937 | 0.00918 (−2.0 %) | 0.00919 (−1.9 %) |
+| 2 % | 0.75 | 0.01340 | 0.01327 (−1.0 %) | 0.01326 (−1.0 %) |
+| 2 % | 1.0 | 0.01173 | 0.01169 (−0.4 %) | 0.01165 (−0.6 %) |
+| 2 % | 1.5 | 0.00988 | 0.01047 (+6.0 %) | 0.01021 (+3.3 %) |
+
+Figure: [figures/naca0007-faired.png](figures/naca0007-faired.png), Cp and
+upper-surface Cf of plain, trip and faired at 1 m/s, Tu 1 %, 0, 2 and 4°
+(from each case's surface.csv).
+
+### Decisions
+
+* No change to the fin recommendation: plain HT35 at 7 % stays first.
+* On an existing NACA 0007 fin, thinning the rear (the faired section) is
+  the change with no measurable downside at Tu 2 %. Cutting the step adds
+  about 0.2 % at Tu 1 % on low-confidence evidence (conclusion 4), and
+  costs 0.13 % more than the faired section at Tu 2 %.
+* `faired:` stays as a section option (stepped.py, test_geometry.py).
+
+### Assumptions
+
+* Loads, course and fin: as the entry below (`design/loads.csv`, VDRDV
+  estimate **not verified**; 360 mm span, e = 0.9).
+* Plain and trip from earlier runs on image a5641dc stand in for a rerun
+  on 631baad: the solver path is unchanged (git diff above), **not
+  verified** by a repeat case.
+* The faired section's 4° bias (conclusion 4) is assumed equal to plain's:
+  **not verified**.
+* Transition moving forward at Tu 2 %, 1.5 m/s is inferred from friction
+  only.
+
+### Compromises
+
+* Steady solver on unsteady flow: every 0° case at Tu 0.1 and 1 %, and 4°
+  at 1 and 1.5 m/s, Tu 1 %. These carry the light and high loads.
+* One fairing length (10 mm). The ramp itself trips the boundary layer at
+  2° (conclusion 3), so a different length may change the 2° result.
+* Cross-run comparison: plain not rerun next to the faired section.
+* Highlight figures and separation tables at 1 m/s only.
+
+### Learnings
+
+* On NACA 0007 at Re 1e5 and Tu 1 %, the laminar boundary layer at 2° is
+  sensitive enough that a 0.2 mm ramp over 10 mm (at most about 2° of extra
+  slope) trips it as a square step does. In kOmegaSSTLM; not checked against
+  experiment.
+* Steady simpleFoam overstates plain NACA 0007's drag by 2.5 % at 4°, 1 m/s,
+  Tu 1 %, where the leading-edge bubble is unsteady. Where one section's
+  4° case is steady and another's isn't, steady comparisons favour the
+  steady one.
+* Compute:
+  * 4.6 case-hours, close to plain's 4.9 for the same 54 cases, as
+    estimated.
+  * Wall time was 22 min against my 30-35 min estimate. This job's own case
+    times replayed through 18 slots give 20.1 min, so start-up cost about
+    2 min. I had added the trip job's 10 min gap (59 min against a 48 min
+    replay), which wasn't start-up; its cause wasn't checked.
+
+### Open questions and next steps
+
+* **Time-accurate 4°, 1 m/s, Tu 1 % for the faired section**:
+  * one case, about 9 h of wall time (plain's took 31,194 s);
+  * set it against plain's (done) and the trip's (running) to settle
+    whether the step gains anything above the light loads.
+* **Fairing length**:
+  * the same sweep with `l=0.2`: 54 cases, about 5 case-hours, 20-25 min;
+  * it tests whether a gentler ramp still trips at 2° and keeps the 0° gain.
+  * Highlights for that run:
+
+    ```yaml
+    highlights:
+      - name: fairing-length
+        why: >
+          The 10 mm fairing set off a bubble on the ramp at 2 deg (x/c 0.57-0.63) and matched the
+          trip; does a 20 mm one still trip, and keep the 0 deg gain? 1 m/s, Tu 1 %.
+        where: {speed: 1.0, aoa: [0, 2], Tu: 1.0}
+        compare: foil
+        views: [boundary_layer, transition]
+      - name: faired-tu2-fast
+        why: >
+          Both the faired section and the trip lose at Tu 2 %, 1.5 m/s, with more friction at 0 deg
+          than plain: where does transition move?
+        where: {speed: 1.5, aoa: [0, 2], Tu: 2.0}
+        compare: foil
+        views: [transition]
+    ```
+* The stepped-vs-baseline findings, still to be written, should use
+  conclusion 2 here (the trip's 0° gain is its rear) and conclusion 4's 4°
+  numbers.
 
 ## Runs 20261025-161234 (film) and 20261025-173646 (trip) (2026-10-25, git a5641dc, GCP, 108 + 54 cases)
 
