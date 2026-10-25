@@ -8,7 +8,7 @@ project:
   type: website
   output-dir: _site
   render: [index.qmd, "*/index.qmd"]
-  resources: [assets/*.mp4]
+  resources: [assets/*.mp4, assets/*-poster.png]  # posters: only referenced from raw-HTML video tags
 
 website:
   title: "IOM CFD"

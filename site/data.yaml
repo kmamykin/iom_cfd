@@ -406,48 +406,41 @@ thistle-xfoil:
     10 deg, %, at Tu 0.1, 0.5 and 1 % and tripped at 5 % chord, and downwind drag at 0 deg over 1-15 kn,
     at Tu 0.1 and 1 % and tripped.
 
-# Flow pictures for the Thistle page: projects/foil2d/viz.py boundary_layer and velocity, of the 18 cases
-# fetched whole (`gcp fetch --only`: NACA 0006, parallel-l30-t50-r05-a20 and plank-typical at 3 kn, 0-8 deg,
-# Tu 1 %, steady), rendered with `iomcfd viz --views boundary_layer,velocity,separation --animate aoa`.
-# The two videos stack the three sections' renders per angle (tools/stack_viz_video.py; the velocity one
-# cropped to the top 62 % of each render): one steady solution per angle, not a time history.
+# Flow pictures for the Thistle page: projects/foil2d/viz.py boundary_layer (signed streamwise velocity,
+# flat-shaded) and velocity (speed magnitude, lit), of the 18 cases fetched whole (`gcp fetch --only`: NACA
+# 0006, parallel-l30-t50-r05-a20 and plank-typical at 3 kn, 0-8 deg, Tu 1 %, steady), rendered with
+# `iomcfd viz --views boundary_layer,velocity,separation --animate aoa`. tools/stack_viz_video.py stacks the
+# three sections' renders per angle under a header and a label per section (C_l, C_d, converged or not), with
+# the renderer's own colour bar cut once from the first render: the two videos (one steady solution per angle,
+# not a time history), their posters (the 8 deg frame) and the 4 and 8 deg stills (--no-video). Commands in
+# the tool's docstring; the velocity video crops x 0.08-0.9 and y 0.2-0.68 of each render, the others y 0.09-0.819.
 thistle-flow-sweep-bl:
   kind: file
   study: thistle-screen
   runs: [20261023-125405]
   file: viz/compare_boundary_layer_by_aoa.mp4
+thistle-flow-sweep-bl-poster:
+  kind: file
+  study: thistle-screen
+  runs: [20261023-125405]
+  file: viz/compare_boundary_layer_by_aoa.poster.png
 thistle-flow-sweep-velocity:
   kind: file
   study: thistle-screen
   runs: [20261023-125405]
   file: viz/compare_velocity_by_aoa.mp4
-thistle-flow-4deg-naca0006:
+thistle-flow-sweep-velocity-poster:
   kind: file
   study: thistle-screen
   runs: [20261023-125405]
-  file: Tu1_aoa4_foilnaca0006mt0556_speed1.5199/viz/boundary_layer.png
-thistle-flow-4deg-parallel:
+  file: viz/compare_velocity_by_aoa.poster.png
+thistle-flow-4deg:
   kind: file
   study: thistle-screen
   runs: [20261023-125405]
-  file: Tu1_aoa4_foilparallelml30mt50mr05ma20_speed1.5199/viz/boundary_layer.png
-thistle-flow-4deg-plank:
+  file: viz/compare_boundary_layer_4deg.poster.png
+thistle-flow-8deg:
   kind: file
   study: thistle-screen
   runs: [20261023-125405]
-  file: Tu1_aoa4_foilplankmtypical_speed1.5199/viz/boundary_layer.png
-thistle-flow-8deg-naca0006:
-  kind: file
-  study: thistle-screen
-  runs: [20261023-125405]
-  file: Tu1_aoa8_foilnaca0006mt0556_speed1.5199/viz/velocity.png
-thistle-flow-8deg-parallel:
-  kind: file
-  study: thistle-screen
-  runs: [20261023-125405]
-  file: Tu1_aoa8_foilparallelml30mt50mr05ma20_speed1.5199/viz/velocity.png
-thistle-flow-8deg-plank:
-  kind: file
-  study: thistle-screen
-  runs: [20261023-125405]
-  file: Tu1_aoa8_foilplankmtypical_speed1.5199/viz/velocity.png
+  file: viz/compare_boundary_layer_8deg.poster.png
