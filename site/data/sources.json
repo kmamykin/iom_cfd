@@ -604,6 +604,172 @@
     "exported": "2026-10-22",
     "git": "09bd833-dirty"
   },
+  "thistle-extend": {
+    "kind": "table",
+    "file": "data/thistle-extend.csv",
+    "study": "thistle-extend",
+    "runs": [
+      "20261024-154540"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-flow-4deg-naca0006": {
+    "kind": "file",
+    "file": "assets/thistle-flow-4deg-naca0006.png",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "Tu1_aoa4_foilnaca0006mt0556_speed1.5199/viz/boundary_layer.png",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-flow-4deg-parallel": {
+    "kind": "file",
+    "file": "assets/thistle-flow-4deg-parallel.png",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "Tu1_aoa4_foilparallelml30mt50mr05ma20_speed1.5199/viz/boundary_layer.png",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-flow-4deg-plank": {
+    "kind": "file",
+    "file": "assets/thistle-flow-4deg-plank.png",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "Tu1_aoa4_foilplankmtypical_speed1.5199/viz/boundary_layer.png",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-flow-8deg-naca0006": {
+    "kind": "file",
+    "file": "assets/thistle-flow-8deg-naca0006.png",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "Tu1_aoa8_foilnaca0006mt0556_speed1.5199/viz/velocity.png",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-flow-8deg-parallel": {
+    "kind": "file",
+    "file": "assets/thistle-flow-8deg-parallel.png",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "Tu1_aoa8_foilparallelml30mt50mr05ma20_speed1.5199/viz/velocity.png",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-flow-8deg-plank": {
+    "kind": "file",
+    "file": "assets/thistle-flow-8deg-plank.png",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "Tu1_aoa8_foilplankmtypical_speed1.5199/viz/velocity.png",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-flow-sweep-bl": {
+    "kind": "file",
+    "file": "assets/thistle-flow-sweep-bl.mp4",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "viz/compare_boundary_layer_by_aoa.mp4",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-flow-sweep-velocity": {
+    "kind": "file",
+    "file": "assets/thistle-flow-sweep-velocity.mp4",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "viz/compare_velocity_by_aoa.mp4",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-mesh": {
+    "kind": "table",
+    "file": "data/thistle-mesh.csv",
+    "study": "thistle-mesh",
+    "runs": [
+      "20261023-052134"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-screen": {
+    "kind": "table",
+    "file": "data/thistle-screen.csv",
+    "study": "thistle-screen",
+    "runs": [
+      "20261023-125405"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-surface-3kn": {
+    "kind": "table",
+    "file": "data/thistle-surface-3kn.csv",
+    "study": "thistle-extend",
+    "runs": [
+      "20261024-154540"
+    ],
+    "source": [
+      "Tu0.3_aoa2_foilnaca0006mt0556_speed1.5199/surface.csv",
+      "Tu0.3_aoa2_foilnaca63m006mt0556_speed1.5199/surface.csv",
+      "Tu0.3_aoa2_foilnaca64m006mt0556_speed1.5199/surface.csv",
+      "Tu0.6_aoa2_foilnaca0006mt0556_speed1.5199/surface.csv",
+      "Tu0.6_aoa2_foilnaca63m006mt0556_speed1.5199/surface.csv",
+      "Tu0.6_aoa2_foilnaca64m006mt0556_speed1.5199/surface.csv"
+    ],
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-tu-calibration": {
+    "kind": "table",
+    "file": "data/thistle-tu-calibration.csv",
+    "study": "thistle-tu-calibration",
+    "runs": [
+      "20261023-221604"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-validation": {
+    "kind": "table",
+    "file": "data/thistle-validation.csv",
+    "study": "thistle-validation-r824",
+    "runs": [
+      "20261023-195013"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-25",
+    "git": "ff86e94-dirty"
+  },
+  "thistle-xfoil": {
+    "kind": "manual",
+    "file": "data/thistle-xfoil.csv",
+    "source": "projects/foil2d/findings/thistle-board.md, entry \"2026-10-23: XFOIL screen and Report 824 check\", table \"Named sections\": XFOIL (boardrank screen) upwind mean board drag against NACA 0006 at rake 10 deg, %, at Tu 0.1, 0.5 and 1 % and tripped at 5 % chord, and downwind drag at 0 deg over 1-15 kn, at Tu 0.1 and 1 % and tripped."
+  },
   "transient-4deg-1ms": {
     "kind": "table",
     "file": "data/transient-4deg-1ms.csv",

@@ -1547,6 +1547,719 @@ def custom_card(out: Path) -> Path:
     return out
 
 
+# ---------------------------------------------------------------------------
+# The Thistle centreboard page (site/thistle-board/index.qmd). Data: thistle-*.csv. The board's
+# forces and the rankings come from iomcfd.boardrank on those tables, as in
+# projects/foil2d/findings/thistle-board.md; the shapes from geometry/foils/.
+
+TH_BASE = "file:naca0006-t0556.dat"
+TH_SECTIONS = {  # spec: (name on the page, colour); the CFD screen's eight, NACA 0006 first
+    TH_BASE: ("NACA 0006", ACCENT),
+    "file:naca63-006-t0556.dat": ("NACA 63-006", "#2f5d50"),
+    "file:naca64-006-t0556.dat": ("NACA 64-006", "#7fae94"),
+    "file:naca0006-64-t0556.dat": ("NACA 0006-64", "#5c4d7d"),
+    "file:ht35-t0556.dat": ("HT35", "#e09a4f"),
+    "file:sd8020-t0556.dat": ("SD8020", "#b3a27f"),
+    "file:parallel-l30-t50-r05-a20.dat": ("parallel-sided (l30-t50)", "#8a8f96"),
+    "file:plank-typical.dat": ("plank", "#3c4a57"),
+}
+TH_FINALISTS = [TH_BASE, "file:naca63-006-t0556.dat", "file:naca64-006-t0556.dat"]
+TH_IN = 25.4  # mm per inch
+R824 = Path(__file__).parents[1] / "projects" / "foil2d" / "validation" / "naca6_r824.csv"
+
+
+def _th_name(candidate: str) -> str:
+    return TH_SECTIONS.get(candidate.rsplit("/", 1)[0], (candidate, None))[0]
+
+
+def _th_colour(candidate: str) -> str:
+    return TH_SECTIONS.get(candidate.rsplit("/", 1)[0], (None, "#b3a27f"))[1]
+
+
+def thistle_design(**kw):
+    """The board (projects/foil2d/design/thistle.yaml), with fields replaced by `kw`."""
+    import dataclasses
+
+    from iomcfd import boardrank
+
+    d = boardrank.load_design("thistle")
+    return dataclasses.replace(d, **kw) if kw else d
+
+
+def thistle_rank(data: Path, study: str, tu: float, rake: float | None = None, screen_speeds: bool = False,
+                 lds=None) -> dict[str, pd.DataFrame]:
+    """boardrank.rank of one study's table at one Tu against NACA 0006 (the findings' ranking).
+    screen_speeds: upwind 1, 3, 5 kn and downwind 1, 3, 5, 15 kn, the screen's (`--up-kn 1 3 5
+    --down-kn 1 3 5 15`)."""
+    from iomcfd import boardrank
+
+    d = thistle_design(up_speeds=[1, 3, 5], down_speeds=[1, 3, 5, 15]) if screen_speeds else thistle_design()
+    pol = boardrank.cfd_polars([data / f"thistle-{study}.csv"], tu=tu)
+    return boardrank.rank(pol, d, rake, lds=lds, baseline=f"{TH_BASE}/{d.chord * 1000:g}")
+
+
+def _th_shapes():
+    from iomcfd import sectiondesign as sd
+
+    return {k: sd.load(k) for k in TH_SECTIONS}
+
+
+def thistle_board(out: Path) -> Path:
+    """Side view of the raked board with the flow split into its parts square to and along the leading
+    edge (simple sweep), and the section at true scale."""
+    lam = np.radians(10.0)
+    c, b = 18.0, 1.24 / 0.0254  # in
+    t_ = np.array([np.sin(lam), -np.cos(lam)])  # along the leading edge, down and aft
+    n_ = np.array([np.cos(lam), np.sin(lam)])  # square to it, aft
+    fig, (a, s) = plt.subplots(1, 2, figsize=(10, 5.0), gridspec_kw={"width_ratios": [1.25, 1]})
+    p0 = np.array([0.0, 0.0])
+    poly = np.array([p0, p0 + b * t_, p0 + b * t_ + c * n_, p0 + c * n_])
+    a.add_patch(Polygon(poly, closed=True, fc="#e8e2d4", ec=INK, lw=1.2))
+    a.add_patch(Polygon([[-34, 0], [34, 0], [34, 7], [-34, 7]], closed=True, fc="#d9d3c4", ec="none"))
+    a.plot([-34, 34], [0, 0], color=INK, lw=1.4)
+    a.text(-33, 3.2, "hull (the board's top is inside the trunk)", fontsize=8, color=INK, va="center")
+    a.plot([0, 0], [0, -14], color=MUTED, lw=0.8, ls=":")
+    a.add_patch(Arc((0, 0), 26, 26, theta1=-90, theta2=-90 + 10, color=ACCENT, lw=1.2))
+    a.text(-0.6, -15.5, "rake Λ", color=ACCENT, fontsize=9, ha="right")
+    yq = -26.0
+    q = np.array([-yq * np.tan(lam), yq])  # on the leading edge
+    L = 21.0
+    tail = q - np.array([L, 0])
+    arrow = dict(arrowstyle="-|>", mutation_scale=12, lw=1.6, shrinkA=0, shrinkB=0)
+    a.add_patch(FancyArrowPatch(tail, q, color=INK, **arrow))
+    a.text(tail[0], yq - 1.4, "$V_b$: the water past the boat", fontsize=8.5, ha="left", va="top")
+    mid = tail + L * np.cos(lam) * n_
+    a.add_patch(FancyArrowPatch(tail, mid, color=ACCENT, **arrow))
+    a.add_patch(FancyArrowPatch(mid, q, color="#2f5d50", **arrow))
+    a.text(tail[0] + 1.0, mid[1] + 1.6, "$V_n = V_b\\cos Λ$, square to the edge", color=ACCENT, fontsize=8.5,
+           ha="left", va="bottom")
+    a.text(q[0] + 1.2, q[1] + 1.2, "$V_b \\sin Λ$ along the edge", color="#2f5d50", fontsize=8, va="center")
+    # chord square to the leading edge, and along the flow
+    d1 = p0 + 0.86 * b * t_
+    a.annotate("", d1 + c * n_, d1, arrowprops=dict(arrowstyle="<->", color=INK, lw=0.9))
+    a.text(*(d1 + 0.5 * c * n_ + np.array([0.0, -1.6])), "chord $c_n$ = 18 in\nsquare to the edge", fontsize=8.2,
+           ha="center", va="top")
+    y2 = -33.0
+    x_le = -y2 * np.tan(lam)
+    a.annotate("", (x_le + c / np.cos(lam), y2), (x_le, y2), arrowprops=dict(arrowstyle="<->", color=MUTED, lw=0.9))
+    a.text(x_le + c / np.cos(lam) / 2, y2 + 0.9, "18.28 in along the flow", fontsize=8, color=MUTED, ha="center")
+    e = p0 + b * t_
+    a.text(*(e + np.array([-1, -2.6])), "$b_{LE}$ = 1.24 m (49 in) along the edge,\n48 in below the hull (assumed)",
+           fontsize=8, color=INK, va="top")
+    a.set_aspect("equal")
+    a.set(xlim=(-34, 34), ylim=(-60, 8), title="The board from the side (rake 10°, assumed)")
+    a.axis("off")
+    # the section at true scale
+    from iomcfd import sectiondesign as sd
+
+    u = sd.load(TH_BASE).surface("upper", 800) * c
+    s.fill(np.r_[u[:, 0], u[::-1, 0]], np.r_[u[:, 1], -u[::-1, 1]], color=ACCENT, alpha=0.85, lw=0)
+    s.annotate("", (c, -1.6), (0, -1.6), arrowprops=dict(arrowstyle="<->", color=INK, lw=0.9))
+    s.text(c / 2, -2.4, "18 in (457 mm)", ha="center", va="top", fontsize=8.5)
+    xt = 0.3 * c
+    s.annotate("", (xt, 0.5), (xt, -0.5), arrowprops=dict(arrowstyle="<->", color=INK, lw=0.9))
+    s.text(xt - 0.8, 1.3, "1 in (25.4 mm) thick, the class maximum:\n5.56 % of the chord", fontsize=8.5)
+    s.add_patch(FancyArrowPatch((-4.5, 0), (-1.0, 0), color=INK, **arrow))
+    s.text(-4.5, 0.6, "$V_n$", fontsize=9)
+    s.set_aspect("equal")
+    s.set(xlim=(-5, 19), ylim=(-6, 6), title="Its section, square to the leading edge (NACA 0006)")
+    s.axis("off")
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_grid(data: Path, out: Path) -> Path:
+    """The computed points: boat speed against the section's angle, the screen's and the finalists', with
+    the Reynolds number on top and the three upwind loads."""
+    from iomcfd import boardrank
+
+    d = thistle_design()
+    sc = pd.read_csv(data / "thistle-screen.csv")
+    ex = pd.read_csv(data / "thistle-extend.csv")
+    kn = {round(boardrank.normal_speed(v, d.rake), 4): v for v in d.cfd_speeds_kn}
+    xs = {v: i for i, v in enumerate(d.cfd_speeds_kn)}
+    fig, ax = plt.subplots(figsize=(9.2, 3.9))
+    for df, st in ((ex, dict(s=46, facecolors="none", edgecolors="#2f5d50", lw=1.1, label="finalists (3 sections, Tu 0.3 and 0.6 %)")),
+                   (sc, dict(s=16, color=ACCENT, label="screen (8 sections, Tu 0.1 and 1 %)"))):
+        pts = df[["speed", "aoa"]].drop_duplicates()
+        ax.scatter([xs[kn[round(v, 4)]] for v in pts.speed], pts.aoa, zorder=3, **st)
+    ax.axvspan(-0.5, 4.5, color="#e8e2d4", alpha=0.5, lw=0)
+    ax.text(2, 10.9, "upwind, 1-5 kn", ha="center", fontsize=8.5, color=INK)
+    ax.text(6.5, 10.9, "downwind, 7.5-15 kn (and 0-2° at 1-5 kn)", ha="center", fontsize=8.5, color=INK)
+    for a_, name in zip(d.load_aoa, ("light", "working", "high")):
+        ax.axhline(a_, xmax=5 / 9, color=MUTED, lw=0.8, ls=":")
+        ax.text(4.55, a_ + 0.12, f"{name} load", fontsize=7.5, color=MUTED, va="bottom")
+    ax.set_xticks(range(9), [f"{v:g}" for v in d.cfd_speeds_kn])
+    ax.set(xlim=(-0.5, 8.5), ylim=(-0.6, 11.8), xlabel="boat speed $V_b$ [kn]", ylabel="section angle $α_n$ [°]",
+           yticks=[0, 1, 2, 3, 4, 5, 6, 8, 10])
+    top = ax.secondary_xaxis("top")
+    top.set_xticks(range(9), [f"{boardrank.normal_speed(v, d.rake) * d.chord / d.nu / 1e6:.2f}" for v in d.cfd_speeds_kn])
+    top.set_xlabel("Reynolds number [millions], on the 18 in chord at $V_n$", fontsize=8.5)
+    ax.legend(loc="center right", bbox_to_anchor=(1.0, 0.62), fontsize=8)
+    ax.grid(axis="x", visible=False)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_pipeline(out: Path) -> Path:
+    """The steps of the study, from fast and rough to slow and careful."""
+    from matplotlib.patches import FancyBboxPatch
+
+    steps = [
+        ("XFOIL screen", "26 sections\n+ 144 parallel-\nsided shapes", "#e8e2d4"),
+        ("Mesh study", "3 sections\n4 meshes, 96 cases\n→ fine mesh", "#e8e2d4"),
+        ("Validation", "against NACA\nReport 824\n28 cases", "#e8e2d4"),
+        ("Tu calibration", "the turbulence that\nmatches the tunnel\n40 cases", "#e8e2d4"),
+        ("CFD screen", "8 sections\nTu 0.1 and 1 %\n320 cases", "#d4dfd9"),
+        ("Finalists", "3 sections\nTu 0.3 and 0.6 %\n342 cases", "#d4dfd9"),
+        ("Answer", "NACA 0006\nat 1 in", "#f0d6cc"),
+    ]
+    fig, ax = plt.subplots(figsize=(10.4, 2.3))
+    w, h, gap = 1.45, 1.5, 0.2
+    for i, (head, body, fc) in enumerate(steps):
+        x = i * (w + gap)
+        ax.add_patch(FancyBboxPatch((x, 0), w, h, boxstyle="round,pad=0.02,rounding_size=0.08", fc=fc,
+                                    ec=ACCENT if head == "Answer" else MUTED, lw=1.0))
+        ax.text(x + w / 2, h - 0.2, head, ha="center", va="top", fontsize=9, weight="bold")
+        ax.text(x + w / 2, h - 0.5, body, ha="center", va="top", fontsize=7.4, linespacing=1.35)
+        if i < len(steps) - 1:
+            ax.add_patch(FancyArrowPatch((x + w + 0.02, h / 2), (x + w + gap - 0.02, h / 2), arrowstyle="-|>",
+                                         mutation_scale=10, color=MUTED, lw=1))
+    ax.text(0, -0.25, "method checks", fontsize=8, color=MUTED, va="top")
+    ax.plot([0, 4 * (w + gap) - gap], [-0.12, -0.12], color=MUTED, lw=0.8)
+    ax.text(4 * (w + gap), -0.25, "ranking", fontsize=8, color=MUTED, va="top")
+    ax.plot([4 * (w + gap), 6 * (w + gap) - gap], [-0.12, -0.12], color="#2f5d50", lw=0.8)
+    ax.set(xlim=(-0.05, 7 * (w + gap)), ylim=(-0.5, h + 0.05))
+    ax.set_aspect("equal")
+    ax.axis("off")
+    return _save(fig, out)
+
+
+def thistle_sections(out: Path) -> Path:
+    """The eight sections of the CFD screen at 1 in on 18 in: at true scale, half-thickness stretched
+    (two groups) and the noses at true scale."""
+    secs = _th_shapes()
+    C = 18.0
+    x = np.linspace(0, 1, 2001)
+    half = {k: np.interp(x, *f.surface("upper", 1600).T) * C for k, f in secs.items()}
+    groups = [("Smooth sections", [TH_BASE, "file:naca63-006-t0556.dat", "file:naca64-006-t0556.dat",
+                                   "file:naca0006-64-t0556.dat", "file:ht35-t0556.dat", "file:sd8020-t0556.dat"]),
+              ("Parallel-sided", [TH_BASE, "file:parallel-l30-t50-r05-a20.dat", "file:plank-typical.dat"])]
+    fig = plt.figure(figsize=(10, 9.6))
+    gs = fig.add_gridspec(4, 2, height_ratios=[1.35, 1.0, 1.0, 1.05], width_ratios=[1.75, 1], hspace=0.55, wspace=0.2)
+    t = fig.add_subplot(gs[0, :])
+    order = list(TH_SECTIONS)
+    for i, k in enumerate(order):
+        col, row = i % 2, i // 2
+        x0, y0 = col * 20.5, -row * 2.1
+        u = secs[k].surface("upper", 800) * C
+        t.fill(x0 + np.r_[u[:, 0], u[::-1, 0]], y0 + np.r_[u[:, 1], -u[::-1, 1]], color=TH_SECTIONS[k][1], lw=0)
+        t.text(x0, y0 + 0.75, TH_SECTIONS[k][0], fontsize=8.5, va="bottom")
+    t.set_aspect("equal")
+    t.set(xlim=(-0.3, 38.8), ylim=(-7.0, 1.8), title="At true scale: 18 in chord, 1 in thick")
+    t.axis("off")
+    for gi, (title, keys) in enumerate(groups):
+        ax = fig.add_subplot(gs[1 + gi, 0])
+        for k in keys[::-1]:
+            name, colour = TH_SECTIONS[k]
+            ax.plot(x * C, half[k], color=colour, lw=2.2 if k == TH_BASE else 1.4, label=name)
+        ax.set(xlim=(0, 18), ylim=(0, 0.56), ylabel="half-thickness [in]",
+               title=f"{title}: half-thickness, vertical scale stretched")
+        ax.legend(loc="lower center", fontsize=7.5, ncols=3, reverse=True)
+        n = fig.add_subplot(gs[1 + gi, 1])
+        for k in keys[::-1]:
+            name, colour = TH_SECTIONS[k]
+            u = secs[k].surface("upper", 4000) * C
+            for sgn in (1, -1):
+                n.plot(u[:, 0], sgn * u[:, 1], color=colour, lw=2.0 if k == TH_BASE else 1.2)
+        n.set_aspect("equal")
+        n.set(xlim=(-0.05, 1.3), ylim=(-0.55, 0.55), title="The nose at true scale [in]")
+    ax.set_xlabel("from the leading edge [in]")
+    tl = fig.add_subplot(gs[3, :])
+    for k in [TH_BASE, "file:naca63-006-t0556.dat", "file:parallel-l30-t50-r05-a20.dat", "file:plank-typical.dat"][::-1]:
+        name, colour = TH_SECTIONS[k]
+        tl.plot(x * C, half[k] - half[TH_BASE], color=colour, lw=1.8 if k != TH_BASE else 1.0, label=name)
+    tl.axhline(0, color=ACCENT, lw=1)
+    tl.set(xlim=(0, 18), ylim=(-0.17, 0.3), xlabel="from the leading edge [in]", ylabel="in",
+           title="Half-thickness minus NACA 0006's (above zero: fuller)")
+    tl.legend(loc="lower center", fontsize=7.5, ncols=4, reverse=True)
+    return _save(fig, out)
+
+
+def thistle_properties_table(out: Path) -> Path:
+    """Where each section is thickest, its nose radius and trailing-edge angle, at 1 in on 18 in."""
+    from iomcfd import sectiondesign as sd
+
+    notes = {
+        TH_BASE: "the baseline; the 4-digit family scaled to 1 in",
+        "file:naca63-006-t0556.dat": "laminar-flow section (Report 824 table), 6 % scaled to 5.56 %",
+        "file:naca64-006-t0556.dat": "the same family, crest further aft",
+        "file:naca0006-64-t0556.dat": "NACA 0006 with its crest moved to 40 %",
+        "file:ht35-t0556.dat": "Drela's glider tail section, the IOM study's winner",
+        "file:sd8020-t0556.dat": "Selig-Donovan low-Reynolds-number section, sharp nose",
+        "file:parallel-l30-t50-r05-a20.dat": "flat from 30 % to 50 % of the chord; the best of 144 such shapes in XFOIL",
+        "file:plank-typical.dat": "flat from 10 % to 75 %, half-round nose, straight 25 % taper (assumed home-built board)",
+    }
+    rows = ["| section | thickest at | nose radius | trailing-edge angle | what it is |", "|---|--:|--:|--:|---|"]
+    for k, (name, _) in TH_SECTIONS.items():
+        p = sd.properties(sd.load(k))
+        flat = {"file:parallel-l30-t50-r05-a20.dat": "flat, 30-50 % (5.4-9 in)", "file:plank-typical.dat": "flat, 10-75 % (1.8-13.5 in)"}
+        where = flat.get(k, f"{100 * p['x_t']:.0f} % ({18 * p['x_t']:.1f} in)")
+        rows.append(f"| {name} | {where} | {18 * TH_IN * p['r_le']:.1f} mm | "
+                    f"{p['te_angle']:.1f}° | {notes[k]} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def thistle_mesh(out: Path) -> Path:
+    """The fine C-grid of NACA 0006 at 457 mm and 3 kn, from the same generator the runs use."""
+    from iomcfd import config
+    from iomcfd.geometry import cmesh, foils
+    from iomcfd.project import load_project
+
+    project = load_project("foil2d")
+    p = {**project.defaults, "foil": TH_BASE, "chord": 0.4572, "speed": 1.5199, "mesh": "fine", "temperature": 20}
+    spec = cmesh.CMeshSpec(**project.derive(p)["mesh_spec"])
+    P, _ = cmesh.generate(foils.load(TH_BASE, [config.geometry_dir() / "foils"]), spec)
+    P = P / spec.chord
+    fig, axes = plt.subplots(1, 3, figsize=(10, 3.4), gridspec_kw={"width_ratios": [1.1, 1.5, 0.9]})
+    views = [("Whole domain, 50 chords", (-55, 55), (-55, 55), 6),
+             ("The section", (-0.15, 1.25), (-0.38, 0.38), 2),
+             ("Leading edge", (-0.006, 0.03), (-0.018, 0.018), 1)]
+    for ax, (title, xl, yl, k) in zip(axes, views):
+        for j in range(0, P.shape[1], k):
+            ax.plot(P[:, j, 0], P[:, j, 1], color="#3c4a57", lw=0.2)
+        for i in range(0, P.shape[0], k):
+            ax.plot(P[i, :, 0], P[i, :, 1], color="#3c4a57", lw=0.2)
+        ax.plot(P[:, 0, 0], P[:, 0, 1], color=ACCENT, lw=1.2)
+        ax.set(xlim=xl, ylim=yl, title=title, xlabel="x / c")
+        ax.set_aspect("equal")
+        ax.grid(False)
+    axes[0].set_ylabel("y / c")
+    fig.tight_layout()
+    return _save(fig, out, dpi=130)
+
+
+def thistle_mesh_study(data: Path, out: Path) -> Path:
+    """Drag on each mesh against the fine mesh's, per test point, for the three sections of the mesh
+    study (transition model, Tu 0.1 %)."""
+    from iomcfd import boardrank
+
+    d = thistle_design()
+    m = pd.read_csv(data / "thistle-mesh.csv")
+    m = m[(m.status != "failed") & (m.turbulence == "kOmegaSSTLM")]
+    levels = ["coarse", "medium", "fine", "xfine"]
+    kn = {round(boardrank.normal_speed(v, d.rake), 4): v for v in d.cfd_speeds_kn}
+    fig, axs = plt.subplots(1, 3, figsize=(10, 3.3), sharey=True)
+    pal = ["#2f5d50", "#7fae94", "#e09a4f", ACCENT, "#5c4d7d", "#3c4a57", "#b3a27f"]
+    for ax, f in zip(axs, ["file:naca0006-t0556.dat", "file:naca64-006-t0556.dat", "file:plank-typical.dat"]):
+        g = m[m.foil == f]
+        for i, ((v, a_), h) in enumerate(g.groupby(["speed", "aoa"])):
+            h = h.set_index("mesh").reindex(levels)
+            ref = h.loc["fine", "Cd"]
+            ax.plot(range(4), 100 * (h.Cd / ref - 1), "o-", ms=3.5, lw=1.2, color=pal[i % len(pal)],
+                    label=f"{kn[round(v, 4)]:g} kn, {a_:g}°")
+        ax.axhline(0, color=INK, lw=0.8)
+        ax.axhspan(-3, 3, color="#e8e2d4", alpha=0.6, lw=0)
+        ax.set_xticks(range(4), levels)
+        ax.set(title=TH_SECTIONS[f][0], ylim=(-28, 28))
+        ax.grid(axis="x", visible=False)
+    axs[0].set_ylabel("drag against the fine mesh [%]")
+    axs[2].legend(loc="lower right", fontsize=7, ncols=2)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def _r824():
+    v = pd.read_csv(R824, comment="#")
+    return {"naca0006": v[v.source == "R824 NACA 0006"], "file:naca64-006.dat": v[v.source == "R824 NACA 64-006"]}
+
+
+def _r824_cd(ref: pd.DataFrame, cl):
+    g = ref.dropna(subset=["Cd"]).sort_values("Cl")
+    return np.interp(cl, g.Cl, g.Cd)
+
+
+def thistle_validation(data: Path, out: Path) -> Path:
+    """The CFD against NACA Report 824 (true 6 % sections, Re 3e6): drag against lift, and lift against
+    angle, with the transition model at the tunnel's Tu, at the calibrated Tu and fully turbulent."""
+    ref = _r824()
+    v = pd.read_csv(data / "thistle-validation.csv")
+    v = v[v.status != "failed"]
+    c = pd.read_csv(data / "thistle-tu-calibration.csv")
+    fig, axs = plt.subplots(2, 2, figsize=(10, 7.2))
+    for j, (f, title) in enumerate((("naca0006", "NACA 0006"), ("file:naca64-006.dat", "NACA 64-006"))):
+        r = ref[f]
+        a, b = axs[0, j], axs[1, j]
+        rd = r.dropna(subset=["Cd"])
+        a.plot(rd.Cl, rd.Cd * 1e4, "o", color=INK, ms=4.5, label="Report 824, measured", zorder=5)
+        ra = r.dropna(subset=["aoa"])
+        b.plot(ra.aoa, ra.Cl, "o", color=INK, ms=4.5, label="Report 824, measured", zorder=5)
+        runs = [(v[(v.foil == f) & (v.turbulence == "kOmegaSSTLM")], dict(color="#7fae94", ls="-", marker="s", ms=3.5),
+                 "transition model, Tu 0.05 % (the tunnel's)"),
+                (c[(c.foil == f) & np.isclose(c.Tu, 0.3)], dict(color=ACCENT, ls="-", marker="^", ms=4), "transition model, Tu 0.3 %"),
+                (c[(c.foil == f) & np.isclose(c.Tu, 0.6)], dict(color="#e09a4f", ls="-", marker="v", ms=4), "transition model, Tu 0.6 %"),
+                (v[(v.foil == f) & (v.turbulence == "kOmegaSST")], dict(color="#5c4d7d", ls=(0, (4, 2)), marker="o", ms=3),
+                 "fully turbulent (SST)")]
+        for g, st, lab in runs:
+            g = g.sort_values("aoa")
+            lo = g[g.aoa <= 6]
+            a.plot(lo.Cl, lo.Cd * 1e4, lw=1.3, label=lab, **st)
+            if "0.3" not in lab and "0.6" not in lab:
+                ok = g[g.status == "ok"]
+                b.plot(ok.aoa, ok.Cl, lw=1.3, label=lab, **st)
+                nc = g[g.status != "ok"]
+                b.plot(nc.aoa, nc.Cl, ls="none", marker=st["marker"], ms=st["ms"] + 1.5, mfc="none", mec=st["color"])
+        a.set(xlim=(-0.05, 0.75), ylim=(20, 150), xlabel="lift coefficient $C_l$", ylabel="drag coefficient $C_d$ × 10⁴",
+              title=f"{title}: drag against lift (Re 3 million)")
+        b.set(xlim=(-0.5, 12.5), ylim=(-0.05, 1.1), xlabel="angle of attack [°]", ylabel="$C_l$",
+              title=f"{title}: lift against angle")
+    axs[0, 0].legend(loc="upper left", fontsize=7.5)
+    axs[1, 0].plot([], [], ls="none", marker="o", mfc="none", mec=MUTED, label="hollow: not converged (oscillating)")
+    axs[1, 0].legend(loc="upper left", fontsize=7.5)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_calibration(data: Path, out: Path) -> Path:
+    """Drag error against Report 824 at the computed lift, per angle, against the inlet Tu."""
+    ref = _r824()
+    v = pd.read_csv(data / "thistle-validation.csv")
+    v = v[(v.status != "failed") & (v.turbulence == "kOmegaSSTLM") & v.aoa.isin([0, 2, 4])]
+    c = pd.concat([pd.read_csv(data / "thistle-tu-calibration.csv"), v], ignore_index=True)
+    fig, axs = plt.subplots(1, 2, figsize=(10, 3.6), sharey=True)
+    pal = {0: "#3c4a57", 1: "#7fae94", 2: ACCENT, 4: "#e09a4f"}
+    for ax, (f, title, tu_eff) in zip(axs, (("naca0006", "NACA 0006", 0.3), ("file:naca64-006.dat", "NACA 64-006", 0.45))):
+        g = c[c.foil == f].copy()
+        g["err"] = 100 * (g.Cd / _r824_cd(ref[f], g.Cl.abs()) - 1)
+        for a_, h in g.groupby("aoa"):
+            h = h.sort_values("Tu")
+            ax.plot(h.Tu, h.err, "o-", ms=3.5, lw=1.3, color=pal[int(a_)], label=f"{a_:g}°")
+        ax.axhline(0, color=INK, lw=0.9)
+        ax.axhspan(-6, 6, color="#e8e2d4", alpha=0.6, lw=0)
+        ax.axvline(tu_eff, color=ACCENT, lw=1, ls=":")
+        ax.text(tu_eff * 1.06, 70, f"matches at\nabout {tu_eff:g} %", color=ACCENT, fontsize=8, va="top")
+        ax.set_xscale("log")
+        ax.set_xticks([0.05, 0.1, 0.3, 0.6, 1, 1.5], ["0.05", "0.1", "0.3", "0.6", "1", "1.5"])
+        ax.set(title=title, xlabel="inlet turbulence intensity Tu [%]", ylim=(-50, 95))
+    axs[0].set_ylabel("drag against Report 824\nat the same $C_l$ [%]")
+    axs[1].legend(loc="upper left", fontsize=8, title="angle", title_fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_r824(out: Path) -> Path:
+    """Report 824's measured drag of NACA 0006 and 64-006 against lift at Re 3e6, with the lift the
+    Thistle board needs downwind and upwind."""
+    ref = _r824()
+    fig, ax = plt.subplots(figsize=(8.6, 3.9))
+    ax.axvspan(-0.03, 0.03, color="#d4dfd9", lw=0)
+    ax.axvspan(0.1, 0.45, color="#f0d6cc", alpha=0.7, lw=0)
+    ax.text(0.0, 98, "downwind\n$C_l$ ≈ 0", ha="center", va="top", fontsize=8.5, color="#2f5d50")
+    ax.text(0.275, 98, "upwind: light to high load, $C_l$ ≈ 0.1-0.45", ha="center", va="top", fontsize=8.5, color=ACCENT)
+    for f, name, colour in (("naca0006", "NACA 0006", ACCENT), ("file:naca64-006.dat", "NACA 64-006", "#7fae94")):
+        g = ref[f].dropna(subset=["Cd"]).sort_values("Cl")
+        g = g[g.Cl > -0.2]
+        ax.plot(g.Cl, g.Cd * 1e4, "o-", color=colour, ms=4.5, lw=1.6, label=name)
+    for cl, (xt, yt) in ((0.0, (0.01, 49.5)), (0.2, (0.21, 64.5)), (0.4, (0.30, 72.5))):
+        a0, a6 = _r824_cd(ref["naca0006"], cl), _r824_cd(ref["file:naca64-006.dat"], cl)
+        ax.text(xt, yt, f"at $C_l$ {cl:g}, 64-006: {100 * (a6 / a0 - 1):+.0f} %", fontsize=8, color=INK)
+    ax.set(xlim=(-0.2, 0.8), ylim=(30, 100), xlabel="lift coefficient $C_l$", ylabel="drag coefficient $C_d$ × 10⁴",
+           title="Measured in a quiet wind tunnel: NACA Report 824, Re 3 million, true 6 % sections")
+    ax.legend(loc="center right", fontsize=8.5)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_screen(data: Path, out: Path) -> Path:
+    """The CFD screen: board drag against NACA 0006, upwind (1, 3, 5 kn, three loads) and downwind (0 deg at
+    1, 3, 5 and 15 kn), at the two bounds of the water's turbulence."""
+    s = {tu: thistle_rank(data, "screen", tu, screen_speeds=True)["summary"] for tu in (0.1, 1.0)}
+    order = (s[0.1]["upwind %"] + s[1.0]["upwind %"]).sort_values().index
+    fig, axs = plt.subplots(1, 2, figsize=(10, 4.2), sharey=True)
+    y = np.arange(len(order))[::-1]
+    clip = 22
+    for ax, col, title in ((axs[0], "upwind %", "Upwind: drag at equal side force"),
+                           (axs[1], "downwind %", "Downwind: drag at 0°")):
+        for k, (tu, alpha, off) in enumerate(((0.1, 0.45, 0.19), (1.0, 1.0, -0.19))):
+            vals = s[tu].reindex(order)[col]
+            ax.barh(y + off, np.clip(vals, -clip, clip), height=0.36, color=[_th_colour(c) for c in order],
+                    alpha=alpha, label=f"Tu {tu:g} %")
+            for yi, v in zip(y + off, vals):
+                if v > clip:
+                    ax.text(clip - 0.5, yi, f"{v:+.0f} % →", ha="right", va="center", fontsize=7.5, color=PAPER)
+                elif abs(v) > 0.05:
+                    ax.text(v + (0.4 if v >= 0 else -0.4), yi, f"{v:+.1f}", ha="left" if v >= 0 else "right",
+                            va="center", fontsize=7)
+        ax.axvline(0, color=INK, lw=0.9)
+        ax.set(xlim=(-16, clip), title=title, xlabel="against NACA 0006 [%]   (← less drag · more →)")
+        ax.grid(axis="y", visible=False)
+    axs[0].set_yticks(y, [_th_name(c) for c in order])
+    from matplotlib.patches import Patch
+
+    axs[1].legend(handles=[Patch(color=MUTED, alpha=0.45, label="Tu 0.1 % (pale)"), Patch(color=MUTED, label="Tu 1 % (solid)")],
+                  loc="upper left", fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_screen_table(data: Path, out: Path) -> Path:
+    s = {tu: thistle_rank(data, "screen", tu, screen_speeds=True)["summary"] for tu in (0.1, 1.0)}
+    order = (s[0.1]["upwind %"] + s[1.0]["upwind %"]).sort_values().index
+    rows = ["| section | upwind, Tu 0.1 % | upwind, Tu 1 % | downwind, Tu 0.1 % | downwind, Tu 1 % | stall margin, Tu 0.1 / 1 % | |",
+            "|---|--:|--:|--:|--:|--:|---|"]
+    out_of = {"file:plank-typical.dat", "file:parallel-l30-t50-r05-a20.dat"}
+    for c in order:
+        a, b = s[0.1].loc[c], s[1.0].loc[c]
+        base = c.rsplit("/", 1)[0]
+        verdict = ("reference" if base == TH_BASE else "rejected: loses at both levels" if base in out_of
+                   else "finalist" if base in TH_FINALISTS
+                   else "dropped: trades less than the 6-series" if base == "file:naca0006-64-t0556.dat"
+                   else "dropped: never ahead by more than the mesh uncertainty")
+        cells = ["reference"] * 4 if base == TH_BASE else \
+            [f"{v:+.1f}" for v in (a["upwind %"], b["upwind %"], a["downwind %"], b["downwind %"])]
+        rows.append(f"| {_th_name(c)} | " + " | ".join(cells) +
+                    f" | {a['stall margin deg']:.1f}° / {b['stall margin deg']:.1f}° | {verdict} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+TH_LABEL_OFFSETS = {  # (Tu, section): label offset in points, where the defaults collide
+    (0.1, TH_BASE): (-7, 7), (0.1, "file:ht35-t0556.dat"): (7, -7), (0.1, "file:sd8020-t0556.dat"): (7, 7),
+    (0.1, "file:naca63-006-t0556.dat"): (-7, -6), (0.1, "file:naca64-006-t0556.dat"): (7, 6),
+    (1.0, TH_BASE): (-7, 7), (1.0, "file:sd8020-t0556.dat"): (4, -9), (1.0, "file:parallel-l30-t50-r05-a20.dat"): (7, 7),
+    (1.0, "file:ht35-t0556.dat"): (7, 5), (1.0, "file:naca63-006-t0556.dat"): (7, 5), (1.0, "file:naca64-006-t0556.dat"): (7, -5),
+    (1.0, "file:naca0006-64-t0556.dat"): (7, 0),
+}
+
+
+def thistle_tradeoff(data: Path, out: Path) -> Path:
+    """Upwind against downwind for the eight sections at both bounds of the water's turbulence."""
+    s = {tu: thistle_rank(data, "screen", tu, screen_speeds=True)["summary"] for tu in (0.1, 1.0)}
+    fig, axs = plt.subplots(1, 2, figsize=(10, 4.3), sharey=True, sharex=True)
+    lim = (-15, 17)
+    for ax, tu in zip(axs, (0.1, 1.0)):
+        ax.axhspan(lim[0], 0, xmin=0, xmax=(0 - lim[0]) / (lim[1] - lim[0]), color="#d4dfd9", alpha=0.6, lw=0)
+        ax.text(-14.3, -14.3, "better both ways", fontsize=7.5, color="#2f5d50")
+        for c, r in s[tu].iterrows():
+            x, y = r["upwind %"], r["downwind %"]
+            off = x > lim[1] or y > lim[1]
+            xp, yp = min(x, lim[1] - 0.6), min(y, lim[1] - 0.6)
+            ax.scatter(xp, yp, s=60, color=_th_colour(c), zorder=3, marker=">" if off else "o", edgecolors=PAPER, lw=0.6)
+            lab = _th_name(c) + (f" ({x:+.0f} %, {y:+.0f} %)" if off else "")
+            base = c.rsplit("/", 1)[0]
+            dx, dy = TH_LABEL_OFFSETS.get((tu, base), (6, 4)) if not off else (-6, -10)
+            ax.annotate(lab, (xp, yp), (dx, dy), textcoords="offset points", fontsize=7.3,
+                        ha="left" if dx >= 0 else "right", va="center")
+        ax.axhline(0, color=INK, lw=0.8)
+        ax.axvline(0, color=INK, lw=0.8)
+        ax.set(xlim=lim, ylim=lim, title=f"Tu {tu:g} %" + (" (too laminar)" if tu == 0.1 else " (effectively fully turbulent)"),
+               xlabel="upwind drag against NACA 0006 [%]")
+    axs[0].set_ylabel("downwind drag against NACA 0006 [%]")
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_bounds(data: Path, out: Path) -> Path:
+    """The 6-series' upwind and downwind drag against NACA 0006 at the four Tu levels run (1, 3 and 5 kn
+    upwind; 1, 3, 5 and 15 kn downwind, as in the screen)."""
+    rows = []
+    for study, tus in (("screen", (0.1, 1.0)), ("extend", (0.3, 0.6))):
+        for tu in tus:
+            sm = thistle_rank(data, study, tu, screen_speeds=True)["summary"]
+            for c, r in sm.iterrows():
+                rows.append({"candidate": c, "Tu": tu, "up": r["upwind %"], "down": r["downwind %"]})
+    df = pd.DataFrame(rows)
+    fig, axs = plt.subplots(1, 2, figsize=(10, 3.6), sharex=True)
+    for ax, col, title in ((axs[0], "up", "Upwind (1, 3 and 5 kn)"), (axs[1], "down", "Downwind (0° at 1, 3, 5 and 15 kn)")):
+        ax.axvspan(0.3, 0.6, color="#f0d6cc", alpha=0.6, lw=0)
+        for c in ("file:naca63-006-t0556.dat/457.2", "file:naca64-006-t0556.dat/457.2"):
+            g = df[df.candidate == c].sort_values("Tu")
+            ax.plot(g.Tu, g[col], "o-", color=_th_colour(c), lw=1.8, ms=5, label=_th_name(c))
+        ax.axhline(0, color=ACCENT, lw=1.2)
+        ax.text(0.105, 0.3, "NACA 0006", color=ACCENT, fontsize=8, ha="left", va="bottom")
+        ax.set_xscale("log")
+        ax.set_xticks([0.1, 0.3, 0.6, 1.0], ["0.1", "0.3", "0.6", "1"])
+        ax.set(title=title, xlabel="inlet turbulence intensity Tu [%]")
+    axs[0].set_ylabel("drag against NACA 0006 [%]")
+    axs[0].text(0.42, axs[0].get_ylim()[1] * 0.92, "calibrated\nband", ha="center", va="top", fontsize=8, color=ACCENT)
+    axs[0].legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_finalists(data: Path, out: Path) -> Path:
+    """The finalists against NACA 0006 by boat speed at the calibrated Tu: upwind (mean of the three
+    loads) and downwind (0 deg)."""
+    r = {tu: thistle_rank(data, "extend", tu) for tu in (0.3, 0.6)}
+    fig, axs = plt.subplots(1, 2, figsize=(10, 3.8), gridspec_kw={"width_ratios": [1, 1.5]})
+    for tu, ls in ((0.3, "-"), (0.6, (0, (4, 2)))):
+        up = r[tu]["upwind"].pivot_table(index="speed", columns="candidate", values="vs_base", aggfunc="mean")
+        dn = r[tu]["downwind"].pivot_table(index="speed", columns="candidate", values="drag_0_vs_base")
+        for c in TH_FINALISTS[1:]:
+            k = f"{c}/457.2"
+            st = dict(color=TH_SECTIONS[c][1], ls=ls, lw=1.8, marker="o", ms=4)
+            axs[0].plot(up.index, up[k], label=f"{TH_SECTIONS[c][0]}, Tu {tu:g} %", **st)
+            axs[1].plot(dn.index, dn[k], **st)
+    for ax in axs:
+        ax.axhline(0, color=ACCENT, lw=1.2)
+        ax.set_xlabel("boat speed $V_b$ [kn]")
+    axs[0].set(title="Upwind, mean of the three loads", ylabel="drag against NACA 0006 [%]", xticks=[1, 2, 3, 4, 5])
+    axs[1].set(title="Downwind, at 0°")
+    axs[1].set_xticks([1, 2, 3, 4, 5, 7.5, 10, 12.5, 15], ["1", "2", "3", "4", "5", "7.5", "10", "12.5", "15"])
+    axs[1].axvspan(5.2, 7.3, color="#e8e2d4", alpha=0.6, lw=0)
+    axs[1].text(6.25, axs[1].get_ylim()[1] * 0.95, "not\ncomputed", ha="center", va="top", fontsize=7.5, color=MUTED)
+    axs[0].text(5.05, 0.5, "NACA 0006", color=ACCENT, fontsize=8, ha="right", va="bottom")
+    axs[0].legend(loc="lower left", fontsize=7.5)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_equal_force(data: Path, out: Path) -> Path:
+    """Upwind at equal side force: each finalist's board drag against NACA 0006's, over the side-force
+    range at 1, 3 and 5 kn, at the calibrated Tu (linear between the computed angles, as the ranking)."""
+    from iomcfd import boardrank, racetime
+
+    d = thistle_design()
+    fig, axs = plt.subplots(2, 3, figsize=(10, 5.6), sharey=True)
+    for i, tu in enumerate((0.3, 0.6)):
+        pol = boardrank.cfd_polars([data / "thistle-extend.csv"], tu=tu)
+        f = boardrank.board_forces(pol, d, d.up_speeds)
+        lds = boardrank.loads(f, f"{TH_BASE}/457.2", d.load_aoa)
+        for j, v in enumerate((1, 3, 5)):
+            ax = axs[i, j]
+
+            def branch(c):
+                g = f[(f.candidate == f"{c}/457.2") & np.isclose(f.speed, v) & (f.aoa >= 0)].sort_values("aoa")
+                k = racetime.prestall_branch(g.aoa.to_numpy(), g.side_force.to_numpy())
+                return g.side_force.to_numpy()[k], g.drag.to_numpy()[k]
+
+            s0, d0 = branch(TH_BASE)
+            for c in TH_FINALISTS[1:]:
+                s1, d1 = branch(c)
+                grid = np.linspace(max(s0[0], s1[0]), min(s0[-1], s1[-1]), 400)
+                ax.plot(grid, 100 * (np.interp(grid, s1, d1) / np.interp(grid, s0, d0) - 1), color=TH_SECTIONS[c][1],
+                        lw=1.8, label=TH_SECTIONS[c][0])
+            ax.axhline(0, color=ACCENT, lw=1.1)
+            for _, ld in lds[np.isclose(lds.speed, v)].iterrows():
+                ax.axvline(ld.force, color=MUTED, lw=0.8, ls=":")
+                ax.text(ld.force, 0.98, ld.load, transform=ax.get_xaxis_transform(), rotation=90, ha="right",
+                        va="top", fontsize=7, color=MUTED)
+            ax.set_title(f"{v} kn, Tu {tu:g} %")
+            if i == 1:
+                ax.set_xlabel("side force $S_h$ [N]")
+            ax.set_xlim(0, 1.12 * lds[np.isclose(lds.speed, v)].force.max())
+        axs[i, 0].set_ylabel("board drag $D_h$ against\nNACA 0006 [%]")
+    axs[0, 0].set_ylim(-17, 32)
+    axs[0, 0].legend(loc="lower right", fontsize=7.5)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_results_table(data: Path, out: Path) -> Path:
+    """The finalists against NACA 0006 at the calibrated Tu, rake 10 deg."""
+    rows = ["| section | Tu | upwind | worst upwind point | light / working / high load | downwind, 1-15 kn | downwind, 7.5-15 kn | stall margin |",
+            "|---|--:|--:|--:|--:|--:|--:|--:|"]
+    for tu in (0.3, 0.6):
+        r = thistle_rank(data, "extend", tu)
+        sm, up = r["summary"], r["upwind"]
+        per = up.groupby(["candidate", "load"]).vs_base.mean().unstack()
+        for c in TH_FINALISTS:
+            k = f"{c}/457.2"
+            q = sm.loc[k]
+            margin = f"{q['stall margin deg']:.1f}°" + (" (at least)" if q["margin censored"] else "")
+            if c == TH_BASE:
+                rows.append(f"| {TH_SECTIONS[c][0]} | {tu:g} % | reference | | | | | {margin} |")
+                continue
+            rows.append(f"| {TH_SECTIONS[c][0]} | {tu:g} % | **{q['upwind %']:+.1f} %** | {q['upwind worst %']:+.1f} % | "
+                        f"{per.loc[k, 'light']:+.1f} / {per.loc[k, 'working']:+.1f} / {per.loc[k, 'high']:+.1f} % | "
+                        f"{q['downwind %']:+.1f} % | {q['downwind 7.5+ kn %']:+.1f} % | {margin} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def thistle_rake_table(data: Path, out: Path) -> Path:
+    """Upwind and downwind drag against NACA 0006 at rake 5, 10 and 15 deg (loads fixed at 10 deg)."""
+    rows = ["| section | Tu | upwind at 5° / 10° / 15° rake | downwind at 5° / 10° / 15° rake | by the rule |",
+            "|---|--:|--:|--:|---|"]
+    for tu in (0.3, 0.6):
+        lds = thistle_rank(data, "extend", tu)["loads"]
+        sm = {rk: thistle_rank(data, "extend", tu, rake=rk, lds=lds)["summary"] for rk in (5.0, 10.0, 15.0)}
+        for c in TH_FINALISTS[1:]:
+            k = f"{c}/457.2"
+            up = [sm[rk].loc[k, "upwind %"] for rk in (5.0, 10.0, 15.0)]
+            dn = [sm[rk].loc[k, "downwind %"] for rk in (5.0, 10.0, 15.0)]
+            rule = ["NACA 0006" if u > 1 else f"{TH_SECTIONS[c][0]} (tie upwind, downwind decides)" for u in up]
+            verdict = "NACA 0006 at every rake" if all(u > 1 for u in up) else \
+                "within 1 % at 5°: downwind decides there"
+            rows.append(f"| {TH_SECTIONS[c][0]} | {tu:g} % | {' / '.join(f'{u:+.1f}' for u in up)} % | "
+                        f"{' / '.join(f'{x:+.1f}' for x in dn)} % | {verdict} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def thistle_laminar(data: Path, out: Path) -> Path:
+    """The suction side at 3 kn and 2 deg (about the working load) at the two calibrated Tu levels: pressure
+    and skin friction, NACA 0006 against the two 6-series sections. The jump in friction is where the
+    boundary layer turns turbulent."""
+    s = pd.read_csv(data / "thistle-surface-3kn.csv")
+    tags = {TH_BASE: "naca0006mt0556", "file:naca63-006-t0556.dat": "naca63m006", "file:naca64-006-t0556.dat": "naca64m006"}
+    fig, axs = plt.subplots(2, 2, figsize=(10, 5.6), sharex=True, sharey="row")
+    for j, tu in enumerate((0.3, 0.6)):
+        for c in TH_FINALISTS[::-1]:
+            g = s[s.file.str.contains(f"Tu{tu:g}_") & s.file.str.contains(tags[c])]
+            up = g[(g.upper.astype(str) == "True") & (g.x_c < 0.997)].sort_values("x_c")
+            st = dict(color=TH_SECTIONS[c][1], lw=2.0 if c == TH_BASE else 1.4, label=TH_SECTIONS[c][0])
+            axs[0, j].plot(up.x_c, -up.Cp, **st)
+            axs[1, j].plot(up.x_c, up.Cf * 1e3, **st)
+        axs[0, j].set_title(f"3 kn, 2°, Tu {tu:g} %: pressure on the suction side")
+        axs[1, j].set_title("skin friction on the suction side")
+        axs[1, j].set_xlabel("x / c")
+        axs[1, j].axhline(0, color=INK, lw=0.7)
+    axs[0, 0].set(ylabel="−$C_p$", ylim=(-0.1, 1.3), xlim=(0, 1))
+    axs[1, 0].set(ylabel="$C_f$ × 10³", ylim=(-0.3, 4.5))
+    axs[1, 0].text(0.5, 3.9, "friction jumps where the flow turns turbulent", fontsize=8, color=MUTED, ha="center")
+    axs[0, 0].legend(loc="upper right", fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def thistle_xfoil_table(data: Path, out: Path) -> Path:
+    x = pd.read_csv(data / "thistle-xfoil.csv")
+
+    def f(v):
+        return "" if pd.isna(v) else f"{v:+.1f}"
+
+    rows = ["| section | upwind, Tu 0.1 % | Tu 0.5 % | Tu 1 % | tripped | downwind, Tu 0.1 % | Tu 1 % | tripped | in the CFD |",
+            "|---|--:|--:|--:|--:|--:|--:|--:|:-:|"]
+    for _, r in x.iterrows():
+        rows.append(f"| {r.section} | {f(r['up_tu0.1'])} | {f(r['up_tu0.5'])} | {f(r['up_tu1'])} | {f(r.up_tripped)} | "
+                    f"{f(r['down_tu0.1'])} | {f(r.down_tu1)} | {f(r.down_tripped)} | {'yes' if r.group == 'cfd' else ''} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def thistle_card(out: Path) -> Path:
+    """The page's card at 3:1: NACA 0006 over the plank board, the thickness stretched three times."""
+    from iomcfd import sectiondesign as sd
+
+    fig = plt.figure(figsize=(9, 3))
+    a = fig.add_axes([0, 0, 1, 1])
+    for k, fill in ((TH_BASE, True), ("file:plank-typical.dat", False)):
+        u = sd.load(k).surface("upper", 800)
+        xs, ys = np.r_[u[:, 0], u[::-1, 0]], 3 * np.r_[u[:, 1], -u[::-1, 1]]
+        if fill:
+            a.fill(xs, ys, color=ACCENT, alpha=0.85, lw=0)
+        else:
+            a.plot(xs, ys, color=INK, lw=1.6, ls=(0, (5, 3)))
+    a.set_aspect("equal")
+    a.set(xlim=(-0.08, 1.08), ylim=(-0.193, 0.193))
+    a.axis("off")
+    fig.savefig(out, dpi=120, facecolor=PAPER)
+    plt.close(fig)
+    return out
+
+
 def make_all(data: Path, out: Path) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     ref = data.parents[1] / "projects" / "foil2d" / "validation" / "naca0009_re1e5_princeton.csv"
@@ -1566,7 +2279,7 @@ def make_all(data: Path, out: Path) -> list[Path]:
         race_time_table(data, out / "race-time.md"),
         race_time_by_speed_table(data, out / "race-time-by-speed.md"),
         fin_choice_table(data, out / "fin-choice.md"),
-        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith(("bulb-", "custom-"))),
+        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith(("bulb-", "custom-", "thistle-"))),
         card_image(data.parent / "assets" / "flow-shedding-vorticity.png", out / "fin-selection-card.png"),
         # the keel bulb page
         bulb_side(out / "bulb-side.svg"),
@@ -1601,4 +2314,27 @@ def make_all(data: Path, out: Path) -> list[Path]:
         custom_properties_table(out / "custom-properties.md"),
         sources_table(data, out / "sources-custom.md", keep=lambda n: n.startswith("custom-")),
         custom_card(out / "custom-section-card.png"),
+        # the Thistle centreboard page
+        thistle_board(out / "thistle-board.svg"),
+        thistle_grid(data, out / "thistle-grid.svg"),
+        thistle_pipeline(out / "thistle-pipeline.svg"),
+        thistle_sections(out / "thistle-sections.svg"),
+        thistle_properties_table(out / "thistle-properties.md"),
+        thistle_mesh(out / "thistle-mesh.png"),
+        thistle_mesh_study(data, out / "thistle-mesh-study.svg"),
+        thistle_validation(data, out / "thistle-validation.svg"),
+        thistle_calibration(data, out / "thistle-calibration.svg"),
+        thistle_r824(out / "thistle-r824.svg"),
+        thistle_screen(data, out / "thistle-screen.svg"),
+        thistle_screen_table(data, out / "thistle-screen.md"),
+        thistle_tradeoff(data, out / "thistle-tradeoff.svg"),
+        thistle_bounds(data, out / "thistle-bounds.svg"),
+        thistle_finalists(data, out / "thistle-finalists.svg"),
+        thistle_equal_force(data, out / "thistle-equal-force.svg"),
+        thistle_results_table(data, out / "thistle-results.md"),
+        thistle_rake_table(data, out / "thistle-rake.md"),
+        thistle_laminar(data, out / "thistle-laminar.svg"),
+        thistle_xfoil_table(data, out / "thistle-xfoil.md"),
+        sources_table(data, out / "sources-thistle.md", keep=lambda n: n.startswith("thistle-")),
+        thistle_card(out / "thistle-board-card.png"),
     ]
