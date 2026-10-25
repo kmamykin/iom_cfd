@@ -1,5 +1,6 @@
-# Simulation output (rendered cases, logs, fields). Large; never commit.
-/runs/
+# Simulation output (rendered cases, logs, fields). Large; never commit. No trailing slash: in a
+# worktree runs may be a link to the main checkout's runs/.
+/runs
 # Downloaded cloud results
 /cloud-results/
 
