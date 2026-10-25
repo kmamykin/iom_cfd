@@ -8,24 +8,36 @@ cd "${0%/*}" || exit 1
 NP="${NP:-1}"
 app=$(getApplication)
 
-runApplication surfaceFeatureExtract || exit 1
-runApplication blockMesh || exit 1
+# IOMCFD_RESUME set: iomcfd restored a checkpoint (the mesh, the meshing logs
+# and a time directory, per processor if decomposed; src/iomcfd/checkpoint.py),
+# so skip meshing and initial fields and let the solver continue from latestTime.
+resume="${IOMCFD_RESUME:-}"
+[ -n "$resume" ] && echo "resuming from the checkpoint at t = $resume: no meshing"
+
+if [ -z "$resume" ]; then
+    runApplication surfaceFeatureExtract || exit 1
+    runApplication blockMesh || exit 1
+fi
 
 if [ "$NP" -gt 1 ]; then
     foamDictionary -entry numberOfSubdomains -set "$NP" system/decomposeParDict > /dev/null
-    runApplication decomposePar -force -copyZero || exit 1
-    runParallel snappyHexMesh -overwrite || exit 1
-    runParallel checkMesh
-    runParallel setFields || exit 1
-    runParallel renumberMesh -overwrite
+    if [ -z "$resume" ]; then
+        runApplication decomposePar -force -copyZero || exit 1
+        runParallel snappyHexMesh -overwrite || exit 1
+        runParallel checkMesh
+        runParallel setFields || exit 1
+        runParallel renumberMesh -overwrite
+    fi
     runParallel "$app"
     rc=$?
     runApplication reconstructParMesh -constant
     runApplication reconstructPar -latestTime
 else
-    runApplication snappyHexMesh -overwrite || exit 1
-    runApplication checkMesh
-    runApplication setFields || exit 1
+    if [ -z "$resume" ]; then
+        runApplication snappyHexMesh -overwrite || exit 1
+        runApplication checkMesh
+        runApplication setFields || exit 1
+    fi
     runApplication "$app"
     rc=$?
 fi

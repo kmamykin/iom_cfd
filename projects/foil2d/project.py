@@ -275,16 +275,16 @@ class Foil2D(Project):
 
     # ------------------------------------------------------------------
     # checkpoints (iomcfd.checkpoint): resume a time-accurate case on a new VM
-    def checkpoint_setup(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool:
-        """A time-accurate case on one rank writes its fields every
-        CHECKPOINT_FLOW_TIMES flow-throughs and keeps the last two (purgeWrite
-        2: the older is complete while the newer is written). A snapshot run
-        already writes every snapshot_interval and keeps them all. Adjustable
-        writes count from the start time, so the interval divides the time
-        left exactly and the last write is at the end time. Steady cases are
-        short and decomposed ones (np > 1) not supported: False."""
-        if p["solver"] != "transient" or int(p.get("np") or 1) > 1:
-            return False
+    def checkpoint_setup(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any]) -> bool | str:
+        """A time-accurate case writes its fields every CHECKPOINT_FLOW_TIMES
+        flow-throughs and keeps the last two (purgeWrite 2: the older is
+        complete while the newer is written), on any number of ranks. A
+        snapshot run already writes every snapshot_interval and keeps them
+        all. Adjustable writes count from the start time, so the interval
+        divides the time left exactly and the last write is at the end time.
+        Steady cases: the runner's signal writes ("signal")."""
+        if p["solver"] != "transient":
+            return "signal"
         if not float(p.get("snapshot_interval") or 0.0) > 0:
             sysd = Path(case_dir) / "system"
             cd = sysd / "controlDict.transient" if (sysd / "controlDict.transient").exists() else sysd / "controlDict"
@@ -301,7 +301,10 @@ class Foil2D(Project):
     def checkpoint_restored(self, case_dir: Path, p: dict[str, Any], d: dict[str, Any], time: str) -> None:
         """Continue from the restored time: past a steady start (start_iter)
         switch to the time-accurate setup now, as Allrun would after it, and
-        divide the time left into whole write intervals again."""
+        divide the time left into whole write intervals again. A steady case
+        just continues (its endTime is an iteration count)."""
+        if p["solver"] != "transient":
+            return
         sysd = Path(case_dir) / "system"
         if (sysd / "controlDict.transient").exists():
             for name in TRANSIENT_FILES:
@@ -693,7 +696,52 @@ class Foil2D(Project):
         if gci:
             files.append(gci)
         files += self._transient_report(Path(out_dir).parent, df, out_dir)
+        files += self._breakdown(df, out_dir)
         return files
+
+    @staticmethod
+    def _breakdown(df, out_dir: Path) -> list[Path]:  # pragma: no cover - plotting
+        """Studies that compare sections at a few fixed points (at most 12
+        sections): breakdown.png, one panel per angle and solver, a bar per
+        section with its friction and pressure drag stacked and its Cl on top,
+        the first section's total as a dashed line."""
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        need = {"foil", "aoa", "Cd_friction", "Cd_pressure", "Cl"}
+        if not need <= set(df) or df["foil"].nunique() < 2 or df["foil"].nunique() > 12:
+            return []
+        keys = [c for c in ("aoa", "solver", "speed", "Tu", "chord") if c in df and df[c].nunique() > 1]
+        if not keys or df.groupby(keys).ngroups > 8:
+            return []
+        foils_order = list(dict.fromkeys(df["foil"]))
+        groups = list(df.groupby(keys, sort=True))
+        fig, axs = plt.subplots(1, len(groups), figsize=(max(5.0, 2.2 + 0.9 * len(foils_order)) * len(groups) / 1.6, 5.2),
+                                squeeze=False)
+        for ax, (key, g) in zip(axs[0], groups):
+            g = g.set_index("foil").reindex([f for f in foils_order if f in set(g["foil"])])
+            xs = np.arange(len(g))
+            ax.bar(xs, g["Cd_friction"], color="#9aa5b1", label="friction drag")
+            ax.bar(xs, g["Cd_pressure"], bottom=g["Cd_friction"], color="#0b4f9c", label="pressure drag")
+            ax.axhline(float(g["Cd"].iloc[0]), color="k", lw=0.8, ls="--")
+            for x, (cl, cd) in zip(xs, zip(g["Cl"], g["Cd"])):
+                ax.text(x, cd, f"Cl {cl:.3f}", ha="center", va="bottom", fontsize=7)
+            ax.set_xticks(xs, [str(f).replace(":naca", "\n:naca").replace("file:", "") for f in g.index],
+                          rotation=0, fontsize=7)
+            ax.set_ylabel("Cd")
+            ax.set_title(", ".join(f"{k} {v:g}" if isinstance(v, (int, float)) else f"{k} {v}"
+                                   for k, v in zip(keys, np.atleast_1d(key))), fontsize=10)
+            ax.grid(axis="y", alpha=0.3)
+        axs[0, 0].legend(fontsize=8, loc="lower left")
+        fig.suptitle("Drag split into friction and pressure; Cl on each bar; dashed: the first section's total",
+                     x=0.01, ha="left", fontsize=11)
+        fig.tight_layout()
+        path = Path(out_dir) / "breakdown.png"
+        fig.savefig(path, dpi=110)
+        plt.close(fig)
+        return [path]
 
     def _transient_report(self, run_dir: Path, df, out_dir: Path) -> list[Path]:
         """report/transient.md and force_history.png for the transient cases:
@@ -1044,7 +1092,82 @@ class Foil2D(Project):
             f = self._surface_figure(Path(run_dir), df, h, lay, Path(out_dir) / f"highlight_{h.name}.png")
             if f:
                 files.append(f)
+            f = self._drag_figure(Path(run_dir), df, h, lay, Path(out_dir) / f"highlight_{h.name}_drag.png")
+            if f:
+                files.append(f)
         return files
+
+    @staticmethod
+    def _drag_figure(run_dir: Path, df, h, lay, out: Path) -> Path | None:  # pragma: no cover - plotting
+        """Where along the chord each compared case gathers its drag: the drag
+        coefficient summed from the leading edge to x/c, both surfaces together
+        (surface_forces), in total and split into pressure and friction drag.
+        A stepped section's steps are dotted lines in its colour. Rows as
+        highlight_<name>.png."""
+        import textwrap
+
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import pandas as pd
+
+        unsteady = set(df.loc[df["unsteady"].astype(str) == "True", "case"]) if "unsteady" in df else set()
+        colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+        nr = len(lay.rows)
+        head = [f"{h.name}: drag gathered from the leading edge to x/c, both surfaces "
+                "(from surface.csv; a step's face shows as a jump)", *textwrap.wrap(h.why, 170)]
+        fig, axs = plt.subplots(nr, 3, figsize=(17, 3.7 * nr + 0.3 + 0.2 * len(head)), squeeze=False)
+        drew = False
+        for i, (label, cells) in enumerate(lay.rows):
+            for j, col in enumerate(lay.columns):
+                c = cells.get(col)
+                f = run_dir / c.name / "surface.csv" if c is not None else None
+                pf = run_dir / c.name / "params.json" if c is not None else None
+                if f is None or not f.is_file() or not pf.is_file():
+                    continue
+                prm = json.loads(pf.read_text())["params"]
+                sf = surface_forces(pd.read_csv(f), prm["aoa"]).sort_values("x_c", kind="stable")
+                x = sf["x_c"].to_numpy()
+                parts = {"p": sf["d_pressure"].cumsum().to_numpy(), "f": sf["d_friction"].cumsum().to_numpy()}
+                name = (f"{lay.compare} {col:g}" if isinstance(col, float) else f"{lay.compare} {col}") \
+                    if lay.compare else c.name
+                row = df[df["case"] == c.name]
+                if not row.empty and "Cd" in row:
+                    name += f" (Cd {float(row['Cd'].iloc[0]):.4f})"
+                name += " (unsteady)" if c.name in unsteady else ""
+                st = dict(color=colors[j % len(colors)], lw=1.4)
+                axs[i, 0].plot(x, parts["p"] + parts["f"], label=name, **st)
+                axs[i, 1].plot(x, parts["p"], **st)
+                axs[i, 2].plot(x, parts["f"], **st)
+                if stepped.is_stepped(str(prm["foil"])):
+                    foil = foils.load(str(prm["foil"]), [config.geometry_dir() / "foils"])
+                    for stp in foil.steps:
+                        for ax in axs[i]:
+                            ax.axvline(stp.x, color=st["color"], lw=0.7, ls=":")
+                drew = True
+        if not drew:
+            plt.close(fig)
+            return None
+        titles = ("drag, pressure + friction", "pressure drag", "friction drag")
+        for i, (label, _) in enumerate(lay.rows):
+            pre = f"{label}: " if label else ""
+            for k, ax in enumerate(axs[i]):
+                ax.set_title(pre + titles[k] + " from the leading edge to x/c", fontsize=10)
+                ax.set_xlim(0.0, 1.0)
+                ax.set_xlabel("x/c")
+                ax.set_ylabel("Cd up to x/c")
+                ax.axhline(0.0, color="k", lw=0.5)
+                ax.grid(alpha=0.3)
+            if axs[i, 0].get_legend_handles_labels()[0]:
+                axs[i, 0].legend(fontsize=8, loc="upper left")
+        H = fig.get_figheight()
+        fig.suptitle("\n".join(head), x=0.01, y=1 - 0.08 / H, ha="left", va="top", fontsize=11)
+        fig.tight_layout(rect=(0, 0, 1, 1 - (0.15 + 0.2 * len(head)) / H))
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=110)
+        plt.close(fig)
+        return out
 
     @staticmethod
     def _surface_figure(run_dir: Path, df, h, lay, out: Path) -> Path | None:
@@ -1198,6 +1321,39 @@ class Foil2D(Project):
             ranks = max(1.0, 4 / max(int(p.get("np", 1)), 1)) ** 0.72
             hours += 2 * f**3 * kt * float(p.get("flow_times", 15)) / 15 * 10 / float(p.get("max_co", 10)) * ranks
         return {"cpus": int(p.get("np", 1)), "memory_gb": 2, "max_hours": 1 + hours}
+
+
+def surface_forces(s, aoa: float):
+    """Each surface.csv point's share of the section's drag and lift
+    coefficients, from pressure and from skin friction: a DataFrame with
+    x_c, upper, d_pressure, d_friction, d_lift.
+
+    The points are joined into one closed loop (upper surface TE -> LE, lower
+    LE -> TE, back to the start), so the leading and trailing edges between
+    the two sides are counted; each point carries half of each neighbouring
+    segment. With aoa the flow direction in the section frame, a point adds
+    -Cp (n . d) ds to Cd (n outward) and Cf (t . d) ds (t along LE -> TE).
+    The sums match OpenFOAM's forces to about 1 % for steady flow
+    (stepped-vs-baseline findings); surface.csv of an unsteady case is one
+    instant, its forces a time average."""
+    import pandas as pd
+
+    a = math.radians(float(aoa))
+    d = np.array([math.cos(a), math.sin(a)])
+    lift = np.array([-math.sin(a), math.cos(a)])
+    upper = s["upper"].astype(str) == "True"
+    g = pd.concat([s[upper].iloc[::-1], s[~upper]], ignore_index=True)
+    side = np.r_[np.ones(int(upper.sum())), -np.ones(int((~upper).sum()))]
+    P = g[["x_c", "y_c"]].to_numpy(float)
+    seg = 0.5 * (np.roll(P, -1, 0) - np.roll(P, 1, 0))
+    ds = np.linalg.norm(seg, axis=1)
+    t = seg / np.where(ds > 0, ds, 1.0)[:, None]  # along the loop
+    n = np.stack([t[:, 1], -t[:, 0]], 1)  # outward
+    t_le_te = -t * side[:, None]
+    cp, cf = g["Cp"].to_numpy(float), g["Cf"].to_numpy(float)
+    return pd.DataFrame({"x_c": P[:, 0], "upper": side > 0, "d_pressure": -cp * (n @ d) * ds,
+                         "d_friction": cf * (t_le_te @ d) * ds,
+                         "d_lift": -cp * (n @ lift) * ds + cf * (t_le_te @ lift) * ds})
 
 
 def _find_raw(d: Path, field: str) -> Path | None:

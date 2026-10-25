@@ -1,4 +1,383 @@
 {
+  "bulb-cant": {
+    "kind": "table",
+    "file": "data/bulb-cant.csv",
+    "study": "bulb-cant",
+    "runs": [
+      "20261020-183634"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-dress": {
+    "kind": "table",
+    "file": "data/bulb-dress.csv",
+    "study": "validation-dress",
+    "runs": [
+      "20261019-020534"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-endplate": {
+    "kind": "table",
+    "file": "data/bulb-endplate.csv",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-fineness": {
+    "kind": "table",
+    "file": "data/bulb-fineness.csv",
+    "study": "fineness",
+    "runs": [
+      "20261019-020546"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-section": {
+    "kind": "table",
+    "file": "data/bulb-section.csv",
+    "study": "bulb-section",
+    "runs": [
+      "20261019-203823"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-spanload": {
+    "kind": "table",
+    "file": "data/bulb-spanload.csv",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": [
+      "bulbtrue_leeway4_meshmedium/spanload.csv",
+      "bulbfalse_leeway4_meshmedium/spanload.csv"
+    ],
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-streamlines-orbit": {
+    "kind": "file",
+    "file": "assets/bulb-streamlines-orbit.mp4",
+    "study": "bulb-cant",
+    "runs": [
+      "20261020-183634"
+    ],
+    "source": "bulb_aspect1_bulb_bottom2_bulb_cant2_heel25_leeway4/viz/streamlines_orbit.mp4",
+    "exported": "2026-10-22",
+    "git": "720fbc4-dirty"
+  },
+  "bulb-surface": {
+    "kind": "table",
+    "file": "data/bulb-surface.csv",
+    "study": "fineness",
+    "runs": [
+      "20261019-020546"
+    ],
+    "source": [
+      "Tu0.1_fineness5.7_speed1_turbulencekomegasstlm/surface.csv",
+      "Tu0.1_fineness9.09_speed1_turbulencekomegasstlm/surface.csv"
+    ],
+    "exported": "2026-10-20",
+    "git": "624f248-dirty"
+  },
+  "bulb-tail-251": {
+    "kind": "file",
+    "file": "assets/bulb-tail-251.png",
+    "study": "fineness",
+    "runs": [
+      "20261019-020546"
+    ],
+    "source": "Tu0.1_fineness5.7_speed1_turbulencekomegasstlm/viz/tail_flow.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tail-343": {
+    "kind": "file",
+    "file": "assets/bulb-tail-343.png",
+    "study": "fineness",
+    "runs": [
+      "20261019-020546"
+    ],
+    "source": "Tu0.1_fineness9.09_speed1_turbulencekomegasstlm/viz/tail_flow.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-cp-bulb": {
+    "kind": "file",
+    "file": "assets/bulb-tip-cp-bulb.png",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "bulbtrue_leeway4_meshmedium/viz/tip_cp.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-cp-cant0": {
+    "kind": "file",
+    "file": "assets/bulb-tip-cp-cant0.png",
+    "study": "bulb-cant",
+    "runs": [
+      "20261020-183634"
+    ],
+    "source": "bulb_aspect1_bulb_bottom2_bulb_cant0_heel25_leeway4/viz/tip_cp.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-cp-cant2": {
+    "kind": "file",
+    "file": "assets/bulb-tip-cp-cant2.png",
+    "study": "bulb-cant",
+    "runs": [
+      "20261020-183634"
+    ],
+    "source": "bulb_aspect1_bulb_bottom2_bulb_cant2_heel25_leeway4/viz/tip_cp.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-cp-nobulb": {
+    "kind": "file",
+    "file": "assets/bulb-tip-cp-nobulb.png",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "bulbfalse_leeway4_meshmedium/viz/tip_cp.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-wx-bulb": {
+    "kind": "file",
+    "file": "assets/bulb-tip-wx-bulb.png",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "bulbtrue_leeway4_meshmedium/viz/tip_vorticity.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-wx-flat": {
+    "kind": "file",
+    "file": "assets/bulb-tip-wx-flat.png",
+    "study": "bulb-section",
+    "runs": [
+      "20261019-203823"
+    ],
+    "source": "bulb_aspect1.5_bulb_bottom6_bulb_top2_heel25_leeway4_meshmedium/viz/tip_vorticity.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-wx-nobulb": {
+    "kind": "file",
+    "file": "assets/bulb-tip-wx-nobulb.png",
+    "study": "bulb-endplate",
+    "runs": [
+      "20261019-020506"
+    ],
+    "source": "bulbfalse_leeway4_meshmedium/viz/tip_vorticity.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "bulb-tip-wx-round": {
+    "kind": "file",
+    "file": "assets/bulb-tip-wx-round.png",
+    "study": "bulb-section",
+    "runs": [
+      "20261019-203823"
+    ],
+    "source": "bulb_aspect1_bulb_bottom2_bulb_top2_heel25_leeway4_meshmedium/viz/tip_vorticity.png",
+    "exported": "2026-10-21",
+    "git": "624f248-dirty"
+  },
+  "custom-0007-rest": {
+    "kind": "table",
+    "file": "data/custom-0007-rest.csv",
+    "study": "transient-check",
+    "runs": [
+      "20261017-193613"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-flow-2deg-ht35": {
+    "kind": "file",
+    "file": "assets/custom-flow-2deg-ht35.png",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "aoa2_foilht35mt0725_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-flow-2deg-naca0007": {
+    "kind": "file",
+    "file": "assets/custom-flow-2deg-naca0007.png",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "aoa2_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-flow-4deg-ht35": {
+    "kind": "file",
+    "file": "assets/custom-flow-4deg-ht35.png",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "aoa4_foilht35mt0725_speed1_start_fromx/viz/boundary_layer.png",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-flow-4deg-naca0007": {
+    "kind": "file",
+    "file": "assets/custom-flow-4deg-naca0007.png",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "aoa4_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/viz/boundary_layer.png",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-optima": {
+    "kind": "table",
+    "file": "data/custom-optima.csv",
+    "study": "custom-section-optima",
+    "runs": [
+      "20261018-051126"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-steady": {
+    "kind": "table",
+    "file": "data/custom-steady.csv",
+    "study": "custom-section-screen",
+    "runs": [
+      "20261018-043724"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-surface-0deg": {
+    "kind": "table",
+    "file": "data/custom-surface-0deg.csv",
+    "study": "custom-section-screen",
+    "runs": [
+      "20261018-043724"
+    ],
+    "source": [
+      "aoa0_foilnaca0007_speed1/surface.csv",
+      "aoa0_foilht35mt0725_speed1/surface.csv"
+    ],
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-surface-ta": {
+    "kind": "table",
+    "file": "data/custom-surface-ta.csv",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": [
+      "aoa2_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv",
+      "aoa2_foilht35mt0725_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv",
+      "aoa4_foilnaca0007_speed1_start_fromcustommsectionmscreen20261018m043724/surface.csv",
+      "aoa4_foilht35mt0725_speed1_start_fromx/surface.csv"
+    ],
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-transient": {
+    "kind": "table",
+    "file": "data/custom-transient.csv",
+    "study": "custom-section-transient",
+    "runs": [
+      "20261018-104120"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-transient-15": {
+    "kind": "table",
+    "file": "data/custom-transient-15.csv",
+    "study": "custom-section-transient-15",
+    "runs": [
+      "20261019-164044"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-transient-opt2": {
+    "kind": "table",
+    "file": "data/custom-transient-opt2.csv",
+    "study": "custom-section-transient-opt2",
+    "runs": [
+      "20261018-161314"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-transient-rerun": {
+    "kind": "table",
+    "file": "data/custom-transient-rerun.csv",
+    "study": "custom-section-transient-rerun",
+    "runs": [
+      "20261018-195326",
+      "20261019-203535",
+      "20261019-214537"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-tu": {
+    "kind": "table",
+    "file": "data/custom-tu.csv",
+    "study": "custom-section-tu",
+    "runs": [
+      "20261018-104350"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
+  "custom-tu-opt2": {
+    "kind": "table",
+    "file": "data/custom-tu-opt2.csv",
+    "study": "custom-section-tu-opt2",
+    "runs": [
+      "20261018-155808"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-23",
+    "git": "fce909b-dirty"
+  },
   "flow-angle-sweep": {
     "kind": "file",
     "file": "assets/flow-angle-sweep.mp4",
@@ -153,7 +532,7 @@
   "race-time-by-speed": {
     "kind": "manual",
     "file": "data/race-time-by-speed.csv",
-    "source": "projects/foil2d/findings/transient-check.md, run 20261017-000816, conclusion 6. Top four, race-time loss, % behind the best of the four, mean over the light, working and high loads, at 0.75, 1 and 1.5 m/s with time-accurate 4 deg points; loss_x1 / loss_x2 as above."
+    "source": "projects/foil2d/findings/transient-check.md, run 20261018-231921, conclusion 4 (0007/100 at 1.5 m/s: its 4 deg point started from rest, run 20261017-193613, max_co 10), and run 20261017-000816, conclusion 6 (the rest). Top four, race-time loss, % behind the best of the four, mean over the light, working and high loads, at 0.75, 1 and 1.5 m/s with time-accurate 4 deg points; loss_x1 / loss_x2 as above."
   },
   "shedding-boundary-layer": {
     "kind": "file",
@@ -213,6 +592,17 @@
     ],
     "exported": "2026-10-17",
     "git": "1ca7ce7-dirty"
+  },
+  "surface-0007-100-4deg-rest": {
+    "kind": "table",
+    "file": "data/surface-0007-100-4deg-rest.csv",
+    "study": "transient-check",
+    "runs": [
+      "20261018-231921"
+    ],
+    "source": "aoa4_chord0.1_foilnaca0007_speed1.5/surface.csv",
+    "exported": "2026-10-22",
+    "git": "09bd833-dirty"
   },
   "transient-4deg-1ms": {
     "kind": "table",

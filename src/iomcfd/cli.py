@@ -183,6 +183,8 @@ def cmd_run(args) -> None:
     jobs = args.jobs or max(1, (os.cpu_count() or 1) // (np_ or int(cases[0].params.get("np", 1))))
     opts = RunOptions(jobs=jobs, np=np_, force=args.force, export=args.export, keep_fields=not args.no_fields,
                       checkpoint=args.checkpoint)
+    if args.checkpoint_every:
+        opts.checkpoint_seconds = args.checkpoint_every
     results = run_study(project, study, cases, opts, rdir)
     rows, out = collect(rdir)
     n_bad = sum(r["status"] == "failed" for r in results)
@@ -321,8 +323,8 @@ def docker_base(interactive: bool = False, runs: Path | None = None) -> list[str
     try:
         rel = runs.resolve().relative_to(repo)
         cmd += ["-e", f"IOMCFD_RUNS=/work/{rel}"]
-    except ValueError:
-        cmd += ["-v", f"{runs}:/runs", "-e", "IOMCFD_RUNS=/runs"]
+    except ValueError:  # elsewhere, e.g. a worktree's runs/ linked to the main checkout's: mount the target
+        cmd += ["-v", f"{runs.resolve()}:/runs", "-e", "IOMCFD_RUNS=/runs"]
     if platform.system() == "Linux":
         cmd += ["--user", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp"]
     cmd += ["-e", f"IOMCFD_IMAGE_REF={config.image()}", "-e", f"IOMCFD_GIT={config.git_describe()}"]
@@ -400,6 +402,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-fields", action="store_true", help="with --export: skip the final field directory")
     p.add_argument("--checkpoint", type=Path, help="keep checkpoints of long cases here and resume from them "
                    "(<dir>/<study>/<run id>/<case>; cloud jobs: the bucket)")
+    p.add_argument("--checkpoint-every", type=float, metavar="SECONDS",
+                   help="with --checkpoint: seconds between checkpoints (default 900)")
     p.add_argument("--no-docker", action="store_true", help="run with the local OpenFOAM installation")
     p = study_cmd("viz", cmd_viz, "render ParaView views, study animations and a gallery (viz image)")
     existing_run(p)

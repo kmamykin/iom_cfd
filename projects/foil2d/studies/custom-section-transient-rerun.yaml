@@ -14,8 +14,10 @@ description: >
   flow-throughs, Courant number 10 to 1.4e8); run 3, HT35 at 7.25 % at 3 deg
   and 1.5 m/s (custom-section-transient-15 run 20261019-164044 blew up at
   3.7 flow-throughs, time step 4.7e-11 s, Courant number 7.2e5; run 3 has
-  checkpoints, image 9b8cbb8). The cases list holds the latest run's case
-  only.
+  checkpoints, image 9b8cbb8); run 4, run 2's case again with checkpoints
+  (run 2, on an image without them, was preempted after 17 h at 20:37 UTC on
+  2026-10-19 and restarted from scratch; cancelled). The cases list holds the
+  latest run's case only.
 report:
   fin_span: 0.36
   induced_drag: true
@@ -29,4 +31,4 @@ defaults:
   average_times: 8
   max_co: 5
 cases:
-  - {foil: "file:ht35-t0725.dat", speed: 1.5, aoa: 3, start_from: [custom-section-screen/20261018-043724]}
+  - {foil: "file:cst-opt2.dat", speed: 0.75, aoa: 5, start_from: [custom-section-optima/20261018-051126]}

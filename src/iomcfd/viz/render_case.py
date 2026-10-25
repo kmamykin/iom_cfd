@@ -5,7 +5,12 @@
 
 Writes <case>/viz/<view>.png, and for cases with several time directories
 (transient runs with snapshots) <case>/viz/<view>_time.mp4 for the project's
-TIME_VIEWS. A manifest <case>/viz/viz.json records what was rendered.
+TIME_VIEWS. With --options '{"orbit": <frames>}' the project's ORBIT_VIEWS
+also get <case>/viz/<view>_orbit.mp4: the camera turned once round the view's
+vertical (its view-up) through the focal point ("orbit_fps" sets the frame
+rate, once round in about 10 s by default; "orbit_crf" the x264 quality, e.g.
+28 for a smaller file for the website). A manifest <case>/viz/viz.json
+records what was rendered.
 """
 
 from __future__ import annotations
@@ -33,11 +38,12 @@ def load_viz_module(project: str):
     return mod
 
 
-def encode(frames_dir: Path, pattern: str, out: Path, fps: float) -> Path | None:
+def encode(frames_dir: Path, pattern: str, out: Path, fps: float, crf: int | None = None) -> Path | None:
     if not shutil.which("ffmpeg"):
         return None
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i", str(frames_dir / pattern),
-           "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p", "-c:v", "libx264", "-r", "25", str(out)]
+           "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p", "-c:v", "libx264", "-r", "25",
+           *(["-crf", str(int(crf))] if crf else []), str(out)]
     subprocess.run(cmd, check=True)
     return out
 
@@ -84,6 +90,16 @@ def main(argv=None) -> int:
                 mp4 = encode(frames, "f_%04d.png", out / f"{name}_time.mp4", fps)
                 if mp4:
                     entry["time_animation"] = mp4.name
+                    shutil.rmtree(frames, ignore_errors=True)
+            n_orbit = int(ctx.options.get("orbit") or 0)
+            if n_orbit > 1 and name in getattr(mod, "ORBIT_VIEWS", []):
+                frames = out / "frames" / f"{name}_orbit"
+                shutil.rmtree(frames, ignore_errors=True)
+                ctx.orbit(frames, n_orbit)
+                fps = float(ctx.options.get("orbit_fps") or max(12.0, min(30.0, n_orbit / 10.0)))
+                mp4 = encode(frames, "f_%04d.png", out / f"{name}_orbit.mp4", fps, ctx.options.get("orbit_crf"))
+                if mp4:
+                    entry["orbit_animation"] = mp4.name
                     shutil.rmtree(frames, ignore_errors=True)
             manifest["views"][name] = entry
         except Skip as exc:

@@ -4,11 +4,11 @@ subtitle: "2D simulations of symmetric NACA fin sections, ranked by the race tim
 # the card on the front page (and link previews): image, title, description
 description: >-
   Symmetric NACA fin sections, 6–12 % thick and 80–100 mm in chord, compared in 2D simulations by
-  the race time each would cost. Provisional answer: NACA 0007 with a 100 mm chord.
+  the race time each would cost. Answer from the 2D simulations: NACA 0007 with a 100 mm chord, for every wind.
 image: ../_generated/fin-selection-card.png
 author: Kliment Mamykin
 date: 2026-10-16
-date-modified: 2026-10-18
+date-modified: 2026-10-23
 license: "CC BY"
 code-links:
   - text: Source on GitHub
@@ -21,34 +21,44 @@ abstract: |
   An IOM radio yacht's fin has to make sideways force with as little drag as possible. This page
   compares symmetric NACA fin sections, 6–12\ % thick and 80–100 mm in chord, by the race time each
   would cost. It uses 2D computer simulations of a horizontal slice of the fin, not tests of a finished
-  fin. **Provisional answer:** a 7\ % thick section with a 100 mm chord (NACA 0007/100) is the best
-  all-round fin. In fresh air (1.5 m/s boat speed) the 8\ % section 0008/100 may be better, a result
-  still being checked. **Main caveat:** the leading choices differ by less than 1\ % of race time. That is small
+  fin. **Answer from the 2D simulations:** a 7\ % thick section with a 100 mm chord (NACA 0007/100) is the best
+  fin for every wind. In fresh air (1.5 m/s boat speed) it ties with the 8\ % section 0008/100.
+  There the model also allows a second, higher-drag flow on it, and which one a real fin gets is
+  still open. **Main caveat:** the leading choices differ by less than 1\ % of race time. That is small
   next to the uncertainties of a 2D model, so treat the ranking as a guide, not a guarantee.
 ---
 
-::: {.callout-warning appearance="simple" icon=false}
-[**One check is running.** At 1.5 m/s NACA 0007/100 switched to a different, higher-drag flow in a
-single simulation. Two more cases test whether that is real: the same case started from rest, and
-1.25 m/s. This page will be updated with their results.]{.status}
+::::: {.callout-note appearance="simple" icon=false}
+::: {.status}
+**Follow-up, 23 October: a better section than NACA 0007.** At the same 100 mm chord and the same
+bending stiffness, Mark Drela's HT35 scaled to 7.25\ % beats NACA 0007/100 in the 2D simulations, by
+about 0.4–0.7\ % of race time in calm water. See [the fin section study](../custom-section/). This
+page's ranking of the NACA sections stands.
+
+**Updated 22 October: the fresh-air check is finished.**
+
+* Started from rest, NACA 0007/100 at 1.25 and 1.5 m/s sheds vortices like the other sections.
+* The higher-drag flow that one earlier simulation found at 1.5 m/s came from starting it at the
+  steady solution.
+* With the from-rest result, 0007/100 ties for best in fresh air, so one fin suits every
+  wind. This replaces the 17 October reading that 0008/100 is the fresh-air fin.
 :::
+:::::
 
 ::: {.key-results}
 ::: {}
 [0007/100]{.big-number}<br>
-NACA 0007, 100 mm chord: the best all-round fin, and the best in light and medium air (provisional;
-2D model)
+NACA 0007, 100 mm chord: the best fin in light, medium and fresh air (2D simulations; medium confidence)
 :::
 ::: {}
 [0008/100]{.big-number}<br>
-NACA 0008, 100 mm chord: best in fresh air, 1.5 m/s boat speed (provisional, being checked); 30–50\ %
-stiffer
+NACA 0008, 100 mm chord: ties in fresh air (1.5 m/s boat speed) and is 30–50\ % stiffer. The
+runner-up if stiffness matters most
 :::
 ::: {}
-[1.4]{.big-number}<br>
-boat lengths per race that one 0007/100 fin gives away on average, against changing fins for each
-wind (estimate: 2 laps of 90 m legs, half the race time upwind and half downwind, the three loads and
-the three boat speeds weighted equally)
+[< 0.1]{.big-number}<br>
+boat lengths per race that one 0007/100 fin gives away against changing fins with the wind (1.4 if
+the higher-drag fresh-air flow is real; estimate, @sec-conclusion)
 :::
 ::: {}
 [1,000+]{.big-number}<br>
@@ -400,9 +410,10 @@ shed vortices:
 
 * in all the cases tested at 1 m/s (seven sections);
 * in all the cases tested at 0.75 m/s (four sections);
-* in three of the four at 1.5 m/s.
+* in all four at 1.5 m/s, NACA 0007/100 when started from rest, and in 0007/100 at 1.25 m/s.
 
-The exception, NACA 0007/100 at 1.5 m/s, is in @sec-by-speed.
+Started from its steady solution, 0007/100 at 1.5 m/s ends in a different flow instead
+(@sec-by-speed).
 
 Getting a reliable time average took two lessons (@fig-force-history):
 
@@ -457,7 +468,7 @@ Race-time loss at 1 m/s, Tu 0.1\ %, % behind the best fin at each side-force loa
 ![Race-time loss of the four best fins at three boat speeds (light, medium and fresh air). Each bar is
 a fin's loss behind the best of the four at each load, averaged over the three loads; ticks are with
 the resistance slope doubled. The difference between two bars is the race time between those two fins
-at that speed: at 1.5 m/s, 1.58 − 0.58 = 1.0\ % between 0007/100 and 0008/100. The right axis
+at that speed: at 0.75 m/s, 1.05 − 0.27 = 0.78\ % between 0008/100 and 0007/100. The right axis
 converts to boat lengths per race: about 4 per 1\ % (2 laps of 90 m legs; an
 estimate).](../_generated/race-time-by-speed.svg){#fig-race-time-by-speed}
 
@@ -468,30 +479,37 @@ estimate).](../_generated/race-time-by-speed.svg){#fig-race-time-by-speed}
 
 Race-time loss of the four best fins by boat speed: % behind the best of the four at each load,
 averaged over the three loads. Each cell is ×1 / ×2, with the estimated resistance slope and with it
-doubled. Time-accurate 4° points at every speed; at 1 m/s also 2° and 6°. "Worst" is the largest loss
-at any of the three speeds.
+doubled. Time-accurate 4° points at every speed; at 1 m/s also 2° and 6°. For 0007/100 at 1.5 m/s,
+the run started from rest. "Worst" is the largest loss at any of the three speeds.
 :::
 
-**Different winds favour different fins.**
+**One fin for every wind, with one open question.**
 
 * **At 0.75 and 1 m/s:** NACA 0007/100 is best, by about 0.5\ % of race time (2 boat lengths per
   race).
-* **At 1.5 m/s (provisional):** it is last of the four, 1\ % (about 4 boat lengths) behind NACA
-  0008/100.
+* **At 1.5 m/s:** 0007/100 and 0008/100 tie. 0007/100 is 0.09\ % ahead with the estimated resistance
+  slope, and 0.05\ % behind with it doubled.
 
-The reason is a change in the flow (@fig-leading-edge-bubble):
+**The open question: two flows at 1.5 m/s.** The model finds two different flows on 0007/100 at
+1.5 m/s (@fig-leading-edge-bubble). Both start with a short separation near the leading edge. They
+differ in what follows:
 
-* at 0.75 and 1 m/s its boundary layer separates near mid-chord and sheds vortices, like the other
-  sections;
-* at 1.5 m/s it separates right at the leading edge, reattaches turbulent and stays attached, with
-  twice the skin friction.
+* **Started from rest,** the flow behind it rolls up into vortices that travel along the rear half,
+  as on every other section. C~d~ is 0.0124–0.0125 in two simulations with different time steps. It
+  does the same at 1.25 m/s.
+* **Started from its steady solution,** it reattaches as a turbulent boundary layer and stays
+  attached to the trailing edge. That has about 40\ % more friction and 22\ % more drag (C~d~
+  0.0152).
 
-The same thing made the thinnest section, NACA 0006, lose at working load in selection run 2. The
-1.5 m/s result rests on one simulation, and a check is running.
+Which flow a fin on a boat gets is not known. A boat reaches 1.5 m/s by accelerating through the
+shedding flow, which argues for the first, but that has not been tested. If the second is real,
+0007/100 is last of the four at 1.5 m/s, 1\ % (about 4 boat lengths) behind 0008/100. The same
+leading-edge mechanism made the thinnest section, NACA 0006, lose at working load in selection run 2.
 
-![NACA 0007/100 at 4°: pressure and skin friction on the suction side at 0.75 and 1.5 m/s (the
-final instant of time-accurate runs). Negative skin friction is reversed
-flow.](../_generated/leading-edge-bubble.svg){#fig-leading-edge-bubble}
+![NACA 0007/100 at 4° and 1.5 m/s: the two flows the model finds. Pressure and skin friction on the
+suction side. Green: started from rest, one instant of a time-accurate run; the friction swings as
+vortices pass. Red: started from its steady solution, where the flow settles and stays steady.
+Negative skin friction is reversed flow.](../_generated/leading-edge-bubble.svg){#fig-leading-edge-bubble}
 
 ## How the water flows {#sec-flows}
 
@@ -646,8 +664,9 @@ the way to the trailing edge. Friction drag is 31\ % higher than on NACA 0009 (C
 0.0164).](../assets/flow-le-bubble-0006.png){#fig-flow-le-bubble}
 
 ![A close-up of the same kind of bubble on NACA 0007 at 100 mm, 4° and 1.5 m/s (time-accurate).
-Reversed flow runs from 1.6\ % to 17\ % of the chord, and attached turbulent flow follows. This is why
-that fin loses at 1.5 m/s (@sec-by-speed).](../assets/flow-le-bubble-zoom.png){#fig-flow-le-bubble-zoom}
+Reversed flow runs from 1.6\ % to 17\ % of the chord, and attached turbulent flow follows. This flow
+comes from starting the simulation at the steady solution; started from rest, the same case sheds
+vortices instead (@sec-by-speed).](../assets/flow-le-bubble-zoom.png){#fig-flow-le-bubble-zoom}
 
 **Too slow: separation without reattachment.**
 
@@ -672,18 +691,19 @@ near 0° at low speed, and why light air is hard for them.](../assets/flow-lift-
 
 ## Conclusion {#sec-conclusion}
 
-*Everything here comes from a 2D model of the fin section, not from tests of a finished fin, and is
-provisional.*
+*Everything here comes from a 2D model of the fin section, not from tests of a finished fin. The checks
+the answer was waiting for are done. Confidence in it is medium, for the reasons under "Why the order
+is not certain" below.*
 
-**Different winds favour different fins.**
+**One fin for every wind: NACA 0007/100.**
 
 * **Light and medium air (0.75–1 m/s boat speed): NACA 0007/100.**
   * It is about 0.5\ % of race time (2 boat lengths per race) ahead of the next best, 0007/90.
   * It is 0.7–0.8\ % (3 boat lengths) ahead of 0008/100.
-* **Fresh air (1.5 m/s boat speed), provisional: NACA 0008/100.**
-  * It is about 1\ % (4 boat lengths) ahead of 0007/100, whose flow switches to a high-drag
-    leading-edge bubble at that speed (@fig-leading-edge-bubble).
-  * This rests on one simulation; the check is running.
+* **Fresh air (1.5 m/s boat speed): NACA 0007/100 and 0008/100 tie,** within 0.1\ %.
+  * That holds for the flow the model finds when started from rest.
+  * If the higher-drag flow it finds from a steady start is the real one, 0008/100 is about 1\ %
+    (4 boat lengths) ahead in fresh air (@fig-leading-edge-bubble).
 
 Few sailors change fins with the wind, so the question is what one fin for every wind gives away
 (@tbl-fin-choice).
@@ -702,14 +722,17 @@ resistance slope / doubled).
 * **Boat lengths:** about 4 per 1\ % over 2 laps of 90 m legs (an estimate).
 :::
 
-**Best all-round: NACA 0007/100**, on current evidence.
+**Best all-round: NACA 0007/100**, of the NACA sections. A section from outside the family, HT35 at
+7.25\ %, does better at the same chord ([the fin section study](../custom-section/)).
 
-* **It gives away the least on average:** 0.33\ % of race time, about 1.4 boat lengths per race.
-  That assumes 2 laps of 90 m legs, half the time upwind and half downwind, and equal weight for the
-  three loads and the three boat speeds. 0007/90 gives away 0.42\ % and 0008/100 0.49\ %.
-* **All of its cost is in fresh air.** If the running check confirms the leading-edge bubble, and
-  finds it already at 1.25 m/s, it loses over a wider range of winds. 0008/100 would then likely
-  become the better all-round fin (an estimate).
+* **It is the best, or within 0.05\ % of the best, in every wind.**
+  * Against changing fins with the wind it gives away 0.00\ % of race time on average (0.02\ % with
+    the resistance slope doubled), under 0.1 boat lengths per race.
+  * That assumes 2 laps of 90 m legs, half the time upwind and half downwind, and equal weight for
+    the three loads and the three boat speeds.
+  * 0007/90 gives away 0.45\ % and 0008/100 0.52\ %.
+* **If the higher-drag fresh-air flow is real,** it gives away 0.33\ % (about 1.4 boat lengths), all
+  in fresh air. It is still the best all-round fin then.
 * **0007/90 is the most even:** never more than 0.55\ % behind. But it is the least stiff of the
   three.
 
@@ -728,8 +751,10 @@ sources are in the research note
 
 **How much is at stake.**
 
-* **The right fin for the wind:** up to about 1\ % of race time, 4 boat lengths.
-* **Between the three best all-round choices:** about 0.2\ % on average, under a boat length.
+* **Changing fins with the wind:** nothing gained with the flow found from rest. If the
+  higher-drag fresh-air flow is real, up to about 1\ % of race time (4 boat lengths) in fresh air.
+* **0007/100 against the next best fin:** 0.45\ % of race time on average with the estimated
+  resistance slope (about 2 boat lengths), 0.24\ % with it doubled.
 
 These are smaller than the uncertainties of the 2D model (@sec-validation). By comparison, sanding
 finer than 400–600 grit gains less than half a boat length, but a dirty, slimy or unfair hull can cost
@@ -741,7 +766,8 @@ and fair.
 * **The model.** It is checked against one section at one Reynolds number (@sec-validation). It isn't
   validated for ranking sections that differ by under 1\ %, and the shedding hasn't been compared with
   measurements.
-* **The fresh-air result** for 0007/100 rests on one simulation, which is being checked.
+* **Two flows in fresh air.** The model finds two flows on 0007/100 at 1.5 m/s, and which one a
+  real fin gets is not known.
 * **Not every point is time-accurate.** At 0.75 and 1.5 m/s only the 4° points are; 0.5 m/s has none.
 * **2D, constant chord.** Tip, bulb, hull junction, heel and taper are not modelled.
 * **Estimated inputs.** The resistance slope and the water turbulence are estimates. The hull and
@@ -756,7 +782,8 @@ sold; a 3D comparison of a tapered fin is the open question.
 
 **What would change it:**
 
-* the running check of 0007/100 at 1.25 and 1.5 m/s;
+* a test of which flow a moving fin gets at 1.5 m/s: in the simulation, the speed ramped up from
+  1.25 m/s; on the water, a trip strip that fixes where the boundary layer turns turbulent;
 * a hull resistance curve, to replace the estimate;
 * a 3D check of 0007/100 against 0008/100, and of a tapered 7\ % fin (for example 100 → 70 mm) against
   a constant 100 mm chord;
@@ -783,7 +810,8 @@ has a dated findings log in the repository.
 | 14\ Oct | time-accurate check 1: 10 cases | Are the oscillating steady points right? | At 6° yes for the 0009 sections, within 0.5\ %. At 4° all seven sections shed vortices at 1 m/s, and 15 flow-throughs were too few to settle. |
 | 15\ Oct | time-accurate check 2: 8 cases continued to 30 flow-throughs | Where do the 4° forces settle? | Lift 4–16\ % below steady. 0007/100 moves to first, 0008/90 to fourth. |
 | 17\ Oct | time-accurate check 3: the top four at 2° and 6°, and at 0.75 and 1.5 m/s; 15 of 16 cases | Does that hold at other angles and speeds? | At 0.75 and 1 m/s, yes. At 1.5 m/s 0007/100 switches to a leading-edge bubble and drops to last of the four. The steady 6° drag of the 0007 and 0008 sections was 4–6\ % high. |
-| running | time-accurate check 4: 2 cases | Is that 1.5 m/s result real? | Pending. |
+| 17\ Oct | time-accurate check 4: 0007/100 at 1.5 and 1.25 m/s, started from rest; 1 of 2 cases | Is that 1.5 m/s result real? | From rest it sheds, with 18\ % less drag: the high-drag flow came from the steady start. The 1.25 m/s case blew up. |
+| 18\ Oct | time-accurate check 5: the same two at half the time step | Does it hold, and at 1.25 m/s? | Both shed. 0007/100 ties for best in fresh air, so one fin suits every wind. |
 
 The studies so far.
 :::
@@ -820,6 +848,17 @@ this page are under CC BY 4.0. Reference data from other sources keeps its own t
 
 ## Revision history {.appendix .unnumbered}
 
+* **23 October 2026.** A pointer to the follow-up study, [a better section than
+  NACA 0007](../custom-section/), in the status note and the conclusion. Nothing else changed.
+* **22 October 2026 (later).** "Provisional answer" reworded to "Answer from the 2D simulations". The
+  checks it was waiting for are done; the 2D model's caveats stand.
+* **22 October 2026.** The fresh-air check is finished (time-accurate checks 4 and 5: 0007/100 at
+  1.25 and 1.5 m/s, started from rest). From rest it sheds like the other sections and ties for best
+  at 1.5 m/s, so one fin, 0007/100, suits every wind. The higher-drag flow from a steady start is
+  kept as an open question.
+  * Updated: the summary, the key results, the ranking by wind, the fin-choice table and the
+    conclusion.
+  * The leading-edge-bubble figure now compares the two flows at 1.5 m/s.
 * **18 October 2026 (evening).** New title, "IOM fin: NACA section and chord selection with CFD"
   (was "Which fin section for an IOM?").
 * **18 October 2026 (later).** Added "Where the drag comes from": skin friction, pressure and

@@ -17,7 +17,24 @@ the course's true wind angle β_TW (was θ, "track"), boat speed V_b and the
 resistance slope dD_h/dV_b (was dR/dV). Only the notation changed. `Cl`,
 `Cd` and `aoa` are output and parameter names and stay.
 
-## Where the selection stands (updated 2026-10-17, after transient-check run 20261017-000816)
+## Where the selection stands (updated 2026-10-22, after transient-check run 20261018-231921)
+
+**Update 2026-10-21: a non-NACA section beats the NACA 0007/100
+recommended below** ([custom-section.md](custom-section.md)). M. Drela's
+HT35 scaled to 7.25 % at 100 mm, as stiff as 0007/100:
+* time-accurate CFD at Tu 0.1 %: 0.66 / 0.38 % of race time ahead, at
+  every speed and load (with 0007/100's from-rest point at 1.5 m/s;
+  revised 2026-10-23 from 0.82 / 0.44 %);
+* Tu 1 %: 0.34 / 0.20 %;
+* Tu 2 %: break-even.
+
+Two points there also bear on the NACA ranking below:
+* NACA 0007/100's high-drag leading-edge bubble at 1.5 m/s and 4° comes
+  only from a start at its steady solution; from rest it sheds
+  (transient-check.md);
+* the 2° angle grid used here moves candidates by up to 0.5 % of race time.
+
+The rest of this summary is as of 2026-10-17.
 
 **Metric.** The current metric is the race time lost on a windward-leeward
 course with equal time upwind and downwind:
@@ -40,12 +57,15 @@ same side force at a lower angle.
   0.5 % for 0009/80 and 0009/100, but 4-6 % high for 0007/100, 0007/90 and
   0008/100.
 * At 4° the sections shed at 0.75, 1 and 1.5 m/s (Cl oscillates about
-  10 %). The exception is 0007/100 at 1.5 m/s (below).
+  10 %). This includes 0007/100 at 1.25 and 1.5 m/s when started from rest.
+  Started from its steady solution, 0007/100 at 1.5 m/s settles into a
+  different flow instead (below).
 * The steady 4° points are 2-16 % off in lift and 5-15 % in drag.
 
-**The choice is now between 0007/100, 0007/90 and 0008/100.** Confidence
-that the best fin is one of these: medium. Confidence in the order between
-them: low. Not agreed.
+**Proposed: 0007/100 for every wind.** Confidence: medium. Not agreed.
+* 0007/90 and 0008/100 are the alternatives.
+* The proposal rests on which of two flows the model gives at 1.5 m/s is
+  the real one (below).
 
 **Time-accurate results at three speeds.** Top four, race-time loss, %
 behind the best of the four. Mean over the light, working and high loads;
@@ -53,7 +73,7 @@ estimated resistance slope / doubled.
 
 | section | 0.75 m/s | 1.0 m/s | 1.5 m/s | mean of the three |
 |---|---|---|---|---|
-| 0007/100 | 0.27 / 0.12 | 0.39 / 0.19 | 1.58 / 0.68 | 0.75 / 0.33 |
+| 0007/100 | 0.27 / 0.12 | 0.39 / 0.19 | 0.49 / 0.19 | 0.38 / 0.17 |
 | 0007/90 | 0.82 / 0.53 | 0.84 / 0.55 | 0.83 / 0.50 | 0.83 / 0.53 |
 | 0008/100 | 1.05 / 0.56 | 1.09 / 0.55 | 0.58 / 0.14 | 0.91 / 0.41 |
 | 0008/90 | 1.19 / 0.75 | 1.71 / 1.07 | 0.70 / 0.39 | 1.20 / 0.74 |
@@ -61,6 +81,10 @@ estimated resistance slope / doubled.
 What goes into the table:
 * At 1 m/s all three angles are time-accurate, except 0008/90 at 6°.
 * At 0.75 and 1.5 m/s only the 4° points are time-accurate.
+* 0007/100's 4° point at 1.5 m/s is the one started from rest (transient-check
+  run 20261017-193613, max_co 10 like the other three). With the start
+  from its steady solution (run 20261017-000816) it was 1.58 / 0.68 at
+  1.5 m/s, and 0.75 / 0.33 on average.
 
 **0007/100 is first at 0.75 and 1 m/s, by 0.45-0.55 % of race time (0.36-0.41
 with the slope doubled).**
@@ -70,20 +94,32 @@ with the slope doubled).**
   * light air: 0.8 / 0.4 behind 0007/90;
   * high load: 0.35 / 0.20 behind 0008/100.
 
-**At 1.5 m/s it is last of the four, 1.0 / 0.5 behind 0008/100.**
-* In the time-accurate run its 4° flow changed: a leading-edge bubble
-  followed by turbulent, attached flow.
-* Its drag there is 21-26 % above the other three's.
-* This is one case, from a steady start. Confidence: low.
-* With steady points at 1.5 m/s it was first.
+**At 1.5 m/s it ties with 0008/100.** It is 0.09 ahead at the estimated
+resistance slope and 0.05 behind with the slope doubled.
+* **The model has two flows for 0007/100 at 4° and 1.5 m/s.**
+  * **Started from rest it sheds, like every other section.** Cd 0.0124 at
+    max_co 10, 0.0125 at max_co 5 (transient-check runs 20261017-193613
+    and 20261018-231921).
+  * **Started from its steady solution, it settles into a leading-edge
+    bubble** followed by attached, turbulent flow. Cd is 0.0152, mostly
+    extra friction (run 20261017-000816).
+* **From rest it sheds at 1.25 m/s too** (Cd 0.0132). There is no switch
+  between 1 and 1.5 m/s.
+* **Which flow a fin on a boat gets is not known.** A boat reaches 1.5 m/s
+  by accelerating through the shedding flow, which argues for the
+  from-rest result (**not verified**).
+* **If the bubble flow is the real one,** 0007/100 is last of the four at
+  1.5 m/s, 1.0 / 0.5 behind 0008/100.
 
-**Different winds favour different fins** (user, 2026-10-17: state it
-plainly, and quantify).
+**One fin suits every wind: 0007/100** (user, 2026-10-17: if different
+winds need different fins, state it plainly and quantify).
 * **Light and medium air (0.75-1 m/s): 0007/100.**
   * It leads 0007/90 by about 0.5 % of race time, about 2 boat lengths.
   * It leads 0008/100 by 0.7-0.8 %, about 3 boat lengths.
-* **Fresh air (1.5 m/s): 0008/100.** It leads 0007/100 by about 1 %, about
-  4 boat lengths (low confidence; check running).
+* **Fresh air (1.5 m/s):** 0007/100 and 0008/100 tie, within 0.1 %.
+* **The exception: if the bubble flow is real at 1.5 m/s,** fresh air
+  favours 0008/100 by about 1 %, about 4 boat lengths. That was the
+  2026-10-17 reading.
 
 **What one fin for every wind gives away.** Each fin's loss at each speed,
 minus the best fin's there (the fin you'd fit if you could change keels).
@@ -92,19 +128,17 @@ minus the best fin's there (the fin you'd fit if you could change keels).
 
 | fin | 0.75 m/s | 1 m/s | 1.5 m/s | average | boat lengths |
 |---|---|---|---|---|---|
-| 0007/100 | best | best | 1.00 / 0.54 | 0.33 / 0.18 | 1.4 / 0.8 |
-| 0007/90 | 0.55 / 0.41 | 0.45 / 0.36 | 0.25 / 0.36 | 0.42 / 0.38 | 1.8 / 1.6 |
-| 0008/100 | 0.78 / 0.44 | 0.70 / 0.36 | best | 0.49 / 0.27 | 2.1 / 1.1 |
-| 0008/90 | 0.92 / 0.63 | 1.32 / 0.88 | 0.12 / 0.25 | 0.79 / 0.59 | 3.3 / 2.5 |
+| 0007/100 | best | best | 0.00 / 0.05 | 0.00 / 0.02 | 0.0 / 0.1 |
+| 0007/90 | 0.55 / 0.41 | 0.45 / 0.36 | 0.34 / 0.36 | 0.45 / 0.38 | 1.9 / 1.6 |
+| 0008/100 | 0.78 / 0.44 | 0.70 / 0.36 | 0.09 / 0.00 | 0.52 / 0.27 | 2.2 / 1.1 |
+| 0008/90 | 0.92 / 0.63 | 1.32 / 0.88 | 0.21 / 0.25 | 0.82 / 0.59 | 3.4 / 2.5 |
 
 **Proposed best all-round fin: 0007/100.** Confidence: medium.
-* It gives away the least on average: 0.33 / 0.18 %, about 1.4 boat lengths
-  per race.
-* All of its cost is in fresh air.
-* **If the check confirms the leading-edge bubble and finds it already at
-  1.25 m/s,** 0008/100 would likely become the better all-round fin
-  (**estimate**: with 1.25 m/s like 1.5 m/s and four speeds weighted
-  equally, 0.50 against 0.37).
+* It is the best, or within 0.05 % of it, in every wind.
+* It gives away 0.00 / 0.02 % on average, under 0.1 boat lengths per race.
+* **With the bubble flow at 1.5 m/s** it would give away 0.33 / 0.18 %
+  (about 1.4 boat lengths), all in fresh air. It would still be the best
+  all-round fin.
 * **0007/90 is the most even** (never more than 0.55 % behind), but it is
   the least stiff of the three.
 * **Stiffness doesn't rule out 0007/100**
@@ -130,11 +164,17 @@ taper):
   last of the four at 1.5 m/s with the time-accurate 4° points.
 * "At 6° the steady results stand" (2026-10-16). That holds for 0009 only
   (above).
+* "Fresh air (1.5 m/s): 0008/100", and 0007/100 "last of the four at
+  1.5 m/s" (2026-10-17). Both rested on the steady-start flow. From rest,
+  0007/100 ties for first there (transient-check runs 20261017-193613 and
+  20261018-231921).
 
 **Why the order is uncertain:**
-* **0007/100 at 1.5 m/s rests on one case.** Separation bubbles are the
-  transition model's weak spot, and that case was not repeated from another
-  start.
+* **0007/100 at 1.5 m/s has two flows in the model.**
+  * From rest it sheds (two cases, at two time steps). From its steady
+    solution it gets a leading-edge bubble.
+  * Which one is real isn't known.
+  * Separation bubbles are the transition model's weak spot.
 * **Some points are still steady:**
   * 2° and 6° at 0.75 and 1.5 m/s;
   * 0008/90 at 6°, 1 m/s;
@@ -147,14 +187,21 @@ taper):
   * Every speed and load is weighted equally. Nobody has said how the
     sailing divides between them.
 
-**How much is at stake.** Averaged over 0.75-1.5 m/s, the top three are
-within 0.16 % of race time, and 0008/90 is 0.45 behind the best. Over a
+**How much is at stake.** Averaged over 0.75-1.5 m/s:
+* 0007/100 leads 0007/90 by 0.45 % of race time at the estimated slope.
+* With the slope doubled it leads 0008/100 by 0.24 %.
+* 0008/90 is 0.8 / 0.6 behind the best. Over a
 2-lap course of 90 m legs (about 420 m sailed), 1 % of race time is about
 4 boat lengths (docs/research/surface-roughness.md; **estimate**).
 
 **What would settle it (proposed, not agreed):**
-1. **0007/100 at 1.5 m/s and 4°, started from rest**; then 1.25 m/s if the
-   leading-edge bubble returns (2-3 cases, up to 16 h each).
+1. **Which flow does a moving fin get at 1.5 m/s?**
+   * A ramp test: the 1.25 m/s shedding solution continued to 1.5 m/s, and
+     the bubble solution down to 1.25 m/s. This needs `start_from` across
+     speeds, a small code change.
+   * Or the bubble case at Tu 1 %.
+   * On water, a trip strip (on hold).
+   * 1-2 cases, 15-40 h each at max_co 5.
 2. **The sailing weighting.** Which wind range matters most (user).
 3. **A hull resistance curve:** the `hull` project at 0.5-1.5 m/s (Wigley
    validation first), to replace the resistance estimate.
@@ -164,7 +211,9 @@ within 0.16 % of race time, and 0008/90 is 0.45 behind the best. Over a
 
 **Done since 2026-10-16:**
 * time-accurate 2° and 6° at 1 m/s;
-* time-accurate 4° at 0.75 and 1.5 m/s (transient-check run 20261017-000816).
+* time-accurate 4° at 0.75 and 1.5 m/s (transient-check run 20261017-000816);
+* 0007/100 at 4° from rest, at 1.25 and 1.5 m/s (transient-check runs
+  20261017-193613 and 20261018-231921).
 
 **On hold.** A trip-strip study on the fin (forcing transition at a chosen
 chord position; [docs/research/surface-roughness.md](../../../docs/research/surface-roughness.md))

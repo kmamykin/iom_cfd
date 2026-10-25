@@ -27,83 +27,314 @@ Tools (all in this repository):
 * `figures/`: section figures for this log (committed, unlike `runs/`),
   each with the command that draws it.
 
-## Where the research stands (updated 2026-10-18, after the Tu runs)
+## Where the research stands (updated 2026-10-23, with NACA 0007 from rest at 1.5 m/s)
 
-**Plan** (agreed with the user, 2026-10-17):
-1. Screen published low-Reynolds-number sections. **Done** (XFOIL, then
-   CFD run 20261018-043724).
-2. Calibrate a fast tool (XFOIL) against the project's CFD. **Done.** It
-   ranks the NACA finalists (Spearman 0.89-0.96) and the screen's seven
-   sections (1.00) as the CFD does, on 0.5° steps.
-3. Optimise a parametrised section on the race-time metric. **Done**
-   (XFOIL: two optima; steady CFD, run 20261018-051126: cst-opt2 ties the
-   best published section, cst-opt1 doesn't).
-4. Check the leaders in time-accurate CFD and at other Tu. **Tu done**
-   (steady; the flow is steady at Tu 1-2 %, so no time-accurate check is
-   needed there). **Time-accurate at Tu 0.1 % running**
-   (`custom-section-transient`, run 20261018-104120: HT35 at 7.25 % and
-   NACA 0007, 2-5°, 0.75-1.5 m/s; `custom-section-tu`, run
-   20261018-104350: both sections steady at Tu 1 and 2 %). cst-opt2 added
-   to both (user, 2026-10-18): `custom-section-tu-opt2` (run
-   20261018-155808) and `custom-section-transient-opt2` (run
-   20261018-161314). NACA 0007 at 3° and 1 m/s blew up after 5.1
-   flow-throughs (Courant number 9.8 to 30,748 in one step). It is rerun at
-   max_co 5 (`custom-section-transient-rerun`, run 20261018-195326).
+**Answer: yes, a section other than NACA 0007 is better. Recommended: M.
+Drela's HT35 scaled to 7.25 % thickness, 100 mm chord**
+(`geometry/foils/ht35-t0725.dat`). The recommendation for now (user,
+2026-10-23). Website: `site/custom-section/`.
+* HT35 is one of Drela's HT3x tail sections for F3B sailplanes (UIUC
+  database, "Drela HT35 airfoil"; added there in June 2023).
+* It is as stiff in bending as NACA 0007/100.
+* Its maximum thickness is further forward (x/c 0.26 against 0.30), its
+  nose rounder (0.74 against 0.54 mm radius at 100 mm), and its tail
+  straighter (trailing edge 7.1° against 9.7°).
 
-A tapered or 3D fin is out of scope here (user, 2026-10-18): it is being
-studied in `appendage3d` on another branch.
+![HT35 scaled to 7.25 % against NACA 0007, 100 mm chord](figures/custom-section-ht35-t0725.png)
 
-**Leading custom candidates, tied in steady CFD: HT35 scaled to 7.25 %
-and cst-opt2, both at 100 mm and as stiff in bending as NACA 0007/100.**
-HT35 is M. Drela's RC-glider tail section. cst-opt2 is the optimiser's
-section, HT35 with a slightly fuller tail (figure in Analysis 3).
-* Steady CFD: −0.69 / −0.43 % (HT35) and −0.73 / −0.44 % (cst-opt2).
-* Confidence that they beat NACA 0007/100: low to medium, until the
-  time-accurate runs are in.
+Drawn by `python -m iomcfd.sectiondesign figure "file:ht35.dat@0.0725"
+--compare naca0007 --out ...`, from the UIUC coordinates scaled to 7.25 %.
+`geometry/foils/ht35-t0725.dat`, the file the CFD meshed, has the same
+shape (to 1e-7 c). But it was written at 7 decimals, so a nose radius read
+back from it comes out low (0.58 mm; Analysis 3, Learnings). For CAD or a
+mould, export at 10 decimals:
+`python -m iomcfd.sectiondesign export "file:ht35.dat@0.0725" --names <name>`.
 
-The details below are HT35's; cst-opt2's are in its run entry.
-* **Steady CFD:** it beats 0007/100 by 0.43-0.69 % of race time (slope
-  ×2 / ×1) at Tu 0.1 %, at every speed (0.35-0.87 %). That is about 2-3
-  boat lengths per race (**estimate**: 4.2 lengths per 1 %).
-* **XFOIL:** 0.07-0.68 % across Tu 0.1-1 % and both slopes.
-* **What it is:** maximum thickness further forward (x/c 0.26 against
-  0.30), a nose about 1.3 times as round, a straighter tail with a 7°
-  trailing edge (against 9.7°).
-* **Where the gain comes from is not settled.**
-  * Steady CFD: mostly the working load at 0.75-1 m/s (less drag, and
-    about 0.8° less leeway), from shedding points the steady solver gets
-    wrong.
-  * XFOIL: downwind and light air.
+**What it gains over NACA 0007/100** (2D CFD, race-time metric of
+methodology.md; slope ×1 / ×2):
 
-  The time-accurate run decides.
-* **Turbulent water takes the gain away, but costs nothing** (steady CFD,
-  where the flow is steady at these Tu). Gain against 0007/100:
-  * HT35 −0.34 / −0.20 % and cst-opt2 −0.31 / −0.19 % at Tu 1 %;
-  * −0.01 to +0.03 % at Tu 2 %.
+| water | gain | source | confidence |
+|---|---|---|---|
+| calm, Tu 0.1 % | 0.66 / 0.38 % of race time, about 2.8 / 1.6 boat lengths (**estimate**) | time-accurate at 2-5°, NACA 0007 at 1.5 m/s from rest | medium |
+| moderate, Tu 1 % | 0.34 / 0.20 % | steady (steady flow at this Tu) | medium |
+| rough, Tu 2 % | break-even (−0.01 / −0.00 %) | steady | medium |
 
-  XFOIL had HT35 0.3-0.5 % behind at Tu 2 %; the CFD has break-even.
+* At Tu 0.1 % it is ahead at every speed (0.41 % at 0.75 m/s, 0.71 % at
+  1 m/s, 0.86 % at 1.5 m/s) and every load.
+* **Revised 2026-10-23.** The first time-accurate check had 0.82 / 0.44 %
+  and 1.34 % at 1.5 m/s. There NACA 0007/100, started from its steady
+  solution, settled into a high-drag leading-edge bubble at 4°. Started
+  from rest, it sheds with 18 % less drag (main's transient-check.md), and
+  the figures above use that point. Analysis 2026-10-23.
+
+![Time-accurate drag against side force, and drag relative to NACA 0007](figures/custom-section-transient-polars.png)
+
+**The plan** (agreed with the user, 2026-10-17), all done:
+1. Screen published sections. XFOIL, then CFD run 20261018-043724.
+2. Calibrate XFOIL against the CFD. On 0.5° steps it ranks sections as
+   the CFD does at Tu 0.1 % (Spearman 0.86-1.00 for 7-9 sections). It
+   flatters steep trailing-edge closures (cst-opt1), and at Tu 1 % sharp
+   noses (NACA 0006).
+3. Optimise. cst-opt2 (figure in Analysis 3) is second in time-accurate
+   CFD: −0.70 / −0.37 %, behind HT35.
+4. Check the leaders time-accurately and at Tu 1-2 %. Entries above.
+
+The taper and 3D are out of scope here: they are the `keel3d` project's
+(user, 2026-10-18).
+
+**Rejected, in XFOIL and CFD alike:**
+* a rounder nose on NACA 0007 (0007-73);
+* laminar 6-series sections (NACA 64-007);
+* maximum thickness further aft;
+* a steep "boat-tail" trailing edge (cst-opt1);
+* SD8020 is third in the steady screen and was not checked further.
+
+**What would firm it up** (proposed):
+* Whether the custom sections also have a second flow at 1.5 m/s, or NACA
+  0007 at 5° (Analysis 2026-10-23, conclusion 3).
+* A 3D check in `keel3d`.
+* A mould-tolerance check.
+* Eventually, a tow or two-boat test.
 
 **Also found:**
-* **The optimiser's other section, cst-opt1, is dropped.** XFOIL
-  overrated what its steep 15° "boat-tail" closure does upwind (lift per
-  degree, high-load drag). In CFD it keeps only −0.14 to −0.16 % of race
-  time, and has 1-2 % more drag at 0° than NACA 0007.
-* **XFOIL ranks all nine CFD-screened sections as the CFD does** (Spearman
-  0.98), except that it overrates cst-opt1's tail.
-* **SD8020 at 7 % is third** (0.17-0.33 % ahead of 0007 in steady CFD).
-  Its sharp nose isn't penalised at Tu 0.1 %.
-* **Rejected, in XFOIL and CFD alike:**
-  * a rounder nose on NACA 0007 (0007-73: 0.23-0.41 % behind);
-  * a laminar 6-series section (NACA 64-007: 0.7-1.5 % behind);
-  * maximum thickness further aft (XFOIL: 0.6-7 % behind).
-* **The 2° angle grid used by every fin-profile-selection ranking moves
-  candidates by up to 0.5 % of race time** (screen, conclusion 6). That is
-  as much as the spread of the top four NACA candidates. Re-ranking them
-  with 3° and 5° points is proposed.
+* **The 2° angle grid of every fin-profile-selection ranking moves
+  candidates by up to 0.5 % of race time** (screen, conclusion 6).
+* **Cloud jobs now survive Spot preemption** (checkpoints,
+  docs/cloud-gcp.md).
 
 **How much a better section is worth** (estimate, from methodology.md at
 1 m/s): 1 % less section drag on both legs saves about 0.17 % of race time
 (0.08 % with the slope doubled), roughly 0.7 boat lengths.
+
+## Analysis 2026-10-23: NACA 0007/100 from rest at 1.5 m/s (no new cases)
+
+**Setup.** Main's transient-check run 20261018-231921 (findings
+transient-check.md, 2026-10-22) ran NACA 0007/100 at 4° and 1.5 m/s from
+rest. Run 20261017-193613 did the same at max_co 10. Here that max_co 10
+point (Cl 0.4024, Cd 0.01238) replaces the one the time-accurate check
+used. That point started from the steady solution and settled into the
+leading-edge-bubble flow (Cd 0.0151). Everything else is as in the
+time-accurate check.
+
+### Conclusions
+
+1. **Started from rest, NACA 0007/100 at 4° and 1.5 m/s sheds, with 18 %
+   less drag than the bubble flow.** The model has two flows at that point,
+   and which one it finds depends on the start (transient-check.md). This
+   **revises conclusion 3 of the time-accurate check**: the leading-edge
+   bubble is not a property of NACA 0007 there, only of a start from the
+   steady solution. The custom sections shed from the same start, so the
+   fair comparison is shedding against shedding.
+2. **HT35 at 7.25 % still beats NACA 0007/100 at every speed and load, by
+   less.** Race-time gain, % (slope ×1 / ×2):
+
+   | NACA 0007 at 4°, 1.5 m/s | overall | 0.75 m/s | 1.0 m/s | 1.5 m/s |
+   |---|---|---|---|---|
+   | from the steady solution (bubble), as before | −0.82 / −0.44 | −0.41 | −0.71 | −1.34 |
+   | **from rest (shedding)** | **−0.66 / −0.38** | −0.41 | −0.71 | **−0.86** |
+
+   cst-opt2: −0.54 / −0.30 (1.5 m/s: −0.66). Confidence: medium.
+3. **Other NACA 0007 points may have the same two flows.** At 5° and
+   1.5 m/s its time-accurate flow is steady (lift oscillation 0.02 %),
+   while HT35's sheds (2.2 %). Their drag differs by only 2.7 % there, so
+   the ranking can't move much from it. Not checked.
+
+### Decisions
+
+* **The recommendation stands: HT35 at 7.25 %.** Its gain is now quoted
+  with NACA 0007's from-rest point: 0.66 / 0.38 % of race time at Tu 0.1 %,
+  about 2.8 / 1.6 boat lengths (**estimate**).
+
+## Time-accurate check: custom-section-transient, -transient-opt2, -transient-15 and -transient-rerun (2026-10-18 to 2026-10-21, images 6d541d0 and 9b8cbb8, GCP, 36 cases + 7 again + 3 reruns)
+
+**Setup.** NACA 0007, HT35 at 7.25 % and cst-opt2, all at 100 mm and equal
+bending stiffness.
+* At Tu 0.1 %, time-accurate (pimpleFoam) at 2, 3, 4 and 5°, at 0.75, 1.0
+  and 1.5 m/s: the angles the three loads need at 100 mm.
+* 0° and 6° stay steady. The 0° drag oscillates under 0.01 %; the flow at
+  6° was steady in transient-check.
+* Settings of transient-check run 20261017-000816:
+  * 20 flow-throughs, averaged over 12-20;
+  * max_co 10;
+  * medium mesh;
+  * each case started from its steady solution of the screen or the optima
+    run (`start_from`).
+
+The runs:
+* `custom-section-transient`, run 20261018-104120: NACA 0007 and HT35, 24
+  cases. 16 finished. One blew up (below). The seven at 1.5 m/s were lost
+  to Spot preemption twice (about 25 h) and cancelled.
+* `custom-section-transient-opt2`, run 20261018-161314: cst-opt2, 12 cases.
+  11 finished, one blew up.
+* `custom-section-transient-15`, run 20261019-164044: the seven 1.5 m/s
+  cases again, on image 9b8cbb8 with checkpoints (docs/cloud-gcp.md). Two
+  preemptions, at 19:50 and about 22:30 UTC: all six running cases resumed
+  from their checkpoints within 40 s each time. One blew up.
+* `custom-section-transient-rerun`, runs 20261018-195326, 20261019-214537 and
+  20261019-203535: the three cases that blew up, again at max_co 5.
+  * NACA 0007 at 3°, 1 m/s: 11.7 h.
+  * cst-opt2 at 5°, 0.75 m/s: 20.6 h. Its first try (run 20261019-020241,
+    no checkpoints) was preempted after 17 h and cancelled.
+  * HT35 at 3°, 1.5 m/s: three preemptions, each resumed from a checkpoint.
+
+How the ranking was computed: `python -m iomcfd.sectiondesign cfd`, the steady
+screen and optima runs with the time-accurate points replacing theirs
+(`--replace`, all six results.csv), at the loads of `design/loads.csv`. Every
+2-5° point of the three sections is time-accurate. The polars are in
+`runs/section-design/final-polars-tu0.1.csv` (not in git).
+
+### Conclusions
+
+1. **HT35 at 7.25 % beats NACA 0007/100 at every speed and every load in
+   time-accurate CFD: 0.82 % of race time with the estimated resistance
+   slope, 0.44 % with it doubled.** cst-opt2 is second. Race-time gain
+   against 0007/100, %:
+
+   | section | ×1 | ×2 | 0.75 m/s | 1.0 m/s | 1.5 m/s | worst load |
+   |---|---|---|---|---|---|---|
+   | **HT35 @7.25 %** | **−0.82** | **−0.44** | −0.41 | −0.71 | −1.34 | −0.21 |
+   | cst-opt2 | −0.70 | −0.37 | −0.38 | −0.56 | −1.15 | +0.03 |
+   | NACA 0007 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+   ("worst load" is ×1, the least favourable of the nine speed-load
+   points.) In boat lengths, about 3.4 / 1.8 per race (**estimate**: 4.2 per
+   1 %). Confidence: medium.
+   * Every number is time-accurate where the flow sheds.
+   * But it is 2D, at one Tu, and with estimated race-time inputs.
+
+   ![Time-accurate drag against side force, and drag relative to NACA 0007](figures/custom-section-transient-polars.png)
+
+   Drawn by `python -m iomcfd.sectiondesign cfd <screen and optima
+   results.csv> --replace <the six time-accurate results.csv>
+   <transient-check run 20261017-193613's results.csv> --only
+   file:ht35-t0725.dat/100 file:cst-opt2.dat/100 --figure ...`. Since
+   2026-10-23 the figure shows NACA 0007 at 4° and 1.5 m/s from rest
+   (Analysis 2026-10-23); the table above has the steady-start point.
+2. **The time-accurate points move the gain from 0.75-1 m/s to 1.5 m/s.**
+   HT35 at 7.25 %, slope ×1:
+
+   | | 0.75 m/s | 1.0 m/s | 1.5 m/s | mean |
+   |---|---|---|---|---|
+   | steady | −0.87 | −0.86 | −0.35 | −0.69 |
+   | time-accurate | −0.41 | −0.71 | −1.34 | −0.82 |
+
+   At 0.75 and 1 m/s the steady solver overstated it, as feared (screen,
+   conclusion 2). At 1.5 m/s it understated it (conclusion 3). The mean
+   barely moves.
+3. **At 1.5 m/s and 4°, NACA 0007/100 again settles into a leading-edge
+   bubble with high drag. The custom sections don't.**
+
+   | | NACA 0007 | HT35 @7.25 % | cst-opt2 |
+   |---|---|---|---|
+   | C_l | 0.429 | 0.411 | 0.405 |
+   | C_d | 0.0151 | 0.0120 | 0.0117 |
+   | lift oscillation | 0.3 % | 8.7 % | 8.9 % |
+
+   * NACA 0007's flow there is steady (lift oscillation 0.3 %).
+   * The same state and drag as transient-check run 20261017-000816 (C_d
+     0.0152), started there from a different steady solution.
+   * The custom sections shed instead and have 21-23 % less drag at that
+     angle.
+
+   At the loads at 1.5 m/s the custom sections have 5-10 % less upwind
+   drag, and HT35 4.6 % less at 0°. That is where most of their advantage
+   comes from. Confidence: medium. Both NACA runs started from a steady
+   solution, and the from-rest check (transient-check run 20261018-231921)
+   hasn't finished.
+4. **cst-opt2, the XFOIL optimum, doesn't beat HT35 in time-accurate CFD.**
+   * It is 0.12 / 0.07 % behind on average.
+   * It is behind at 1 and 1.5 m/s and level at 0.75 m/s (−0.38 against
+     −0.41).
+   * Its working-load drag at 0.75 and 1 m/s is 0.9-1.4 % above NACA
+     0007's; HT35's is within 0.4 % or below.
+
+   The optimiser's objective (XFOIL, worst variant) and the CFD differ in
+   detail. The steady CFD had the two tied (optima, conclusion 1).
+5. **The time-accurate polars at the loads** (C_l, C_d; 1 m/s):
+
+   | aoa | NACA 0007 | HT35 @7.25 % | cst-opt2 |
+   |---|---|---|---|
+   | 2° | 0.127, 0.0122 | 0.209, 0.0125 | 0.182, 0.0124 |
+   | 3° | 0.324, 0.0128 | 0.318, 0.0126 | 0.316, 0.0128 |
+   | 4° | 0.400, 0.0140 | 0.405, 0.0142 | 0.400, 0.0143 |
+   | 5° | 0.494, 0.0221 | 0.516, 0.0216 | 0.514, 0.0210 |
+
+   * **At 2°** the custom sections make 43-65 % more lift: no low-Reynolds
+     lift loss near 0°. So less leeway at the light load (0.61° against
+     1.01° for HT35 at 1 m/s). Their 2° cases oscillate about 20 % and
+     drift, so this is the least certain part.
+   * **At 5°** they make 4 % more lift with 2-5 % less drag.
+
+### Decisions
+
+* **Recommended section: HT35 scaled to 7.25 % thickness, 100 mm chord**
+  (`geometry/foils/ht35-t0725.dat`). Proposed, not yet agreed with the user.
+  * It is as stiff in bending as NACA 0007/100.
+  * The gain over 0007/100 (Tu 0.1 %): 0.4-0.8 % of race time.
+  * At Tu 1 %: 0.2-0.3 % (steady, reliable there). At Tu 2 %: break-even.
+* **cst-opt2 is kept as the alternative,** not recommended: it is behind
+  HT35 in time-accurate CFD and is not a published section.
+* **This revises the selection's recommendation** (NACA 0007/100,
+  fin-profile-selection.md): a custom section beats it at every speed
+  tested. That log isn't edited here; its summary should point here.
+
+### Assumptions
+
+* As the earlier entries: 2D URANS represents the shedding (**not
+  validated**); the race-time inputs (**not verified**); steady 0° and 6°
+  points can be mixed with time-accurate ones (**not verified**).
+* That max_co 5 (three reruns) and max_co 10 give the same time averages.
+  **Not checked** at these points; transient-check found the time step
+  mattered little where both were run.
+* That a resumed case is equivalent to an uninterrupted one. Checked on one
+  short case (docs/cloud-gcp.md); the checkpointed runs also write every
+  flow-through, which nudges the adaptive time step (round-off level).
+
+### Compromises
+
+* Tu 0.1 % only for the time-accurate check. At Tu 1-2 % the flow is steady
+  and the steady runs stand.
+* 2D only. The taper and 3D effects are the `keel3d` project's.
+* The 2° cases of the custom sections haven't settled.
+
+### Learnings
+
+* **Spot preemption decides what long cases cost.** us-central1 C3D Spot
+  VMs were preempted after 2-16 h of running over these three days.
+  * Before checkpoints, the seven 1.5 m/s cases lost about 25 h each and
+    never finished.
+  * With checkpoints, the same cases lost under an hour per preemption,
+    and HT35 at 3° got through three preemptions.
+* **max_co 10 blew up in 3 of 43 time-accurate attempts** (36 distinct
+  cases): a time step collapsing in one step, Courant number 3e4-1.4e8, on
+  all three sections.
+  max_co 5 ran all three cleanly at about twice the cost.
+* **The runner's divergence stop** (main's monitor.py) caught the 1.5 m/s
+  blow-up within minutes and reported it failed with the reason, instead of
+  running on.
+* **A bug in `cfd_table` (now fixed):** a replacement point was dropped when
+  the steady case it replaced had failed. For half a day that made HT35 look
+  8.8 % worse at the 1 m/s working load. The published numbers here use the
+  fix (a test covers it).
+* **XFOIL input precision:** with 10-digit coordinates, Analysis 1's 1 m/s
+  calibration gives Spearman 0.86 / 0.96 (published 0.89 / 0.96), with the
+  same leader.
+
+### Open questions and next steps
+
+Proposed, not agreed:
+* **NACA 0007/100 from rest at 1.5 m/s** (transient-check run
+  20261018-231921, running): does the leading-edge bubble come back without
+  a steady start? Conclusion 3 rests on it.
+* **Re-rank the NACA finalists with 3° and 5° points** (screen,
+  conclusion 6). The custom-section verdict doesn't depend on it, but the
+  selection's order among NACA sections may.
+* **3D:** HT35 at 7.25 % on the tapered fin of `keel3d`, against NACA 0007
+  on the same planform.
+* **The trip-strip study** (on hold until a section was recommended).
+* **A mould-tolerance check** before cutting a fin from
+  `ht35-t0725.dat`. XFOIL suggests 0.05 mm errors cost little (Analysis 3,
+  for cst-opt1).
 
 ## Runs 20261018-104350 and 20261018-155808: custom-section-tu and custom-section-tu-opt2 (2026-10-18, git 6d541d0-dirty, image 6d541d0, GCP, 72 + 36 cases)
 

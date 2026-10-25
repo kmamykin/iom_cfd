@@ -21,6 +21,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -32,7 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from . import config
-from .checkpoint import Checkpoint
+from .checkpoint import SIGNAL, Checkpoint, enable_signal_writes
 from .foam import tail_log
 from .monitor import PROGRESS_SECONDS, Monitor
 from .project import Project
@@ -60,7 +61,7 @@ class RunOptions:
     progress_seconds: float = PROGRESS_SECONDS  # a progress line in the log this often
     stop_grace_seconds: float = 900.0  # after a divergence stop, kill the solver if still running
     checkpoint: Path | None = None  # keep checkpoints here, to resume after a lost machine (checkpoint.py)
-    checkpoint_seconds: float = 900.0  # at most one checkpoint this often
+    checkpoint_seconds: float = 900.0  # a checkpoint this often (at most)
 
 
 RUN_ID_FORMAT = "%Y%m%d-%H%M%S"
@@ -169,14 +170,22 @@ def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
         if opts.render_only:
             return {"case": case.name, "status": "rendered"}
         ckpt = None
-        if checkpoint_dir and project.checkpoint_setup(case_dir, case.params, derived):
+        mode = project.checkpoint_setup(case_dir, case.params, derived) if checkpoint_dir else False
+        np_ = int(case.params.get("np") or 1)
+        env = dict(os.environ, NP=str(np_))
+        env.pop("IOMCFD_RESUME", None)
+        if mode:
+            if mode == "signal":
+                enable_signal_writes(case_dir)
             ckpt = Checkpoint(Path(checkpoint_dir) / case.name, interval=opts.checkpoint_seconds)
-            restored = ckpt.restore(case_dir, case.params_hash)
+            restored = ckpt.restore(case_dir, case.params_hash, np_)
             if restored:
                 project.checkpoint_restored(case_dir, case.params, derived, restored)
+                env["IOMCFD_RESUME"] = restored  # Allrun: no meshing, straight to the solver
                 result["resumed_from"] = restored
                 say(f"  resumed   {case.name} from its checkpoint at t = {restored}")
-        env = dict(os.environ, NP=str(case.params.get("np", 1)))
+        last_signal = time.time()
+        signal_pending = False
         monitor = Monitor(
             case.name, case_dir,
             progress=lambda: project.progress(case_dir, case.params, derived),
@@ -203,7 +212,13 @@ def run_case(project: Project, case: Case, case_dir: Path, opts: RunOptions,
                     request_stop(case_dir)
                     stop_requested = True
                 if ckpt and not diverged:
-                    saved = ckpt.maybe_save(case_dir, case.params_hash)
+                    if mode == "signal":  # ask the solver to write, then save that write
+                        if time.time() - last_signal >= opts.checkpoint_seconds and _signal_write(proc, case_dir):
+                            last_signal, signal_pending = time.time(), True
+                        saved = ckpt.maybe_save(case_dir, case.params_hash, force=True) if signal_pending else None
+                        signal_pending = signal_pending and not saved
+                    else:
+                        saved = ckpt.maybe_save(case_dir, case.params_hash)
                     if saved:
                         say(f"  checkpoint {case.name}: t = {saved}")
             result["stopped_on_convergence"] = stop_requested
@@ -246,6 +261,65 @@ def request_stop(case_dir: Path, how: str = "writeNow") -> None:
     from .foam import set_entry
 
     set_entry(case_dir / "system" / "controlDict", "stopAt", how)
+
+
+_LAUNCHERS = {"mpirun", "mpiexec", "orterun", "prterun"}
+
+
+def _process_tree(root: int) -> list[tuple[int, int, str]]:
+    """(pid, ppid, name) of `root` and all its descendants (ps; Linux and macOS)."""
+    out = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,comm="], capture_output=True, text=True, check=False).stdout
+    children: dict[int, list[tuple[int, int, str]]] = {}
+    tree = []
+    for line in out.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
+            p = (int(parts[0]), int(parts[1]), Path(parts[2].strip()).name)
+            children.setdefault(p[1], []).append(p)
+            if p[0] == root:
+                tree.append(p)
+    stack = [root]
+    while stack:
+        for c in children.get(stack.pop(), []):
+            tree.append(c)
+            stack.append(c[0])
+    return tree
+
+
+def _solver_targets(proc: subprocess.Popen, case_dir: Path) -> list[int]:
+    """Who gets the write signal: the MPI launcher of a parallel solver (it
+    passes the signal on to every rank), else the solver itself. Empty
+    unless the solver named in system/controlDict runs and has installed its
+    handler: SIGUSR1 kills any other process (snappyHexMesh, potentialFoam,
+    a solver still starting up)."""
+    from .monitor import _entry
+
+    try:
+        app = _entry((case_dir / "system" / "controlDict").read_text(errors="replace"), "application")
+        with open(case_dir / f"log.{app}", "rb") as f:
+            head = f.read(512 * 1024).decode(errors="replace")
+    except (OSError, TypeError):
+        return []
+    if f"Enabling writing upon signal {SIGNAL}" not in head or "\nTime = " not in head:
+        return []
+    tree = _process_tree(proc.pid)
+    solvers = [p for p in tree if p[2][:15] == app[:15]]  # Linux truncates names to 15 characters
+    if not solvers:
+        return []
+    launchers = [p for p in tree if p[2] in _LAUNCHERS]
+    return [launchers[0][0]] if launchers else [p[0] for p in solvers]
+
+
+def _signal_write(proc: subprocess.Popen, case_dir: Path) -> bool:
+    """Ask the running solver to write its fields now and carry on
+    (writeNowSignal, enabled by checkpoint.enable_signal_writes)."""
+    targets = _solver_targets(proc, case_dir)
+    for pid in targets:
+        try:
+            os.kill(pid, signal.SIGUSR1)
+        except ProcessLookupError:
+            return False
+    return bool(targets)
 
 
 def _kill(proc: subprocess.Popen) -> None:

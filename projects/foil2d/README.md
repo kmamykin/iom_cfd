@@ -77,9 +77,10 @@ reattachment and trailing-edge separation, x/c, per side); `yplus_max`;
 both surfaces). `iomcfd report` draws polars with any reference data.
 
 Transient cases (`solver: transient`) add the outputs below. On the cloud
-(and with `iomcfd run --checkpoint`), a time-accurate case on one rank
-writes its fields every flow-through and resumes from the last one if its
-VM is preempted (docs/cloud-gcp.md, Checkpoints).
+(and with `iomcfd run --checkpoint`), a time-accurate case writes its fields
+every flow-through and resumes from the last one if its VM is preempted.
+Steady cases are checkpointed by the runner's signal writes every 15 min
+(docs/cloud-gcp.md, Checkpoints).
 
 Transient cases add:
 * `flow_times_done`;
@@ -117,6 +118,16 @@ one line per compared value (e.g. per section), with Cf on the upper
 a laminar separation bubble where it is short and followed by reattachment,
 trailing-edge separation where it runs to the trailing edge. No field data
 is needed, so it works on a default (light) `gcp fetch`.
+
+Each highlight also gets `report/highlight_<name>_drag.png`: the drag
+gathered from the leading edge to x/c, both surfaces together. It is shown
+in total and split into pressure and friction drag, with a stepped
+section's steps as dotted lines, so it shows where along the chord a section
+loses or gains drag. It is integrated from `surface.csv` (`surface_forces`
+in project.py), which matches the solver's forces to about 1 % for steady
+flow; an unsteady case's `surface.csv` is one instant. Studies that compare
+a handful of sections at a few fixed points also get `report/breakdown.png`:
+friction and pressure drag stacked per section, with Cl.
 
 Induced drag depends on side force and span, not on chord or section, so at
 equal side force it is the same for every candidate: it shows how much the
@@ -254,7 +265,8 @@ NACA 0007 at 100 mm, 0-6° with 3° and 5°: the CFD screen of
 settings), `custom-section-transient` (HT35 at 7.25 % and NACA 0007,
 time-accurate at 2-5°), `custom-section-tu` (the same two, steady, at Tu 1
 and 2 %), `custom-section-transient-opt2` and `custom-section-tu-opt2`
-(both again for cst-opt2), `custom-section-transient-rerun` (failed
+(both again for cst-opt2), `custom-section-transient-15` (the 1.5 m/s
+cases again, with checkpoints), `custom-section-transient-rerun` (failed
 time-accurate cases again, at max_co 5).
 
 What the runs showed, and the assumptions behind them, is logged per study

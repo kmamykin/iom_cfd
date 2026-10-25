@@ -17,6 +17,9 @@ on:
       - "projects/foil2d/project.py"
       - "projects/foil2d/defaults.yaml"
       - "projects/foil2d/validation/**"
+      - "projects/keel3d/project.py"
+      - "projects/keel3d/defaults.yaml"
+      - "projects/bulb2d/validation/**"
       - ".github/workflows/site.yml"
   workflow_dispatch:
 
@@ -40,6 +43,8 @@ jobs:
         with:
           version: 1.10.19
       - run: uv run iomcfd site build
+        env:
+          QUARTO_PROFILE: publish  # site/_quarto-publish.yml: Google Analytics, cookie consent
       - uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: site/_site

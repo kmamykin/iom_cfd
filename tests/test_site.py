@@ -103,3 +103,14 @@ def test_every_study_on_the_front_page_has_a_card(built):
             assert image.name in made, f"{page}: figures.make_all() doesn't make {image.name}"
         else:
             assert image.is_file(), f"{page}: no {meta['image']}"
+
+
+def test_analytics_wait_for_consent():
+    """The published site loads nothing from Google Analytics until a visitor opts in (docs/website.md)."""
+    base = yaml.safe_load((SITE / "_quarto.yml").read_text())
+    publish = yaml.safe_load((SITE / "_quarto-publish.yml").read_text())
+    assert publish["website"]["cookie-consent"]["type"] == "express"
+    for config in (base, publish):  # Quarto's own tag loads gtag.js before consent
+        assert "google-analytics" not in config["website"]
+    scripts = re.findall(r"<script[^>]*>", publish["format"]["html"]["include-in-header"]["text"])
+    assert scripts and all('type="text/plain" cookie-consent="tracking"' in s for s in scripts), scripts
