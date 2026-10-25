@@ -9,6 +9,12 @@ drag and leeway. Results and decisions:
 Symbols follow [docs/nomenclature.md](../../docs/nomenclature.md); (A)
 marks an assumption.
 
+**Correction (2026-10-25).** The 18 in chord below was wrong: the official
+plans show a tapered board, 15 1/4 in at the break point to about 10 in near
+the tip, 13 3/16 in at mid-span (findings, entry of that date). The method
+stands; the CFD numbers are for an 18 in board. `design/thistle-plan.yaml`
+holds the plans' mid-span chord for the XFOIL check.
+
 ## 1. The board
 
 | input | value | source |

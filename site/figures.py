@@ -2471,6 +2471,53 @@ def thistle_xfoil_table(data: Path, out: Path) -> Path:
     return out
 
 
+def thistle_short_chord_table(data: Path, out: Path) -> Path:
+    """The side note: NACA 00xx on the chord that makes it 1 in thick, against NACA 0006 on 18 in (XFOIL):
+    board drag upwind and downwind over XFOIL's four turbulence settings, and the extra leeway at Tu 0.5 %."""
+    x = pd.read_csv(data / "thistle-short-chord.csv")
+    x = x[x.candidate.str.match(r"naca00\d\d$")]
+    rows = ["| section | chord | upwind ΔD | downwind ΔD | extra leeway |", "|---|--:|--:|--:|--:|"]
+    for cand, g in sorted(x.groupby("candidate"), key=lambda kv: kv[0]):
+        t = int(cand[-2:]) / 100
+        up, dn = g["upwind %"], g["downwind %"]
+        lee = g.loc[g.file.str.contains("Tu0.5"), "d leeway deg"].iloc[0]
+        rows.append(f"| NACA&nbsp;{cand[-4:]} | {1 / t:.1f}&nbsp;in | {up.max():+.0f}&nbsp;to&nbsp;{up.min():+.0f}&nbsp;% | "
+                    f"{dn.max():+.0f}&nbsp;to&nbsp;{dn.min():+.0f}&nbsp;% | +{lee:.1f}° |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+TH_PLAN = {  # the plans-chord check: spec -> (name, thickness on 13 3/16 in)
+    "naca0007": ("NACA 0007 (the book)", "0.92&nbsp;in"),
+    "naca0006": ("NACA 0006", "0.79&nbsp;in"),
+    "naca0007@0.07584": ("NACA 0007 scaled to 1&nbsp;in", "1.00&nbsp;in"),
+    "naca0008": ("NACA 0008", "1.06&nbsp;in (over the limit)"),
+    "file:naca63-006.dat@0.07584": ("NACA 63-006 at 1&nbsp;in", "1.00&nbsp;in"),
+    "file:naca64-006.dat@0.07584": ("NACA 64-006 at 1&nbsp;in", "1.00&nbsp;in"),
+    "file:ht35.dat@0.07584": ("HT35 at 1&nbsp;in", "1.00&nbsp;in"),
+}
+
+
+def thistle_plan_chord_table(data: Path, out: Path) -> Path:
+    """The correction: sections on the official plans' 13 3/16 in mid-span chord against the book's NACA 0007
+    (XFOIL): board drag upwind and downwind over XFOIL's four turbulence settings."""
+    x = pd.read_csv(data / "thistle-plan-chord.csv")
+    rows = ["| section on 13 3/16 in | thickness | upwind ΔD | downwind ΔD |", "|---|--:|--:|--:|"]
+    for spec, (name, thick) in TH_PLAN.items():
+        g = x[x.candidate == spec]
+        if spec == "naca0007":
+            rows.append(f"| **{name}** | {thick} | reference | reference |")
+            continue
+        def rng(v):
+            lo, hi = (int(round(float(z))) for z in (v.min(), v.max()))
+            f = (lambda n: f"{n:+d}" if n else "0")
+            return (f"{f(lo)}&nbsp;%" if lo == hi else f"{f(lo)}&nbsp;to&nbsp;{f(hi)}&nbsp;%").replace("-", "−")
+
+        rows.append(f"| {name} | {thick} | {rng(g['upwind %'])} | {rng(g['downwind %'])} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
 def thistle_card(out: Path) -> Path:
     """The page's card at 3:1: NACA 0006 over the plank board, the thickness stretched three times."""
     from iomcfd import sectiondesign as sd
@@ -2574,6 +2621,8 @@ def make_all(data: Path, out: Path) -> list[Path]:
         thistle_surface(data, out / "thistle-surface-tu03.svg", 0.3),
         thistle_surface(data, out / "thistle-surface-tu06.svg", 0.6),
         thistle_xfoil_table(data, out / "thistle-xfoil.md"),
+        thistle_short_chord_table(data, out / "thistle-short-chord.md"),
+        thistle_plan_chord_table(data, out / "thistle-plan-chord.md"),
         sources_table(data, out / "sources-thistle.md", keep=lambda n: n.startswith("thistle-")),
         thistle_card(out / "thistle-board-card.png"),
     ]

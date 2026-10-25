@@ -277,8 +277,11 @@ Report 824 at Re 3e6), `thistle-tu-calibration` (the inlet Tu that
 reproduces Report 824), `thistle-screen` (8 board sections at Tu 0.1 and
 1 %) and `thistle-extend` (NACA 0006, 63-006 and 64-006 over the full grid
 at Tu 0.3 and 0.6 %). All five are for
-[findings/thistle-board.md](findings/thistle-board.md), whose answer is to
-keep NACA 0006 at 1 in.
+[findings/thistle-board.md](findings/thistle-board.md). They assumed an
+18 in rectangular board; the official plans show a tapered one, about
+13 3/16 in at mid-span, so their NACA 0006 answer does not apply. On the
+plans' chord the Thistle book's NACA 0007 is the 1 in 4-digit section
+(XFOIL check, findings 2026-10-25).
 
 What the runs showed, and the assumptions behind them, is logged per study
 in [findings/](findings/), e.g.

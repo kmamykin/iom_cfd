@@ -444,3 +444,25 @@ thistle-flow-8deg:
   study: thistle-screen
   runs: [20261023-125405]
   file: viz/compare_boundary_layer_8deg.poster.png
+
+# Side note on the Thistle page: a thicker section on a shorter chord, still 1 in thick (XFOIL only).
+# `python -m iomcfd.boardrank --design thistle screen naca0007 naca0008 naca0009 naca0010 naca0012
+# --chord naca0007=0.362857 --chord naca0008=0.3175 --chord naca0009=0.282222 --chord naca0010=0.254
+# --chord naca0012=0.211667 --out runs/section-design/thistle-xfoil-short-chord-20261025`; rake 10 deg,
+# against NACA 0006 on 18 in (findings/thistle-board.md, entry "what-if, a shorter chord at 1 in").
+thistle-short-chord:
+  study: section-design
+  runs: [thistle-xfoil-short-chord-20261025]
+  file: [summary-Tu0.1rake10.csv, summary-Tu0.5rake10.csv, summary-Tu1rake10.csv, summary-XTR0.05rake10.csv]
+  columns: [file, candidate, upwind %, d leeway deg, downwind %]
+
+# The correction on the Thistle page: sections on the official plans' 13 3/16 in mid-span chord against the
+# Thistle book's NACA 0007 (XFOIL only). `python -m iomcfd.boardrank --design projects/foil2d/design/thistle-plan.yaml
+# screen naca0006 naca0008 naca0007@0.07584 naca0009@0.07584 file:naca63-006.dat@0.07584 file:naca64-006.dat@0.07584
+# file:ht35.dat@0.07584 --out runs/section-design/thistle-xfoil-plan-chord-20261025`; rake 10 deg (findings/
+# thistle-board.md, entry "the official plans: the 18 in chord was wrong").
+thistle-plan-chord:
+  study: section-design
+  runs: [thistle-xfoil-plan-chord-20261025]
+  file: [summary-Tu0.1rake10.csv, summary-Tu0.5rake10.csv, summary-Tu1rake10.csv, summary-XTR0.05rake10.csv]
+  columns: [file, candidate, upwind %, d leeway deg, downwind %]

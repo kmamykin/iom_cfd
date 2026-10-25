@@ -1,0 +1,25 @@
+run,file,candidate,upwind %,d leeway deg,downwind %
+thistle-xfoil-short-chord-20261025,summary-Tu0.1rake10.csv,naca0009,-3.99832,1.45011,-14.5954
+thistle-xfoil-short-chord-20261025,summary-Tu0.1rake10.csv,naca0010,-3.96829,1.90645,-15.9339
+thistle-xfoil-short-chord-20261025,summary-Tu0.1rake10.csv,naca0008,-3.50235,1.01013,-12.2104
+thistle-xfoil-short-chord-20261025,summary-Tu0.1rake10.csv,naca0007,-2.53722,0.59402,-8.75744
+thistle-xfoil-short-chord-20261025,summary-Tu0.1rake10.csv,naca0012,-2.49528,2.97923,-17.3873
+thistle-xfoil-short-chord-20261025,summary-Tu0.1rake10.csv,file:naca0006-t0556.dat,0,0,0
+thistle-xfoil-short-chord-20261025,summary-Tu0.5rake10.csv,naca0012,-11.1858,3.18582,-30.3707
+thistle-xfoil-short-chord-20261025,summary-Tu0.5rake10.csv,naca0010,-10.8637,2.04154,-26.019
+thistle-xfoil-short-chord-20261025,summary-Tu0.5rake10.csv,naca0009,-9.79963,1.54883,-22.8552
+thistle-xfoil-short-chord-20261025,summary-Tu0.5rake10.csv,naca0008,-8.05701,1.08344,-18.6757
+thistle-xfoil-short-chord-20261025,summary-Tu0.5rake10.csv,naca0007,-5.63596,0.629952,-12.9232
+thistle-xfoil-short-chord-20261025,summary-Tu0.5rake10.csv,file:naca0006-t0556.dat,0,0,0
+thistle-xfoil-short-chord-20261025,summary-Tu1rake10.csv,naca0012,-13.4238,3.24947,-35.6577
+thistle-xfoil-short-chord-20261025,summary-Tu1rake10.csv,naca0010,-12.6221,2.10526,-30.2338
+thistle-xfoil-short-chord-20261025,summary-Tu1rake10.csv,naca0009,-11.2651,1.60361,-26.3742
+thistle-xfoil-short-chord-20261025,summary-Tu1rake10.csv,naca0008,-9.24415,1.12442,-20.7234
+thistle-xfoil-short-chord-20261025,summary-Tu1rake10.csv,naca0007,-6.42888,0.656585,-14.648
+thistle-xfoil-short-chord-20261025,summary-Tu1rake10.csv,file:naca0006-t0556.dat,0,0,0
+thistle-xfoil-short-chord-20261025,summary-XTR0.05rake10.csv,naca0012,-18.5251,3.63312,-36.5181
+thistle-xfoil-short-chord-20261025,summary-XTR0.05rake10.csv,naca0010,-17.1873,2.27981,-30.2885
+thistle-xfoil-short-chord-20261025,summary-XTR0.05rake10.csv,naca0009,-15.1789,1.72804,-26.0804
+thistle-xfoil-short-chord-20261025,summary-XTR0.05rake10.csv,naca0008,-12.3239,1.20579,-20.7833
+thistle-xfoil-short-chord-20261025,summary-XTR0.05rake10.csv,naca0007,-8.44246,0.702905,-14.0152
+thistle-xfoil-short-chord-20261025,summary-XTR0.05rake10.csv,file:naca0006-t0556.dat,0,0,0

@@ -12,7 +12,6 @@ listing:
     - fin-selection/index.qmd
     - custom-section/index.qmd
     - bulb-design/index.qmd
-    - thistle-board/index.qmd
   sort: false
   type: grid
   grid-columns: 2

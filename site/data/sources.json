@@ -692,6 +692,22 @@
     "exported": "2026-10-25",
     "git": "ff86e94-dirty"
   },
+  "thistle-plan-chord": {
+    "kind": "table",
+    "file": "data/thistle-plan-chord.csv",
+    "study": "section-design",
+    "runs": [
+      "thistle-xfoil-plan-chord-20261025"
+    ],
+    "source": [
+      "summary-Tu0.1rake10.csv",
+      "summary-Tu0.5rake10.csv",
+      "summary-Tu1rake10.csv",
+      "summary-XTR0.05rake10.csv"
+    ],
+    "exported": "2026-10-25",
+    "git": "0acd769-dirty"
+  },
   "thistle-screen": {
     "kind": "table",
     "file": "data/thistle-screen.csv",
@@ -702,6 +718,22 @@
     "source": "results.csv",
     "exported": "2026-10-25",
     "git": "ff86e94-dirty"
+  },
+  "thistle-short-chord": {
+    "kind": "table",
+    "file": "data/thistle-short-chord.csv",
+    "study": "section-design",
+    "runs": [
+      "thistle-xfoil-short-chord-20261025"
+    ],
+    "source": [
+      "summary-Tu0.1rake10.csv",
+      "summary-Tu0.5rake10.csv",
+      "summary-Tu1rake10.csv",
+      "summary-XTR0.05rake10.csv"
+    ],
+    "exported": "2026-10-25",
+    "git": "0acd769-dirty"
   },
   "thistle-surface-3kn": {
     "kind": "table",

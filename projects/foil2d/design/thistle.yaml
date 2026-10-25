@@ -1,7 +1,9 @@
 # Thistle centreboard: the inputs of iomcfd.boardrank (methodology-thistle.md,
 # findings/thistle-board.md). (A) marks an assumption, not a measurement.
 board:
-  chord: 0.4572        # m, square to the leading edge (18 in; user)
+  chord: 0.4572        # m, square to the leading edge (18 in; user). WRONG: the official plans show a tapered
+                       # board, 15 1/4 in at the break point to about 10 in near the tip, 13 3/16 in at mid-span
+                       # (findings 2026-10-25; design/thistle-plan.yaml). Kept so the 18 in runs reproduce.
   thickness: 0.0254    # m, 1 in: the class maximum (TCA Green Book, Art. XII.5); t/c 5.556 %
   span: 1.24           # m along the leading edge below the hull, fully down (A): draft 4'6" - hull 6" = 48 in, at 10 deg
   rake: 10             # deg, leading edge aft of vertical, fully down (A): no published value; it hangs on rollers

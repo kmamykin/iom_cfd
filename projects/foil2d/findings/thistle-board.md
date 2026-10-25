@@ -13,27 +13,30 @@ the numbers that support a conclusion are copied here. Symbols follow
 [docs/nomenclature.md](../../../docs/nomenclature.md) (S_h, D_h = D_v + D_i,
 leeway β_Y, section angle α_n, rake Λ).
 
-## Where the study stands (updated 2026-10-25, closed)
+## Where the study stands (updated 2026-10-25, corrected)
 
-**Answer: keep NACA 0006**, scaled to 1 in (t/c 5.56 %). The user
-accepted it on 2026-10-25 and the CFD is closed. Building a board with any
-other section would need a TCA measurer to confirm it is legal (Official
-Plans).
-* **No section beats NACA 0006 upwind** at the calibrated Tu (thistle-extend,
-  entry below). NACA 63-006 and 64-006 have 9-11 % more board drag at Tu
-  0.3 % and 2-3 % more at 0.6 %. That is the mean over 1-5 kn and the three
-  loads, rake 10°.
-* **Downwind, the 6-series have 5-8 % less drag** (mean over 1-15 kn), and
-  10-17 % less over 7.5-15 kn.
-* **By the agreed rule** (upwind first, downwind decides within ±1 %),
-  NACA 0006 wins in 5 of the 6 Tu × rake cases. 64-006 wins only at Tu
-  0.6 % with 5° rake, where it is 0.8 % behind upwind and 7.9 % ahead
-  downwind.
-* **Report 824 measured the same trade** at Re 3e6. 64-006 has 8-11 % less
-  drag than 0006 at C_l 0-0.1, and 8-20 % more at C_l 0.2-0.4, which is the
-  upwind range.
-* **The 6-series catch up only in rough water.** At Tu 1 % (thistle-screen)
-  they are level upwind and 10-11 % ahead downwind.
+**Correction: the 18 in chord was wrong, and the NACA 0006 answer with it.**
+The official plans (Thistle book, shown by the user 2026-10-25) give a
+tapered board: 15 1/4 in at the break point to about 10 in near the tip,
+13 3/16 in at mid-span, 53 in long below the break point, 1 in thick at
+most. The study assumed a rectangular 18 in board. NACA 0006 was the 1 in
+section on 18 in; it is not the answer for the real board (entry below).
+
+**For the real board: NACA 0007, as the Thistle book suggests.** On the
+plans' 13 3/16 in mid-span chord it is the 4-digit section near the class
+thickness (0.92 in). A quick XFOIL check on that chord (entry below) finds
+the 4-digit sections 0006-0007 within about 1 % of each other upwind and no
+section better upwind at low turbulence. XFOIL only: trends, not CFD
+numbers. Above about 14.3 in of chord (the top 8 in or so below the break
+point) NACA 0007 would exceed 1 in, so the thickness is capped there.
+
+**What still stands from the CFD (at 18 in).** The family trends, expected
+to carry over to the real chord but not re-run: the laminar NACA 63-006 and
+64-006 lose upwind at the calibrated Tu inputs (9-11 % at Tu 0.3 %, 2-3 % at
+0.6 %) and gain 5-8 % downwind; parallel-sided boards lose both ways; the
+model and Tu calibration (Report 824) are unaffected. The CFD's absolute
+numbers are for a board with about a third more area than the plans' (an
+estimate).
 
 **How we got here.**
 1. The XFOIL screen.
@@ -52,6 +55,129 @@ The Tu literature is in docs/research/turbulence-intensity.md.
   for a board sailed mostly in chop, where the 6-series catch up.
 * The optional rough-water check and CST optimisation (thistle-extend
   entry) were not run.
+* A shorter, thicker board at 1 in (what-if, entry below): XFOIL says less
+  board drag but about 1.5° more leeway for NACA 0009 on 11.11 in; not taken
+  to CFD.
+
+## 2026-10-25: the official plans: the 18 in chord was wrong
+
+**What the plans show** (Thistle book, image shared by the user; read from
+the drawing, not measured): a tapered board, 16 3/4 in at the top by the
+roller, 15 1/4 in at the break point, then 13 7/8, 13 1/4, 12 15/16 and
+10 1/16 in at 11 3/4 in spacing, 6 in more to the tip (1 in corner radius
+at most); A = 53 in (+1/4, −3/4) from the break point to the tip; the
+nominal chord Y = 13 3/16 in (+1/4, −1/2) at A/2; 1 in thick at most. A
+hatched section is drawn at mid-span, and the book suggests NACA 0007.
+
+**Consequences.**
+* **The study's premise was wrong.** It assumed a rectangular 18 in board
+  (user's first description), 1.24 m along the edge. The plans have no
+  18 in chord. The exposed area from the break point down is about
+  655 in² (0.42 m², trapezoids between the stations, the last 6 in taken
+  as about 6 in of mean chord: an estimate), against the 0.57 m² assumed:
+  about a quarter less. Where the break point sits relative to the hull was
+  not checked.
+* **The NACA 0006 recommendation is invalid.** It was the 1 in section on
+  18 in (t/c 5.56 %). On the plans' chord the 1 in 4-digit section is
+  about 7-7.6 %: NACA 0007 is 0.92 in on 13 3/16 in.
+* **Higher working lift** (estimate): for the righting-moment estimate of
+  about 440 N at 5 kn the real board works at C_l about 0.3 instead of
+  0.24, where Report 824 puts the 6-series further behind the 4-digit
+  sections (+14 to +20 % at C_l 0.2-0.3).
+* **Taper and the 1 in limit.** NACA 0007 is 1.07 in thick at the 15 1/4 in
+  break-point chord, over the limit; it fits below about 14.3 in of chord,
+  roughly 8 in below the break point. A builder caps the thickness at 1 in
+  above that.
+
+**XFOIL check on the plans' chord.** `python -m iomcfd.boardrank --design
+projects/foil2d/design/thistle-plan.yaml screen naca0006 naca0008
+naca0007@0.07584 naca0009@0.07584 file:naca63-006.dat@0.07584
+file:naca64-006.dat@0.07584 file:ht35.dat@0.07584` (chord 13 3/16 in,
+span 53 in read as the exposed span along the edge (A), baseline the
+book's NACA 0007, loads its side force at 1/2/4°, rake 10°; 98 s; output in
+runs/section-design/thistle-xfoil-plan-chord-20261025). ΔD against NACA
+0007 [%] at Tu 0.1 / 0.5 / 1 % and tripped at 5 % chord:
+
+| section on 13 3/16 in | thickness | upwind | downwind, 0° over 1-15 kn |
+|---|---|---|---|
+| NACA 0007 (the book) | 0.92 in | 0 | 0 |
+| NACA 0006 | 0.79 in | +0.8 / 0.0 / −0.7 / −1.0 | −6.7 / −5.7 / −4.2 / −2.3 |
+| NACA 0007 scaled to 1 in (7.58 %) | 1.00 in | +1.1 / +0.6 / +0.7 / +0.7 | +4.0 / +3.2 / +2.4 / +1.4 |
+| NACA 0008 | 1.06 in (over the limit) | +1.9 / +1.1 / +1.3 / +1.3 | +6.8 / +5.3 / +4.0 / +2.4 |
+| NACA 63-006 at 1 in | 1.00 in | +6.5 / +2.4 / +1.1 / −0.1 | +6.2 / −5.8 / −12.2 / −1.0 |
+| NACA 64-006 at 1 in | 1.00 in | +8.1 / +3.4 / +1.7 / 0.0 | +5.7 / −7.5 / −14.8 / −1.1 |
+| HT35 at 1 in | 1.00 in | +1.1 / +1.3 / +2.0 / +0.2 | +11.0 / +11.4 / +8.9 / +0.9 |
+
+(NACA 0009 scaled to 7.58 % is the same shape as NACA 0007 scaled to it,
+and gives the same numbers.)
+
+* **The 4-digit sections 0006-0008 are within about 2 % upwind**, below
+  what the CFD could resolve (about 3 %). Thinner gains a little downwind
+  in XFOIL. Nothing beats NACA 0007 upwind at low turbulence; the 6-series
+  gain downwind only at the higher settings, as at 18 in. Δ leeway within
+  ±0.1° except the 6-series at low Tu (+0.2 to +0.4°).
+* **Confidence low to medium:** XFOIL under-predicts drag at these Reynolds
+  numbers (2-25 % against Report 824) and cannot predict stall for these
+  sections; the trend matches the 18 in CFD.
+
+**Decided (user, 2026-10-25).** The 18 in assumption invalidates the NACA
+0006 finding; the website page says so in its abstract and stays online,
+off the front page. The book's NACA 0007 is the supported section. No CFD
+re-run at the plans' chord.
+
+## 2026-10-25: what-if, a shorter chord at 1 in (XFOIL)
+
+**Question (user).** NACA 0009 on a chord shortened to 11.11 in, so it is
+still 1 in thick: better than NACA 0006 on 18 in?
+
+**CFD run cancelled.** `thistle-0009-short` (134 cases, the extend settings,
+run 20261025-170222 on n2-standard-16) was deleted after about 9 minutes:
+10-20 h and $10-20 (estimates) was too much for a first look (user). Its
+partial results are not used. The study file stays for later.
+
+**XFOIL instead.** `boardrank screen naca0007 naca0008 naca0009 naca0010
+naca0012 --chord SPEC=METRES` (new: a section's own chord, which sets its
+Reynolds number and, in `board_forces`, its area; the span stays 1.24 m).
+Each section is on the chord that makes it 1 in thick, against NACA 0006 on
+18 in. 90 s; output in runs/section-design/thistle-xfoil-short-chord-20261025.
+
+ΔD against NACA 0006 on 18 in [%], rake 10°, at Tu 0.1 / 0.5 / 1 % and
+tripped at 5 % chord; Δ leeway in degrees at Tu 0.5 %:
+
+| section, chord | upwind | downwind, 0° over 1-15 kn | Δ leeway |
+|---|---|---|---|
+| NACA 0007, 14.29 in | −2.5 / −5.6 / −6.4 / −8.4 | −8.8 / −12.9 / −14.7 / −14.0 | +0.63° |
+| NACA 0008, 12.5 in | −3.5 / −8.1 / −9.2 / −12.3 | −12.2 / −18.7 / −20.7 / −20.8 | +1.08° |
+| NACA 0009, 11.11 in | −4.0 / −9.8 / −11.3 / −15.2 | −14.6 / −22.9 / −26.4 / −26.1 | +1.55° |
+| NACA 0010, 10 in | −4.0 / −10.9 / −12.6 / −17.2 | −15.9 / −26.0 / −30.2 / −30.3 | +2.04° |
+| NACA 0012, 8.33 in | −2.5 / −11.2 / −13.4 / −18.5 | −17.4 / −30.4 / −35.7 / −36.5 | +3.19° |
+
+* **Less board drag, more leeway.** A shorter board has less area, so less
+  friction; for the same side force it works at a higher lift coefficient.
+  NACA 0009 on 11.11 in needs α_n about 6.5° at the high load where NACA 0006
+  on 18 in needs 4°, and 3.4-3.9° at the working load against 2.2-2.4°.
+  Induced drag is the same (same span, same side force).
+* **Downwind is a clear gain** in XFOIL: −15 to −26 % for NACA 0009, close to
+  its 38 % smaller area.
+* **Upwind the leeway probably eats the gain.** There is no Thistle VPP, so
+  this is a rough break-even estimate, not a result: close-hauled at about
+  45°, 1.5° more leeway costs about tan 45° × 1.5° ≈ 2.6 % of VMG. A 10 %
+  cut in board drag is worth about 0.5 × 10 % × (the board's share of upwind
+  resistance) in speed: 1.25 % at a 25 % share, 2.5 % at 50 % (shares
+  assumed, not known). So upwind it breaks even only if the board makes
+  about half the boat's resistance; the hull's own side force at the larger
+  leeway is not counted either way.
+* **Confidence low.** XFOIL under-predicts drag at these Reynolds numbers
+  (2-25 % against Report 824) and its maximum lift is unusable, so its stall
+  margins (1-4°) are left out; the 12 % section's margin collapses in every
+  variant. The trend (less drag, more leeway) is basic and robust; the sizes
+  are not.
+* **Class.** A shorter board is probably not class-legal (XII.2).
+
+**Decision.** Not pursued to CFD unless the downwind gain or a leeway cost
+model makes it interesting (user's call).
+Superseded in part the same day: the plans fix the planform (entry above),
+so a shorter board is not an option within the class.
 
 ## 2026-10-25: thistle-extend, run 20261024-154540
 
