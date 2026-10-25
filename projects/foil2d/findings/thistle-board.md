@@ -13,71 +13,313 @@ the numbers that support a conclusion are copied here. Symbols follow
 [docs/nomenclature.md](../../../docs/nomenclature.md) (S_h, D_h = D_v + D_i,
 leeway β_Y, section angle α_n, rake Λ).
 
-## Where the study stands (updated 2026-10-23, thistle-screen submitted)
+## Where the study stands (updated 2026-10-25, closed)
 
-**CFD.** Since the XFOIL screen below, two things have happened:
-* `thistle-mesh` finished and picked the **fine** mesh (entry below).
-* `thistle-screen` is running: run 20261023-125405, 320 cases.
-* `thistle-validation-r824` is running: run 20261023-195013, 28 cases,
-  image af02c27, fine mesh, on c2d-standard-16. Run 20261023-141306, on
-  C3D, was cancelled before it started: the screen held the whole C3D
-  quota.
-* **Preliminary validation result** (19 of 28 cases, 2026-10-23 22:00 UTC).
-  * At Tu 0.05 %, kOmegaSSTLM's drag is 23-40 % under Report 824's at C_l
-    0-0.2 on both sections. 64-006 keeps a laminar bucket at C_l 0.2 that
-    the data don't show.
-  * It is within 2 % at C_l 0.45-0.65.
-  * Fully turbulent runs are 18-90 % over.
-  * So the screen's Tu 0.1 % results flatter laminar flow at the working
-    load and downwind.
-* **`thistle-screen` finished** (entry below). It rejects the two
-  parallel-sided boards. `thistle-extend` is running NACA 0006, 63-006 and
-  64-006 at the calibrated Tu 0.3 and 0.6 %: run 20261024-154540, 342
-  cases.
-* **`thistle-tu-calibration` finished** (run 20261023-221604). The model
-  matches Report 824 at Tu 0.3 % for NACA 0006 and about 0.45 % for
-  64-006. The screen's 0.1 % is too laminar and its 1 % effectively fully
-  turbulent, so the ranking will be decided at Tu 0.3 and 0.6 % in
-  `thistle-extend` (user's decision, entry below).
-* **Literature on Tu** (user's request): docs/research/turbulence-intensity.md.
-  * For a dinghy board on a lake, about 0.1-0.3 % at 4-15 kn and 0.3-1 %
-    at 1-2 kn. Tu falls with boat speed, roughly as 1/V (Remmlinger 2013,
-    from measured near-surface dissipation).
-  * Saporito et al. used 0.25 % for the sea, and 0.6 % to match Report 824
-    with their transition model.
-  * Eça et al. (2022) found γ-Re_θ too laminar at low Tu, as here.
-* In thistle-screen, 3 near-stall cases (6-8° at 3-5 kn, Tu 0.1 %) timed
-  out at the 8.5 h task limit with 94 % of 12000 iterations done. Their
-  checkpoints are kept in the bucket; more 6-8° cases are likely to time
-  out the same way.
+**Answer: keep NACA 0006**, scaled to 1 in (t/c 5.56 %). The user
+accepted it on 2026-10-25 and the CFD is closed. Building a board with any
+other section would need a TCA measurer to confirm it is legal (Official
+Plans).
+* **No section beats NACA 0006 upwind** at the calibrated Tu (thistle-extend,
+  entry below). NACA 63-006 and 64-006 have 9-11 % more board drag at Tu
+  0.3 % and 2-3 % more at 0.6 %. That is the mean over 1-5 kn and the three
+  loads, rake 10°.
+* **Downwind, the 6-series have 5-8 % less drag** (mean over 1-15 kn), and
+  10-17 % less over 7.5-15 kn.
+* **By the agreed rule** (upwind first, downwind decides within ±1 %),
+  NACA 0006 wins in 5 of the 6 Tu × rake cases. 64-006 wins only at Tu
+  0.6 % with 5° rake, where it is 0.8 % behind upwind and 7.9 % ahead
+  downwind.
+* **Report 824 measured the same trade** at Re 3e6. 64-006 has 8-11 % less
+  drag than 0006 at C_l 0-0.1, and 8-20 % more at C_l 0.2-0.4, which is the
+  upwind range.
+* **The 6-series catch up only in rough water.** At Tu 1 % (thistle-screen)
+  they are level upwind and 10-11 % ahead downwind.
 
-The rest of this summary is as of the XFOIL screen.
+**How we got here.**
+1. The XFOIL screen.
+2. `thistle-mesh`, which picked the fine mesh.
+3. `thistle-validation-r824` and `thistle-tu-calibration`: the model
+   matches Report 824 at Tu 0.3 % for 0006 and about 0.45 % for 64-006.
+4. `thistle-screen`: 8 sections at Tu 0.1 and 1 %. It rejected the two
+   parallel-sided boards, and the user dropped HT35, SD8020 and 0006-64.
+5. `thistle-extend`: 3 sections, the full grid, Tu 0.3 and 0.6 %.
 
-**No CFD answer yet.** XFOIL (2D panel method with e^N transition) says
-NACA 0006, the baseline, is already about as good upwind as any section
-tried. The trade is upwind against downwind:
-* **NACA 6-series.** They lose 3-5 % upwind at Tu 1 % (14-18 % at Tu
-  0.1 %), and have 12-20 % less drag at 0° from 7.5 kn.
-* **Parallel-sided (plank) boards.** These lose 3-41 % upwind. The less
-  flat, the better.
+The Tu literature is in docs/research/turbulence-intensity.md.
 
-XFOIL under-predicts drag at Re 3e6 by 2-25 % and can't be trusted for
-maximum lift, so the CFD decides.
+**Left open.**
+* What a lake's Tu means as a model input. The calibrated 0.3-0.6 % is a
+  lower bound, and Tu 1 % is a rough-water bound. This would only matter
+  for a board sailed mostly in chop, where the 6-series catch up.
+* The optional rough-water check and CST optimisation (thistle-extend
+  entry) were not run.
 
-1. `thistle-mesh` (96 cases) **submitted 2026-10-23**: run 20261023-052134,
-   image f3cf606.
-2. `thistle-validation-r824` is ready. It is submitted after the mesh level
-   is chosen.
-3. The CFD comes in two stages (split at the user's request, 2026-10-23).
-   Both are submitted after the mesh level is set.
-   * `thistle-screen`: all 8 sections, the 20 points per section and Tu
-     that can reject a section (1, 3, 5 kn at 0, 1, 2, 4, 6, 8°; 15 kn at
-     0 and 2°), Tu 0.1 and 1 %: 320 cases.
-   * `thistle-extend`: the other 37 points of the full grid, for the
-     survivors only. The two runs rank together.
-4. In thistle-mesh, the plank board diverged on the coarse mesh at 5 kn and
-   4° (C_l 1e34 after 60 s, stopped by the divergence guard). Its finer
-   meshes are still running.
+## 2026-10-25: thistle-extend, run 20261024-154540
+
+**Setup.**
+* **Sweep.** NACA 0006 (the baseline), 63-006 and 64-006, all at 1 in
+  (t/c 5.56 %) on the 0.4572 m normal chord.
+  * Tu 0.3 and 0.6 %, the band the calibration found.
+  * The full 57-point grid: V_b 1-5 kn at α_n 0-6, 8 and 10°, and 7.5-15
+    kn at 0-2°. V_n = V_b cos 10°.
+* **Solver.** kOmegaSSTLM, steady, fine mesh, conv_window 1000, max_iter
+  12000.
+* **Compute.** GCP c3d-standard-16 Spot, image af02c27 (git 8ec1ae1),
+  `--max-hours 14`.
+  * 19.6 h wall; 1271 case-hours, median 206 min per case.
+  * About $29 at docs/cloud-gcp.md's $0.0225 per case-hour (an estimate,
+    not billed figures).
+* **History.** This is the first run of this study, with no cases shared
+  with thistle-screen (Tu 0.1 and 1 % there).
+* **Ranking.** `python -m iomcfd.boardrank --design thistle cfd
+  results.csv`, output in `runs/thistle-extend/20261024-154540/boardrank/`.
+  Board drag D_h = D_v + D_i is compared at equal S_h, with the loads being
+  the S_h NACA 0006 makes at α_n 1, 2 and 4° at each speed and Tu.
+
+**Outcome.** All 342 tasks succeeded: 281 ok and 61 not converged.
+* **Not converged.** All 60 cases at 8 and 10° (every section, speed and
+  Tu), plus NACA 0006 at 1 kn, 3°, Tu 0.3 %. They ran all 12000
+  iterations, and the window means are used.
+* **Unsteady.** 113 cases. That is 59 of the 60 at 8-10°, and 54 below 8°,
+  of which 35 are NACA 0006's (21 at Tu 0.3 %), mostly at 0-3° and 1-3 kn.
+  Their C_d std is 2-8 % of C_d, up to 11 % (1 kn, 3°).
+* **Time-outs.** None (the screen lost 8 cases to the 8.5 h limit).
+
+### Conclusions
+
+1. **NACA 0006 has the least board drag upwind at both calibrated Tu
+   levels.**
+   * At Tu 0.3 %, 63-006 is +9.3 % and 64-006 +10.6 % (mean of 15 points).
+     NACA 0006 is ahead at 13 and 14 of those 15 points.
+   * At Tu 0.6 %, they are +2.4 % and +2.9 %, and NACA 0006 is ahead at 8
+     and 9 of 15.
+   * Confidence **high** for Tu 0.3 %; **medium** for 0.6 %, where the
+     margin is near the mesh uncertainty (about ±3 %).
+2. **The 6-series lose at the working and high loads and gain only at the
+   light load.**
+   * At Tu 0.3 %, the gap is +12 to +16 % at the working and high loads,
+     and +3 % at the light load.
+   * At Tu 0.6 %, it is +0.4 to +14 % at the working and high loads, and −4
+     to −5 % at the light load.
+   * By speed, at Tu 0.6 % the 6-series are ahead at 4-5 kn (−1 to −5 %)
+     and behind at 1-3 kn (+3 to +10 %).
+   * Confidence **medium**: the light-load gaps are smaller than the
+     baseline's own oscillation at those points.
+3. **Downwind the 6-series have less drag, almost all of it at high speed:
+   from 10 kn at Tu 0.3 %, and from 7.5 kn at 0.6 %.**
+   * Over 1-15 kn at 0°: 63-006 −4.6 / −6.4 % and 64-006 −5.3 / −7.9 %
+     (Tu 0.3 / 0.6 %).
+   * At 7.5-15 kn: −10 to −17 %.
+   * At 4-5 kn they have *more* drag (+1 to +8 %), and at 1-3 kn 2-4 %
+     less.
+   * Confidence **medium**: the zero-lift drag depends on where the flow
+     turns turbulent, which moves with Tu and speed (Learnings).
+4. **By the agreed rule, NACA 0006 wins in 5 of the 6 Tu × rake cases.**
+   The upwind gap at rake 5 / 10 / 15° is:
+   * Tu 0.3 %: +7.4 / +9.3 / +11.4 % for 63-006 and +8.6 / +10.6 / +12.7 %
+     for 64-006.
+   * Tu 0.6 %: +0.7 / +2.4 / +4.2 % and +0.8 / +2.9 / +5.2 %.
+
+   Only Tu 0.6 % at 5° rake falls inside the ±1 % window. Downwind then
+   decides, for 64-006 (−7.9 %). No veto applies.
+5. **The model's bias towards the 6-series does not change the upwind
+   answer, and it removes most of their downwind gain.**
+   * The calibration matched Report 824 with each section at its own
+     input: NACA 0006 at Tu 0.3 % and 64-006 at about 0.45 %.
+   * So 64-006 lies between its 0.3 and 0.6 % results, compared with NACA
+     0006 at 0.3 %. Upwind that is +10.6 to +11.3 %, and downwind −5.3 to
+     +4.8 %, about level.
+   * Confidence **medium**: the calibration is at one Re (3e6) and on two
+     sections; 63-006 was not calibrated.
+6. **Report 824's measurements show the same trade.**
+   * At Re 3e6 (true 6 %, quiet tunnel), at equal C_l, 64-006 has −11 %
+     drag at C_l 0 and −8 % at 0.1.
+   * It has +20 % at 0.2, +14 % at 0.3 and +8 % at 0.4.
+   * The Thistle's upwind loads are C_l about 0.1-0.45, and downwind is
+     C_l 0.
+   * Confidence **high** for the direction, but at one Re only: 3e6 is
+     about 13 kn, while upwind is 2.3e5-1.15e6.
+7. **Stall margin vetoes none of the three.**
+   * Every section, speed and Tu reaches maximum S_h at least 3.85° past
+     the high load. NACA 0006 is at 4.0° (censored at 6° in 4 of 5 speeds
+     at Tu 0.6 %).
+   * Report 824 has C_l,max at about 8° for both sections, about 4° past
+     the high load.
+   * Confidence **low** for the values, which rest on unsteady,
+     unconverged 8-10° points; **high** that no veto applies.
+8. **The thistle-screen bounds held.** The upwind gap shrinks steadily
+   with Tu: +10 to +12 % at 0.1 %, +9 to +11 % at 0.3 %, +2 to +3 % at
+   0.6 %, and −0.2 % at 1 %. The screen's numbers are over 1, 3 and 5 kn
+   only.
+
+### Evidence
+
+**Board drag against NACA 0006 [%]**, rake 10°, from
+`boardrank/summary-*rake10.csv` and `upwind-*.csv`.
+* Upwind: the mean and worst over 1-5 kn and the light, working and high
+  loads.
+* Downwind: 0° at 1-15 kn, then 7.5-15 kn alone.
+* d α_n: the extra section angle at equal S_h.
+* Stall margin: the minimum over speeds, in degrees past the high load
+  (NACA 0006: 4.0).
+
+| section | Tu | upwind | worst | light / working / high | d α_n [°] | downwind | 7.5-15 kn | stall margin [°] |
+|---|---|---|---|---|---|---|---|---|
+| 63-006 | 0.3 | +9.3 | +20.9 | +2.8 / +12.1 / +13.0 | +0.11 | −4.6 | −10.0 | 3.9 |
+| 64-006 | 0.3 | +10.6 | +21.6 | +2.9 / +12.8 / +16.3 | +0.12 | −5.3 | −12.1 | 3.9 |
+| 63-006 | 0.6 | +2.4 | +13.5 | −4.4 / +1.0 / +10.4 | +0.08 | −6.4 | −14.7 | 5.9 (censored) |
+| 64-006 | 0.6 | +2.9 | +16.9 | −5.4 / +0.4 / +13.6 | +0.09 | −7.9 | −17.1 | 3.9 |
+
+**Upwind by V_b** [%], mean over the three loads:
+
+| section, Tu | 1 kn | 2 kn | 3 kn | 4 kn | 5 kn |
+|---|---|---|---|---|---|
+| 63-006, 0.3 | +3.1 | +9.5 | +13.8 | +12.2 | +8.0 |
+| 64-006, 0.3 | +4.5 | +11.1 | +15.0 | +13.7 | +8.9 |
+| 63-006, 0.6 | +3.3 | +8.9 | +5.1 | −1.2 | −4.4 |
+| 64-006, 0.6 | +4.6 | +9.9 | +5.8 | −1.2 | −4.6 |
+
+**Zero-lift drag C_d × 1e4** (results.csv, α_n 0°):
+
+| V_b [kn] | 0006, 0.3 | 63-006, 0.3 | 64-006, 0.3 | 0006, 0.6 | 63-006, 0.6 | 64-006, 0.6 |
+|---|---|---|---|---|---|---|
+| 1 | 66.4 | 63.6 | 64.2 | 66.7 | 63.8 | 64.3 |
+| 3 | 39.0 | 37.9 | 38.4 | 39.2 | 38.3 | 38.6 |
+| 5 | 30.4 | 32.8 | 32.4 | 32.7 | 34.9 | 33.8 |
+| 7.5 | 30.0 | 31.0 | 30.3 | 43.5 | 38.2 | 37.3 |
+| 10 | 36.5 | 31.9 | 31.1 | 49.0 | 41.3 | 40.4 |
+| 15 | 45.1 | 37.9 | 37.3 | 54.3 | 46.4 | 44.7 |
+
+**Bias check**, each section against NACA 0006 at Tu 0.3 %, at that run's
+loads.
+* For the Tu 0.6 % row, the cases were re-ranked with
+  `--loads boardrank/loads-CFDkOmegaSSTLMTu0.3rake10.csv`, output in
+  `boardrank/tu06-at-tu03-loads/`.
+* 64-006's calibrated input (about 0.45 %) lies between the two rows.
+
+| section | upwind, at Tu 0.3 % | upwind, at Tu 0.6 % | downwind 0°, at 0.3 % | downwind 0°, at 0.6 % |
+|---|---|---|---|---|
+| 63-006 | +9.3 | +10.8 | −4.6 | +6.7 |
+| 64-006 | +10.6 | +11.3 | −5.3 | +4.8 |
+
+**Report 824, Re 3e6**, drag at equal C_l, interpolated in
+validation/naca6_r824.csv:
+
+| C_l | 0 | 0.1 | 0.2 | 0.3 | 0.4 |
+|---|---|---|---|---|---|
+| 0006 C_d | 0.00448 | 0.00464 | 0.00502 | 0.00554 | 0.00620 |
+| 64-006 C_d | 0.00399 | 0.00426 | 0.00603 | 0.00631 | 0.00669 |
+| 64-006 against 0006 | −11 % | −8 % | +20 % | +14 % | +8 % |
+
+**Highlight `laminar-run`** (3 kn, report/highlight_laminar-run.png and
+highlights.md). At 2°:
+
+| section | C_l at Tu 0.3 / 0.6 % | C_d at Tu 0.3 / 0.6 % | upper surface turns turbulent near x/c (read from the figure) |
+|---|---|---|---|
+| NACA 0006 | 0.249 / 0.237 | 0.00406 / 0.00534 | 0.93 / 0.55 |
+| 63-006 | 0.221 / 0.216 | 0.00435 / 0.00483 | 0.80 (short bubble from 0.74) / 0.65 |
+| 64-006 | 0.221 / 0.216 | 0.00436 / 0.00477 | 0.80 (bubble from 0.74) / 0.65 |
+
+* The 6-series have a sharper suction peak at the nose. Away from 0° they
+  turn turbulent earlier than NACA 0006 at Tu 0.3 %.
+* At Tu 0.6 % they turn turbulent later, but at equal S_h NACA 0006 is
+  still ahead at 3 kn (+4 % for the 6-series), because it makes 10-13 % more
+  C_l at 2°.
+* At 0°, all three are laminar to about 0.8-0.95 at both Tu.
+
+### Decisions
+
+**Decided (user, 2026-10-25).**
+* **NACA 0006 at 1 in is the answer, and the CFD is closed.** The board
+  keeps the baseline section.
+* The optional checks under Open questions are not run.
+* The case for a 6-series board stays on record: rough water (Tu about
+  1 %), or a sailor who weights the 7.5-15 kn legs above upwind. Then
+  64-006 trades 2-11 % upwind for 10-17 % downwind.
+
+### Assumptions
+
+* **Rake.** 10°, bracketed 5-15° (no published value).
+* **Board.** b_LE 1.24 m and e 0.9 (methodology-thistle.md). **Not
+  verified.**
+* **Loads.** NACA 0006's S_h at α_n 1, 2 and 4°, at each Tu, with equal
+  weights over 1-5 kn and the three loads; no wind statistics.
+* **Water.** Fresh, 20 °C.
+* **Turbulence.** The Tu calibration (Report 824, Re 3e6, 0006 and
+  64-006) is taken to hold from 2.3e5 to 3.5e6, and for 63-006. **Not
+  verified.**
+* **Report 824.** Digitised to about ±2e-4 in C_d; true 6 % sections, not
+  5.56 %.
+* **Surface.** Smooth boards, sharp trailing edges.
+
+### Compromises
+
+* **Steady RANS of unsteady flow.** NACA 0006's light and working loads
+  come mostly from points flagged unsteady (9 of its 15 upwind points per
+  Tu).
+  * Its C_d oscillates by 2-8 %, so a 3 % gap at the light load is within
+    the noise. The 12-16 % gaps at the higher loads are not.
+* **Post-stall points.** All 8 and 10° points are not converged, so the
+  stall margins are indicative. They only need to clear 2°, and all
+  clear 3.85°.
+* **Downwind interpolation.** The grid has no point between 5 and 7.5 kn,
+  where NACA 0006's zero-lift drag jumps at Tu 0.6 % (32.7 to 43.5e-4).
+  Interpolating in log Re smooths that over.
+* **No roughness or fully turbulent finalists.** The planned Tu 2 % and
+  kOmegaSST finalists (plan stage 6) were not run. The screen's Tu 1 %,
+  effectively fully turbulent, stands in for rough water.
+* **2D.** There are no tip, root or hull effects beyond the lifting-line
+  D_i.
+
+### Learnings
+
+* **Physics.**
+  * At 5.6 % thickness, the 6-series' low-drag range is narrow, C_l up to
+    about 0.1 (Report 824 and these runs). A Thistle board upwind works at
+    C_l 0.1-0.45, outside it.
+  * NACA 0006's rounder nose keeps its suction side laminar longer at
+    those C_l when the water is quiet.
+  * Downwind at C_l 0 the 6-series gain only once NACA 0006's own laminar
+    run is lost: from 10 kn at Tu 0.3 %, and from 7.5 kn at 0.6 %.
+* **A surprise: the 6-series make less lift at the same α_n in the CFD.**
+  At 2°, 3 kn and Tu 0.3 %, C_l is 0.221 against 0.249 (−11 %), so they
+  need 0.08-0.14° more section angle. Report 824 doesn't show this: its
+  fitted lift slopes over −4 to 4° are 0.104 per degree for 0006 and 0.109
+  for 64-006. The CFD's extra leeway for the 6-series is probably a model
+  effect, but the equal-C_l drag comparison in Report 824 points the same
+  way without it.
+* **Workflow.**
+  * `--max-hours 14` stopped the time-outs: the longest case took 8.9 h.
+  * After this run, the custom-profile merge replaced the steady
+    checkpoints (every 1000 iterations) with the runner's signal writes,
+    every 15 min. Later submits use those.
+  * Runs now live in the main checkout's `runs/`, which this worktree
+    links to.
+
+### Open questions and next steps
+
+1. **The user's decision.** Done: NACA 0006 accepted (2026-10-25).
+2. **Class legality.** Only needed if a board with a different section is
+   ever built; NACA 0006 needs no change.
+3. **Optional, rough-water check.** About 114 cases, about $10 (an
+   estimate): the three sections at Tu 1.5 % and kOmegaSST at the upwind
+   points. Only worth running if the board is often sailed in chop.
+4. **Optional, CST optimisation at 1 in** (plan stage 5). The target is
+   NACA 0006's upwind with less zero-lift drag. Any gain is likely a few
+   %, within the model's ±3-6 %, so it is not recommended.
+5. **Highlights for a follow-up run**, if one is made: where NACA 0006
+   loses its laminar run at 0°, which drives the downwind result.
+   ```yaml
+   highlights:
+     - name: laminar-loss
+       why: >
+         NACA 0006's zero-lift drag jumps between 5 and 7.5 kn at Tu 0.6 % (32.7 to 43.5e-4)
+         and between 7.5 and 10 kn at 0.3 %: where its laminar run is lost decides the downwind
+         ranking (thistle-extend findings 2026-10-25).
+       where: {aoa: 0, speed: [2.5331, 3.7997, 5.0663], foil: ["file:naca0006-t0556.dat",
+                                                             "file:naca64-006-t0556.dat"]}
+       compare: Tu
+       views: [transition]
+   ```
 
 ## 2026-10-24: thistle-screen, run 20261023-125405
 

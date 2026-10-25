@@ -118,7 +118,9 @@ Why 1, 2 and 4° (A): an estimate, to be refined.
      bound the answer. The finalists run at Tu 0.3 and 0.6 %, the inlet
      values at which the model reproduces NACA Report 824's quiet-tunnel
      drag (thistle-tu-calibration). Fully turbulent kOmegaSST stands in for
-     a rough or painted board.
+     a rough or painted board. It was not run for the finalists: the study
+     closed on 2026-10-25, and the screen's Tu 1 %, effectively fully
+     turbulent, stood in for it.
    * **XFOIL.** Ncrit 8.15, 4.0 and 2.6 (Tu 0.1, 0.5 and 1 %, Mack), plus a
      variant tripped at x/c 0.05.
    * **Rake.** Every variant is ranked at rake 10, 5 and 15°.

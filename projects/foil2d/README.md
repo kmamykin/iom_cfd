@@ -272,7 +272,13 @@ and 2 %), `custom-section-transient-opt2` and `custom-section-tu-opt2`
 cases again, with checkpoints), `custom-section-transient-rerun` (failed
 time-accurate cases again, at max_co 5), `thistle-mesh` (the Thistle
 centreboard's section, 457 mm chord at 1 in, at Re 2.3e5-3.5e6: coarse to
-xfine, for [findings/thistle-board.md](findings/thistle-board.md)).
+xfine), `thistle-validation-r824` (NACA 0006 and 64-006 against NACA
+Report 824 at Re 3e6), `thistle-tu-calibration` (the inlet Tu that
+reproduces Report 824), `thistle-screen` (8 board sections at Tu 0.1 and
+1 %) and `thistle-extend` (NACA 0006, 63-006 and 64-006 over the full grid
+at Tu 0.3 and 0.6 %). All five are for
+[findings/thistle-board.md](findings/thistle-board.md), whose answer is to
+keep NACA 0006 at 1 in.
 
 What the runs showed, and the assumptions behind them, is logged per study
 in [findings/](findings/), e.g.
