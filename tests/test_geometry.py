@@ -216,6 +216,34 @@ def test_film_geometry():
         foils.load("film:naca0009:x=0.98")  # the edge must leave room for the fillets
 
 
+def test_faired_geometry():
+    """A stair1 step faired out (stepped.faired): the base ahead of x, the
+    step's thinner rear behind x + l, a smooth surface in between, and no
+    steps, so it is meshed and run as a smooth section."""
+    f = foils.load("faired:naca0007:x=0.5,h=0.002,l=0.1")
+    trip, base = foils.load("stair1:naca0007:x=0.5,h=0.002"), foils.naca4("0007")
+    assert not f.steps and not f.breaks and f.base is not None
+    assert not stepped.is_stepped("faired:naca0007") and stepped.is_stepped("stair1:naca0007")
+    assert np.allclose(f.x, f.x[::-1], atol=1e-12) and np.allclose(f.y, -f.y[::-1], atol=1e-12)
+    for x in (0.1, 0.3, 0.49):
+        assert _half_thickness(f, x) == pytest.approx(_half_thickness(base, x), abs=1e-7)
+    for x in (0.61, 0.8, 0.95):
+        assert _half_thickness(f, x) == pytest.approx(_half_thickness(trip, x), abs=1e-7)
+    # through the fairing the surface only ever goes down: no step, no ripple
+    up = f.surface("upper", 4000)
+    assert np.all(np.diff(up[(up[:, 0] > 0.45) & (up[:, 0] < 0.65), 1]) <= 0)
+    assert f.point(np.array([0.0, f.perimeter])) == pytest.approx(np.array([[1.0, 0.0], [1.0, 0.0]]), abs=1e-9)
+    assert stepped.parse_spec("faired:naca0009:x=0.4,d=0.2,l=0.2") == ("faired", "naca0009",
+                                                                       {"x": 0.4, "d": 0.2, "l": 0.2})
+    with pytest.raises(ValueError):  # a fairing has a depth or a height, not a thickness
+        stepped.parse_spec("faired:naca0009:t=0.002")
+    with pytest.raises(ValueError):
+        foils.load("faired:naca0009:x=0.9,l=0.2")  # the fairing must end by the TE
+    spec = cmesh.CMeshSpec(chord=0.1, span=0.01, n_surface=96, n_wake=40, n_normal=64, first_cell=2e-5)
+    P, _ = cmesh.generate(f, spec)
+    assert np.all(cmesh.cell_areas(P) > 0) and cmesh.quality(P)["max_nonortho"] < 40.0
+
+
 def test_stepped_dat_base():
     """A .dat base, whose LE is found numerically (x dips by ~1e-14 next to
     it), can be stepped and wrapped: HT35 at 7 %."""

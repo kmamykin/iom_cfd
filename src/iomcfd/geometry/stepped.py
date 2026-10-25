@@ -55,6 +55,21 @@ moves forward by t and its radius grows by t; behind x it is the base
 itself. The edge is a step of height t with its face along the base's
 normal (a knife cut). Options: x (0.5), t (film thickness / chord, 0.002),
 r_lip, r_foot.
+
+A faired step is a stair1 step filled in and sanded smooth: the same thinner
+rear, reached over a fairing behind x instead of at a step, to tell a step's
+effect from its thinner rear's:
+
+    faired:naca0007:x=0.5,h=0.002,l=0.1   the base to x/c 0.5; from there
+                                          F(x) falls smoothly to that of
+                                          stair1:naca0007:x=0.5,h=0.002,
+                                          reached at x/c 0.6; behind it the
+                                          two sections are the same
+
+F goes from 1 to 1 - d over x..x+l by a quintic smoothstep (continuous
+curvature). It has no steps, so it is meshed and run as a smooth section
+(is_stepped is false). Options: x (0.5), d (0.3) or h, l (fairing length /
+chord, 0.1).
 """
 
 from __future__ import annotations
@@ -75,10 +90,11 @@ STAIRS = {"stair1": (1, {"x": 0.5, "d": 0.3}),
           "stair5": (5, {"x": 0.3, "x_end": 0.9, "h": 0.0025}),
           "stair10": (10, {"x": 0.3, "x_end": 0.9, "h": 0.00125})}
 FILM = {"x": 0.5, "t": 0.002}  # film edge x/c and thickness / chord
-PRESETS = (*STAIRS, "film")
+FAIRED = {"x": 0.5, "d": 0.3, "l": 0.1}  # fairing start x/c, depth, length / chord
+PRESETS = (*STAIRS, "film", "faired")
 OPTIONS = {k: (*(("x", "d", "h") if n == 1 else ("x", "x_end", "h")), "angle", "r_lip", "r_foot")
-           for k, (n, _) in STAIRS.items()} | {"film": ("x", "t", "r_lip", "r_foot")}
-SPEC_RE = re.compile(r"(?i)((?:stair|kfm)\d+|film):(.+)")  # kfm only to explain the rename
+           for k, (n, _) in STAIRS.items()} | {"film": ("x", "t", "r_lip", "r_foot"), "faired": ("x", "d", "h", "l")}
+SPEC_RE = re.compile(r"(?i)((?:stair|kfm)\d+|film|faired):(.+)")  # kfm only to explain the rename
 
 
 @dataclass
@@ -95,7 +111,9 @@ class StepInfo:
 
 
 def is_stepped(spec: str) -> bool:
-    return bool(SPEC_RE.fullmatch(str(spec).strip()))
+    """A section with steps (stair, film); a faired one has none."""
+    m = SPEC_RE.fullmatch(str(spec).strip())
+    return bool(m) and m.group(1).lower() != "faired"
 
 
 def parse_spec(spec: str) -> tuple[str, str, dict[str, float]]:
@@ -131,6 +149,10 @@ def from_spec(spec: str, search_dirs: list[Path] | None = None) -> Foil:
         o = {**FILM, **o}
         return film(base, o["x"], o["t"], r_lip=o.get("r_lip", 0.05), r_foot=o.get("r_foot", 0.25),
                     name=f"{base.name} wrapped in a film ({spec})")
+    if preset == "faired":
+        o = {**FAIRED, **o}
+        d = o["h"] / float(_Surfaces(base).half_thickness(o["x"])) if "h" in o else o["d"]  # as stair1's
+        return faired(base, o["x"], d, o["l"], name=f"{base.name} with a faired step ({spec})")
     n, dflt = STAIRS[preset]
     o = {**dflt, **o}
     xs = np.linspace(o["x"], o.get("x_end", o["x"]), n)
@@ -329,6 +351,25 @@ def film(base: Foil, x: float, t: float, r_lip: float = 0.05, r_foot: float = 0.
     if np.any(np.diff(fwd[: i_le + 1, 0]) > 1e-9) or np.any(np.diff(fwd[i_le:, 0]) < -1e-9):
         raise ValueError(f"a {t} c film folds on {base.name}: thicker than the radius of a concave part")
     return _assemble(base, up, lo, up_info, lo_info, fwd, name or f"{base.name} wrapped in a film")
+
+
+def faired(base: Foil, x: float, depth: float, length: float, name: str | None = None) -> Foil:
+    """A stair1 step of `depth` at x/c `x` faired out over x..x+length
+    (module docstring): one smooth contour, no breaks and no steps."""
+    if not 0.05 <= x < x + length <= 1.0 or not 0 < depth <= 0.9:
+        raise ValueError(f"fairing from x/c={x} over {length} with depth {depth}: need 0.05 <= x, "
+                         f"x + l <= 1 and 0 < depth <= 0.9")
+    S = _Surfaces(base)
+
+    def F(xx):
+        u = np.clip((xx - x) / length, 0.0, 1.0)
+        return 1.0 - depth * u**3 * (10 - 15 * u + 6 * u**2)
+
+    xu, xl = S.up[:, 0], S.lo[:, 0]
+    yu = S.y(xu, 1, F(xu))
+    yl = -yu if S.symmetric else S.y(xl, -1, F(xl))  # mirrored: exactly symmetric
+    return Foil(name or f"{base.name} with a faired step", np.concatenate([xu[::-1], xl[1:]]),
+                np.concatenate([yu[::-1], yl[1:]]), base=base)
 
 
 def _s_forward(base: Foil, s_u: float, s_l: float) -> np.ndarray:

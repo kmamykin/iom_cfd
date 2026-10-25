@@ -61,6 +61,9 @@
   A film wrapped round the nose is the same machinery with material added
   ahead of the step instead of cut behind it: `film:file:ht35-t070.dat:x=0.5,t=0.002`
   (0.2 mm at 100 mm chord, ending at x/c 0.5; behind it the bare base).
+  A faired step, `faired:naca0007:x=0.5,h=0.002,l=0.1`, is the stair1 step
+  filled in over x..x+l: the same thinner rear, no step, so it is a smooth
+  section (is_stepped false, the smooth mesh).
 - Visualisation is a separate, re-runnable layer: `uv run iomcfd viz <study>`
   runs in the `iom-cfd-viz` image (ParaView 6.2, `make viz-image`) and only
   reads finished cases. Views are functions in `projects/<name>/viz.py`

@@ -1,0 +1,53 @@
+study: naca0007-faired
+project: foil2d
+description: >
+  Is the cut trip's gain the step or its thinner rear? (findings:
+  projects/foil2d/findings/naca0007-film.md). The trip
+  stair1:naca0007:x=0.5,h=0.002 (naca0007-trip, run 20261025-173646) gained
+  0.40 % of race time at Tu 1 % over plain NACA 0007, also at 0 deg where its
+  step didn't trip anything; behind the step it is 6.5 % thinner, and NACA
+  0006 against 0007 suggests that alone is worth 3.5-4 % of the 0 deg drag
+  (an estimate, not verified). faired:naca0007:x=0.5,h=0.002,l=0.1 is that
+  trip with the step filled in and sanded smooth: plain NACA 0007 to x/c 0.5,
+  a quintic fairing down to the trip's 93.5 % thickness by x/c 0.6, the
+  trip's rear behind it (stepped.py faired). A smooth section, meshed like
+  plain NACA 0007 (90,112 cells medium). Faired against plain = the thinner
+  rear (plus a 10 mm, 0.2 mm ramp); trip against faired = the step. The
+  fairing length is a choice: shorter is closer to the trip, longer adds a
+  milder pressure gradient. Plain NACA 0007 and the film are in naca0007-film
+  (run 20261025-161234), the trip in naca0007-trip; both on image a5641dc,
+  this one on a newer image with the same solver and settings. Steady, at
+  the custom-section settings: 100 mm, 0.75-1.5 m/s, 0-6 deg with 3 and 5, Tu
+  0.1, 1 and 2 %, medium mesh. 4 ranks per case; checkpoints
+  (docs/cloud-gcp.md).
+report:
+  fin_span: 0.36
+  induced_drag: true
+highlights:
+  - name: faired-edge
+    why: >
+      Where plain NACA 0007 separates laminar (2 deg) the trip's step closed the separation; does the
+      fairing's ramp do it too? At 4 deg the flow is turbulent ahead of x/c 0.5. 1 m/s, Tu 1 %: the
+      faired section's transition and bubbles at both (against naca0007-film's plain and
+      naca0007-trip's trip).
+    where: {speed: 1.0, aoa: [2, 4], Tu: 1.0}
+    compare: aoa
+    views: [boundary_layer, transition]
+  - name: faired-by-tu
+    why: >
+      The trip's 0 deg gain at Tu 1 % is the one the thinner rear may explain: the faired section at 0
+      and 2 deg, 1 m/s, as Tu rises from 0.1 to 2 %.
+    where: {speed: 1.0, aoa: [0, 2]}
+    compare: Tu
+    views: [transition]
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  mesh: medium
+  solver: steady
+  np: 4
+sweep:
+  foil: ["faired:naca0007:x=0.5,h=0.002,l=0.1"]
+  Tu: [0.1, 1.0, 2.0]
+  speed: [0.75, 1.0, 1.5]
+  aoa: [0, 2, 3, 4, 5, 6]
