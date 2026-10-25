@@ -55,6 +55,19 @@ def test_board_forces_reduce_to_fin_forces_without_rake():
     assert f.loc[4.0, "drag"] == pytest.approx(ref["drag"].iloc[0], rel=1e-9)
 
 
+def test_board_forces_use_each_candidates_chord():
+    """A candidate with a shorter chord gets a proportionally smaller area:
+    the same Cl makes less side force and the same Cd less viscous drag."""
+    d = _design()
+    p = _polars()
+    p["chord"] = np.where(p["candidate"] == "x", 0.6 * d.chord, d.chord)
+    f = boardrank.board_forces(p, d, [3.0]).set_index(["candidate", "aoa"])
+    assert f.loc[("x", 4.0), "side_force"] == pytest.approx(0.6 * f.loc[("base", 4.0), "side_force"])
+    assert f.loc[("x", 4.0), "drag_v"] == pytest.approx(0.6 * f.loc[("base", 4.0), "drag_v"])
+    no_chord = boardrank.board_forces(p.drop(columns="chord"), d, [3.0]).set_index(["candidate", "aoa"])
+    assert no_chord.loc[("x", 4.0), "side_force"] == pytest.approx(f.loc[("base", 4.0), "side_force"])
+
+
 def test_sweep_projections_and_induced_drag_identity():
     lam = 60.0
     d = _design(rake=lam)

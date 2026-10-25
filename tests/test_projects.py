@@ -163,7 +163,8 @@ def test_render_thistle_studies(tmp_path, path):
     """Every section a Thistle study names is in geometry/foils/ and meshes at
     the board's chord and Reynolds numbers (one case per section); in the
     studies without reference data (not compared with Report 824's true
-    6 % sections) every one is 1 in thick on 18 in."""
+    6 % sections) every one is 1 in thick, the class maximum, whatever its
+    chord (18 in, or shorter in a what-if such as thistle-0009-short)."""
     project = load_project("foil2d")
     study = Study.load(path)
     cases = list({c.params["foil"]: c for c in study.expand(project.defaults)}.values())
@@ -172,4 +173,4 @@ def test_render_thistle_studies(tmp_path, path):
         d = json.loads((tmp_path / "run" / c.name / "params.json").read_text())["derived"]
         assert d["n_cells"] > 0
         if not study.reference:
-            assert d["thickness"] == pytest.approx(1 / 18, rel=2e-3), c.params["foil"]
+            assert d["thickness"] * float(c.params["chord"]) == pytest.approx(0.0254, rel=2e-3), c.params["foil"]

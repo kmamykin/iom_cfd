@@ -100,10 +100,10 @@ def normal_speed(vb_kn: float, rake: float) -> float:
 
 def at_speed(polars: pd.DataFrame, v: float, max_extrap: float = 0.03) -> pd.DataFrame:
     """The polars (candidate, speed = V_n [m/s], aoa, Cl, Cd, Cdp, Cdf and
-    optionally unsteady) at V_n = v: per candidate and angle, Cl linear and
-    the drags log-log in V_n between the two nearest speeds that have that
-    angle. Beyond the speeds by more than max_extrap of v the point is left
-    out."""
+    optionally chord [m] and unsteady) at V_n = v: per candidate and angle,
+    Cl linear and the drags log-log in V_n between the two nearest speeds
+    that have that angle. Beyond the speeds by more than max_extrap of v the
+    point is left out."""
     rows = []
     for (cand, a), g in polars.groupby(["candidate", "aoa"]):
         g = g.sort_values("speed")
@@ -126,6 +126,8 @@ def at_speed(polars: pd.DataFrame, v: float, max_extrap: float = 0.03) -> pd.Dat
             row[c] = math.exp(math.log(lo) + w * math.log(hi / lo)) if lo > 0 and hi > 0 else lo + w * (hi - lo)
         if "unsteady" in g:
             row["unsteady"] = bool(r0["unsteady"]) or (w != 0.0 and bool(r1["unsteady"]))
+        if "chord" in g:
+            row["chord"] = float(r0["chord"])
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -133,7 +135,8 @@ def at_speed(polars: pd.DataFrame, v: float, max_extrap: float = 0.03) -> pd.Dat
 def board_forces(polars: pd.DataFrame, d: Design, speeds_kn, rake: float | None = None) -> pd.DataFrame:
     """Whole-board side force, drag (viscous, induced, total) [N] and leeway
     [deg] per candidate, boat speed (`speed`, kn) and section angle, at
-    `rake` (default the nominal one)."""
+    `rake` (default the nominal one). Each candidate's own chord (the polars'
+    `chord`, else the design's) sets its area; the span is the design's."""
     rake = d.rake if rake is None else rake
     c = math.cos(math.radians(rake))
     out = []
@@ -143,8 +146,9 @@ def board_forces(polars: pd.DataFrame, d: Design, speeds_kn, rake: float | None 
             continue
         q = 0.5 * d.rho * (vb * KN) ** 2
         p["speed"], p["rake"] = vb, rake
-        p["side_force"] = p["Cl"] * q * c**2 * d.chord * d.span
-        p["drag_v"] = (p["Cdp"] * c**3 + p["Cdf"] * c) * q * d.chord * d.span
+        chord = p["chord"] if "chord" in p else d.chord
+        p["side_force"] = p["Cl"] * q * c**2 * chord * d.span
+        p["drag_v"] = (p["Cdp"] * c**3 + p["Cdf"] * c) * q * chord * d.span
         p["drag_i"] = induced_drag(p["side_force"], q, d.span * c, d.e)
         p["drag"] = p["drag_v"] + p["drag_i"]
         p["leeway"] = p["aoa"] * c
@@ -284,10 +288,17 @@ def rank(polars: pd.DataFrame, d: Design, rake: float | None = None, lds: pd.Dat
 # Sources of polars
 
 
-def xfoil_polars(d: Design, specs, threads: int = 8, variants: list[str] | None = None) -> pd.DataFrame:
+def xfoil_polars(d: Design, specs, threads: int = 8, variants: list[str] | None = None,
+                 chords: dict[str, float] | None = None) -> pd.DataFrame:
     """XFOIL polars of the baseline and `specs` on the CFD's V_n grid, one
-    `variant` per Tu of the design (Ncrit from Tu) plus the tripped one."""
+    `variant` per Tu of the design (Ncrit from Tu) plus the tripped one.
+    `chords` gives a section its own chord [m] (the Reynolds number and, in
+    board_forces, the area follow it); the others have the design's."""
     sections = {sp: sectiondesign.load(sp) for sp in dict.fromkeys([d.baseline, *specs])}
+    chords = chords or {}
+    by_chord: dict[float, dict] = {}
+    for sp, f in sections.items():
+        by_chord.setdefault(float(chords.get(sp, d.chord)), {})[sp] = f
     runs = [(f"Tu {tu:g}", tu, None) for tu in d.xfoil_tu]
     if d.xfoil_xtr:
         runs.append((f"XTR {d.xfoil_xtr:g}", d.xfoil_tu[-1], (d.xfoil_xtr, d.xfoil_xtr)))
@@ -295,9 +306,10 @@ def xfoil_polars(d: Design, specs, threads: int = 8, variants: list[str] | None 
     for name, tu, xtr in runs:
         if variants and name not in variants:
             continue
-        t = sectiondesign.xfoil_table(sections, d.chord, d.cfd_speeds, [tu], d.xfoil_angles, nu=d.nu,
-                                      threads=threads, xtr=xtr)
-        parts.append(t.assign(variant=name))
+        for chord, secs in by_chord.items():
+            t = sectiondesign.xfoil_table(secs, chord, d.cfd_speeds, [tu], d.xfoil_angles, nu=d.nu,
+                                          threads=threads, xtr=xtr)
+            parts.append(t.assign(variant=name))
     df = pd.concat(parts, ignore_index=True)
     df["Cdf"] = df["Cd"] - df["Cdp"]
     return df
@@ -399,6 +411,8 @@ def _main(argv=None) -> None:  # pragma: no cover - thin CLI
     s.add_argument("--variants", nargs="*", help="only these XFOIL variants, e.g. 'Tu 1' 'XTR 0.05'")
     s.add_argument("--out", type=Path, help="directory for polars.csv and the ranking tables")
     s.add_argument("--write-loads", action="store_true", help="also write design/<name>-loads.csv")
+    s.add_argument("--chord", action="append", metavar="SPEC=METRES",
+                   help="a section's own chord, e.g. naca0009=0.282222 (default: the design's)")
     c = sub.add_parser("cfd", help="ranking of finished foil2d runs (results.csv)")
     c.add_argument("results", nargs="+", type=Path)
     c.add_argument("--replace", nargs="*", type=Path, default=[], help="results.csv whose points replace (transient)")
@@ -430,7 +444,8 @@ def _main(argv=None) -> None:  # pragma: no cover - thin CLI
         d = dataclasses.replace(d, down_speeds=a.down_kn)
 
     if a.cmd == "screen":
-        df = xfoil_polars(d, a.specs, variants=a.variants)
+        chords = {k: float(v) for k, v in (c.split("=", 1) for c in a.chord or [])}
+        df = xfoil_polars(d, a.specs, variants=a.variants, chords=chords)
         if a.out:
             a.out.mkdir(parents=True, exist_ok=True)
             df.to_csv(a.out / "polars.csv", index=False)

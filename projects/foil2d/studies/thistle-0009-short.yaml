@@ -1,0 +1,51 @@
+study: thistle-0009-short
+project: foil2d
+description: >
+  What-if for the Thistle centreboard (findings: projects/foil2d/findings/thistle-board.md; method:
+  projects/foil2d/methodology-thistle.md): NACA 0009 on a chord shortened to 11.11 in (0.2822 m), so it
+  is still 1 in thick, against the accepted NACA 0006 on 18 in (thistle-extend run 20261024-154540,
+  the baseline; ranked together with boardrank, each candidate with its own chord and the same 1.24 m
+  span). The shorter board has 62 % of the area, so for the same side force it works at about 1.6
+  times the lift coefficient: less friction area, a thicker section, less stall margin. Requested by
+  the user 2026-10-25. Probably not class-legal (TCA XII.2: dimensions per the Official Plans); a
+  what-if. Same settings as thistle-extend for a like-for-like comparison: V_n = V_b cos 10 deg
+  (rake 10 deg, assumed), the calibrated inputs Tu 0.3 and 0.6 % (calibrated on NACA 0006 and 64-006,
+  not on 0009: assumed to carry over to the 4-digit family), fine mesh (chosen at 457 mm; the
+  generator scales with chord and Reynolds number, not re-checked at 282 mm), conv_window 1000,
+  max_iter 12000; submit with --tag af02c27 (the baseline's image) and --max-hours 14. Angles: 0-8,
+  10 and 12 deg at 1-5 kn (7 and 12 deg added for the higher working lift), 0-2 deg at 7.5-15 kn;
+  67 points x 2 Tu = 134 cases.
+report:
+  fin_span: 1.24
+  induced_drag: true
+highlights:
+  - name: high-load
+    why: >
+      3 kn near the high side-force load: NACA 0009 on 11.11 in needs about 7 deg where NACA 0006 on
+      18 in needs 4 deg; how close to separation does the shorter board work?
+    where: {speed: 1.5199, aoa: [6, 7, 8]}
+    compare: Tu
+    views: [boundary_layer, separation]
+defaults:
+  foil: naca0009
+  chord: 0.282222       # 1 in / 0.09: 11.11 in, still 1 in thick
+  temperature: 20
+  turbulence: kOmegaSSTLM
+  mesh: fine            # thistle-mesh run 20261023-052134 (at 457 mm)
+  conv_window: 1000
+  max_iter: 12000
+sweep:
+  Tu: [0.3, 0.6]
+zip:                    # V_n [m/s] for V_b 1, 2, 3, 4, 5 kn (0-8, 10, 12 deg) and 7.5, 10, 12.5, 15 kn (0-2 deg)
+  speed: [0.5066, 0.5066, 0.5066, 0.5066, 0.5066, 0.5066, 0.5066, 0.5066, 0.5066, 0.5066, 0.5066,
+          1.0133, 1.0133, 1.0133, 1.0133, 1.0133, 1.0133, 1.0133, 1.0133, 1.0133, 1.0133, 1.0133,
+          1.5199, 1.5199, 1.5199, 1.5199, 1.5199, 1.5199, 1.5199, 1.5199, 1.5199, 1.5199, 1.5199,
+          2.0265, 2.0265, 2.0265, 2.0265, 2.0265, 2.0265, 2.0265, 2.0265, 2.0265, 2.0265, 2.0265,
+          2.5331, 2.5331, 2.5331, 2.5331, 2.5331, 2.5331, 2.5331, 2.5331, 2.5331, 2.5331, 2.5331,
+          3.7997, 3.7997, 3.7997, 5.0663, 5.0663, 5.0663, 6.3329, 6.3329, 6.3329, 7.5994, 7.5994, 7.5994]
+  aoa:   [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12,
+          0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12,
+          0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12,
+          0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12,
+          0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12,
+          0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2]
