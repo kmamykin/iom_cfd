@@ -25,7 +25,8 @@
   bucket and a retried (preempted) task resumes from it, never from scratch
   (src/iomcfd/checkpoint.py; docs/cloud-gcp.md). Default: the runner signals
   the solver to write (writeNowSignal) every 15 min, any project, any np;
-  foil2d time-accurate cases write every flow-through themselves. A new
+  foil2d time-accurate cases write every flow-through themselves; foil2d
+  joins a steady case's force history across restarts. A new
   project or Allrun must keep this working: Allrun skips meshing when
   IOMCFD_RESUME is set (tests/test_projects.py checks every project).
 - `gcp fetch` downloads only results (params/result.json, surface.csv,

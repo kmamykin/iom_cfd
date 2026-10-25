@@ -1,0 +1,26 @@
+# Thistle centreboard: the inputs of iomcfd.boardrank (methodology-thistle.md,
+# findings/thistle-board.md). (A) marks an assumption, not a measurement.
+board:
+  chord: 0.4572        # m, square to the leading edge (18 in; user)
+  thickness: 0.0254    # m, 1 in: the class maximum (TCA Green Book, Art. XII.5); t/c 5.556 %
+  span: 1.24           # m along the leading edge below the hull, fully down (A): draft 4'6" - hull 6" = 48 in, at 10 deg
+  rake: 10             # deg, leading edge aft of vertical, fully down (A): no published value; it hangs on rollers
+  rake_range: [5, 15]  # deg, the bracket every ranking is repeated for
+  e: 0.9               # span efficiency with the hull as a reflection plane (A)
+fluid: {name: water, temperature: 20}   # fresh water, summer lake (user)
+baseline: "file:naca0006-t0556.dat"     # NACA 0006 at 1 in (user)
+upwind:
+  speeds_kn: [1, 2, 3, 4, 5]
+  load_aoa: [1, 2, 4]        # the baseline's side force at these section angles is the light, working, high load (A):
+                             # crew righting moment / heeling arm puts the board at Cl 0.2-0.25 sailing upwind, about
+                             # 2 deg at every speed (methodology-thistle.md); 4 deg for gusts and out of tacks
+  stall_margin_min: 2.0      # deg past the high load before maximum side force; less, and 1 deg less than the baseline's, is a veto (A)
+downwind:
+  speeds_kn: [1, 2, 3, 4, 5, 7.5, 10, 12.5, 15]   # board fully down, same rake (user)
+  reach_aoa: 2               # the reach load: the baseline's side force at this section angle (A)
+cfd:
+  speeds_kn: [1, 2, 3, 4, 5, 7.5, 10, 12.5, 15]   # the foil2d `speed` grid is V_n = V_b cos(rake) of these
+xfoil:
+  tu: [0.1, 0.5, 1.0]        # Ncrit from Mack's correlation: 8.15, 4.0, 2.6
+  xtr: 0.05                  # plus a variant tripped at x/c 0.05 on both sides (roughness, chop)
+  angles: [0, 12, 0.5]       # first, last, step [deg]

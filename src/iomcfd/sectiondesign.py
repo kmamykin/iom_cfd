@@ -11,7 +11,10 @@ interpolation between angles reorders candidates (calibration, findings).
     uv run python -m iomcfd.sectiondesign export naca0007-74 file:ht14.dat@0.07 ...
 
 A section spec is any foils.load spec, optionally '@t' to scale its
-thickness to t (fraction of chord), or 'cst:a0,a1,...[@t]' (cst_symmetric).
+thickness to t (fraction of chord), 'cst:a0,a1,...[@t]' (cst_symmetric), or
+'parallel:t=..,le=..,te=..,r=..,a=..' (parallel_sided, a dinghy-board plank
+section). The Thistle centreboard ranking (drag at equal side force on a
+raked board, no race time) is iomcfd.boardrank, built on these tools.
 """
 
 from __future__ import annotations
@@ -62,11 +65,76 @@ def cst_symmetric(coeffs, t: float | None = None, n: int = 400, name: str | None
     return scaled(f, t, f.name) if t else f
 
 
+def cst_fit(x, y, r_le: float, dydx=None, n: int = 12, w_slope: float = 0.05) -> np.ndarray:
+    """CST coefficients (cst_symmetric, order n) of a tabulated half-thickness
+    y(x) with the leading-edge radius held at r_le (A_0 = sqrt(2 r_le)): least
+    squares on the ordinates and, where given (not nan), on the slopes dydx
+    weighted by w_slope. For published tables such as NACA Report 824's, whose
+    26 stations are too few for a spline to keep the nose radius."""
+    x, y = np.asarray(x, float), np.asarray(y, float)
+    m = (x > 0) & (x < 1)
+    x, y = x[m], y[m]
+
+    def basis(xx):
+        return np.stack([math.comb(n, i) * xx**i * (1 - xx) ** (n - i) * np.sqrt(xx) * (1 - xx) for i in range(n + 1)], 1)
+
+    A, b = basis(x), y
+    if dydx is not None:
+        d = np.asarray(dydx, float)[m]
+        k = ~np.isnan(d)
+        h = 1e-7
+        A = np.vstack([A, w_slope * (basis(x[k] + h) - basis(x[k] - h)) / (2 * h)])
+        b = np.concatenate([b, w_slope * d[k]])
+    a0 = math.sqrt(2 * r_le)
+    rest = np.linalg.lstsq(A[:, 1:], b - A[:, 0] * a0, rcond=None)[0]
+    return np.concatenate([[a0], rest])
+
+
+def _bezier(p, w, s: np.ndarray) -> np.ndarray:
+    """Points of the rational Bézier curve with control points p (k x 2) and
+    weights w at the parameters s."""
+    n = len(p) - 1
+    b = np.stack([w[i] * math.comb(n, i) * s**i * (1 - s) ** (n - i) for i in range(n + 1)], 1)
+    return (b @ np.asarray(p, float)) / b.sum(1, keepdims=True)
+
+
+def parallel_sided(t: float, le: float = 0.2, te: float = 0.4, r: float = 0.1, a: float = 1.0, n: int = 200,
+                   name: str | None = None) -> Foil:
+    """Parallel-sided section of Saporito, Persson, Larsson & Mancuso (2020,
+    J. Mar. Sci. Eng. 8(9) 677, appendix A), the shape of many dinghy boards
+    cut from a plank: a nose of length `le` (rational cubic Bézier, leading-edge
+    radius r*t), a flat of thickness t, and a tail of length `te` (quartic
+    Bézier) to a sharp trailing edge, each joined G2 to the flat. The tail's
+    half-angle at the trailing edge is `a` times A_REF = arctan(1.5 t / te),
+    the paper's reference (a = 1, 0.8 ... 0.2 are its A1-A5). Lengths are
+    fractions of the chord."""
+    if not (0 < le and 0 < te and le + te <= 1 and r > 0 and 0 < a <= 1):
+        raise ValueError(f"parallel-sided section: needs le, te > 0, le + te <= 1, r > 0, 0 < a <= 1 "
+                         f"(got le={le}, te={te}, r={r}, a={a})")
+    h = t / 2
+    s = 0.5 * (1 - np.cos(np.linspace(0, math.pi, n)))
+    x2 = 2 * le / 3
+    w1 = math.sqrt(2 * r * t * x2 / (3 * h**2))  # sets the curvature at the leading edge to 1 / (r t)
+    nose = _bezier([[0, 0], [0, h], [x2, h], [le, h]], [1, w1, 1, 1], s)
+    x7 = 2 * te / 3
+    ang = a * math.atan(1.5 * t / te)
+    tail = _bezier([[0, h], [te / 5, h], [te / 2.5, h], [x7, (te - x7) * math.tan(ang)], [te, 0]], np.ones(5), s)
+    tail[:, 0] += 1 - te
+    flat = np.linspace(le, 1 - te, max(3, int(round((1 - te - le) / 0.005)) + 1))[1:-1]
+    x = np.concatenate([nose[:, 0], flat, tail[:, 0]])
+    y = np.concatenate([nose[:, 1], np.full_like(flat, h), tail[:, 1]])
+    return _symmetric(name or f"parallel t={t:g} le={le:g} te={te:g} r={r:g} a={a:g}", x, y)
+
+
 def load(spec: str) -> Foil:
-    """foils.load spec, 'cst:a0,a1,...', either optionally '@t' (scale to t)."""
+    """foils.load spec, 'cst:a0,a1,...' or 'parallel:t=..,le=..,te=..,r=..,a=..'
+    (parallel_sided), the first two optionally '@t' (scale to t)."""
     base, _, t = spec.partition("@")
     if base.startswith("cst:"):
         f = cst_symmetric([float(v) for v in base[4:].split(",")])
+    elif base.startswith("parallel:"):
+        kw = {k.strip(): float(v) for k, v in (item.split("=") for item in base[9:].split(","))}
+        return parallel_sided(name=spec, **kw)
     else:
         f = foils.load(base, [config.geometry_dir() / "foils"])
     return scaled(f, float(t), spec) if t else f
@@ -101,17 +169,17 @@ def properties(foil: Foil) -> dict[str, float]:
 
 
 def xfoil_table(sections: dict[str, Foil], chord: float, speeds, tus, angles=ANGLES, nu: float | None = None,
-                threads: int = 8, panels: int = 220) -> pd.DataFrame:
+                threads: int = 8, panels: int = 220, xtr: tuple[float, float] | None = None) -> pd.DataFrame:
     """XFOIL polars of every section at every speed and Tu, one row per
     converged angle: candidate, chord, speed, Tu, Re, aoa, Cl, Cd, Cdp,
-    xtr_top, xtr_bot."""
+    xtr_top, xtr_bot. `xtr` forces transition (xfoil.polar)."""
     nu = nu if nu is not None else fresh_water(15.0).nu
     jobs = [(name, f, v, tu) for name, f in sections.items() for v in speeds for tu in tus]
 
     def run(job):
         name, f, v, tu = job
         re = v * chord / nu
-        p = xfoil.polar(f, re, angles, ncrit=xfoil.ncrit_from_tu(tu), panels=panels)
+        p = xfoil.polar(f, re, angles, ncrit=xfoil.ncrit_from_tu(tu), panels=panels, xtr=xtr)
         return pd.DataFrame({"candidate": name, "chord": chord, "speed": v, "Tu": tu, "Re": re, "aoa": p.alpha,
                              "Cl": p.cl, "Cd": p.cd, "Cdp": p.cdp, "xtr_top": p.xtr_top, "xtr_bot": p.xtr_bot})
 
@@ -158,22 +226,31 @@ def rank_summary(rk: pd.DataFrame) -> pd.DataFrame:
     return v.sort_values("worst variant")
 
 
-def cfd_table(results: list[Path], replace: list[Path] = (), tu: float | None = None, speeds=None) -> pd.DataFrame:
+def cfd_table(results: list[Path], replace: list[Path] = (), tu: float | None = None, speeds=None,
+              turbulence: str | None = None) -> pd.DataFrame:
     """foil2d results.csv files as a polar table (candidate = 'foil/chord mm',
-    foil, chord, speed, aoa, Cl, Cd). Rows of the `replace` files (e.g.
-    time-accurate points) replace the same candidate, speed and angle, or add
-    it if the base runs lack it, in order, so a later file wins; duplicates
-    within one file are averaged. Failed cases are dropped."""
+    foil, chord, speed, aoa, Cl, Cd, and where the files have them
+    Cd_pressure, Cd_friction and `unsteady`). Rows of the `replace` files
+    (e.g. time-accurate points) replace the same candidate, speed and angle,
+    or add it if the base runs lack it, in order, so a later file wins;
+    duplicates within one file are averaged (unsteady if any is). Failed cases
+    are dropped; `tu` and `turbulence` (model) select rows."""
 
     def read(paths):
         d = pd.concat([pd.read_csv(p) for p in paths], ignore_index=True)
         d = d[d["status"] != "failed"]
         if tu is not None:
             d = d[np.isclose(d["Tu"], tu)]
+        if turbulence is not None:
+            d = d[d["turbulence"] == turbulence]
         if speeds is not None:
             d = d[d["speed"].isin(speeds)]
         d["candidate"] = [f"{f}/{c * 1000:g}" for f, c in zip(d["foil"], d["chord"])]
-        return d.groupby(["candidate", "foil", "chord", "speed", "aoa"], as_index=False)[["Cl", "Cd"]].mean()
+        g = d.groupby(["candidate", "foil", "chord", "speed", "aoa"], as_index=False)
+        out = g[[c for c in ("Cl", "Cd", "Cd_pressure", "Cd_friction") if c in d]].mean()
+        if "unsteady" in d:
+            out["unsteady"] = g["unsteady"].agg(lambda s: bool(s.astype(bool).any()))["unsteady"].to_numpy()
+        return out
 
     key = ["candidate", "speed", "aoa"]
     t = read(results)

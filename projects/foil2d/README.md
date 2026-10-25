@@ -66,6 +66,9 @@ stiffness), e.g. for `findings/figures/`. XFOIL is not part of the
 image: build it with `tools/build-xfoil.sh`. Use 0.5° angle steps; how far
 XFOIL can be trusted, and what it misses (the leading-edge bubble on sharp
 noses), is in [findings/custom-section.md](findings/custom-section.md).
+For a raked dinghy centreboard (the Thistle), `python -m iomcfd.boardrank`
+does the same with drag at equal side force instead of race time
+([methodology-thistle.md](methodology-thistle.md)).
 
 ## Outputs (per case, in results.csv)
 
@@ -267,7 +270,15 @@ time-accurate at 2-5°), `custom-section-tu` (the same two, steady, at Tu 1
 and 2 %), `custom-section-transient-opt2` and `custom-section-tu-opt2`
 (both again for cst-opt2), `custom-section-transient-15` (the 1.5 m/s
 cases again, with checkpoints), `custom-section-transient-rerun` (failed
-time-accurate cases again, at max_co 5).
+time-accurate cases again, at max_co 5), `thistle-mesh` (the Thistle
+centreboard's section, 457 mm chord at 1 in, at Re 2.3e5-3.5e6: coarse to
+xfine), `thistle-validation-r824` (NACA 0006 and 64-006 against NACA
+Report 824 at Re 3e6), `thistle-tu-calibration` (the inlet Tu that
+reproduces Report 824), `thistle-screen` (8 board sections at Tu 0.1 and
+1 %) and `thistle-extend` (NACA 0006, 63-006 and 64-006 over the full grid
+at Tu 0.3 and 0.6 %). All five are for
+[findings/thistle-board.md](findings/thistle-board.md), whose answer is to
+keep NACA 0006 at 1 in.
 
 What the runs showed, and the assumptions behind them, is logged per study
 in [findings/](findings/), e.g.

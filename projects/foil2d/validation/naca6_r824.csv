@@ -1,0 +1,79 @@
+# NACA Report 824 (Abbott, von Doenhoff & Stivers 1945, "Summary of airfoil data"; NTRS 19930090976),
+# section characteristics of the smooth 24-inch-chord models in the Langley two-dimensional low-turbulence
+# (pressure) tunnel: turbulence "only a few hundredths of 1 percent", lift from the floor and ceiling
+# pressures, drag from a wake survey, as plotted in the report (its appendix describes the tunnel-wall corrections).
+# Re 3e6 only, the circle symbols (the 6e6 and 9e6 symbols overlap them and were not digitised).
+# Digitised by hand from the scanned plots on 2026-10-23: the 300 dpi page images of the NTRS PDF, the grid
+# lines fitted as straight lines per panel (the scans are sheared by up to 0.5 deg), each symbol located by eye
+# and its centre refined by template matching, every point checked on a magnified overlay. Points where the
+# symbol could not be told from overlapping ones were left out.
+# Uncertainty, reading only: Cd +-0.0001, Cl +-0.01, aoa +-0.1 deg; plus the plotted data's own scatter
+# (at 3e6 the lift points scatter about 0.02 in Cl around a straight line; the 0006 points cross Cl 0 near
+# aoa -0.3 to -0.5 deg, a zero offset of the test, not of the section).
+# Rows with aoa blank are drag-polar points (Cd against Cl); rows with Cd blank are lift-curve points.
+# R824 NACA 0006 (report p. 131, PDF p. 133): Cd min 0.0045 near Cl 0; Cl max about 0.84 at 8-9 deg, then a
+# gentle loss to 0.76 at 12 deg (thin-airfoil stall). In the linear range the 3e6 circles sit on the 6e6 squares;
+# the points there (e.g. 3.0 deg) may be either. Its 4-digit ordinates end in an open trailing edge (0.13 % c).
+# R824 NACA 64-006 (report p. 177, PDF p. 179): laminar bucket Cd 0.0038-0.0041 for Cl -0.12 to 0.09, edges at
+# about Cl -0.13 and +0.15; Cl max about 0.83 at 8-9 deg. In the linear range the 3, 6 and 9e6 symbols are drawn
+# on top of each other: the lift points there stand for all three. Points past 9 deg left out (unclear symbols).
+source,Re,aoa,Cl,Cd
+R824 NACA 0006,3000000,,-0.733,0.00902
+R824 NACA 0006,3000000,,-0.514,0.00759
+R824 NACA 0006,3000000,,-0.421,0.00695
+R824 NACA 0006,3000000,,-0.308,0.00633
+R824 NACA 0006,3000000,,-0.239,0.00525
+R824 NACA 0006,3000000,,-0.188,0.00498
+R824 NACA 0006,3000000,,-0.072,0.00457
+R824 NACA 0006,3000000,,-0.013,0.00446
+R824 NACA 0006,3000000,,0.095,0.00462
+R824 NACA 0006,3000000,,0.210,0.00506
+R824 NACA 0006,3000000,,0.326,0.00568
+R824 NACA 0006,3000000,,0.445,0.00652
+R824 NACA 0006,3000000,,0.548,0.00748
+R824 NACA 0006,3000000,,0.646,0.00853
+R824 NACA 0006,3000000,,0.753,0.00999
+R824 NACA 0006,3000000,-4.12,-0.417,
+R824 NACA 0006,3000000,-3.09,-0.298,
+R824 NACA 0006,3000000,-2.60,-0.233,
+R824 NACA 0006,3000000,-1.13,-0.076,
+R824 NACA 0006,3000000,-0.25,0.003,
+R824 NACA 0006,3000000,1.90,0.226,
+R824 NACA 0006,3000000,3.03,0.333,
+R824 NACA 0006,3000000,4.05,0.452,
+R824 NACA 0006,3000000,4.97,0.558,
+R824 NACA 0006,3000000,6.10,0.654,
+R824 NACA 0006,3000000,7.07,0.751,
+R824 NACA 0006,3000000,8.10,0.836,
+R824 NACA 0006,3000000,10.01,0.819,
+R824 NACA 0006,3000000,11.06,0.787,
+R824 NACA 0006,3000000,12.21,0.758,
+R824 NACA 64-006,3000000,,-0.496,0.00781
+R824 NACA 64-006,3000000,,-0.450,0.00726
+R824 NACA 64-006,3000000,,-0.340,0.00672
+R824 NACA 64-006,3000000,,-0.237,0.00629
+R824 NACA 64-006,3000000,,-0.180,0.00564
+R824 NACA 64-006,3000000,,-0.131,0.00486
+R824 NACA 64-006,3000000,,-0.121,0.00402
+R824 NACA 64-006,3000000,,-0.010,0.00405
+R824 NACA 64-006,3000000,,0.030,0.00383
+R824 NACA 64-006,3000000,,0.088,0.00402
+R824 NACA 64-006,3000000,,0.146,0.00520
+R824 NACA 64-006,3000000,,0.200,0.00603
+R824 NACA 64-006,3000000,,0.304,0.00632
+R824 NACA 64-006,3000000,,0.417,0.00675
+R824 NACA 64-006,3000000,,0.470,0.00710
+R824 NACA 64-006,3000000,-4.12,-0.457,
+R824 NACA 64-006,3000000,-2.93,-0.328,
+R824 NACA 64-006,3000000,-2.02,-0.226,
+R824 NACA 64-006,3000000,-0.94,-0.127,
+R824 NACA 64-006,3000000,-0.02,-0.024,
+R824 NACA 64-006,3000000,0.99,0.092,
+R824 NACA 64-006,3000000,2.04,0.208,
+R824 NACA 64-006,3000000,2.98,0.315,
+R824 NACA 64-006,3000000,3.98,0.431,
+R824 NACA 64-006,3000000,4.93,0.523,
+R824 NACA 64-006,3000000,6.14,0.645,
+R824 NACA 64-006,3000000,7.00,0.710,
+R824 NACA 64-006,3000000,8.13,0.828,
+R824 NACA 64-006,3000000,9.08,0.825,
