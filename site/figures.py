@@ -1,6 +1,7 @@
 """Charts, diagrams and generated tables for the website's study pages
-(site/fin-selection/index.qmd, site/bulb-design/index.qmd), and their card
-images on the front page.
+(site/fin-selection/index.qmd, site/bulb-design/index.qmd,
+site/custom-section/index.qmd, site/steps-and-films/index.qmd), and their
+card images on the front page.
 
 `iomcfd site build` calls make_all() before Quarto renders the page. Every
 figure is drawn from the committed files in site/data/ and site/assets/ (or from
@@ -1547,6 +1548,577 @@ def custom_card(out: Path) -> Path:
     return out
 
 
+# ---------------------------------------------------------------------------
+# The steps and films page (site/steps-and-films/index.qmd). Data: steps-*.csv. The race time is the fin
+# section page's (sectiondesign.cfd_table and rank), against plain NACA 0007/100 of the same run, or against
+# a modification's own plain section; the shapes come from the project's geometry code (geometry/stepped.py),
+# as the CFD meshed them. Its charts are narrow (STEPS_W) with large type, panels stacked rather than side by
+# side, so they stay legible on a phone; the page shows them at most 560 px wide (styles.scss .steps-fig).
+
+S_BASE, S_FILM = "naca0007/100", "film:naca0007:x=0.5,t=0.002/100"
+S_TRIP, S_FAIR = "stair1:naca0007:x=0.5,h=0.002/100", "faired:naca0007:x=0.5,h=0.002,l=0.1/100"
+S_HT, S_HTFILM = "file:ht35-t070.dat/100", "film:file:ht35-t070.dat:x=0.5,t=0.002/100"
+STEPS_NAMES = {S_BASE: "NACA 0007", S_FILM: "NACA 0007 + film", S_TRIP: "NACA 0007, trip step",
+               S_FAIR: "NACA 0007, sanded step", S_HT: "HT35 at 7 %", S_HTFILM: "HT35 at 7 % + film"}
+STEPS_COLOURS = {S_BASE: "#3c4a57", S_FILM: "#e09a4f", S_TRIP: "#2f5d50", S_FAIR: "#7fae94", S_HT: ACCENT,
+                 S_HTFILM: "#5c4d7d"}
+STEPS_STYLES = {S_BASE: "-", S_FILM: "-", S_TRIP: "-", S_FAIR: (0, (5, 2)), S_HT: "-", S_HTFILM: (0, (5, 2))}
+STEPS_MARKERS = {S_HT: "o", S_TRIP: "^", S_HTFILM: "D", S_FAIR: "s", S_FILM: "v"}
+STEPS_ORDER = (S_HT, S_TRIP, S_HTFILM, S_FAIR, S_FILM)  # by the gain at Tu 1 %
+OWN_BASE = {S_HTFILM: S_HT, S_FILM: S_BASE, S_TRIP: S_BASE, S_FAIR: S_BASE}
+MOD_NAMES = {S_HTFILM: "film on HT35 at 7 %", S_FILM: "film on NACA 0007", S_TRIP: "trip step",
+             S_FAIR: "sanded step"}
+KFM4, TRIP_SPEC = "stair1:naca0007:d=0.5", "stair1:naca0007:x=0.5,h=0.002"
+STAIRS = {KFM4: "KFm4: one 1.54 mm step", "stair5:naca0007:h=0.002": "five 0.2 mm steps",
+          "stair10:naca0007:h=0.001": "ten 0.1 mm steps"}
+STAIR_COLOURS = {"naca0007": "#3c4a57", KFM4: ACCENT, "stair5:naca0007:h=0.002": "#e09a4f",
+                 "stair10:naca0007:h=0.001": "#5c4d7d", TRIP_SPEC: "#2f5d50"}
+STEPS_FILES = ("steps-naca-film", "steps-naca-trip", "steps-naca-faired", "steps-ht35-film")
+STEPS_TUS = (0.1, 1.0, 2.0)
+STEPS_W = 5.6  # inches wide
+STEPS_RC = {"font.size": 11, "axes.titlesize": 11.5, "axes.labelsize": 11, "xtick.labelsize": 10.5,
+            "ytick.labelsize": 10.5, "legend.fontsize": 10}
+
+
+def _steps_foil(spec: str):
+    """A section as the CFD meshed it ('naca0007', 'film:...', 'stair1:...', 'file:...'; no '/100')."""
+    from iomcfd import config
+    from iomcfd.geometry import foils
+
+    return foils.load(spec.removesuffix("/100"), [config.geometry_dir() / "foils"])
+
+
+def _steps_cfd(data: Path) -> pd.DataFrame:
+    """The steady polars of the six sections at Tu 0.1, 1 and 2 % (sectiondesign.cfd_table, one Tu at a time:
+    without `tu` it averages over Tu)."""
+    from iomcfd import sectiondesign as sd
+
+    files = [data / f"{n}.csv" for n in STEPS_FILES]
+    return pd.concat([sd.cfd_table(files, tu=tu, speeds=list(CUSTOM_SPEEDS)).assign(Tu=tu) for tu in STEPS_TUS],
+                     ignore_index=True)
+
+
+def steps_rank(data: Path, time_accurate_4deg: bool = False, base: str = S_BASE) -> pd.DataFrame:
+    """sectiondesign.rank of the six sections against `base` at Tu 0.1, 1 and 2 %, steady. With
+    `time_accurate_4deg`, NACA 0007's and the trip's 4 deg points at 1 m/s and Tu 1 % are the time-accurate
+    ones of stepped-vs-baseline (the steady solver is up to 2.6 % off there); every other point stays steady."""
+    from iomcfd import sectiondesign as sd
+
+    t = _steps_cfd(data)
+    if time_accurate_4deg:
+        s = pd.read_csv(data / "steps-stepped.csv")
+        s = s[(s.solver == "transient") & (s.aoa == 4)].set_index("foil")
+        for cand in (S_BASE, S_TRIP):
+            m = (t.candidate == cand) & (t.Tu == 1.0) & (t.speed == 1.0) & (t.aoa == 4)
+            t.loc[m, ["Cl", "Cd"]] = s.loc[cand.removesuffix("/100"), ["Cl", "Cd"]].to_numpy(float)
+    return sd.rank(t, base)
+
+
+def _pair(g: pd.Series) -> str:
+    """'x1 / x2' race-time gain (positive = faster) from the mean vs_base per slope factor."""
+    return f"{-g[1.0]:+.2f} / {-g[2.0]:+.2f}"
+
+
+@plt.rc_context(STEPS_RC)
+def steps_sections(out: Path) -> Path:
+    """The two plain sections at true scale, and every 0.2 mm modification as its upper surface minus its own
+    plain section's, along the chord."""
+    C = 100.0
+    f = {k: _steps_foil(k) for k in STEPS_NAMES}
+    fig, (a, b) = plt.subplots(2, 1, figsize=(STEPS_W, 5.4), height_ratios=[0.8, 2.4], gridspec_kw={"hspace": 0.55})
+    up = f[S_BASE].surface("upper", 800) * C
+    a.fill(np.r_[up[:, 0], up[::-1, 0]], np.r_[up[:, 1], -up[::-1, 1]], color="#d9d3c4", lw=0)
+    u = f[S_HT].surface("upper", 800) * C
+    a.plot(np.r_[u[:, 0], u[::-1, 0]], np.r_[u[:, 1], -u[::-1, 1]], color=ACCENT, lw=1.2, ls=(0, (4, 2)))
+    a.axvline(50, color=INK, lw=0.9, ls=":")
+    a.set_aspect("equal")
+    a.set(xlim=(-1, 101), ylim=(-4.5, 4.5), yticks=[], xticks=[0, 25, 50, 75, 100])
+    a.set_title("True scale: plain NACA 0007 (filled) and plain\nHT35 at 7 % (dashed); 50 mm dotted")
+    a.grid(False)
+    a.spines["left"].set_visible(False)
+
+    def minus(k, ref):
+        p, r = f[k].surface("upper", 6000) * C, f[ref].surface("upper", 6000) * C
+        p = p[p[:, 0] >= 2.5]
+        return p[:, 0], p[:, 1] - np.interp(p[:, 0], r[:, 0], r[:, 1])
+
+    for k in (S_FILM, S_HTFILM, S_TRIP, S_FAIR):
+        b.plot(*minus(k, OWN_BASE[k]), color=STEPS_COLOURS[k], lw=2.4 if k == S_FAIR else 2.0, ls=STEPS_STYLES[k],
+               zorder=4 if k == S_FAIR else 3)
+    b.axhline(0, color=STEPS_COLOURS[S_BASE], lw=1)
+    b.text(99, 0.02, "plain section", ha="right", va="bottom", fontsize=10, color=STEPS_COLOURS[S_BASE])
+    b.text(2, 0.23, "film: +0.2 mm from the nose\nto 50 mm (NACA 0007 solid,\nHT35 dashed)", va="bottom",
+           fontsize=10, color=STEPS_COLOURS[S_FILM])
+    b.text(52, -0.24, "trip step: 0.2 mm cut at 50 mm; behind it\nthe section is 6.5 % thinner, so the\n"
+           "difference tapers to the tail", va="top", fontsize=10, color=STEPS_COLOURS[S_TRIP])
+    b.text(52, 0.2, "sanded step (dashed): the same\nthinner rear, ramped in over 50-60 mm", va="bottom",
+           fontsize=10, color="#4f8a6c")
+    b.set(xlim=(0, 100), ylim=(-0.55, 0.55), xlabel="distance from the leading edge [mm]", ylabel="[mm]",
+          title="Upper surface minus its plain section's\n(the lower surface is the same)")
+    return _save(fig, out)
+
+
+@plt.rc_context(STEPS_RC)
+def steps_section_details(out: Path) -> Path:
+    """Close-ups of the 0.2 mm modifications at half chord (vertical scale x5) over the plain outline, with a
+    0.2 mm dimension, and the filmed noses at true scale."""
+    C = 100.0
+    f = {k: _steps_foil(k) for k in STEPS_NAMES}
+    fig = plt.figure(figsize=(STEPS_W, 8.6))
+    gs = fig.add_gridspec(4, 2, height_ratios=[1, 1, 1, 1.5], hspace=0.95, wspace=0.3)
+
+    def upper(k, x0=40.0, x1=70.0):
+        p = f[k].surface("upper", 12000) * C
+        return p[(p[:, 0] > x0) & (p[:, 0] < x1)]
+
+    details = [(S_FILM, "Film: 0.2 mm on top, ending in a square edge\nat 50 mm", 46.0),
+               (S_TRIP, "Trip step: cut 0.2 mm deep at 50 mm", 51.0),
+               (S_FAIR, "Sanded step: the same thinner rear, ramped\nin over 50-60 mm, no step", 60.5)]
+    for i, (k, title, xa) in enumerate(details):
+        ax = fig.add_subplot(gs[i, :])
+        p0, p = upper(S_BASE), upper(k)
+        ax.plot(p0[:, 0], p0[:, 1], color=MUTED, lw=1.4, ls=(0, (4, 2)))
+        ax.plot(p[:, 0], p[:, 1], color=STEPS_COLOURS[k], lw=2.4)
+        y0, y1 = np.interp(xa, p0[:, 0], p0[:, 1]), np.interp(xa, p[:, 0], p[:, 1])
+        ax.annotate("", xy=(xa, y1), xytext=(xa, y0), arrowprops=dict(arrowstyle="<->", color=INK, lw=1.2,
+                                                                         shrinkA=0, shrinkB=0))
+        _note(ax, f"{abs(y1 - y0):.2f} mm", (xa, 0.5 * (y0 + y1)), (xa + 2.5, max(y0, y1) + 0.55))
+        ax.text(40.5, 2.0, "dashed: plain", fontsize=10, color=MUTED)
+        ax.set_aspect(4)
+        ax.set(xlim=(40, 70), ylim=(1.9, 4.1), yticks=[2, 3, 4],
+               xlabel="from the leading edge [mm]" if i == 2 else None, ylabel="[mm]")
+        ax.set_title(title + (" (vertical scale ×4)" if i == 0 else ""))
+    for j, (base, film, name) in enumerate(((S_BASE, S_FILM, "NACA 0007"), (S_HT, S_HTFILM, "HT35 at 7 %"))):
+        n = fig.add_subplot(gs[3, j])
+        for k, colour, ls, lw in ((base, MUTED, (0, (4, 2)), 1.4), (film, STEPS_COLOURS[film], "-", 2.0)):
+            p = f[k].surface("upper", 6000) * C
+            for sgn in (1, -1):
+                n.plot(p[:, 0], sgn * p[:, 1], color=colour, lw=lw, ls=ls)
+        n.annotate("", xy=(-0.2, 0), xytext=(0, 0), arrowprops=dict(arrowstyle="<->", color=INK, lw=1.0,
+                                                                      shrinkA=0, shrinkB=0))
+        n.text(0.15, 0.12, "0.2 mm", fontsize=9.5)
+        n.set_aspect("equal")
+        n.set(xlim=(-0.5, 3.0), ylim=(-1.75, 1.75), xlabel="[mm]", xticks=[0, 1, 2, 3])
+        n.set_title(f"{name} nose,\ntrue scale", fontsize=10.5)
+    return _save(fig, out)
+
+
+@plt.rc_context(STEPS_RC)
+def steps_stairs(out: Path) -> Path:
+    """NACA 0007 and the three Kline-Fogleman stairs cut from it: at true scale, and the half-thickness
+    stretched."""
+    C = 100.0
+    specs = ["naca0007", *STAIRS]
+    names = {"naca0007": "NACA 0007 (plain)", **STAIRS}
+    fig = plt.figure(figsize=(STEPS_W, 7.6))
+    gs = fig.add_gridspec(6, 1, height_ratios=[0.5, 0.5, 0.5, 0.5, 0.35, 2.6], hspace=0.75)
+    for i, spec in enumerate(specs):
+        a = fig.add_subplot(gs[i])
+        g = _steps_foil(spec)
+        u, lo = g.surface("upper", 1500) * C, g.surface("lower", 1500) * C
+        a.fill(np.r_[u[:, 0], lo[::-1, 0]], np.r_[u[:, 1], lo[::-1, 1]], color=STAIR_COLOURS[spec], lw=0, alpha=0.9)
+        a.set_aspect("equal")
+        a.set(xlim=(-1, 101), ylim=(-4.2, 4.2), yticks=[], xticks=[])
+        a.set_title(names[spec] + (": true scale, 100 mm chord" if i == 0 else ""), fontsize=10.5)
+        a.grid(False)
+        for sp in a.spines.values():
+            sp.set_visible(False)
+    b = fig.add_subplot(gs[5])  # gs[4]: room for its title
+    for spec in specs:
+        u = _steps_foil(spec).surface("upper", 3000) * C
+        b.plot(u[:, 0], u[:, 1], color=STAIR_COLOURS[spec], lw=1.6 if spec != "naca0007" else 2.4,
+               label=names[spec], zorder=3 if spec != "naca0007" else 2)
+    b.set(xlim=(0, 100), ylim=(0, 3.9), xlabel="from the leading edge [mm]", ylabel="half-thickness [mm]",
+          title="Half the section, thickness stretched ×7: each\nstair takes away about half the thickness near\n"
+                "the tail, in one step or in many")
+    b.legend(loc="upper center", bbox_to_anchor=(0.5, -0.25), ncols=2)
+    return _save(fig, out)
+
+
+def steps_sections_table(out: Path) -> Path:
+    """The sections at 100 mm: what was changed, thickness, nose radius and the thickness near the tail."""
+    from iomcfd import sectiondesign as sd
+
+    r_naca = sd.properties(sd.load("naca0007"))["r_le"]
+    r_ht = sd.properties(sd.load("file:ht35.dat@0.07"))["r_le"]  # the UIUC coordinates: an exact nose radius
+    rows = [("NACA 0007", "naca0007", "-", r_naca),
+            ("NACA 0007 + film", S_FILM, "0.2 mm film per side, from 50 mm on one side round the nose to 50 mm "
+             "on the other", r_naca + 0.002),
+            ("NACA 0007, trip step", S_TRIP, "a 0.2 mm step cut at 50 mm; behind it 6.5 % thinner", r_naca),
+            ("NACA 0007, sanded step", S_FAIR, "the trip's thinner rear, ramped in over 50-60 mm: no step", r_naca),
+            ("HT35 at 7 %", S_HT, "-", r_ht),
+            ("HT35 at 7 % + film", S_HTFILM, "0.2 mm film as on NACA 0007", r_ht + 0.002),
+            ("KFm4 stair", KFM4, "one 1.54 mm step at 50 mm: half the local thickness", r_naca),
+            ("five steps", "stair5:naca0007:h=0.002", "0.2 mm steps at 30, 45, 60, 75 and 90 mm", r_naca),
+            ("ten steps", "stair10:naca0007:h=0.001", "0.1 mm steps every 6.7 mm from 30 to 90 mm", r_naca)]
+    lines = ["| section | what was changed | thickest | at 80 mm | nose radius |", "|---|---|--:|--:|--:|"]
+    for name, spec, what, r in rows:
+        g = _steps_foil(spec)
+        up, lo = (q[q[:, 0] > 0.77] for q in (g.surface("upper", 4000), g.surface("lower", 4000)))  # past every step
+        at80 = 100 * (np.interp(0.8, up[:, 0], up[:, 1]) - np.interp(0.8, lo[:, 0], lo[:, 1]))
+        lines.append(f"| {name} | {what} | {100 * g.thickness()[0]:.2f} mm | {at80:.2f} mm | {100 * r:.2f} mm |")
+    out.write_text("\n".join(lines) + "\n")
+    return out
+
+
+@plt.rc_context(STEPS_RC)
+def steps_gain(data: Path, out: Path) -> Path:
+    """Race time gained against plain NACA 0007/100, steady, one panel per Tu: a filled marker per section with
+    the estimated resistance slope, a hollow diamond with it doubled; the trip step with its and NACA 0007's
+    4 deg, 1 m/s points time-accurate at Tu 1 %."""
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+
+    m = -steps_rank(data).pivot_table(index="candidate", columns=["Tu", "slope"], values="vs_base", aggfunc="mean")
+    rt = steps_rank(data, time_accurate_4deg=True)
+    ta = -rt[(rt.candidate == S_TRIP) & (rt.Tu == 1.0) & (rt.slope == 1.0)].vs_base.mean()
+    fig, axs = plt.subplots(3, 1, figsize=(STEPS_W - 1.4, 7.8), sharex=True)  # the names take the rest
+    y = np.arange(len(STEPS_ORDER))[::-1]
+    titles = {0.1: "Tu 0.1 %: steady answers too noisy to rank", 1.0: "Tu 1 %", 2.0: "Tu 2 %"}
+    for ax, tu in zip(axs, STEPS_TUS):
+        noisy = tu == 0.1
+        ax.axvspan(-0.1, 0.1, color=RULE, alpha=0.7, lw=0)
+        if noisy:
+            ax.axvspan(-0.9, 0.85, facecolor="none", edgecolor=RULE, hatch="///", lw=0)
+        ax.axvline(0, color=INK, lw=1.0)
+        for yi, cand in zip(y, STEPS_ORDER):
+            v1, v2 = m.loc[cand, (tu, 1.0)], m.loc[cand, (tu, 2.0)]
+            c = STEPS_COLOURS[cand]
+            ax.plot([v1, v2], [yi, yi], color=c, lw=1.2, alpha=0.6)
+            ax.scatter([v2], [yi], s=46, marker="D", facecolor=PAPER, edgecolor=c, lw=1.4, zorder=3)
+            ax.scatter([v1], [yi], s=70, marker=STEPS_MARKERS[cand], color=c, alpha=0.55 if noisy else 1, zorder=4)
+            right = max(v1, v2) > 0
+            ax.text(max(v1, v2) + 0.05 if right else min(v1, v2) - 0.05, yi, f"{v1:+.2f}".replace("-", "−"),
+                    va="center", ha="left" if right else "right", fontsize=10, color=MUTED if noisy else INK)
+        if tu == 1.0:
+            ax.scatter([ta], [y[STEPS_ORDER.index(S_TRIP)]], s=150, marker="o", facecolor="none", edgecolor=INK,
+                       lw=1.3, zorder=5)
+        ax.set_yticks(y, [STEPS_NAMES[c] for c in STEPS_ORDER])
+        ax.set(xlim=(-0.9, 0.85), ylim=(-0.7, len(STEPS_ORDER) - 0.3), xticks=[-0.5, -0.25, 0, 0.25, 0.5, 0.75])
+        ax.set_xticklabels(["−0.5", "", "0", "", "0.5", ""])
+        ax.set_title(titles[tu])
+        ax.grid(axis="y", visible=False)
+    axs[-1].set_xlabel("race-time gain against plain NACA 0007 [%]\n(+ = faster, mean of 3 speeds x 3 loads)")
+    handles = [Line2D([], [], marker="o", ls="", color=INK, label="estimated resistance slope"),
+               Line2D([], [], marker="D", ls="", markerfacecolor=PAPER, markeredgecolor=INK,
+                      label="slope doubled (a sensitivity,\nnot a confidence range)"),
+               Patch(color=RULE, label="within 0.1 % of plain\nNACA 0007: not resolved"),
+               Line2D([], [], marker="o", ls="", markersize=11, markerfacecolor="none", markeredgecolor=INK,
+                      label=f"Tu 1 %: the trip step ({ta:+.2f}) with its and NACA\n0007's 4°, 1 m/s points "
+                            "time-accurate")]
+    fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.0, 0.0), fontsize=9.5)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def steps_gain_table(data: Path, out: Path) -> Path:
+    """Race time gained against NACA 0007/100 (positive = faster), x1 / x2 per Tu, how many of the nine
+    speed-load points are faster at Tu 1 and 2 %, and the trip step with its time-accurate 4 deg points."""
+    rk = steps_rank(data)
+    rows = ["| section | Tu 0.1 % | Tu 1 % | Tu 2 % | faster at, Tu 1 % | faster at, Tu 2 % |",
+            "|---|---|---|---|---|---|"]
+
+    def faster(r, tu):
+        g = r[(r.Tu == tu) & (r.slope == 1.0)]
+        return f"{int((g.vs_base < 0).sum())} of {len(g)}"
+
+    for cand in STEPS_ORDER:
+        r = rk[rk.candidate == cand]
+        cells = [_pair(r[r.Tu == tu].groupby("slope").vs_base.mean()) for tu in STEPS_TUS]
+        rows.append(f"| {STEPS_NAMES[cand]} | " + " | ".join(cells + [faster(r, 1.0), faster(r, 2.0)]) + " |")
+    rt = steps_rank(data, time_accurate_4deg=True)
+    r = rt[rt.candidate == S_TRIP]
+    rows.append(f"| {STEPS_NAMES[S_TRIP]}, 4° at 1 m/s time-accurate (and NACA 0007's) | - | "
+                f"{_pair(r[r.Tu == 1.0].groupby('slope').vs_base.mean())} | - | {faster(r, 1.0)} | - |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def steps_own_base_table(data: Path, out: Path) -> Path:
+    """Race time each 0.2 mm modification gains against its own plain section (positive = faster), x1 / x2
+    per Tu, and at Tu 1 % the part from the upwind leg and from the downwind leg (x1)."""
+    from iomcfd import sectiondesign as sd
+
+    t = _steps_cfd(data)
+    rows = ["| modification | against | Tu 0.1 % | Tu 1 % | Tu 2 % | Tu 1 %, upwind | Tu 1 %, downwind |",
+            "|---|---|---|---|---|---|---|"]
+    for cand, base in OWN_BASE.items():
+        rk = sd.rank(t, base)
+        r = rk[rk.candidate == cand]
+        cells = [_pair(r[r.Tu == tu].groupby("slope").vs_base.mean()) for tu in STEPS_TUS]
+        key = ["speed", "load"]
+        r1 = r[(r.Tu == 1.0) & (r.slope == 1.0)].set_index(key)
+        b1 = rk[(rk.candidate == base) & (rk.Tu == 1.0) & (rk.slope == 1.0)].set_index(key).loc[r1.index]
+        up, down = (-0.5 * (r1[c] - b1[c]).mean() for c in ("loss_up", "loss_down"))
+        cells += [f"{up:+.2f}", f"{down:+.2f}"]
+        rows.append(f"| {MOD_NAMES[cand]} | plain {STEPS_NAMES[base]} | " + " | ".join(cells) + " |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+@plt.rc_context(STEPS_RC)
+def steps_4deg(data: Path, out: Path) -> Path:
+    """Section drag at 4 deg, 1 m/s, Tu 1 % against plain NACA 0007 from the same solver (steady against
+    steady, time-accurate against time-accurate), and plain NACA 0007's own steady-against-time-accurate
+    difference: how far the solvers alone move the answer."""
+    s = pd.read_csv(data / "steps-stepped.csv")
+    s = s[s.aoa == 4]
+    cd = {(f, sv): float(g.Cd.iloc[0]) for (f, sv), g in s.groupby(["foil", "solver"])}
+    order = [KFM4, "stair5:naca0007:h=0.002", "stair10:naca0007:h=0.001", TRIP_SPEC]
+    names = {**STAIRS, TRIP_SPEC: "trip step\n(0.2 mm)", KFM4: "KFm4: one\n1.54 mm step",
+             "stair5:naca0007:h=0.002": "five 0.2 mm\nsteps", "stair10:naca0007:h=0.001": "ten 0.1 mm\nsteps"}
+    fig, (ax, bx) = plt.subplots(2, 1, figsize=(STEPS_W - 0.8, 5.6), height_ratios=[4, 1.1], sharex=True)
+    y = np.arange(len(order))[::-1]
+    for yi, foil in zip(y, order):
+        for solver, dy, alpha in (("steady", 0.2, 0.45), ("transient", -0.2, 1.0)):
+            if (foil, solver) not in cd:
+                ax.text(0.8, yi + dy, "time-accurate: did not finish", va="center", fontsize=9.5, color=MUTED)
+                continue
+            v = 100 * (cd[(foil, solver)] / cd[("naca0007", solver)] - 1)
+            ax.barh(yi + dy, v, height=0.36, color=STAIR_COLOURS[foil], alpha=alpha)
+            note = " (6 flow-throughs)" if foil.startswith("stair5") and solver == "transient" else ""
+            ax.text(max(v, 0) + 0.8, yi + dy, f"{v:+.1f} %{note}".replace("-", "−"), va="center", fontsize=10)
+    ax.axvline(0, color=INK, lw=0.9)
+    ax.set_yticks(y, [names[f] for f in order])
+    ax.set_title("Against plain NACA 0007 from the same solver:\nsteady (pale) and time-accurate (dark)")
+    ax.grid(axis="y", visible=False)
+    v = 100 * (cd[("naca0007", "steady")] / cd[("naca0007", "transient")] - 1)
+    bx.barh(0, v, height=0.5, color=STAIR_COLOURS["naca0007"], alpha=0.6)
+    bx.text(v + 0.8, 0, f"{v:+.1f} %", va="center", fontsize=10)
+    bx.axvline(0, color=INK, lw=0.9)
+    bx.set_yticks([0], ["plain NACA 0007"])
+    bx.set(xlim=(-9, 52), ylim=(-0.6, 0.6), xlabel="section drag difference [%]")
+    bx.set_title("Steady against time-accurate, same section")
+    bx.grid(axis="y", visible=False)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+def steps_4deg_table(data: Path, out: Path) -> Path:
+    """Lift and drag at 4 deg, 1 m/s, Tu 1 %, steady / time-accurate; drag against plain NACA 0007 from the
+    same solver; the time-accurate lift's standard deviation over the averaging window."""
+    s = pd.read_csv(data / "steps-stepped.csv")
+    s = s[s.aoa == 4]
+    names = {"naca0007": "NACA 0007", **STAIRS, TRIP_SPEC: "trip step (0.2 mm)"}
+    ref = {sv: float(s[(s.foil == "naca0007") & (s.solver == sv)].Cd.iloc[0]) for sv in ("steady", "transient")}
+    rows = ["| section | C~l~ steady / time-acc. | C~d~ steady / time-acc. | C~d~ against plain, same solver "
+            "| C~l~ std, time-acc. | flow in time |", "|---|---|---|---|---|---|"]
+    for foil, name in names.items():
+        st = s[(s.foil == foil) & (s.solver == "steady")].iloc[0]
+        tr = s[(s.foil == foil) & (s.solver == "transient")]
+        tr = tr.iloc[0] if not tr.empty else None
+        if foil == "naca0007":
+            against = "reference"
+        else:
+            d = [f"{100 * (r.Cd / ref[sv] - 1):+.1f}" if r is not None else "-"
+                 for r, sv in ((st, "steady"), (tr, "transient"))]
+            against = f"{d[0]} / {d[1]} %"
+        if tr is None:
+            rows.append(f"| {name} | {st.Cl:.3f} / - | {st.Cd:.5f} / - | {against} | - | not run to the end |")
+            continue
+        flow = "unsteady" if str(tr.unsteady) == "True" else "steady"
+        if tr.flow_times < 20:
+            flow += f" ({tr.flow_times:g} flow-throughs)"
+        rows.append(f"| {name} | {st.Cl:.3f} / {tr.Cl:.3f} | {st.Cd:.5f} / {tr.Cd:.5f} | {against} | "
+                    f"{tr.Cl_std:.4f} | {flow} |")
+    out.write_text("\n".join(rows) + "\n")
+    return out
+
+
+def _steps_surface(data: Path, names: list[str]) -> pd.DataFrame:
+    return pd.concat([pd.read_csv(data / f"{n}.csv") for n in names], ignore_index=True)
+
+
+def _note(ax, text, xy, xytext, **kw):
+    ax.annotate(text, xy=xy, xytext=xytext, fontsize=9.5, color=INK, va="center",
+                arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.8, shrinkA=2, shrinkB=1), **kw)
+
+
+@plt.rc_context(STEPS_RC)
+def steps_flow(data: Path, out: Path) -> Path:
+    """The suction side of NACA 0007 at 1 m/s, Tu 1 %, steady: skin friction at 0 deg, pressure and skin
+    friction at 2 deg; plain, with the film, the trip step and the sanded step."""
+    s = _steps_surface(data, ["steps-surface-1ms", "steps-surface-1ms-trip", "steps-surface-1ms-faired"])
+    tags = {S_BASE: "foilnaca0007_", S_FILM: "foilfilmnaca0007", S_TRIP: "foilstair1naca0007", S_FAIR: "foilfaired"}
+    fig, axs = plt.subplots(3, 1, figsize=(STEPS_W, 9.4), sharex=True)
+    panels = [(0, "Cf", "0° (the downwind leg): skin friction"), (2, "Cp", "2°: suction (−C$_p$)"),
+              (2, "Cf", "2°: skin friction")]
+    for ax, (aoa, var, title) in zip(axs, panels):
+        for k, tag in tags.items():
+            g = s[s.file.str.contains(tag) & s.file.str.contains(f"aoa{aoa}_")]
+            g = g[(g.upper.astype(str) == "True") & (g.x_c < 0.995)]
+            ax.plot(g.x_c, -g.Cp if var == "Cp" else g.Cf, color=STEPS_COLOURS[k], ls=STEPS_STYLES[k],
+                    lw=2.8 if k == S_BASE else (2.2 if k == S_FAIR else 1.6), label=STEPS_NAMES[k],
+                    zorder=2 if k == S_BASE else 3)
+        if var == "Cf":
+            ax.axhspan(-0.0016, 0, color=RULE, alpha=0.45, lw=0)
+            ax.axhline(0, color=INK, lw=0.8)
+            ax.text(0.305, -0.0013, "C$_f$ < 0: reversed flow", fontsize=9.5, color=MUTED)
+            ax.set(ylim=(-0.0016, 0.0045), ylabel="C$_f$")
+        else:
+            ax.set(ylim=(0.0, 0.55), ylabel="−C$_p$")
+        ax.set_title(title)
+    _note(axs[0], "film, trip step: a short bubble\nat 50 % (50-53 %)", (0.505, -0.0004), (0.56, 0.0033))
+    _note(axs[0], "sanded step: slows the flow,\nno reversal", (0.585, 0.0006), (0.66, 0.0021))
+    _note(axs[1], "film, trip and sanded step: more suction\nalong the chord, so more lift at this angle\n"
+          "(C$_l$ 0.19-0.21, plain 0.16)", (0.42, 0.235), (0.47, 0.43))
+    _note(axs[2], "film, trip step: bubble 50-57 %", (0.53, -0.0005), (0.31, 0.0041))
+    _note(axs[2], "sanded step: its own\nbubble, 57-63 %", (0.6, -0.0003), (0.6, 0.0031))
+    _note(axs[2], "plain: separates at 72 %,\ndoes not reattach", (0.723, 0.0), (0.76, 0.0021))
+    _note(axs[2], "all four: reversed\nflow at the tail", (0.96, -0.0009), (0.83, 0.0009))
+    axs[2].set_xlabel("x / c: distance from the leading edge / chord")
+    axs[2].set_xlim(0.3, 1.0)
+    axs[2].legend(loc="upper center", bbox_to_anchor=(0.5, -0.32), ncols=2)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+@plt.rc_context(STEPS_RC)
+def steps_flow_4deg(data: Path, out: Path) -> Path:
+    """Skin friction on both surfaces at 4 deg, 1 m/s, Tu 1 %, time-accurate, the final instant: NACA 0007
+    and the sections cut from it (the five 0.2 mm steps on the lower surface only)."""
+    s = _steps_surface(data, ["steps-surface-4deg"])
+    tags = {"naca0007": "foilnaca0007_", KFM4: "foilstair1naca0007d0.5", "stair5:naca0007:h=0.002": "foilstair5",
+            TRIP_SPEC: "foilstair1naca0007x0.5"}
+    names = {"naca0007": "NACA 0007 (plain)", **STAIRS, TRIP_SPEC: "trip step (0.2 mm)"}
+    fig, axs = plt.subplots(2, 1, figsize=(STEPS_W, 6.9), sharex=True)
+    for ax, side in zip(axs, ("upper", "lower")):
+        for k, tag in tags.items():
+            if side == "upper" and k == "stair5:naca0007:h=0.002":
+                continue  # it sheds at every step: one instant of it hides the rest
+            g = s[s.file.str.contains(tag)]
+            g = g[(g.upper.astype(str) == ("True" if side == "upper" else "False")) & (g.x_c < 0.995)]
+            ax.plot(g.x_c, g.Cf, color=STAIR_COLOURS[k], lw=2.8 if k == "naca0007" else 1.5, label=names[k],
+                    zorder=2 if k == "naca0007" else 3)
+        ax.axhspan(-0.006, 0, color=RULE, alpha=0.45, lw=0)
+        ax.axhline(0, color=INK, lw=0.8)
+        ax.set(xlim=(0, 1.0), ylim=(-0.006, 0.012), ylabel="C$_f$")
+        ax.set_title("Upper (suction) surface" if side == "upper" else "Lower (pressure) surface")
+    axs[0].text(0.01, -0.0055, "C$_f$ < 0: reversed flow", fontsize=9.5, color=MUTED)
+    _note(axs[0], "leading-edge bubble\n(every section)", (0.1, -0.0008), (0.2, 0.0085))
+    _note(axs[0], "plain: the wiggles are its shedding\nvortices at this one instant", (0.66, 0.0045), (0.56, 0.0098))
+    _note(axs[1], "KFm4: separates at the step,\nreattaches at 60 %", (0.55, -0.0015), (0.13, -0.0038))
+    _note(axs[1], "behind it, 2.3 times the\nplain section's friction", (0.78, 0.0064), (0.66, 0.0098))
+    _note(axs[1], "five steps: a small\nbubble behind each", (0.755, -0.0008), (0.62, -0.0042))
+    axs[1].set_xlabel("x / c")
+    axs[1].legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncols=2)
+    fig.tight_layout()
+    return _save(fig, out)
+
+
+@plt.rc_context(STEPS_RC)
+def steps_drag_split(data: Path, out: Path) -> Path:
+    """Section drag of each 0.2 mm modification against its own plain section at the same angle (1 m/s,
+    Tu 1 %), split into friction and pressure drag, in % of the plain section's drag: steady at 0 and 2 deg,
+    and the trip step at 4 deg time-accurate (stepped-vs-baseline)."""
+    t = pd.concat([pd.read_csv(data / f"{n}.csv") for n in STEPS_FILES], ignore_index=True)
+    t = t[(t.speed == 1.0) & (t.Tu == 1.0) & (t.status != "failed")]
+    t = t.assign(cand=t.foil + "/100").drop_duplicates(["cand", "aoa"]).set_index(["cand", "aoa"])
+    rows = []
+    for aoa in (0, 2):
+        for cand in (S_HTFILM, S_FILM, S_TRIP, S_FAIR):
+            m, b = t.loc[(cand, aoa)], t.loc[(OWN_BASE[cand], aoa)]
+            rows.append((f"{MOD_NAMES[cand]}, {aoa}°", m, b))
+    st = pd.read_csv(data / "steps-stepped.csv")
+    st = st[(st.aoa == 4) & (st.solver == "transient")].set_index("foil")
+    rows.append(("trip step, 4°, time-accurate", st.loc[TRIP_SPEC], st.loc["naca0007"]))
+    fig, ax = plt.subplots(figsize=(STEPS_W - 1.9, 6.4))  # the names take the rest
+    y = np.arange(len(rows))[::-1].astype(float)
+    y[:4] += 1.0  # gaps between the angles
+    y[-1] -= 1.0
+    for yi, (name, m, b) in zip(y, rows):
+        df, dp = (100 * (m[c] - b[c]) / b.Cd for c in ("Cd_friction", "Cd_pressure"))
+        ax.barh(yi + 0.18, df, height=0.34, color="#3e7cb1")
+        ax.barh(yi - 0.18, dp, height=0.34, color="#e09a4f")
+        ax.scatter([df + dp], [yi], marker="|", s=260, color=INK, lw=2.2, zorder=3)
+        ax.text(5.2, yi, f"{df + dp:+.1f} %".replace("-", "−"), va="center", fontsize=10)
+    ax.axvline(0, color=INK, lw=0.9)
+    ax.set_yticks(y, [r[0] for r in rows])
+    ax.set(xlim=(-5, 6.6), xlabel="change in section drag, % of the plain section's drag")
+    ax.set_title("Same angle, 1 m/s, Tu 1 %: friction (blue),\npressure drag (orange) and total (black)")
+    ax.grid(axis="y", visible=False)
+    return _save(fig, out)
+
+
+def _render(path: Path, box: tuple[int, int, int, int]) -> np.ndarray:
+    from PIL import Image
+
+    return np.asarray(Image.open(path).convert("RGB").crop(box))
+
+
+REAR = (690, 230, 1800, 520)  # the boundary_layer view (1800 x 520): x/c 0.4 to the wake, and the colour bar
+
+
+@plt.rc_context(STEPS_RC)
+def _render_stack(panels: list[tuple[np.ndarray, str]], out: Path, arrows: int) -> Path:
+    """Renders one under another, each with a title; a flow arrow on the first `arrows`."""
+    hs = [p.shape[0] / p.shape[1] for p, _ in panels]
+    fig, axs = plt.subplots(len(panels), 1, figsize=(STEPS_W, STEPS_W * sum(hs) + 0.55 * len(panels)),
+                            height_ratios=hs)
+    for i, (ax, (img, title)) in enumerate(zip(np.atleast_1d(axs), panels)):
+        ax.imshow(img, interpolation="lanczos")
+        ax.set_title(title, fontsize=10.5)
+        ax.axis("off")
+        if i < arrows:
+            ax.annotate("flow", xy=(250, 30), xytext=(40, 30), fontsize=10.5, va="center",
+                        arrowprops=dict(arrowstyle="-|>", color=INK, lw=1.6))
+    fig.tight_layout(h_pad=0.6)
+    return _save(fig, out)
+
+
+def steps_film_flow(data: Path, out: Path) -> Path:
+    """HT35 at 7 % bare and filmed at 2 deg, 1 m/s, Tu 1 % (steady, the last iteration): the rear of the same
+    ParaView view with its colour bar, and the film's edge close up (its own colour scale)."""
+    assets = data.parent / "assets"
+    t = pd.read_csv(data / "steps-ht35-film.csv")
+    t = t[(t.speed == 1.0) & (t.Tu == 1.0) & (t.aoa == 2)].set_index("foil")
+
+    def forces(foil):
+        return f"C$_l$ {t.loc[foil].Cl:.3f}, C$_d$ {t.loc[foil].Cd:.4f}"
+
+    return _render_stack([
+        (_render(assets / "steps-flow-2deg-ht35.png", REAR), f"HT35 at 7 %, bare: {forces('file:ht35-t070.dat')}"),
+        (_render(assets / "steps-flow-2deg-ht35-film.png", REAR),
+         f"HT35 at 7 % with the film: {forces('film:file:ht35-t070.dat:x=0.5,t=0.002')}"),
+        (_render(assets / "steps-flow-2deg-ht35-film-edge.png", (0, 50, 1600, 600)),
+         "The film's edge at 50 mm, close up (its own colour scale)")], out, arrows=2)
+
+
+def steps_flow_pictures(data: Path, out: Path) -> Path:
+    """Plain NACA 0007, the trip step and the KFm4 step at 4 deg, 1 m/s, Tu 1 %, time-accurate, the final
+    instant: the rear of the same ParaView view, with its colour bar; forces are time averages."""
+    assets = data.parent / "assets"
+    s = pd.read_csv(data / "steps-stepped.csv")
+    s = s[(s.aoa == 4) & (s.solver == "transient")].set_index("foil")
+    panels = []
+    for asset, foil, name in (("naca0007", "naca0007", "Plain NACA 0007"), ("trip", TRIP_SPEC, "Trip step"),
+                              ("kfm4", KFM4, "KFm4 step")):
+        r = s.loc[foil]
+        panels.append((_render(assets / f"steps-flow-4deg-{asset}.png", REAR),
+                       f"{name}: C$_l$ {r.Cl:.3f}, C$_d$ {r.Cd:.4f} (time averages)"))
+    return _render_stack(panels, out, arrows=3)
+
+
+def steps_card(out: Path) -> Path:
+    """The page's card at 3:1: the KFm4 stair over NACA 0007, the thickness stretched three times."""
+    fig = plt.figure(figsize=(9, 3))
+    a = fig.add_axes([0, 0, 1, 1])
+    for spec, fill in ((KFM4, True), ("naca0007", False)):
+        g = _steps_foil(spec)
+        u, lo = g.surface("upper", 1500), g.surface("lower", 1500)
+        xs, ys = np.r_[u[:, 0], lo[::-1, 0]], 3 * np.r_[u[:, 1], lo[::-1, 1]]
+        if fill:
+            a.fill(xs, ys, color=ACCENT, alpha=0.85, lw=0)
+        else:
+            a.plot(xs, ys, color=INK, lw=1.6, ls=(0, (5, 3)))
+    a.set_aspect("equal")
+    a.set(xlim=(-0.08, 1.08), ylim=(-0.193, 0.193))  # 1.16 x 0.387: 3:1
+    a.axis("off")
+    fig.savefig(out, dpi=120, facecolor=PAPER)
+    plt.close(fig)
+    return out
+
+
 def make_all(data: Path, out: Path) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     ref = data.parents[1] / "projects" / "foil2d" / "validation" / "naca0009_re1e5_princeton.csv"
@@ -1566,7 +2138,7 @@ def make_all(data: Path, out: Path) -> list[Path]:
         race_time_table(data, out / "race-time.md"),
         race_time_by_speed_table(data, out / "race-time-by-speed.md"),
         fin_choice_table(data, out / "fin-choice.md"),
-        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith(("bulb-", "custom-"))),
+        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith(("bulb-", "custom-", "steps-"))),
         card_image(data.parent / "assets" / "flow-shedding-vorticity.png", out / "fin-selection-card.png"),
         # the keel bulb page
         bulb_side(out / "bulb-side.svg"),
@@ -1601,4 +2173,21 @@ def make_all(data: Path, out: Path) -> list[Path]:
         custom_properties_table(out / "custom-properties.md"),
         sources_table(data, out / "sources-custom.md", keep=lambda n: n.startswith("custom-")),
         custom_card(out / "custom-section-card.png"),
+        # the steps and films page
+        steps_sections(out / "steps-sections.svg"),
+        steps_section_details(out / "steps-section-details.svg"),
+        steps_stairs(out / "steps-stairs.svg"),
+        steps_sections_table(out / "steps-sections.md"),
+        steps_gain(data, out / "steps-gain.svg"),
+        steps_gain_table(data, out / "steps-gain.md"),
+        steps_own_base_table(data, out / "steps-own-base.md"),
+        steps_4deg(data, out / "steps-4deg.svg"),
+        steps_4deg_table(data, out / "steps-4deg.md"),
+        steps_flow(data, out / "steps-flow.svg"),
+        steps_flow_4deg(data, out / "steps-flow-4deg.svg"),
+        steps_drag_split(data, out / "steps-drag-split.svg"),
+        steps_film_flow(data, out / "steps-film-flow.png"),
+        steps_flow_pictures(data, out / "steps-flow-pictures.png"),
+        sources_table(data, out / "sources-steps.md", keep=lambda n: n.startswith("steps-")),
+        steps_card(out / "steps-and-films-card.png"),
     ]

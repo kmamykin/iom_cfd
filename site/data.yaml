@@ -356,3 +356,101 @@ custom-flow-4deg-ht35:
   study: custom-section-transient
   runs: [20261018-104120]
   file: aoa4_foilht35mt0725_speed1_start_fromx/viz/boundary_layer.png
+
+# The steps and films page (site/steps-and-films/index.qmd): NACA 0007 and HT35 at 7 %, 100 mm chord, with a
+# 0.2 mm film wrapped round the nose, a 0.2 mm trip step cut at half chord, the same step faired out, and
+# Kline-Fogleman stairs. The sweeps: 0.75-1.5 m/s, 0-6 deg, Tu 0.1, 1 and 2 %, steady.
+steps-naca-film:   # plain NACA 0007 and the film
+  study: naca0007-film
+  runs: [20261025-161234]
+  file: results.csv
+  columns: &steps-cols [foil, chord, speed, aoa, Tu, rhoInf, Cl, Cd, Cd_friction, Cd_pressure,
+                        x_sep_upper, x_reattach_upper, x_te_sep_upper, unsteady, status]
+steps-naca-trip:   # the 0.2 mm trip step cut at x/c 0.5
+  study: naca0007-trip
+  runs: [20261025-173646]
+  file: results.csv
+  columns: *steps-cols
+steps-naca-faired:   # the same step faired out over x/c 0.5-0.6
+  study: naca0007-faired
+  runs: [20261025-211238]
+  file: results.csv
+  columns: *steps-cols
+steps-ht35-film:   # HT35 at 7.0 % and the film
+  study: ht35-film
+  runs: [20261025-145441]
+  file: results.csv
+  columns: *steps-cols
+steps-stepped:   # the Kline-Fogleman stairs and the trip at 1 m/s, Tu 1 %: steady and time-accurate
+  study: stepped-vs-baseline
+  runs: [20261023-201101]
+  file: results.csv
+  columns: [foil, chord, speed, aoa, Tu, solver, flow_times, average_times, rhoInf, Cl, Cd, Cl_std, Cd_std,
+            Cd_friction, Cd_pressure, x_sep_upper, x_reattach_upper, x_te_sep_upper, unsteady, status]
+steps-surface-1ms:   # pressure and skin friction at 0 and 2 deg, 1 m/s, Tu 1 %, steady
+  study: naca0007-film
+  runs: [20261025-161234]
+  file:
+    - Tu1_aoa0_foilnaca0007_speed1/surface.csv
+    - Tu1_aoa2_foilnaca0007_speed1/surface.csv
+    - Tu1_aoa0_foilfilmnaca0007x0.5t0.002_speed1/surface.csv
+    - Tu1_aoa2_foilfilmnaca0007x0.5t0.002_speed1/surface.csv
+  digits: 5
+steps-surface-1ms-trip:   # the same for the trip step
+  study: naca0007-trip
+  runs: [20261025-173646]
+  file:
+    - Tu1_aoa0_foilstair1naca0007x0.5h0.002_speed1/surface.csv
+    - Tu1_aoa2_foilstair1naca0007x0.5h0.002_speed1/surface.csv
+  digits: 5
+steps-surface-1ms-faired:   # the same for the faired step
+  study: naca0007-faired
+  runs: [20261025-211238]
+  file:
+    - Tu1_aoa0_foilfairednaca0007x0.5h0.002l0.1_speed1/surface.csv
+    - Tu1_aoa2_foilfairednaca0007x0.5h0.002l0.1_speed1/surface.csv
+  digits: 5
+steps-surface-4deg:   # 4 deg, 1 m/s, Tu 1 %, time-accurate: the final instant, not a time average
+  study: stepped-vs-baseline
+  runs: [20261023-201101]
+  file:
+    - aoa4_average_times8_flow_times20_foilnaca0007_solvertransient/surface.csv
+    - aoa4_average_times8_flow_times20_foilstair1naca0007d0.5_solvertransient/surface.csv
+    - aoa4_average_times8_flow_times20_foilstair1naca0007x0.5h0.002_solvertransient/surface.csv
+    - aoa4_average_times3_flow_times6_foilstair5naca0007h0.002_solvertransient/surface.csv
+  digits: 5
+
+# Flow pictures for the steps and films page: projects/foil2d/viz.py boundary_layer, 4 deg, 1 m/s, Tu 1 %,
+# time-accurate, the final instant (`iomcfd viz`).
+steps-flow-4deg-naca0007:
+  kind: file
+  study: stepped-vs-baseline
+  runs: [20261023-201101]
+  file: aoa4_average_times8_flow_times20_foilnaca0007_solvertransient/viz/boundary_layer.png
+steps-flow-4deg-kfm4:
+  kind: file
+  study: stepped-vs-baseline
+  runs: [20261023-201101]
+  file: aoa4_average_times8_flow_times20_foilstair1naca0007d0.5_solvertransient/viz/boundary_layer.png
+steps-flow-4deg-trip:
+  kind: file
+  study: stepped-vs-baseline
+  runs: [20261023-201101]
+  file: aoa4_average_times8_flow_times20_foilstair1naca0007x0.5h0.002_solvertransient/viz/boundary_layer.png
+# HT35 at 7 % bare and filmed, 2 deg, 1 m/s, Tu 1 %, steady (the last iteration): the same view, and the
+# film's edge close up (projects/foil2d/viz.py step: its own colour scale)
+steps-flow-2deg-ht35:
+  kind: file
+  study: ht35-film
+  runs: [20261025-145441]
+  file: Tu1_aoa2_foilht35mt070_speed1/viz/boundary_layer.png
+steps-flow-2deg-ht35-film:
+  kind: file
+  study: ht35-film
+  runs: [20261025-145441]
+  file: Tu1_aoa2_foilfilmht35mt070x0.5t0.002_speed1/viz/boundary_layer.png
+steps-flow-2deg-ht35-film-edge:
+  kind: file
+  study: ht35-film
+  runs: [20261025-145441]
+  file: Tu1_aoa2_foilfilmht35mt070x0.5t0.002_speed1/viz/step.png
