@@ -194,8 +194,69 @@ def test_stepped_spec_options():
         foils.load("stair1:naca0009:d=0.95")  # nothing left behind the step
 
 
+def test_film_geometry():
+    """A film round the nose: the base offset by t ahead of its edge, the bare
+    base behind it, and a step of height t at the edge (stepped.film)."""
+    f = foils.load("film:naca0009:x=0.5,t=0.002")
+    base = foils.naca4("0009")
+    assert len(f.steps) == 2 and all(s.kind == "film" and s.height == 0.002 for s in f.steps)
+    assert all(s.x == pytest.approx(0.5, abs=2e-4) for s in f.steps)
+    assert np.allclose(f.x, f.x[::-1], atol=1e-12) and np.allclose(f.y, -f.y[::-1], atol=1e-12)
+    for x in (0.55, 0.8, 0.95):
+        assert _half_thickness(f, x) == pytest.approx(_half_thickness(base, x), abs=1e-7)
+    # at the maximum thickness the surface is flat: offset along the normal = offset in y
+    assert _half_thickness(f, 0.3) == pytest.approx(_half_thickness(base, 0.3) + 0.002, abs=1e-6)
+    assert f.x.min() == pytest.approx(-0.002, abs=1e-7)  # the LE moves forward by t
+    assert f.point(np.array([0.0, f.perimeter])) == pytest.approx(np.array([[1.0, 0.0], [1.0, 0.0]]), abs=1e-9)
+    assert stepped.parse_spec("film:file:ht35-t070.dat:x=0.4,t=0.001") == (
+        "film", "file:ht35-t070.dat", {"x": 0.4, "t": 0.001})
+    with pytest.raises(ValueError):  # a film has a thickness, not a step depth
+        stepped.parse_spec("film:naca0009:d=0.3")
+    with pytest.raises(ValueError):
+        foils.load("film:naca0009:x=0.98")  # the edge must leave room for the fillets
+
+
+def test_faired_geometry():
+    """A stair1 step faired out (stepped.faired): the base ahead of x, the
+    step's thinner rear behind x + l, a smooth surface in between, and no
+    steps, so it is meshed and run as a smooth section."""
+    f = foils.load("faired:naca0007:x=0.5,h=0.002,l=0.1")
+    trip, base = foils.load("stair1:naca0007:x=0.5,h=0.002"), foils.naca4("0007")
+    assert not f.steps and not f.breaks and f.base is not None
+    assert not stepped.is_stepped("faired:naca0007") and stepped.is_stepped("stair1:naca0007")
+    assert np.allclose(f.x, f.x[::-1], atol=1e-12) and np.allclose(f.y, -f.y[::-1], atol=1e-12)
+    for x in (0.1, 0.3, 0.49):
+        assert _half_thickness(f, x) == pytest.approx(_half_thickness(base, x), abs=1e-7)
+    for x in (0.61, 0.8, 0.95):
+        assert _half_thickness(f, x) == pytest.approx(_half_thickness(trip, x), abs=1e-7)
+    # through the fairing the surface only ever goes down: no step, no ripple
+    up = f.surface("upper", 4000)
+    assert np.all(np.diff(up[(up[:, 0] > 0.45) & (up[:, 0] < 0.65), 1]) <= 0)
+    assert f.point(np.array([0.0, f.perimeter])) == pytest.approx(np.array([[1.0, 0.0], [1.0, 0.0]]), abs=1e-9)
+    assert stepped.parse_spec("faired:naca0009:x=0.4,d=0.2,l=0.2") == ("faired", "naca0009",
+                                                                       {"x": 0.4, "d": 0.2, "l": 0.2})
+    with pytest.raises(ValueError):  # a fairing has a depth or a height, not a thickness
+        stepped.parse_spec("faired:naca0009:t=0.002")
+    with pytest.raises(ValueError):
+        foils.load("faired:naca0009:x=0.9,l=0.2")  # the fairing must end by the TE
+    spec = cmesh.CMeshSpec(chord=0.1, span=0.01, n_surface=96, n_wake=40, n_normal=64, first_cell=2e-5)
+    P, _ = cmesh.generate(f, spec)
+    assert np.all(cmesh.cell_areas(P) > 0) and cmesh.quality(P)["max_nonortho"] < 40.0
+
+
+def test_stepped_dat_base():
+    """A .dat base, whose LE is found numerically (x dips by ~1e-14 next to
+    it), can be stepped and wrapped: HT35 at 7 %."""
+    from iomcfd import config
+
+    G = [config.geometry_dir() / "foils"]
+    assert len(foils.load("stair1:file:ht35-t070.dat:x=0.5,h=0.002", G).steps) == 2
+    f = foils.load("film:file:ht35-t070.dat", G)
+    assert f.thickness()[0] == pytest.approx(0.074, abs=1e-5) and f.base.thickness()[0] == pytest.approx(0.07, abs=1e-5)
+
+
 @pytest.mark.parametrize("spec", ["stair1:naca0009", "stair1:naca0009:x=0.35,d=0.5", "stair10:naca0009",
-                                  "stair5:naca0009"])
+                                  "stair5:naca0009", "film:naca0009"])
 def test_cmesh_stepped_valid(spec):
     f = foils.load(spec)
     h_min = min(s.height for s in f.steps) * 0.08

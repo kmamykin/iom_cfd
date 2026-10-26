@@ -1,0 +1,51 @@
+study: naca0007-trip
+project: foil2d
+description: >
+  The cut trip of stepped-vs-baseline over the naca0007-film sweep
+  (findings: projects/foil2d/findings/naca0007-film.md, which compares all
+  three). stair1:naca0007:x=0.5,h=0.002 is one 0.2 mm backward-facing step
+  per side at x/c 0.5, cut into NACA 0007 at 100 mm: ahead of it the
+  section is plain, behind it scaled to 93.5 % thickness. In
+  stepped-vs-baseline (run 20261023-201101; 1 m/s, Tu 1 %) it gave 0.9 %
+  less drag at 0 deg (steady) and 3 % less at 2 deg (time-accurate), where
+  it closed the plain section's laminar separation at x/c 0.72. The film
+  (the same 0.2 mm edge at x/c 0.5, with material added ahead of it
+  instead of cut behind it) cost drag on HT35 at 0 deg in 9 of 9 cases
+  (ht35-film run 20261025-145441). Plain NACA 0007 and the film run in
+  naca0007-film (run 20261025-161234, same image a5641dc, same settings);
+  this run adds the trip only, so trip and film can be told apart: the step
+  in both, a thinner rear only in the trip, a larger nose only in the film.
+  Steady, at the custom-section settings: 100 mm, 0.75-1.5 m/s, 0-6 deg
+  with 3 and 5, Tu 0.1, 1 and 2 %, medium mesh, the step's mesh refined to
+  a fraction of its height (cmesh.py). 4 ranks per case; checkpoints
+  (docs/cloud-gcp.md).
+report:
+  fin_span: 0.36
+  induced_drag: true
+highlights:
+  - name: trip-edge
+    why: >
+      Where plain NACA 0007 separates laminar (2 deg) the trip closed the separation in
+      stepped-vs-baseline; at 4 deg the flow is turbulent at the step. 1 m/s, Tu 1 %: the trip's
+      bubble and transition at both (against naca0007-film's plain and film cases).
+    where: {speed: 1.0, aoa: [2, 4], Tu: 1.0}
+    compare: aoa
+    views: [boundary_layer, step, transition]
+  - name: trip-by-tu
+    why: >
+      A trip matters most where the boundary layer stays laminar longest: the trip at 0 and 2 deg,
+      1 m/s, as Tu rises from 0.1 to 2 % (the film didn't trip at 0 deg on HT35).
+    where: {speed: 1.0, aoa: [0, 2]}
+    compare: Tu
+    views: [transition]
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  mesh: medium
+  solver: steady
+  np: 4
+sweep:
+  foil: ["stair1:naca0007:x=0.5,h=0.002"]
+  Tu: [0.1, 1.0, 2.0]
+  speed: [0.75, 1.0, 1.5]
+  aoa: [0, 2, 3, 4, 5, 6]

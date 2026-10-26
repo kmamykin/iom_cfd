@@ -1,0 +1,59 @@
+study: naca0007-film
+project: foil2d
+description: >
+  Does a self-adhesive film wrapped round the nose of an existing NACA 0007
+  fin pay? (findings: projects/foil2d/findings/naca0007-film.md). The same
+  study as ht35-film (run 20261025-145441), on NACA 0007 at 100 mm. On HT35
+  the film cost 0.16 % of race time at Tu 1 % and 0.46 % at Tu 2 %: its edge
+  didn't trip the laminar boundary layer at 0 deg, only added a bubble, and
+  its one gain (above the design loads, near 6 deg) came from the larger
+  nose radius. NACA 0007 differs where that matters: its nose is sharper
+  (0.54 mm radius against HT35's 0.69 mm at 7 %; the film makes it 0.74),
+  and its 2 deg laminar separation is the one the cut trip of
+  stepped-vs-baseline (stair1:naca0007:x=0.5,h=0.002, run 20261023-201101)
+  closed. The film: 0.2 mm thick, from x/c 0.5 on one surface round the LE
+  to x/c 0.5 on the other (stepped.py film); 7.4 mm thick. Plain NACA 0007
+  runs again in the same run, so the film is the only difference (and as a
+  repeat of custom-section-screen, Tu 0.1 %, run 20261018-043724, and
+  custom-section-tu, Tu 1 and 2 %, run 20261018-104350). Steady, at the
+  custom-section settings: 100 mm, 0.75-1.5 m/s, 0-6 deg with 3 and 5, Tu
+  0.1, 1 and 2 %, medium mesh, the step's mesh refined to a fraction of its
+  height (cmesh.py). 4 ranks per case; checkpoints (docs/cloud-gcp.md).
+report:
+  fin_span: 0.36
+  induced_drag: true
+  compare_at: {foil: naca0007, chord: 0.1, aoa: [2, 4, 6]}
+highlights:
+  - name: film-edge
+    why: >
+      Does the film's edge trip the boundary layer where plain NACA 0007 separates laminar (2 deg; the
+      cut trip closed that separation), and what does it cost where the flow is already turbulent
+      (4 deg)? 1 m/s, Tu 1 %.
+    where: {speed: 1.0, aoa: [2, 4], Tu: 1.0}
+    compare: foil
+    views: [boundary_layer, step, transition]
+  - name: film-by-tu
+    why: >
+      A trip matters most where the boundary layer stays laminar longest: the film against plain
+      NACA 0007 at 0 and 2 deg, 1 m/s, as Tu rises from 0.1 to 2 %.
+    where: {speed: 1.0, aoa: [0, 2]}
+    compare: foil
+    views: [transition]
+  - name: film-nose
+    why: >
+      On HT35 the film's larger nose radius removed the leading-edge bubble at 6 deg; NACA 0007's nose
+      is sharper. 1 m/s, Tu 1 %.
+    where: {speed: 1.0, aoa: [5, 6], Tu: 1.0}
+    compare: foil
+    views: [boundary_layer]
+defaults:
+  chord: 0.10
+  turbulence: kOmegaSSTLM
+  mesh: medium
+  solver: steady
+  np: 4
+sweep:
+  foil: [naca0007, "film:naca0007:x=0.5,t=0.002"]
+  Tu: [0.1, 1.0, 2.0]
+  speed: [0.75, 1.0, 1.5]
+  aoa: [0, 2, 3, 4, 5, 6]

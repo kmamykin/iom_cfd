@@ -1,0 +1,493 @@
+---
+title: "IOM fin: steps, trips and films"
+subtitle: "Kline-Fogleman steps, a trip step and a nose film on two fin sections, in 2D CFD"
+# the card on the front page (and link previews): image, title, description
+description: >-
+  Do Kline-Fogleman steps, a trip step or a film round the nose make an IOM fin faster? In 2D
+  simulations, no reliable gain: a KFm4-style step adds about 40 % section drag at 4°, a 0.2 mm film
+  costs HT35 race time, and a trip step's small modelled gain on NACA 0007 turns into a loss in rough
+  water. An unmodified HT35 fin did as well or better.
+image: ../_generated/steps-and-films-card.png
+author: Kliment Mamykin
+date: 2026-10-26
+date-modified: 2026-10-26
+license: "CC BY"
+code-links:
+  - text: Source on GitHub
+    icon: github
+    href: https://github.com/kmamykin/iom_cfd
+  - text: "Findings: steps"
+    icon: journal-text
+    href: https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/findings/stepped-vs-baseline.md
+  - text: "Findings: trip and film on NACA 0007"
+    icon: journal-text
+    href: https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/findings/naca0007-film.md
+  - text: "Findings: film on HT35"
+    icon: journal-text
+    href: https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/findings/ht35-film.md
+abstract: |
+  **Don't cut steps into a fin or wrap it in film to make it faster.** In 2D simulations of a
+  100 mm-chord section, a Kline-Fogleman (KFm4-style) step adds about 40\ % section drag at 4°, and a
+  0.2 mm film costs HT35 at 7\ % 0.15–0.46\ % of race time. A 0.2 mm trip step gains NACA 0007 a
+  modelled 0.3–0.4\ % in moderately disturbed water and loses 0.15\ % in rough water. **Caveat:**
+  apart from the KF step these are small differences from steady 2D CFD, near the noise of the
+  method.
+---
+
+::::: {.callout-note appearance="simple" icon=false}
+::: {.status}
+**First version, 26 October 2026.** Every result here comes from 2D simulations of a fin section, none
+from a real fin. @sec-read explains the terms; the [fin-selection page](../fin-selection/) has the
+full method.
+:::
+:::::
+
+::: {.key-results}
+::: {}
+[+36–41\ %]{.big-number}<br>
+section drag of a KFm4-style step on NACA 0007 at the 4° test point, 1 m/s (steady / time-accurate;
+a large penalty, high confidence at this point)
+:::
+::: {}
+[−0.15\ %]{.big-number}<br>
+race-time gain of wrapping HT35 at 7\ % in a 0.2 mm film at Tu 1\ % (negative = slower); −0.46\ % at
+Tu 2\ %
+:::
+::: {}
+[+0.3\ %]{.big-number}<br>
+modelled race-time gain of a 0.2 mm trip step on NACA 0007 at Tu 1\ % (+0.31 to +0.40\ %); −0.15\ % at
+Tu 2\ % (low confidence)
+:::
+::: {}
+[HT35]{.big-number}<br>
+at 7\ %, unmodified: the highest mean in every steady ranking, but only about 0.05\ % ahead of the
+trip step at Tu 1\ %, within the noise (@sec-ranking)
+:::
+:::
+
+[**Jump to:** [the answer](#sec-conclusion) · [how to read it](#sec-read) · [the sections](#sec-shapes)
+· [steps](#sec-stairs) · [the film](#sec-film) · [the trip step](#sec-trip) ·
+[the ranking](#sec-ranking)]{.jump-links}
+
+## The question {#sec-question}
+
+The [fin-selection](../fin-selection/) and [fin section](../custom-section/) studies chose a fin
+section. Many fins already exist, though, and three cheap changes to them come up among model
+sailors:
+
+* **Kline-Fogleman (KF) steps:** a backward-facing step on one or both sides, from paper gliders and
+  foam models (the hobby variants are KFm1 to KFm4). The claim is that a vortex trapped behind the
+  step keeps the flow attached.
+* **A trip step:** on model glider wings a turbulator ahead of a laminar separation bubble makes the
+  boundary layer turbulent before it separates, which can cut drag at low Reynolds numbers. Cut into a
+  fin, the simplest version is a shallow step: here 0.2 mm deep at half chord.
+* **A film round the nose:** a self-adhesive film to protect the leading edge, wrapped from half chord
+  on one side round the nose to half chord on the other.
+
+## What is compared, and how to read it {#sec-read}
+
+* **The sections.** A horizontal slice of the fin, 100 mm long front to back (the *chord*) and 7 mm
+  thick: NACA 0007 and HT35 at 7\ %. *x/c* is the distance from the leading edge (the front) as a
+  fraction of the chord; half chord is 50 mm.
+* **The changes.** The *film* adds 0.2 mm on each side ahead of 50 mm, so the section is 7.4 mm thick
+  (+0.4 mm in all), and ends in a 0.2 mm square edge. The *trip step* cuts 0.2 mm into both sides at
+  50 mm and thins the rear to match. The *sanded step* has the trip's thinner rear but blends it in
+  over 50–60 mm, with no step. The *KF stairs* cut away about half the rear thickness.
+* **Angle and load.** The *angle* is the section's angle to the flow (close to the boat's leeway). The
+  race-time comparison does not compare sections at one angle: at each boat speed it finds the angle at
+  which each section makes the side force the sails demand, at three *loads* (low, working, high: the
+  forces NACA 0009 at 80 mm makes at 2, 4 and 6°). At 1 m/s and Tu 1\ % plain NACA 0007 needs 0.8, 3.4
+  and 4.4° for them. The 2° and 4° cases in the flow pictures and the 4° checks are *test points*
+  between those loads: at 4° plain NACA 0007 makes 7.8 N on the 0.36 m fin, between the working load
+  (6.7 N) and the high one (8.3 N). Pictures at one angle show how the flow changes, not which section
+  is faster at the same side force.
+* **Tu** is the turbulence of the oncoming water, a model input that sets when the boundary layer turns
+  turbulent. Tu 0.1, 1 and 2\ % are sensitivity cases, not measured on a pond; boat speed (0.75, 1 and
+  1.5 m/s) is a separate axis.
+* **The CFD.** OpenFOAM v2512 with the k-ω SST turbulence model and the Langtry-Menter transition model
+  (`kOmegaSSTLM`). *Steady* runs iterate to one answer (simpleFoam); *time-accurate* runs march through
+  time (pimpleFoam) and average the forces. A *flow-through* is the time the water takes to pass the
+  chord: 0.1 s at 1 m/s.
+* **Race-time gain** is the race time a section saves against a reference, in % (+ = faster). For each
+  speed and load, half the race is upwind, where the fin's drag at that load and the longer track its
+  leeway sails cost time, and half downwind, where its drag at 0° does. Drag turns into time through an
+  estimated slope of the boat's resistance with speed; doubling the slope is shown as a sensitivity,
+  not a confidence range. The fin's induced drag is a lifting-line estimate. The mean weights the three
+  speeds and three loads equally. It is a modelled saving, not a measured boat speed.
+
+## The sections {#sec-shapes}
+
+::: {.steps-fig}
+![The two plain sections at true scale (top), and how each 0.2 mm change moves the upper surface,
+along the whole chord (bottom: the modified surface minus its own plain section's). The film adds
+0.2 mm from the nose to 50 mm; the trip step drops 0.2 mm at 50 mm and the section behind it is
+6.5\ % thinner, so the difference tapers to the tail; the sanded step has the same rear, blended in
+over 50–60 mm. Drawn by the code that built the simulation
+meshes.](../_generated/steps-sections.svg){#fig-shapes fig-alt="Top: NACA 0007 and HT35 outlines at true scale, almost identical. Bottom: a line chart of each modified upper surface minus its plain section along the chord: the film is +0.2 mm up to 50 mm and zero behind it; the trip step drops to −0.2 mm at 50 mm and tapers to zero at the tail; the sanded step follows the trip step behind 60 mm after a smooth ramp from 50 mm."}
+:::
+
+::: {.steps-fig}
+![Close-ups of the upper surface at half chord over the plain outline (dashed), the vertical scale
+stretched four times, with the 0.2 mm marked; the lower surface is the same. Bottom: the noses at
+true scale: the film moves the leading edge forward 0.2 mm and makes the nose 0.2 mm
+rounder.](../_generated/steps-section-details.svg){#fig-shape-details fig-alt="Three close-ups between 40 and 70 mm from the leading edge. Film: the surface is 0.2 mm above the plain one up to a square edge at 50 mm. Trip step: a 0.2 mm drop at 50 mm, then a surface below the plain one. Sanded step: the surface leaves the plain one at 50 mm and is 0.17 mm below it by 60 mm. Two nose outlines at true scale with and without film, 0.2 mm apart."}
+:::
+
+::: {.steps-fig}
+![The Kline-Fogleman stairs, cut from NACA 0007. Each removes about half the thickness near the tail:
+the KFm4 layout in one 1.54 mm step at 50 mm, the others in five 0.2 mm or ten 0.1 mm steps from
+30 to 90 mm.](../_generated/steps-stairs.svg){#fig-stairs fig-alt="Four filled outlines at true scale: plain NACA 0007, the KFm4 stair with one large step at half chord, and stairs of five and ten small steps. Below, the four half-thicknesses on a stretched scale: every stair ends about half as thick as plain near the tail."}
+:::
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-steps-sections}
+{{< include ../_generated/steps-sections.md >}}
+
+The sections at 100 mm chord. Every step face is square, with its corners rounded slightly so the
+mesh can follow them (on a 0.2 mm step, 0.01 mm at the top and 0.05 mm at the foot). The film's edge
+is cut square to the surface.
+:::
+
+**What the shapes stand for.** The film is ideal: smooth, of uniform thickness, with a square edge, on
+an undamaged section. It is not a model of repairing a damaged nose. The strength and stiffness of an
+existing carbon fin after cutting or sanding were not assessed.
+
+**HT35 at 7\ %, not 7.25\ %.** The fin section page recommends HT35 scaled to 7.25\ %, as stiff as
+NACA 0007. The film was tested on HT35 at 7\ % because that is a fin that exists: the question was
+whether wrapping it pays.
+
+**The sanded step** asks how much of the trip step's result comes from its thinner rear. It is not a
+neutral control: its ramp changes the pressure along the rear and, at 2°, makes a bubble of its own
+(@sec-trip). Its ramp length, 10 mm, is the only one tried.
+
+## How it was tested {#sec-method}
+
+The CFD is the same as on the [fin-selection page](../fin-selection/#sec-method), with angles of 0, 2,
+3, 4, 5 and 6°, as on the [fin section page](../custom-section/#sec-method).
+
+* **The sweep.** NACA 0007 plain, with the film, with the trip step and with the sanded step, and
+  HT35 at 7\ % plain and with the film: 0.75, 1 and 1.5 m/s, six angles, Tu 0.1, 1 and 2\ %. 324
+  steady simulations.
+* **The checks at one test point.** NACA 0007 and the three KF stairs at 4°, and the trip step at 0, 2
+  and 4°, all at 1 m/s and Tu 1\ %, steady and time-accurate (20 flow-throughs, averaged over the last
+  8). The five-step stair ran 6 flow-throughs, averaged over the last 3: its small steps need very
+  small time steps. The ten-step stair's time-accurate run stopped at the 48-hour limit before two
+  flow-throughs.
+* **Meshes.** Near a step the mesh is refined to a fraction of the step height, so a stepped section
+  has 130,000 cells against 90,000. The sanded step has no step and is meshed like the plain section.
+  The film's edge was **not** mesh-checked. In an earlier check of a different step (0.95 mm deep) the
+  drag moved 2.3\ % from the medium to the fine mesh. That is not an error bar for the film, but the
+  film's section-drag changes at 4° (+0.7 to +2.1\ % on HT35 at Tu 1–2\ %) are no larger, so their
+  size is uncertain; their sign is the same in all 6 cases.
+
+**What the model can and can't see of a step.** The CFD resolves the step's shape: the pressure and
+the friction behind it come out of the flow solution. What it lacks is a physical trip. The transition
+model turns the boundary layer turbulent from local flow quantities, here mostly through the
+separation bubble behind the step; it has no roughness, and a 2D section can't have the zigzag of a
+turbulator tape. A real trip may act more strongly than the one simulated here.
+
+## Results {#sec-results}
+
+Click any chart to see it larger.
+
+### Kline-Fogleman steps {#sec-stairs}
+
+::: {.steps-fig}
+![Section drag at 4°, 1 m/s, Tu 1\ %, against plain NACA 0007 run with the same solver: steady
+against steady (pale), time-accurate against time-accurate (dark). Bottom: how much the two solvers
+differ on plain NACA 0007 itself. The sections make nearly the same lift here, C~l~ 0.428–0.437
+(@tbl-steps-4deg), so this is close to a comparison at equal side force, at this one
+point.](../_generated/steps-4deg.svg){#fig-4deg fig-alt="Horizontal bars. KFm4 step: +36.2 % steady, +41.0 % time-accurate. Five 0.2 mm steps: +0.6 % steady, +2.3 % time-accurate over 6 flow-throughs. Ten 0.1 mm steps: −1.7 % steady, time-accurate did not finish. Trip step: −4.2 % steady, −1.0 % time-accurate. Below: plain NACA 0007 steady is 2.6 % above its time-accurate drag."}
+:::
+
+* **The KFm4 step adds 36–41\ % section drag** at this test point: C~d~ 0.0195 against 0.0138
+  time-accurate (+41\ %), 0.0193 against 0.0142 steady (+36\ %), although behind the step the
+  section is half as thick. Its flow is steady in time. This is section drag at one speed, angle and
+  Tu, not a race-time figure or a full sweep, but a penalty this size is far outside the method's
+  uncertainty.
+* **The finer stairs: no reliable benefit.** Against plain from the same solver, five 0.2 mm steps
+  are +0.6\ % (steady) and +2.3\ % (time-accurate, a 3-flow-through average); ten 0.1 mm steps are
+  −1.7\ % (steady; the time-accurate run didn't finish). Against plain's time-accurate drag, the
+  ten-step stair's steady answer would read +0.9\ %. All of these are within the 2.6\ % by which the
+  two solvers differ on plain NACA 0007, so neither a gain nor a cost is established.
+
+::: {.steps-fig}
+![Skin friction C~f~ at 4°, 1 m/s, Tu 1\ %, time-accurate, at the last instant of each run (not a
+time average). Upper surface: every section has a laminar bubble at the leading edge (C~f~ below
+zero). Lower surface: on plain NACA 0007 the friction falls smoothly to the tail. Behind the KFm4 step
+the lower boundary layer separates, reattaches at 60\ % and then has about 2.3 times plain's
+friction; each 0.2 mm step of the five-step stair makes a small bubble of its
+own.](../_generated/steps-flow-4deg.svg){#fig-flow-4deg fig-alt="Two stacked line charts of skin friction along the chord. Upper surface: all sections dip below zero near the leading edge; plain NACA 0007 oscillates strongly from 40 % back; the trip and KFm4 curves are smooth. Lower surface: plain and trip are smooth; KFm4 drops below zero behind its step at 50 %, recovers at 60 % and stays well above plain; the five-step stair dips at each step."}
+:::
+
+::: {.steps-fig}
+![The rear of the section (from x/c 0.4) at 4°, 1 m/s, Tu 1\ %, time-accurate, at the last instant
+of each run; the same ParaView view and colour scale, its key under each picture. Colour is the
+velocity along the surface: pale is the free stream, dark the slow water near the wall, blue reversed
+flow. Top: plain NACA 0007; the blue pockets on the suction side are vortices at this instant. Middle:
+the trip step (the small notch at 50 % on both sides). Bottom: the KFm4 step, with reversed flow
+behind both steps to about 60\ % of the chord. The forces in the titles are time
+averages.](../_generated/steps-flow-pictures.png){#fig-flow-pictures fig-alt="Three flow pictures of the rear half of the section. Plain NACA 0007 has small blue reversed-flow pockets along the suction side. The trip step shows a small notch at half chord and no blue. The KFm4 step shows large blue regions behind the steps on both sides."}
+:::
+
+**Why steps don't help here.** At this test point the plain section's flow reattaches behind its
+leading-edge bubble at about 24\ % of the chord, and the lower side is attached: there is no
+separation for a step to hold. A trapped vortex is not drag-reducing by itself. Reversed flow behind a
+step lowers the friction locally, but the separation raises the pressure drag, and a turbulent
+boundary layer after reattachment raises the friction again: for the KFm4 step the time-accurate
+pressure drag is 44\ % higher and the friction 36\ %. Whatever KF steps do on thick model wings at
+high angles (not tested here), a fin works at 0–6° on a thin section.
+
+The plain section's suction side is unsteady at 4°: in the time-accurate run its lift varies with a
+standard deviation of 0.005 about the mean, at about 4 cycles per flow-through. The pictures show one
+instant of that, not the motion. The trip and KFm4 runs vary by less than 0.001 (@tbl-steps-4deg).
+
+### The film round the nose {#sec-film}
+
+* **On HT35 at 7\ % the film costs race time:** against the bare HT35, the race-time gain is −0.15\ %
+  at Tu 1\ % and −0.46\ % at Tu 2\ % (−0.06 and −0.23\ % with the resistance slope doubled;
+  @tbl-steps-own). It is slower than the bare HT35 at 7 of 9 speed and load combinations at Tu 1\ %
+  and 8 of 9 at Tu 2\ %. At Tu 1\ % about half the cost is upwind and half downwind. The Tu 1\ % cost
+  is close to the noise (@sec-ranking) and the film's edge was not mesh-checked, so its size is
+  uncertain; the Tu 2\ % cost is larger.
+* **On NACA 0007 it breaks even at best:** +0.05\ % at Tu 1\ % (a gain upwind of +0.19\ %, a loss
+  downwind of −0.14\ %), −0.37\ % at Tu 2\ %.
+* **Downwind it always costs.** At 0° the film adds 1–8\ % section drag on HT35 (9 of 9 cases) and
+  1–3\ % on NACA 0007 at Tu 1\ %. At 1 m/s and Tu 1\ % its friction is slightly lower than the bare
+  section's and its pressure drag higher (@fig-drag-split): the thicker front and the small bubble at
+  its edge.
+* **At 2° it raises the lift.** On HT35 at 1 m/s, Tu 1\ %, C~l~ goes from 0.210 to 0.241 for the same
+  drag (@fig-film-flow): the film's edge starts a long, thin separation that reattaches at 93\ % of
+  the chord, where the bare HT35 separates at 68\ % and does not reattach. Extra lift at one angle is
+  not a gain by itself: in the race model the low load needs only 0.6–1.5°, between 0° (where the
+  film costs) and 2°, and averaged over the loads the film still loses.
+* **Where it helps: above the design loads.** The film's nose is 0.2 mm rounder. At the side force the
+  plain sections make at 6°, beyond every load in the race-time comparison, the film needs 1.4–3.8\ %
+  less drag on HT35 (Tu 1 and 2\ %) and 3.5–5.0\ % less on NACA 0007 (Tu 1\ %). On HT35 the rounder
+  nose removes the leading-edge bubble at 6° in 4 of 6 cases. That could matter in gusts or out of a
+  tack; it is not part of the race-time figure.
+
+::: {.steps-fig}
+![HT35 at 7\ % at 2°, 1 m/s, Tu 1\ %, steady (the last iteration; the filmed case did not settle
+completely). Top two: the rear of the section (from x/c 0.4), the same view and colour scale, its key
+under each picture: pale is the free stream, dark slow water, blue reversed flow. Bare, a thin layer
+of reversed flow lies along the suction side near the tail; with the film it is gone, and the film's
+edge shows as a small step at 50\ % on both sides. Bottom: the film's edge close up, on its own,
+narrower colour scale (±0.25 of the free stream): the water just behind the edge barely moves, and
+the separation it starts reattaches 214 film thicknesses (43 mm)
+downstream.](../_generated/steps-film-flow.png){#fig-film-flow fig-alt="Two flow pictures of the rear of HT35 at 2 degrees, bare and filmed: the bare section has a thin blue strip of reversed flow near the trailing edge on the suction side, the filmed one does not. Below, a close-up of the film's square edge with slow grey water behind it."}
+:::
+
+So a film is not a speed-up. If one is wanted for protection, these numbers are its cost.
+
+### The trip step, cut or sanded {#sec-trip}
+
+::: {.steps-fig}
+![The suction side of NACA 0007 at 1 m/s, Tu 1\ %, steady: plain, with the film, with the trip step
+and with the sanded step. Top, 0°: the film and the trip step make a short bubble at 50\ %; the
+sanded step's ramp slows the flow without reversing it. Middle, 2°: all three modified sections have
+more suction than plain along the chord, so more lift at this angle. Bottom, 2°: plain separates at
+72\ % and doesn't reattach; the trip step and the film make a bubble at 50–57\ %, the sanded step
+one at 57–63\ %; all four have reversed flow at the
+tail.](../_generated/steps-flow.svg){#fig-flow fig-alt="Three stacked line charts from 30 % of the chord to the tail. Skin friction at 0 degrees: the film and trip curves dip below zero just behind 50 %, the sanded curve dips but stays positive. Suction at 2 degrees: the three modified sections lie above plain. Skin friction at 2 degrees: plain crosses zero at 72 %; trip and film dip below zero at 50-57 %, the sanded step at 57-63 %; all end below zero at the tail."}
+:::
+
+* **At Tu 1\ % the trip step's modelled gain is +0.40\ %** (steady), faster at 9 of 9 speed and load
+  combinations; +0.31\ % with its and plain NACA 0007's 4° points at 1 m/s taken from the
+  time-accurate runs. That is still a steady sweep with two points replaced, not a time-accurate
+  result. On a course of two laps of 90 m legs, 1\ % of race time is about 4 boat lengths, so +0.31\ %
+  would be about 1.3 lengths (an illustration; it depends on the course).
+* **About 40\ % of that gain is reproduced by the sanded geometry:** +0.16\ % against +0.40\ %, both
+  steady. That is the thinner rear plus the ramp, not the thinner rear alone:
+  the ramp changes the pressure recovery and, at 2°, makes its own bubble. The gain can't be split
+  cleanly between thickness and step. At 0° both have about 1\ % less drag than plain (−0.8 and
+  −1.3\ % at 1 m/s, Tu 1\ %).
+* **At 2° both change the flow the same way.** Plain NACA 0007 separates laminar at 72\ % of the chord
+  on the suction side. The step and the ramp each start a bubble near mid-chord: C~l~ rises from 0.163
+  to 0.193 (step) and 0.194 (ramp), and C~d~ falls by 3.0 and 2.6\ % at that angle. Neither closes the
+  separation at the tail (@fig-flow). That a 0.2 mm ramp over 10 mm does in this model what the step
+  does is itself a finding about the model; it was not checked against an experiment, and only one ramp
+  length was tried.
+* **At 4°, time-accurate, the step's gain is not measurable:** 1.0\ % less drag at 1.2\ % less lift.
+  Its friction is higher and its pressure drag lower (@fig-drag-split). Corrected
+  to equal lift with the slopes of the neighbouring steady points, that is somewhere between 0.4\ %
+  better and 2.7\ % worse: an estimate, not a simulated equal-force case. The steady solver had shown
+  4.2\ % less drag.
+* **What the step adds over the sanded geometry,** +0.23\ % at Tu 1\ % in the steady sweep, comes
+  almost entirely from the working and high loads, which need 3–5°, where the steady solver errs by up
+  to 2.6\ %. Only the trip step's 4° point at 1 m/s has been run time-accurately (it took 0.08\ % off
+  the trip step's gain), the sanded step's not at all. That part is the least certain.
+* **At Tu 2\ % the trip step loses 0.15\ %**; the sanded step breaks even (−0.02\ %). Both lose at
+  1.5 m/s, where they turn the boundary layer turbulent earlier than the plain section does (inferred
+  from the friction drag: +6\ % and +8\ % at 0°).
+
+::: {.steps-fig}
+![Section drag of each 0.2 mm change against its own plain section at the same angle, 1 m/s,
+Tu 1\ %, split into friction (blue) and pressure drag (orange), in % of the plain section's drag; the
+black mark is the total. Steady at 0° and 2°; the trip step at 4° time-accurate. This is drag at one
+angle, not race time: at 2° the modified sections also make more lift (@fig-flow), which the
+race-time comparison accounts for.](../_generated/steps-drag-split.svg){#fig-drag-split fig-alt="Paired horizontal bars of friction and pressure drag change. At 0 degrees the films lower friction 2-3 % and raise pressure drag 4-5 %, net +1.1 % on HT35 and +2.8 % on NACA 0007; trip and sanded steps lower both slightly, net −0.8 and −1.3 %. At 2 degrees all four lower friction; net −0.2 to −3.0 %. Trip step at 4 degrees time-accurate: friction +2.5 %, pressure −3.5 %, net −1.0 %."}
+:::
+
+### The ranking {#sec-ranking}
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-steps-own}
+{{< include ../_generated/steps-own-base.md >}}
+
+Race-time gain of each 0.2 mm change against its own plain section, % (+ = faster): estimated
+resistance slope / doubled, mean of three speeds and three loads, steady. Last two columns: the parts of the
+Tu 1\ % gain from the upwind and the downwind legs (estimated slope), which add up to it.
+:::
+
+::: {.steps-fig}
+![Race-time gain against plain NACA 0007, mean of three speeds and three loads, steady, one panel per
+Tu. Filled markers use the estimated resistance slope, hollow diamonds the slope doubled. The grey
+band is within 0.1\ % of plain NACA 0007, too close to call. At Tu 0.1\ % (hatched) the steady
+answers are too noisy to rank: plain NACA 0007 repeated an earlier run to within 0.25\ % of drag at
+only 9 of 17 points. The circle is the trip step with its and plain NACA 0007's 4°, 1 m/s points
+time-accurate; the other sections' 4° points are steady, so it compares only with the trip step's own
+marker.](../_generated/steps-gain.svg){#fig-gain fig-alt="Three dot plots of race-time gain against plain NACA 0007. Tu 0.1 %, hatched as too noisy: HT35 +0.59, HT35 with film +0.46, trip +0.24, sanded +0.06, NACA with film −0.29. Tu 1 %: HT35 +0.45, trip +0.40 (+0.31 with time-accurate points), HT35 with film +0.30, sanded +0.16, NACA with film +0.05. Tu 2 %: HT35 +0.10, sanded −0.02, trip −0.15, both filmed sections −0.37."}
+:::
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-steps-gain}
+{{< include ../_generated/steps-gain.md >}}
+
+Race-time gain against plain NACA 0007, % (+ = faster): estimated resistance slope / doubled, mean of
+three speeds and three loads, steady. "Faster at" counts the nine speed and load combinations,
+estimated slope. Last row: the trip step with its and plain NACA 0007's 4°, 1 m/s points
+time-accurate.
+:::
+
+* **Plain HT35 at 7\ % has the highest mean at every Tu** in these steady rankings. That is a nominal
+  first place, not a resolved one everywhere. At Tu 1\ % the trip step is about 0.05\ % behind, within the
+  noise; the film and the sanded step are clearly behind. At Tu 2\ % HT35 is only 0.10\ % ahead of
+  plain NACA 0007 itself. At Tu 0.1\ % nothing can be ranked. The practical preference stands: an
+  unmodified section avoids the risk the modifications carry, and the fin section page recommends
+  HT35 at 7.25\ %.
+* **In moderately disturbed water (Tu 1\ %)** the trip step is the only modification near the top
+  (+0.40\ %, +0.31\ % with the time-accurate points), and it loses in rough water.
+* **In rough water (Tu 2\ %)** the two filmed sections are last, 0.37\ % behind plain NACA 0007.
+* **Differences of about 0.1\ % are within the noise.** Repeated runs of plain NACA 0007 differ by up
+  to 3\ % in drag at single points at Tu 1\ %. Against an earlier run of NACA 0007, HT35 at 7\ % gains
+  +0.36\ % at Tu 1\ % instead of +0.45\ %, so every section here is compared with the NACA 0007 of the
+  same batch of runs. The film's edge was also not mesh-checked (@sec-method).
+
+### Steady or time-accurate {#sec-steady}
+
+[Scroll the table sideways →]{.table-hint}
+
+::: {#tbl-steps-4deg}
+{{< include ../_generated/steps-4deg.md >}}
+
+Lift and drag at 4°, 1 m/s, Tu 1\ %: steady / time-accurate (20 flow-throughs, averaged over the last
+8, unless stated). Drag against plain NACA 0007 from the same solver. "C~l~ std": the standard
+deviation of the time-accurate lift over its averaging window. "Flow in time": whether the forces
+oscillate.
+:::
+
+At 2° the two solvers agree for plain NACA 0007 and the trip step: within 0.0004 in C~l~ and
+0.05\ % in C~d~. The trip step's time-accurate run is unsteady there (its lift varies by ±0.005), but
+its mean matches the steady answer. At 4°, where plain NACA 0007's leading-edge bubble sheds, the
+steady answers are off by up to 2.6\ % in drag and 1.9\ % in lift, in both directions. That is as
+large as most of the differences on this page, so a comparison at 4° that hinges on less than about
+3\ % has to be run time-accurately. The sweep's race times are steady; only the 1 m/s points at 4°
+have been checked.
+
+## Conclusion {#sec-conclusion}
+
+*Everything here comes from 2D simulations of the fin section, not from tests of a fin.*
+
+* **Don't cut Kline-Fogleman steps into a fin.** A KFm4-style step adds 36–41\ % section drag at the
+  4° test point (high confidence that this 2D model gives a large penalty there; not a full sweep and
+  not checked on a real fin). The finer stairs show no reliable benefit: their differences from plain
+  are within the solvers' own spread (low confidence either way).
+* **Don't wrap a fin in film for speed.** Against the bare HT35 at 7\ %, its race-time gain is
+  −0.15\ % at Tu 1\ % and −0.46\ % at Tu 2\ %; on NACA 0007 it breaks even at best. The sign is
+  consistent; the size is uncertain because the film's edge was not mesh-checked (medium confidence).
+  Its rounder nose helps only above the loads raced at.
+* **A 0.2 mm trip step on NACA 0007 is a gamble:** a modelled +0.31 to +0.40\ % of race time at
+  Tu 1\ %, −0.15\ % at Tu 2\ %. About 40\ % of it is reproduced by the sanded geometry, which doesn't
+  lose in rough water; the rest rests on steady points at 3–5° that have been checked time-accurately
+  only at 1 m/s (low confidence).
+* **Changing the section does more.** Unmodified HT35 at 7\ % has the highest mean in every steady
+  ranking here, though only within the noise of the trip step at Tu 1\ %; the
+  [fin section page](../custom-section/) recommends HT35 at 7.25\ %.
+
+**How much is at stake.** The 0.2 mm changes move race time by −0.5 to +0.4\ %, up to about 2 boat
+lengths per race either way on the course above (an illustration). The KFm4 step costs far more.
+
+**Why the confidence is not higher:**
+
+* **The model and steps.** The CFD resolves the flow round a step, but transition comes from a model
+  that sees the step mainly through the bubble behind it. Real trips (roughness, zigzag tape) act in
+  3D and may trip earlier.
+* **Meshes.** The film's edge was not mesh-checked; a different step's drag moved 2.3\ % with mesh
+  refinement.
+* **Steady answers.** The sweep is steady, and at 4° steady answers err by up to 2.6\ % in drag; only
+  the 1 m/s point was checked time-accurately. In calm water (Tu 0.1\ %) the steady answers are too
+  noisy to rank the modifications.
+* **The water.** As on the fin section page, the answers depend on Tu, which hasn't been measured on
+  a pond.
+* **One ramp and one step position.** The sanded step's 10 mm ramp trips the flow at 2°; a gentler
+  one may not. Steps elsewhere than half chord were not tried.
+* **2D, constant chord**, and the estimated inputs of the race-time comparison, as on the
+  fin-selection page.
+
+**What would change it:**
+
+* time-accurate checks of the trip step and the sanded step at 4° and at 0.75 and 1.5 m/s;
+* a mesh check of the film's edge;
+* a longer ramp, to see whether the sanded step's 2° gain needs it;
+* a 3D simulation or a tow test of a fin with a trip.
+
+## How the work went {#sec-studies}
+
+Each study has dated entries in its findings log:
+[steps](https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/findings/stepped-vs-baseline.md),
+[trip and film on NACA 0007](https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/findings/naca0007-film.md),
+[film on HT35](https://github.com/kmamykin/iom_cfd/blob/main/projects/foil2d/findings/ht35-film.md).
+
+::: {.callout-note collapse="true"}
+## The studies, one by one (click to open)
+
+::: {#tbl-studies}
+| when | study | question | answer |
+|:----|:----------------|:----------------|:------------------------|
+| 23–26\ Oct | steps against NACA 0007: 16 cases, 15 finished | Do KF stairs or a trip step help at 4°? | The KFm4 step costs 36–41\ % section drag; the finer stairs show no reliable difference. The trip step gains at 2°, not at 4°. Steady answers at 4° are off by up to 2.6\ %. The ten-step stair's time-accurate run hit the 48-hour limit. |
+| 25\ Oct | film on HT35 at 7\ %: 108 cases | Does wrapping an existing HT35 fin pay? | No: −0.15\ % race-time gain at Tu 1\ %, −0.46\ % at Tu 2\ %, against the bare fin. |
+| 25\ Oct | film on NACA 0007: 108 cases | And on NACA 0007? | No: +0.05\ % at Tu 1\ %, −0.37\ % at Tu 2\ %. One case failed in the cloud and was re-run. |
+| 25\ Oct | trip step on NACA 0007: 54 cases | The trip step over all speeds, angles and Tu | +0.40\ % at Tu 1\ %, −0.15\ % at Tu 2\ %. |
+| 25\ Oct | sanded step on NACA 0007: 54 cases | Is the trip's gain the step or its thinner rear? | The sanded geometry reproduces about 40\ % of it; at 2° its ramp trips the flow as the step does. |
+| 26\ Oct | analysis | The trip step's time-accurate 4° point | Its Tu 1\ % gain is +0.31\ % with the time-accurate points at 1 m/s. |
+
+The studies so far.
+:::
+:::
+
+## Reproducing this {.appendix .unnumbered}
+
+Everything is in [the repository](https://github.com/kmamykin/iom_cfd): the simulation setup
+(`projects/foil2d/`), every study file (`naca0007-film`, `naca0007-trip`, `naca0007-faired`,
+`ht35-film`, `stepped-vs-baseline`), the stepped, film and sanded-step geometry
+(`src/iomcfd/geometry/stepped.py`; for example `film:naca0007:x=0.5,t=0.002`), and the findings logs
+with the numbers behind each conclusion. This page's charts are drawn from the small data files
+below, which `iomcfd site export` copies out of the runs; the race times are computed from them with
+the same code (`sectiondesign.cfd_table` and `rank`) as on the fin section page. The flow pictures
+are ParaView renders (`iomcfd viz`), cropped to the rear of the section for this page. The code is
+under the [MIT licence](https://github.com/kmamykin/iom_cfd/blob/main/LICENSE); the text, figures and
+data on this page are under CC BY 4.0.
+
+## Data behind the figures {.appendix .unnumbered}
+
+{{< include ../_generated/sources-steps.md >}}
+
+## Revision history {.appendix .unnumbered}
+
+* **26 October 2026.** First version: the Kline-Fogleman stairs and the trip step at 4°, steady and
+  time-accurate; the film on HT35 at 7\ % and on NACA 0007, the trip step and the sanded step over
+  three speeds, six angles and three levels of turbulence, steady.

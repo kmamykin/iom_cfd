@@ -52,6 +52,10 @@ def describe(f: Foil, chord: float) -> str:
         return f"{f.name}, no steps"
     mm = 1000.0 * chord
     ups = _upper_steps(f)
+    if ups[0].kind == "film":
+        st = ups[0]
+        return (f"a {st.height * mm:.2f} mm film round the nose to x/c {st.x:.2f} on both surfaces, its edge "
+                f"a {st.height * mm:.2f} mm step; {f.thickness()[0] * mm:.2f} mm thick (bare {f.base.thickness()[0] * mm:.2f} mm)")
     left = _half_thickness(f, 0.95) / _half_thickness(f.base, 0.95)
     if len(ups) == 1:
         st = ups[0]

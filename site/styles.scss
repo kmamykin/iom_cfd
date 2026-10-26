@@ -63,6 +63,8 @@ h3 { margin-top: 1.8rem; font-size: 1.15rem; }
 
 figcaption, .figure-caption { font-size: .82rem; color: $muted; line-height: 1.45; }
 .quarto-figure img { border-radius: 4px; }
+// the steps and films page draws its charts narrow with large type (figures.py STEPS_W): at most 560 px wide
+.steps-fig .quarto-figure img { max-width: min(100%, 560px); }
 
 table { font-size: .85rem; }
 td, th { text-align: left !important; vertical-align: top; overflow-wrap: break-word; }
@@ -74,6 +76,8 @@ td, th { text-align: left !important; vertical-align: top; overflow-wrap: break-
   .mobile-hint { display: block; margin-bottom: .4rem; }
   /* numeric tables: keep each "x1 / x2" pair on one line and scroll instead */
   #tbl-race-time td, #tbl-race-time-by-speed td, #tbl-fin-choice td { white-space: nowrap; }
+  #tbl-steps-gain td:not(:first-child), #tbl-steps-own td:not(:first-child),
+  #tbl-steps-4deg td:not(:first-child) { white-space: nowrap; }
   /* horizontal scroll with shadows at the edges that have more table */
   table {
     display: block; overflow-x: auto; -webkit-overflow-scrolling: touch;

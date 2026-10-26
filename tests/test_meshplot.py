@@ -94,3 +94,4 @@ def test_section_figures(tmp_path):
 
     assert describe(foils.load("stair10:naca0009"), 0.08).startswith("10 steps per surface of 0.10 mm")
     assert "KFm4" in describe(foils.load("stair1:naca0009"), 0.08)
+    assert describe(foils.load("film:naca0009"), 0.1).startswith("a 0.20 mm film round the nose to x/c 0.50")

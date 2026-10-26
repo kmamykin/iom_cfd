@@ -579,6 +579,187 @@
     "exported": "2026-10-17",
     "git": "1ce5be2-dirty"
   },
+  "steps-flow-2deg-ht35": {
+    "kind": "file",
+    "file": "assets/steps-flow-2deg-ht35.png",
+    "study": "ht35-film",
+    "runs": [
+      "20261025-145441"
+    ],
+    "source": "Tu1_aoa2_foilht35mt070_speed1/viz/boundary_layer.png",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-flow-2deg-ht35-film": {
+    "kind": "file",
+    "file": "assets/steps-flow-2deg-ht35-film.png",
+    "study": "ht35-film",
+    "runs": [
+      "20261025-145441"
+    ],
+    "source": "Tu1_aoa2_foilfilmht35mt070x0.5t0.002_speed1/viz/boundary_layer.png",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-flow-2deg-ht35-film-edge": {
+    "kind": "file",
+    "file": "assets/steps-flow-2deg-ht35-film-edge.png",
+    "study": "ht35-film",
+    "runs": [
+      "20261025-145441"
+    ],
+    "source": "Tu1_aoa2_foilfilmht35mt070x0.5t0.002_speed1/viz/step.png",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-flow-4deg-kfm4": {
+    "kind": "file",
+    "file": "assets/steps-flow-4deg-kfm4.png",
+    "study": "stepped-vs-baseline",
+    "runs": [
+      "20261023-201101"
+    ],
+    "source": "aoa4_average_times8_flow_times20_foilstair1naca0007d0.5_solvertransient/viz/boundary_layer.png",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-flow-4deg-naca0007": {
+    "kind": "file",
+    "file": "assets/steps-flow-4deg-naca0007.png",
+    "study": "stepped-vs-baseline",
+    "runs": [
+      "20261023-201101"
+    ],
+    "source": "aoa4_average_times8_flow_times20_foilnaca0007_solvertransient/viz/boundary_layer.png",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-flow-4deg-trip": {
+    "kind": "file",
+    "file": "assets/steps-flow-4deg-trip.png",
+    "study": "stepped-vs-baseline",
+    "runs": [
+      "20261023-201101"
+    ],
+    "source": "aoa4_average_times8_flow_times20_foilstair1naca0007x0.5h0.002_solvertransient/viz/boundary_layer.png",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-ht35-film": {
+    "kind": "table",
+    "file": "data/steps-ht35-film.csv",
+    "study": "ht35-film",
+    "runs": [
+      "20261025-145441"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-naca-faired": {
+    "kind": "table",
+    "file": "data/steps-naca-faired.csv",
+    "study": "naca0007-faired",
+    "runs": [
+      "20261025-211238"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-naca-film": {
+    "kind": "table",
+    "file": "data/steps-naca-film.csv",
+    "study": "naca0007-film",
+    "runs": [
+      "20261025-161234"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-naca-trip": {
+    "kind": "table",
+    "file": "data/steps-naca-trip.csv",
+    "study": "naca0007-trip",
+    "runs": [
+      "20261025-173646"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-stepped": {
+    "kind": "table",
+    "file": "data/steps-stepped.csv",
+    "study": "stepped-vs-baseline",
+    "runs": [
+      "20261023-201101"
+    ],
+    "source": "results.csv",
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-surface-1ms": {
+    "kind": "table",
+    "file": "data/steps-surface-1ms.csv",
+    "study": "naca0007-film",
+    "runs": [
+      "20261025-161234"
+    ],
+    "source": [
+      "Tu1_aoa0_foilnaca0007_speed1/surface.csv",
+      "Tu1_aoa2_foilnaca0007_speed1/surface.csv",
+      "Tu1_aoa0_foilfilmnaca0007x0.5t0.002_speed1/surface.csv",
+      "Tu1_aoa2_foilfilmnaca0007x0.5t0.002_speed1/surface.csv"
+    ],
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-surface-1ms-faired": {
+    "kind": "table",
+    "file": "data/steps-surface-1ms-faired.csv",
+    "study": "naca0007-faired",
+    "runs": [
+      "20261025-211238"
+    ],
+    "source": [
+      "Tu1_aoa0_foilfairednaca0007x0.5h0.002l0.1_speed1/surface.csv",
+      "Tu1_aoa2_foilfairednaca0007x0.5h0.002l0.1_speed1/surface.csv"
+    ],
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-surface-1ms-trip": {
+    "kind": "table",
+    "file": "data/steps-surface-1ms-trip.csv",
+    "study": "naca0007-trip",
+    "runs": [
+      "20261025-173646"
+    ],
+    "source": [
+      "Tu1_aoa0_foilstair1naca0007x0.5h0.002_speed1/surface.csv",
+      "Tu1_aoa2_foilstair1naca0007x0.5h0.002_speed1/surface.csv"
+    ],
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
+  "steps-surface-4deg": {
+    "kind": "table",
+    "file": "data/steps-surface-4deg.csv",
+    "study": "stepped-vs-baseline",
+    "runs": [
+      "20261023-201101"
+    ],
+    "source": [
+      "aoa4_average_times8_flow_times20_foilnaca0007_solvertransient/surface.csv",
+      "aoa4_average_times8_flow_times20_foilstair1naca0007d0.5_solvertransient/surface.csv",
+      "aoa4_average_times8_flow_times20_foilstair1naca0007x0.5h0.002_solvertransient/surface.csv",
+      "aoa4_average_times3_flow_times6_foilstair5naca0007h0.002_solvertransient/surface.csv"
+    ],
+    "exported": "2026-10-26",
+    "git": "6275389-dirty"
+  },
   "surface-0007-100-4deg": {
     "kind": "table",
     "file": "data/surface-0007-100-4deg.csv",

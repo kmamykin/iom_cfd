@@ -11,6 +11,7 @@ listing:
   contents:
     - fin-selection/index.qmd
     - custom-section/index.qmd
+    - steps-and-films/index.qmd
     - bulb-design/index.qmd
   sort: false
   type: grid

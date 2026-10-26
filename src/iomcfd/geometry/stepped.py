@@ -41,6 +41,35 @@ The radii keep the contour smooth enough for a body-fitted mesh; a 5 %
 lip radius on a 1 mm step is 0.05 mm, sharp at model scale. The base can be
 any section `foils.load` accepts whose surfaces run monotonically in x from
 the LE (symmetric NACA sections, most .dat files).
+
+A film wrapped round the nose is the opposite: material added ahead of the
+step instead of removed behind it (a self-adhesive film on an existing fin,
+its cut edges the trip):
+
+    film:file:ht35-t070.dat:x=0.5,t=0.002   0.2 mm film (100 mm chord) from
+                                            x/c 0.5 on one surface round the
+                                            LE to x/c 0.5 on the other
+
+Ahead of x the surface is the base offset by t along its normal, so the LE
+moves forward by t and its radius grows by t; behind x it is the base
+itself. The edge is a step of height t with its face along the base's
+normal (a knife cut). Options: x (0.5), t (film thickness / chord, 0.002),
+r_lip, r_foot.
+
+A faired step is a stair1 step filled in and sanded smooth: the same thinner
+rear, reached over a fairing behind x instead of at a step, to tell a step's
+effect from its thinner rear's:
+
+    faired:naca0007:x=0.5,h=0.002,l=0.1   the base to x/c 0.5; from there
+                                          F(x) falls smoothly to that of
+                                          stair1:naca0007:x=0.5,h=0.002,
+                                          reached at x/c 0.6; behind it the
+                                          two sections are the same
+
+F goes from 1 to 1 - d over x..x+l by a quintic smoothstep (continuous
+curvature). It has no steps, so it is meshed and run as a smooth section
+(is_stepped is false). Options: x (0.5), d (0.3) or h, l (fairing length /
+chord, 0.1).
 """
 
 from __future__ import annotations
@@ -60,10 +89,12 @@ from .foils import Foil
 STAIRS = {"stair1": (1, {"x": 0.5, "d": 0.3}),
           "stair5": (5, {"x": 0.3, "x_end": 0.9, "h": 0.0025}),
           "stair10": (10, {"x": 0.3, "x_end": 0.9, "h": 0.00125})}
-PRESETS = tuple(STAIRS)
+FILM = {"x": 0.5, "t": 0.002}  # film edge x/c and thickness / chord
+FAIRED = {"x": 0.5, "d": 0.3, "l": 0.1}  # fairing start x/c, depth, length / chord
+PRESETS = (*STAIRS, "film", "faired")
 OPTIONS = {k: (*(("x", "d", "h") if n == 1 else ("x", "x_end", "h")), "angle", "r_lip", "r_foot")
-           for k, (n, _) in STAIRS.items()}
-SPEC_RE = re.compile(r"(?i)((?:stair|kfm)\d+):(.+)")  # kfm only to explain the rename
+           for k, (n, _) in STAIRS.items()} | {"film": ("x", "t", "r_lip", "r_foot"), "faired": ("x", "d", "h", "l")}
+SPEC_RE = re.compile(r"(?i)((?:stair|kfm)\d+|film|faired):(.+)")  # kfm only to explain the rename
 
 
 @dataclass
@@ -76,10 +107,13 @@ class StepInfo:
     r_foot: float = 0.0
     s_lip: tuple[float, float] = (0.0, 0.0)  # Foil parameter range of the lip fillet
     s_foot: tuple[float, float] = (0.0, 0.0)  # ... and of the foot fillet
+    kind: str = "step"  # 'step' (cut into the base) | 'film' (the edge of a film on it)
 
 
 def is_stepped(spec: str) -> bool:
-    return bool(SPEC_RE.fullmatch(str(spec).strip()))
+    """A section with steps (stair, film); a faired one has none."""
+    m = SPEC_RE.fullmatch(str(spec).strip())
+    return bool(m) and m.group(1).lower() != "faired"
 
 
 def parse_spec(spec: str) -> tuple[str, str, dict[str, float]]:
@@ -111,6 +145,14 @@ def from_spec(spec: str, search_dirs: list[Path] | None = None) -> Foil:
 
     preset, base_spec, o = parse_spec(spec)
     base = load(base_spec, search_dirs)
+    if preset == "film":
+        o = {**FILM, **o}
+        return film(base, o["x"], o["t"], r_lip=o.get("r_lip", 0.05), r_foot=o.get("r_foot", 0.25),
+                    name=f"{base.name} wrapped in a film ({spec})")
+    if preset == "faired":
+        o = {**FAIRED, **o}
+        d = o["h"] / float(_Surfaces(base).half_thickness(o["x"])) if "h" in o else o["d"]  # as stair1's
+        return faired(base, o["x"], d, o["l"], name=f"{base.name} with a faired step ({spec})")
     n, dflt = STAIRS[preset]
     o = {**dflt, **o}
     xs = np.linspace(o["x"], o.get("x_end", o["x"]), n)
@@ -134,8 +176,11 @@ class _Surfaces:
         self.base = base
         self.up = base.point(base.s_le * (1 - u))  # LE -> TE
         self.lo = base.point(base.s_le + (base.perimeter - base.s_le) * u)
-        if np.any(np.diff(self.up[:, 0]) < 0) or np.any(np.diff(self.lo[:, 0]) < 0):
-            raise ValueError(f"{base.name}: x is not monotonic along a surface; cannot step it")
+        for p in (self.up, self.lo):
+            if np.any(np.diff(p[:, 0]) < -1e-9):
+                raise ValueError(f"{base.name}: x is not monotonic along a surface; cannot step it")
+            # a .dat section's LE is found numerically: x may dip by ~1e-14 next to it
+            p[:, 0] = np.maximum.accumulate(p[:, 0])
         self.symmetric = bool(np.allclose(self.up[:, 0], self.lo[:, 0], rtol=0, atol=1e-12)
                               and np.allclose(self.up[:, 1], -self.lo[:, 1], rtol=0, atol=1e-12))
 
@@ -256,11 +301,92 @@ def stepped(base: Foil, steps: list[tuple[float, float]], angle: float = 90.0,
     # Smooth forward piece: the base spline from the first upper corner round
     # the LE to the first lower corner.
     s_u, s_l = S.s_at(float(up[0][0]), "upper"), S.s_at(float(lo[0][0]), "lower")
-    tau = np.linspace(0, 1, 801)[1:]  # clustered at the LE
-    s_fwd = np.concatenate([base.s_le - (base.s_le - s_u) * (1 - np.cos(0.5 * math.pi * tau[::-1])),
-                            [base.s_le],
-                            base.s_le + (s_l - base.s_le) * (1 - np.cos(0.5 * math.pi * tau))])
-    fwd = base.point(s_fwd)
+    fwd = base.point(_s_forward(base, s_u, s_l))
+    return _assemble(base, up, lo, up_info, lo_info, fwd, name or f"stepped {base.name}")
+
+
+def film(base: Foil, x: float, t: float, r_lip: float = 0.05, r_foot: float = 0.25,
+         name: str | None = None) -> Foil:
+    """Wrap a film of thickness t (fraction of the chord) round the nose of
+    `base`, ending at x/c `x` on both surfaces (module docstring)."""
+    if not 0.05 <= x <= 0.95 or t <= 0:
+        raise ValueError(f"film edge at x/c={x} with thickness {t}: need 0.05 <= x <= 0.95 and t > 0")
+    S = _Surfaces(base)
+
+    def side_pieces(side: str) -> tuple[list[np.ndarray], list[StepInfo]]:
+        # as _side_pieces with one step: [end of the forward piece, lip arc, face, foot arc, curve]
+        sign = 1 if side == "upper" else -1
+        a = S.tangent(x, sign, 1.0)  # LE -> TE
+        n = sign * np.array([-a[1], a[0]])  # outward
+        foot = np.array([x, float(S.y(x, sign, 1.0))])
+        lip = foot + t * n
+        arc_lip = _fillet(lip, a, -n, r_lip * t)
+        arc_foot = _fillet(foot, -n, a, r_foot * t)
+        arc_foot[-1] = (arc_foot[-1][0], float(S.y(arc_foot[-1][0], sign, 1.0)))
+        n_face = max(8, int(math.ceil(t / max(t / 40, 1e-5))) + 1)
+        face = arc_lip[-1] + np.linspace(0, 1, n_face)[:, None] * (arc_foot[0] - arc_lip[-1])
+        pieces = [arc_lip[0], arc_lip, face, arc_foot, S.curve(float(arc_foot[-1][0]), 1.0, sign, 1.0)]
+        for i in range(2, len(pieces)):
+            pieces[i][0] = pieces[i - 1][-1]
+        depth = t / (float(S.half_thickness(x)) + t)  # of the film-covered half-thickness
+        return pieces, [StepInfo(side=side, x=float(lip[0]), depth=depth, height=t, r_lip=r_lip * t,
+                                 r_foot=r_foot * t, kind="film")]
+
+    up, up_info = side_pieces("upper")
+    if S.symmetric:
+        lo = [q * np.array([1.0, -1.0]) for q in up]
+        lo_info = [dataclasses.replace(i, side="lower") for i in up_info]
+    else:
+        lo, lo_info = side_pieces("lower")
+
+    # Forward piece: the base offset by t along its normal, from where the
+    # upper lip fillet starts round the LE to where the lower one starts.
+    def offset(s):
+        return base.point(s) + t * base.normal(s)
+
+    s_u = brentq(lambda s: float(offset(s)[0]) - float(up[0][0]), 0.0, base.s_le, xtol=1e-14)
+    s_l = brentq(lambda s: float(offset(s)[0]) - float(lo[0][0]), base.s_le, base.perimeter, xtol=1e-14)
+    fwd = offset(_s_forward(base, s_u, s_l))
+    i_le = int(np.argmin(fwd[:, 0]))
+    if np.any(np.diff(fwd[: i_le + 1, 0]) > 1e-9) or np.any(np.diff(fwd[i_le:, 0]) < -1e-9):
+        raise ValueError(f"a {t} c film folds on {base.name}: thicker than the radius of a concave part")
+    return _assemble(base, up, lo, up_info, lo_info, fwd, name or f"{base.name} wrapped in a film")
+
+
+def faired(base: Foil, x: float, depth: float, length: float, name: str | None = None) -> Foil:
+    """A stair1 step of `depth` at x/c `x` faired out over x..x+length
+    (module docstring): one smooth contour, no breaks and no steps."""
+    if not 0.05 <= x < x + length <= 1.0 or not 0 < depth <= 0.9:
+        raise ValueError(f"fairing from x/c={x} over {length} with depth {depth}: need 0.05 <= x, "
+                         f"x + l <= 1 and 0 < depth <= 0.9")
+    S = _Surfaces(base)
+
+    def F(xx):
+        u = np.clip((xx - x) / length, 0.0, 1.0)
+        return 1.0 - depth * u**3 * (10 - 15 * u + 6 * u**2)
+
+    xu, xl = S.up[:, 0], S.lo[:, 0]
+    yu = S.y(xu, 1, F(xu))
+    yl = -yu if S.symmetric else S.y(xl, -1, F(xl))  # mirrored: exactly symmetric
+    return Foil(name or f"{base.name} with a faired step", np.concatenate([xu[::-1], xl[1:]]),
+                np.concatenate([yu[::-1], yl[1:]]), base=base)
+
+
+def _s_forward(base: Foil, s_u: float, s_l: float) -> np.ndarray:
+    """Base parameters from s_u on the upper surface round the LE to s_l on
+    the lower one, clustered at the LE."""
+    tau = np.linspace(0, 1, 801)[1:]
+    return np.concatenate([base.s_le - (base.s_le - s_u) * (1 - np.cos(0.5 * math.pi * tau[::-1])),
+                           [base.s_le],
+                           base.s_le + (s_l - base.s_le) * (1 - np.cos(0.5 * math.pi * tau))])
+
+
+def _assemble(base: Foil, up: list, lo: list, up_info: list[StepInfo], lo_info: list[StepInfo],
+              fwd: np.ndarray, name: str) -> Foil:
+    """One Foil from the forward piece (first upper corner round the LE to the
+    first lower one) and each surface's pieces behind it ([end of the forward
+    piece, then lip arc, face, foot arc, curve per step]): corners as spline
+    breaks, and every step's fillet parameter ranges for the mesh generator."""
     fwd[0], fwd[-1] = up[0], lo[0]
     te = 0.5 * (base.point(0.0) + base.point(base.perimeter))
     for p, end in ((up, fwd[0]), (lo, fwd[-1])):
@@ -276,7 +402,7 @@ def stepped(base: Foil, steps: list[tuple[float, float]], angle: float = 90.0,
         pts.append(q[1:])
         n += len(q) - 1
     xy = np.vstack(pts)
-    foil = Foil(name or f"stepped {base.name}", xy[:, 0], xy[:, 1], breaks=tuple(breaks), base=base)
+    foil = Foil(name, xy[:, 0], xy[:, 1], breaks=tuple(breaks), base=base)
 
     # Parameter ranges of each step's fillets, for the mesh generator.
     def s_of(p):
