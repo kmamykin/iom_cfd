@@ -909,7 +909,8 @@ class Foil2D(Project):
             .to_csv(out_dir / "selection.csv", index=False)
 
         speeds = sorted(t["speed"].unique()) if "speed" in t else [None]
-        row_cols = [c for c in ("turbulence", "Tu") if c in t and t[c].nunique() > 1]
+        # a row per solver too: a steady and a transient case of one section at one aoa are two answers
+        row_cols = [c for c in ("solver", "turbulence", "Tu") if c in t and t[c].nunique() > 1]
         rows = (sorted(t[row_cols].drop_duplicates().itertuples(index=False, name=None),
                        key=lambda r: tuple((v != "kOmegaSSTLM", v) if isinstance(v, str) else (False, v) for v in r))
                 if row_cols else [()])  # transition model first, then increasing Tu
