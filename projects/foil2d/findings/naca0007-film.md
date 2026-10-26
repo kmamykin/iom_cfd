@@ -117,6 +117,14 @@ section angle α.
      they are sensitive to the 4° case's Cl.
    * The trip's time-accurate 4° case (stepped-vs-baseline task 11) is
      still running. There is no time-accurate faired case.
+   * **Added 2026-10-26:** that case has finished: Cl 0.4285, Cd 0.01368,
+     steady in time (its steady run said 0.4366, 0.01358). With it and
+     plain's time-accurate case in place of the steady 1 m/s, 4° ones:
+     * the trip's Tu 1 % gain is +0.32 % (×1), not +0.40 %;
+     * its 1 m/s high-load gain is +0.03 %, not +0.61 %;
+     * its lead over the faired step is +0.17 %, not +0.23 %, all of it
+       at 0.75 and 1.5 m/s, where no time-accurate case exists.
+     * See [stepped-vs-baseline](stepped-vs-baseline.md), conclusions 3-5.
 5. **At Tu 2 % the faired section breaks even (−0.02 %, faster at 6 of 9);
    the trip loses 0.15 %.**
    * Both lose at 1.5 m/s. Per load (light / working / high): faired −0.37
@@ -235,7 +243,7 @@ upper-surface Cf of plain, trip and faired at 1 m/s, Tu 1 %, 0, 2 and 4°
 
 ### Learnings
 
-* On NACA 0007 at Re 1e5 and Tu 1 %, the laminar boundary layer at 2° is
+* On NACA 0007 at Re 88,000 (1 m/s) and Tu 1 %, the laminar boundary layer at 2° is
   sensitive enough that a 0.2 mm ramp over 10 mm (at most about 2° of extra
   slope) trips it as a square step does. In kOmegaSSTLM; not checked against
   experiment.
