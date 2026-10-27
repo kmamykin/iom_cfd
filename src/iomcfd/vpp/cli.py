@@ -32,7 +32,10 @@ def _sets(items) -> dict:
 
 
 def _built(args, extra: dict | None = None):
+    from . import cache
     from .boat import BoatSpec, build
+
+    cache.ENABLED[0] = not getattr(args, "no_cache", False)
 
     spec = BoatSpec.load(_boat_path(args.boat), {**_sets(args.set), **(extra or {})})
     t = time.time()
@@ -190,6 +193,14 @@ def cmd_export_table(args) -> None:
     print(f"wrote {out}")
 
 
+def cmd_table(args) -> None:
+    from . import keel3d
+
+    t = time.time()
+    out = keel3d.build_table(args.recipe)
+    print(f"wrote {out} in {time.time() - t:.1f} s")
+
+
 def cmd_hydro(args) -> None:
     from .mass import check_rules
 
@@ -213,6 +224,7 @@ def add_parser(sub) -> None:
         q = vs.add_parser(name, help=help_)
         q.add_argument("boat", help="boats/<name>.yaml or a path")
         q.add_argument("--set", action="append", metavar="KEY=VALUE", help="override an entry by its dotted path")
+        q.add_argument("--no-cache", action="store_true", help="compute the boat's tables afresh (config.cache_dir)")
         q.set_defaults(func=func)
         return q
 
@@ -244,3 +256,7 @@ def add_parser(sub) -> None:
     q.add_argument("--select", action="append", metavar="KEY=VALUE", help="the design's parameters (repeat)")
     q.add_argument("--out", required=True, help="the table, e.g. boats/tables/<name>.csv")
     q.set_defaults(func=cmd_export_table)
+    q = vs.add_parser("table", help="build a table from a recipe file (boats/tables/<name>.yaml)")
+    q.add_argument("action", choices=["build"])
+    q.add_argument("recipe", help="the recipe, e.g. boats/tables/keel-ht35.yaml")
+    q.set_defaults(func=cmd_table)

@@ -19,15 +19,16 @@ air: {temperature: 15.0}
 # (or vpp compare --set-b), e.g. a keel3d design as its own table.
 components:
   hull:
-    class: .hull.CanoeHull
+    class: .hull.MeshHull         # the hull's surface; .hull.CanoeHull = the analytic canoe (rung 0)
     args:
-      params: {}                  # CanoeSpec fields (geometry/hulls.py); empty = keel3d's canoe body
+      canoe: {}                   # CanoeSpec fields (geometry/hulls.py); empty = keel3d's canoe body. Real lines:
+                                  # stl: hulls/<name>.stl, scale: 0.001, rotate: [[x, 90]], translate: [dx, dy, dz]
     forces:
       class: .hull.IttcMichell
       args:
         form_factor: 0.10         # (1 + k) - 1; methodology.md uses ITTC-57 x 1.10
         cf_factor: 1.0            # < 1 brackets a laminar run (surface-roughness.md: up to -41 %)
-        waves: michell            # michell | none
+        waves: michell-heeled     # michell (upright) | michell-heeled (each heel at its static sinkage) | none
         side_force: auto          # auto: off when another part's loads hold it (keel3d's double body)
 
   keel:
@@ -48,6 +49,8 @@ components:
         table: tables/keel-round-bulb.csv
         max_leeway: 4.0
         friction_factor: {fin: 1.0, bulb: 1.0}   # bulb-section's transition correction would be {fin: 0.80, bulb: 0.52}
+        vertical: delta           # keel3d's vertical force less its zero-leeway suction | none
+        # another fin section = another table: tables/keel-ht35.csv (iomcfd vpp table build boats/tables/keel-ht35.yaml)
 
   rudder:                         # appendage3d defaults
     class: .foils.ParametricFoil
@@ -71,13 +74,12 @@ components:
     controls:
       flat: {lo: 0.53}            # ORC FLAT_MIN (§5.1.3)
 
-  windage:                        # topsides after ORC Table 5.12 (C_D 0.816 on freeboard x beam / x length)
+  windage:                        # the hull above the water, projected on the plane normal to the apparent wind
     shape: hull
     forces:
-      class: .windage.OrcWindage
+      class: .windage.ProjectedArea   # .windage.OrcWindage = ORC Table 5.12's areas (rung 0)
       args:
-        freeboard: 0.06           # m, mean (default: the hull's)
-        x: 0.5
+        cd: 0.816                 # ORC Table 5.12
 
 mass:                             # PLACEHOLDER component masses and centres (boat frame, m)
   items:
@@ -91,7 +93,8 @@ mass:                             # PLACEHOLDER component masses and centres (bo
   corrector_at: [0.50, 0.0, -0.03]
 
 hydrostatics:
-  attitude: solved                # solved (sinkage and trim under the sails' pitch moment) | static
+  attitude: solved                # solved (sinkage and trim under the other parts' pitch moment and vertical force) | static
+  Z_ext: [-4.0, 0.0, 4.0]         # N, vertical-force layers of the table; [0.0]: vertical forces ignored
   heel_max: 60.0
   heel_step: 2.5
 

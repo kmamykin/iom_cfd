@@ -62,8 +62,8 @@ class OrcSails:
         """sets {ORC set: lowest β_TW [deg]}, in the order of the `set`
         control's values (default: upwind from 0°, downwind from 60°)."""
         sets = dict(SETS if sets is None else sets)
-        controls = (Control("flat", "optimise", 1.0, lo=0.5, hi=1.0),
-                    Control("set", "choice", 0.0, options=tuple((float(i), float(a)) for i, a in enumerate(sets.values()))))
+        options = tuple((float(i), float(a)) for i, a in enumerate(sets.values()))
+        controls = (Control("flat", "optimise", 1.0, lo=0.5, hi=1.0), Control("set", "choice", 0.0, options=options))
         return cls(shape.rig, z_wind=rig_centroid(shape.rig), rho=ctx.air.rho, level=str(level), sets=tuple(sets),
                    name=name, controls=controls)
 

@@ -11,7 +11,11 @@
   to the hull model (friction and waves), and only the drag that grows with
   side force is taken from the hull. Other speeds: friction scales with
   C_F(Re), pressure drag and side force with q, and the induced drag keeps
-  T_eff (k ∝ 1/q). The table's geometry must be the shape's.
+  T_eff (k ∝ 1/q). The table's geometry must be the shape's. `vertical:
+  delta` adds keel3d's vertical force less its zero-leeway value (the double
+  body's suction under the mirror plane, not a force a boat with a free
+  surface feels): the fin's lift tilted by heel, fitted per heel as
+  ΔZ = z1 S_h + z2 S_h² at V_ref (z2 scaled like k), at the CLR.
 * `FinAndBulb`: no CFD (rung 0): the fin as a lifting line
   (components/foils.py) and the bulb's friction drag (`Bulb`).
 """
@@ -145,31 +149,30 @@ class PolarFit:
     covers: frozenset = frozenset()
     fin_area: float = math.nan  # for the lift slope (downwash at the rudder) [m²]
     fin_aspect: float = math.nan  # 2 b / c
+    z1: list[float] = field(default_factory=list)  # vertical force per side force (vertical: delta) [-]
+    z2: list[float] = field(default_factory=list)  # and per side force squared [1/N at V_ref]
 
     @classmethod
     def build(cls, ctx, name: str, shape, *, table: str, max_leeway: float = 4.0,
-              friction_factor: dict | None = None) -> "PolarFit":
+              friction_factor: dict | None = None, vertical: str = "none") -> "PolarFit":
         """`table`: a keel3d export (vpp/keel3d.py) of this shape's keel.
         friction_factor {fin: f, bulb: f} scales those parts' friction (a
         transition correction, e.g. the bulb-section findings' 0.80 and
         0.52)."""
         t = tables.read(ctx.resolve(table))
-        tp = t.header.get("params") or {}
-        diff = [k for k, v in shape.params().items() if k in tp and not _same(v, tp[k])]
-        if diff:
-            raise ValueError(f"{name}: {table} was computed for another keel: {', '.join(f'{k} {tp[k]} (boat file '
-                             f'{shape.params()[k]})' for k in diff)}")
-        hp = getattr(ctx.get(shape.host).shape, "params", dict)()
-        hdiff = [k for k in k3d.HULL_KEYS if k in tp and k in hp and not _same(hp[k], tp[k])]
-        if hdiff:
-            ctx.warn(f"{name}: {table}'s hull differs from this boat's in {hdiff}: its side force and yaw moment "
-                     "include that hull")
+        _check(ctx, name, table, t, shape)
+        if vertical not in ("none", "delta"):
+            raise ValueError(f"{name}: vertical {vertical}: none or delta")
+        if t.header.get("model") == "grid":
+            return KeelGrid.from_table(t, name, ctx.water.rho, shape, vertical == "delta")
         f = cls.from_table(t, max_leeway, friction_factor, name)
+        if vertical == "none":
+            f.z1, f.z2 = [], []
         pf = shape.planform()
         src = t.header.get("source") or {}
         return replace(f, nu=ctx.water.nu, rho=ctx.water.rho, fin_area=pf["area"], fin_aspect=pf["aspect"],
-                       covers=frozenset(c.replace("host", shape.host, 1) for c in t.header.get("includes") or []),
-                       provenance=f"{table} ({src.get('run', '')} {src.get('select', '')})")
+                       covers=_covers(t, shape), provenance=f"{table} ({src.get('run', '')} {src.get('select', '')})")
+
 
     @staticmethod
     def from_table(t: tables.Table, max_leeway: float = 4.0, friction_factor: dict | None = None,
@@ -178,7 +181,8 @@ class PolarFit:
         if len({r["V"] for r in t.rows}) > 1:
             raise ValueError(f"{t.path}: points at more than one speed")
         ff = {"fin": 1.0, "bulb": 1.0, **(friction_factor or {})}
-        cols = {f: [] for f in ("heels", "D0_friction", "D0_pressure", "k", "S0", "a", "x_clr", "z_clr", "fin_share")}
+        cols = {f: [] for f in ("heels", "D0_friction", "D0_pressure", "k", "S0", "a", "x_clr", "z_clr", "fin_share",
+                                "z1", "z2")}
         for heel in sorted({r["heel"] for r in t.rows}):
             g = sorted((r for r in t.rows if r["heel"] == heel and r["leeway"] <= max_leeway + 1e-9),
                        key=lambda r: r["leeway"])
@@ -205,6 +209,11 @@ class PolarFit:
             cols["z_clr"].append(float(np.nanmean([r["z"] for r in lift])))
             share = [r["Y_fin"] / r["Y"] for r in lift if isinstance(r.get("Y_fin"), float)]
             cols["fin_share"].append(float(np.nanmean(share)) if share and not np.isnan(share).all() else 0.83)
+            dz = np.array([r["Z"] - u["Z"] for r in lift])  # less the zero-leeway suction
+            Sl = np.array([r["Y"] for r in lift])
+            (z1, z2), *_ = np.linalg.lstsq(np.column_stack([Sl, Sl**2]), dz, rcond=None)
+            cols["z1"].append(float(z1))
+            cols["z2"].append(float(z2))
         if not cols["heels"]:
             raise ValueError(f"no heel with a leeway sweep (0 deg and two more) in {t.path}")
         fl, ref = t.header.get("fluid") or {}, t.header.get("reference") or {}
@@ -264,6 +273,8 @@ class PolarFit:
         for f in ("D0_friction", "D0_pressure", "k", "S0", "a", "x_clr", "z_clr"):
             vals[f], o = _interp(abs(heel), self.heels, getattr(self, f))
             out |= o
+        for f in ("z1", "z2"):
+            vals[f] = _interp(abs(heel), self.heels, getattr(self, f))[0] if getattr(self, f) else 0.0
         return vals, out
 
     def share_at(self, heel: float) -> tuple[float, bool]:
@@ -278,16 +289,15 @@ class PolarFit:
         D = D0 + v["k"] / max(r, 1e-12) * S**2
         out |= abs(s.leeway) > self.leeway_max + 1e-9
         pt = (v["x_clr"], 0.0, v["z_clr"])  # keel3d's centre of lateral resistance is already heeled
-        ld = Loads.at(pt, X=-D, Y=S, extrapolated=out)
+        Z = v["z1"] * S + v["z2"] / max(r, 1e-12) * S**2 if self.z1 else 0.0
+        ld = Loads.at(pt, X=-D, Y=S, Z=Z, extrapolated=out)
         ld.info.update({"D0": D0, "Di": D - D0, "S": S})
         return ld
 
     def downwash(self) -> float:
         """The fin's elliptic far-field downwash per unit leeway, 2 C_Lα / (π A),
         with C_Lα the fits' mean side-force slope on the fin's area."""
-        q_ref = 0.5 * self.rho * self.V_ref**2
-        cla = float(np.mean(self.a)) * 180 / math.pi / (q_ref * self.fin_area)  # per rad, on the fin area
-        return 2 * cla / (math.pi * self.fin_aspect)
+        return _downwash(self.a, self.rho, self.V_ref, self.fin_area, self.fin_aspect)
 
     def perturbations(self) -> list[Perturbation]:
         n = self.name
@@ -295,6 +305,92 @@ class PolarFit:
                 Perturbation(f"{n} k +1 % (T_eff −0.5 %)", _fields(n, 1.01, "k")),
                 Perturbation(f"{n} side slope +1 %", _fields(n, 1.01, "a")),
                 Perturbation(f"{n} leeway +1°", _leeway(n, 1.0))]
+
+    def info(self) -> dict:
+        return {"source": self.provenance}
+
+
+def _check(ctx, name: str, table: str, t: tables.Table, shape) -> None:
+    """A keel table must be of this shape's keel; a different hull is a warning."""
+    tp = t.header.get("params") or {}
+    diff = [k for k, v in shape.params().items() if k in tp and not _same(v, tp[k])]
+    if diff:
+        raise ValueError(f"{name}: {table} was computed for another keel: {', '.join(f'{k} {tp[k]} (boat file '
+                         f'{shape.params()[k]})' for k in diff)}")
+    hp = getattr(ctx.get(shape.host).shape, "params", dict)()
+    hdiff = [k for k in k3d.HULL_KEYS if k in tp and k in hp and not _same(hp[k], tp[k])]
+    if hdiff:
+        ctx.warn(f"{name}: {table}'s hull differs from this boat's in {hdiff}: its side force and yaw moment "
+                 "include that hull")
+
+
+def _covers(t: tables.Table, shape) -> frozenset:
+    return frozenset(c.replace("host", shape.host, 1) for c in t.header.get("includes") or [])
+
+
+def _downwash(a: list[float], rho: float, V_ref: float, area: float, aspect: float) -> float:
+    """The fin's elliptic far-field downwash per unit leeway, 2 C_Lα / (π A),
+    with C_Lα the fits' mean side-force slope a [N/deg at V_ref] on the fin's area."""
+    q_ref = 0.5 * rho * V_ref**2
+    cla = float(np.mean(a)) * 180 / math.pi / (q_ref * area)  # per rad, on the fin area
+    return 2 * cla / (math.pi * aspect)
+
+
+@dataclass
+class KeelGrid:
+    """A keel's loads read from a built table (`model: grid`, vpp/keel3d.py
+    build_table): X, Y, Z, K, M, N over heel × leeway × V_b, interpolated as
+    loads / V_b² by cubic splines. Outside the grid the inputs are held at its
+    edge (the coefficients, then × V_b²) and the point is flagged, as it is
+    where the model that built the table flagged it."""
+
+    coeffs: object  # tables.Grid: (|φ|, β_Y, V_b) -> (X, Y, Z, K, M, N, Zv, Mv) / V_b²
+    flags: object  # nearest-node lookup of the table's ext column
+    a: list[float]  # the source fits' side-force slopes [N/deg at V_ref], for the downwash
+    V_ref: float = 1.0
+    rho: float = 999.1
+    fin_area: float = math.nan
+    fin_aspect: float = math.nan
+    provenance: str = ""
+    name: str = "keel"
+    kind: str = "hydro"
+    attitude: bool = False
+    controls: tuple = ()
+    covers: frozenset = frozenset()
+    vertical: bool = False  # add the vertical force (Zv, Mv: vertical: delta)
+
+    @staticmethod
+    def from_table(t: tables.Table, name: str, rho: float, shape, vertical: bool = False) -> "KeelGrid":
+        from scipy.interpolate import RegularGridInterpolator
+
+        dims = t.header["dims"]
+        axes = [np.array(sorted({r[d] for r in t.rows})) for d in dims]
+        shape_ = tuple(len(a) for a in axes)
+        rows = sorted(t.rows, key=lambda r: tuple(r[d] for d in dims))
+        V2 = np.array([r["V"] ** 2 for r in rows]).reshape(shape_)
+        cols = [q for q in ("X", "Y", "Z", "K", "M", "N", "Zv", "Mv") if q in t.columns]
+        vals = np.stack([np.array([r[q] for r in rows]).reshape(shape_) / V2 for q in cols], axis=-1)
+        if len(cols) == 6:
+            vals = np.concatenate([vals, np.zeros((*shape_, 2))], axis=-1)
+        ext = np.array([r.get("ext", 0.0) for r in rows]).reshape(shape_)
+        pf, fit = shape.planform(), t.header.get("fit") or {}
+        return KeelGrid(tables.Grid(axes, vals), RegularGridInterpolator(axes, ext, method="nearest"),
+                        list(fit.get("a") or []), float(fit.get("V_ref", 1.0)), rho, pf["area"], pf["aspect"],
+                        f"{t.path.name if t.path else ''}: {t.header.get('note', '')}", name,
+                        covers=_covers(t, shape), vertical=vertical)
+
+    def loads(self, s: State, w: Wind) -> Loads:
+        c, out = self.coeffs(abs(s.heel), s.leeway, s.V)
+        c = c * s.V**2
+        q = np.clip([abs(s.heel), s.leeway, s.V], self.coeffs.lo, self.coeffs.hi)
+        out = out or bool(self.flags(q[None, :])[0] > 0.5)
+        X, Y, Z, K, M, N, Zv, Mv = (float(v) for v in c)
+        if self.vertical:
+            Z, M = Z + Zv, M + Mv
+        return Loads(X, Y, Z, K, M, N, extrapolated=out)
+
+    def downwash(self) -> float:
+        return _downwash(self.a, self.rho, self.V_ref, self.fin_area, self.fin_aspect)
 
     def info(self) -> dict:
         return {"source": self.provenance}

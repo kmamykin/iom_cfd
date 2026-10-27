@@ -99,3 +99,32 @@ def write(path: str | Path, header: dict, rows: list[dict[str, Any]], columns: l
         w.writerow({k: _cell(r.get(k, "")) for k in columns})
     path.write_text("".join(f"# {line}\n" for line in head.splitlines()) + buf.getvalue())
     return path
+
+
+class Grid:
+    """Values on a regular grid (axes ascending), read back by splines of
+    degree ≤ 3 in each dimension, inputs clamped to the grid. Vector values:
+    the last axis of `values`. scipy's tensor-product B-spline (NdBSpline),
+    built through its private make_ndbspl when present (fast to evaluate),
+    else RegularGridInterpolator."""
+
+    def __init__(self, axes, values):
+        self.axes = [np.asarray(a, float) for a in axes]
+        self.lo = np.array([a[0] for a in self.axes])
+        self.hi = np.array([a[-1] for a in self.axes])
+        values = np.asarray(values, float)
+        k = tuple(min(3, len(a) - 1) for a in self.axes)
+        try:
+            from scipy.interpolate._ndbspline import make_ndbspl
+
+            self._f = make_ndbspl(self.axes, values, k=k)
+        except ImportError:  # pragma: no cover - scipy without it
+            from scipy.interpolate import RegularGridInterpolator
+
+            self._f = RegularGridInterpolator(self.axes, values, method="cubic" if min(k) == 3 else "linear")
+
+    def __call__(self, *q: float):
+        """(values at the clamped point, whether it was clamped)."""
+        x = np.array(q, float)
+        xc = np.clip(x, self.lo, self.hi)
+        return self._f(xc[None, :])[0], bool(np.any(xc != x))

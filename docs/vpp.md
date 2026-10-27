@@ -21,7 +21,11 @@ uv run iomcfd vpp compare canoe-placeholder --set-b components.hull.forces.args.
 uv run iomcfd vpp sweep canoe-placeholder --vary components.keel.forces.args.table=tables/a.csv,tables/b.csv
 uv run iomcfd vpp export-table keel3d bulb-section@20261019-203823 --select bulb_aspect=1.0 ... \
     --out boats/tables/keel-round-bulb.csv      # one keel3d design as a table for a boat file
+uv run iomcfd vpp table build boats/tables/keel-ht35.yaml   # a table built by a model from a recipe
+uv run iomcfd vpp compare canoe-placeholder --set-b components.keel.forces.args.table=tables/keel-ht35.csv
 ```
+
+Every command takes `--no-cache` to compute the boat's tables afresh.
 
 * **Boat files.** A boat is `boats/<name>.yaml`; `boats/canoe-placeholder.yaml`
   documents every key. Private boats, such as licensed hull lines, go in
@@ -37,6 +41,16 @@ uv run iomcfd vpp export-table keel3d bulb-section@20261019-203823 --select bulb
   `runs/` (e.g. `IOMCFD_SOURCE_RUNS=../bulb-design/runs`); `--select` picks
   the design's cases. The table holds the raw points and, in its header, the
   run, the filter and the geometry the forces belong to.
+* **Built tables.** `vpp table build <recipe>.yaml` evaluates a model on a
+  grid and writes its table (`model: grid`). The one recipe so far,
+  `keel-section`, puts another fin section on a keel3d table's keel from 2D
+  foil2d polars (`boats/tables/keel-ht35.yaml`: the HT35 fin). Speed is one
+  of its dimensions, because the 2D differences depend on Re.
+* **The cache.** The tables a build computes (hydrostatics, a mesh hull's
+  waves, its windage) are kept in `.cache/iomcfd/vpp/` (`$IOMCFD_CACHE`),
+  keyed by a hash of their inputs and of the code that computes them. A
+  cached table reads back bit for bit, so it never changes a result; delete
+  the directory at will.
 
 ## Boat files
 
@@ -91,15 +105,20 @@ Each run writes these files:
 
 ## How it works
 
-* **Build** (`boat.py`, about 5 s):
+* **Build** (`boat.py`; about 30 s the first time, 1–2 s from the cache):
   * the parts (shapes and force models);
   * the mass budget (`mass.py`): the shapes' items, then `mass.items`;
   * the hydrostatic table: sinkage, trim, RM_φ, wetted area and waterline
-    length against heel and the sails' pitch moment, from the hull's surface
-    clipped at the heeled waterline, plus the appendages' volumes
+    length against heel, the other parts' pitch moment and their vertical
+    force (`hydrostatics.Z_ext`: three layers, read back by a quadratic;
+    one layer ignores the vertical forces), from the hull's surface clipped
+    at the heeled waterline, plus the appendages' volumes
     (`hydrostatics.py`);
-  * each force model's finish: the hull's Michell wave-resistance table over
-    V_b and trim at the static sinkage.
+  * each force model's finish: the hull's Michell wave-resistance table
+    (over V_b and trim at the static sinkage; with `michell-heeled` also
+    over heel, each at its own static sinkage) and the windage's
+    projected-area table (over heel and the wind's angle to the
+    centreline).
 * **Solve** (`solver.py`), nested:
   * **inner:** side force, roll and yaw balance give heel, leeway and the
     balance control (rudder angle) at a given V_b;
@@ -107,7 +126,8 @@ Each run writes these files:
   * **outer:** the optimised control (`sails.flat`) that gives the greatest
     V_b, for each allowed option of the choice control (`sails.set`).
 
-  Tolerances are relative to the boat's force scale. A point is about 0.2 s.
+  Tolerances are relative to the boat's force scale. A point is about
+  0.25 s on the rung-0 boat and 0.5 s with the phase-2 tables.
 * **Race** (`race.py`): the best VMG upwind and downwind at each wind speed,
   then the leg times plus a fixed time per tack and gybe. The default is
   uniform weights over the wind speeds; `wind.weights: file:<csv>` takes a
@@ -120,21 +140,44 @@ Each run writes these files:
   the V dR/dV the sails and hull really imply, for comparison with
   `racetime.VDRDV`.
 
-## Components (rung 0)
+## Components
+
+`boats/canoe-placeholder.yaml` uses the models below; `canoe-placeholder-foil.yaml`
+is the rung-0 boat (no CFD, no tables to compute: lifting-line keel,
+`CanoeHull` with upright waves, `OrcWindage`, no vertical forces), which the
+tests build.
 
 | part | shape · force model | model | main limits |
 |---|---|---|---|
-| hull | `.hull.CanoeHull` · `.hull.IttcMichell` | ITTC-57 × (1 + k) on the wetted area at the solved attitude, plus Michell thin-ship waves at the upright static sinkage and trim (`hullres.py`; within 0.3 % of the published Wigley Michell curve) | Michell exaggerates humps and hollows near Fn 0.3–0.4 compared with tank tests (about 2× in the wave slope). Heel is ignored in the waves. Fully turbulent friction (`cf_factor` brackets a laminar run) |
-| keel (fin + bulb) | `.keel.ParametricKeel` · `.keel.PolarFit` | keel3d fits from a table: S_h = S0 + a β_Y and D_h = D0 + k S_h² per heel, with the hull's side force and yaw included; friction scales with C_F(Re), the rest with q, and T_eff is kept. Or `.keel.FinAndBulb`: lifting line on the fin and the bulb's friction (`boats/canoe-placeholder-foil.yaml`) | keel3d is at 1 m/s and heels 0 and 25° only: points above 25° hold the 25° fit and are flagged `extrapolated` |
+| hull | `.hull.MeshHull` (an STL, or `canoe:` the canoe body as a mesh; `.hull.CanoeHull` = analytic) · `.hull.IttcMichell` | ITTC-57 × (1 + k) on the wetted area at the solved attitude, plus Michell thin-ship waves (`hullres.py`; within 0.3 % of the published Wigley Michell curve). `waves: michell-heeled`: the heeled sections' half-widths as the centreplane offsets, each heel at its static sinkage. Jones' side force at the keel line's centre of pressure | Michell exaggerates humps and hollows near Fn 0.3–0.4 compared with tank tests (about 2× in the wave slope). Thin-ship theory has no heel, so the heeled waves are an estimate; above 45° they are held and flagged. Fully turbulent friction (`cf_factor` brackets a laminar run) |
+| keel (fin + bulb) | `.keel.ParametricKeel` · `.keel.PolarFit` | keel3d fits from a table: S_h = S0 + a β_Y and D_h = D0 + k S_h² per heel, with the hull's side force and yaw included; friction scales with C_F(Re), the rest with q, and T_eff is kept. `vertical: delta`: keel3d's vertical force less its zero-leeway value, ΔZ = z1 S_h + z2 S_h². A built table (`model: grid`, e.g. the HT35 fin) is read by `KeelGrid`. Or `.keel.FinAndBulb`: lifting line on the fin and the bulb's friction | keel3d is at 1 m/s and heels 0 and 25° only: points above 25° hold the 25° fit and are flagged `extrapolated`. The zero-leeway vertical force (−2.7 N) is the double body's suction under its mirror plane, so it is dropped (an assumption: the hull's real squat is not modelled) |
 | rudder | `.foils.ParametricFoil` · `.foils.LiftingLine` | lifting line (Helmbold slope) in the keel's elliptic downwash | no stall model |
 | sails | `.sails.Rig` · `.sails.OrcSails` | ORC VPP Documentation 2026 §5: main and jib, flat depowering, effective height, the jib-downwind set standing in for a goose-winged jib (`sails_orc.py`) | full-scale coefficients at Re 10–100× an IOM's. Coefficients are copyright ORC, so **don't publish `vpp/data/orc2026_sails.yaml`** |
-| windage | `shape: hull` · `.windage.OrcWindage` | ORC Table 5.12 on the topsides, heeled | |
+| windage | `shape: hull` · `.windage.ProjectedArea` (`.windage.OrcWindage` = ORC's areas) | C_D 0.816 (ORC Table 5.12) on the hull's area above the water projected normal to the apparent wind, at its centroid, the wind read at the centroid's height; tabulated over heel at each heel's static attitude | exact for the faceted hull's silhouette when every line along the wind crosses it at most twice (a cockpit or tumblehome counts hidden faces); the mesh must be the hull alone, since the rig's windage is in the sail model |
 
-Another fin section on the keel3d keel (2D foil2d polars applied as the
-change in profile drag and angle at equal fin lift, `components/section.py`)
-is no longer a boat-file switch: it is to become a table of its own, built
-from the keel3d table and the polars, so that a section comparison is two
-boats. Until then it is only available in code.
+The hull's projected area at 30° heel with the wind 30° off the bow is
+0.040 m², against ORC's formula's 0.079 m², with its centroid 0.041 m above
+the water against ORC's 0.094 m. The canoe body's ends are narrow and its
+topsides vertical, so its heeled windward side is lower than ORC's
+full-beam estimate assumes. Real lines will differ.
+
+## What phase 2 changed (2026-10-26)
+
+Each change switched on with the ones above it already on (`vpp compare`,
+weighted race time, uniform wind weights):
+
+| change | boat-file switch | race time |
+|---|---|---|
+| the canoe body as a mesh (offsets from the mesh, upright waves) | `components.hull.class: .hull.MeshHull`, `args: {canoe: {}}` | −0.06 % |
+| the heeled hull's waves | `components.hull.forces.args.waves: michell-heeled` | 0.00 % (−0.14 % at 2 m/s, +0.15 % at 5 m/s) |
+| windage from the hull's projected area | `components.windage.forces.class: .windage.ProjectedArea` | −2.14 % (−1.1 % at 1.5 m/s to −4.2 % at 5 m/s) |
+| the other parts' vertical force in the hydrostatics | `hydrostatics.Z_ext: [-4.0, 0.0, 4.0]` | +0.32 % |
+| the keel's vertical force | `components.keel.forces.args.vertical: delta` | −0.05 % |
+| all together | | −1.93 % (492.2 → 482.7 s) |
+
+The HT35 fin (`tables/keel-ht35.csv`) is −0.045 % with the rung-0 hull and
+windage (it reproduces the earlier section change to 1e-5) and −0.057 % with
+all of the above.
 
 ## Inputs to replace
 
@@ -143,14 +186,23 @@ boats. Until then it is only available in code.
 * **Wind and race settings:** the A-rig wind range, the height wind is
   measured at, the profile exponent, leg length, and tacks and gybes with
   their time cost.
-* **The hull.** The canoe body is keel3d's, until the Alioth lines arrive.
+* **The hull.** The canoe body is keel3d's, until the Alioth lines arrive
+  (`components.hull.args: {stl: hulls/<name>.stl, scale: 0.001, ...}`). Its
+  topsides (vertical to a flat deck) set the windage.
 
 ## Verification
 
 * **Unit tests:** `tests/test_vpp_*.py` cover frames and signs, toy boats
   with closed-form equilibria and rates, hydrostatics against Wigley, canoe
   and box-barge results, Michell against Wigley, the ORC tables, the keel
-  fits and an end-to-end build.
+  fits and an end-to-end build (race time pinned on the rung-0 boat);
+  `test_vpp_build.py` the builder; `test_vpp_tables.py` the phase-2 tables:
+  a box's sinkage under a vertical force (Z/(ρgA)) and its projected areas,
+  heeled offsets (B / (2 cos φ) for a box), the mesh hull's keel line against
+  the analytic canoe, a grid keel against its table, the keel's vertical
+  force and the cache. Upright, the mesh's half-widths differ from the old
+  max |y| by up to 5 µm, because the canoe mesh's triangulation isn't
+  exactly symmetric.
 * **Python-VPP cross-check:** `PYVPP_PATH=<checkout> uv run pytest -m external -s
   tests/test_vpp_pyvpp.py` runs Python-VPP's YD-41 forces (commit 141ea66) in
   this solver with the yaw balance off.

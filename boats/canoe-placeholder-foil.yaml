@@ -1,5 +1,8 @@
-# canoe-placeholder.yaml with the keel's forces from lifting-line theory instead
-# of keel3d CFD (no CFD needed; the tests build it).
+# The rung-0 boat: canoe-placeholder.yaml's parts with the simplest models,
+# no CFD and no tables to compute (the tests build it): the keel's forces from
+# lifting-line theory instead of keel3d CFD, the analytic canoe body with
+# upright Michell waves, ORC's windage areas, and no vertical forces in the
+# hydrostatics.
 #
 # A stand-in IOM until the Alioth lines arrive: keel3d's canoe body (≈ Bantock:
 # LWL 0.99 m, 3.62 L, 0.142 m²) with the recommended bulb (bulb-section and

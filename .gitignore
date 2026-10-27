@@ -2,6 +2,8 @@
 /runs/
 # Downloaded cloud results
 /cloud-results/
+# Tables the VPP computed (config.cache_dir); rebuilt on demand
+/.cache/
 
 # Python
 __pycache__/

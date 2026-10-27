@@ -35,6 +35,7 @@ import numpy as np
 import yaml
 
 from .. import config, physics
+from . import cache
 from . import mass as massmod
 from .components.base import Part
 from .hydrostatics import Hydrostatics, HydroTable
@@ -90,13 +91,31 @@ class BoatSpec:
 # righting from the hydrostatic table
 
 
+def hydro_table(hydro: Hydrostatics, spec: BoatSpec) -> HydroTable:
+    """The hydrostatic table over heel × M_ext × Z_ext (`hydrostatics.Z_ext`:
+    the vertical-force layers [N]; one layer at 0 ignores the other parts'
+    vertical forces), from the cache when it holds these inputs."""
+    hmax, hstep = float(spec.get("hydrostatics.heel_max", 60.0)), float(spec.get("hydrostatics.heel_step", 2.5))
+    grid = {"heels": np.arange(0.0, hmax + 1e-9, hstep), "M_ext": np.linspace(-2.0, 6.0, 9),
+            "Z_ext": np.atleast_1d(np.asarray(spec.get("hydrostatics.Z_ext", 0.0), float))}
+
+    def compute():
+        t = hydro.table(**grid)
+        return ({"component": "hydrostatics", "dims": ["heel", "M_ext", "Z_ext"]}, t.rows(),
+                ["heel", "M_ext", "Z_ext", *HydroTable.KEYS, "converged"])
+
+    parts = (hydro.hull, [(v, c) for v, c in hydro.appendages], hydro.mass, hydro.cg, hydro.rho, hydro.x_trim,
+             grid["heels"], grid["M_ext"], grid["Z_ext"])
+    return HydroTable.from_rows(cache.cached("hydro", parts, compute).rows)
+
+
 @dataclass
 class TableRighting:
     table: HydroTable
-    solved: bool = True  # False: the attitude at M_ext = 0 (no trim response)
+    solved: bool = True  # False: the attitude at M_ext = 0 and Z_ext = 0 (no trim or sinkage response)
 
     def at(self, heel: float, M_ext: float = 0.0, Z_ext: float = 0.0) -> Attitude:
-        d = self.table.at(abs(heel), M_ext if self.solved else 0.0)
+        d = self.table.at(abs(heel), M_ext if self.solved else 0.0, Z_ext if self.solved else 0.0)
         sign = 1.0 if heel >= 0 else -1.0
         return Attitude(d["sink"], d["trim"], sign * d["rm"], bool(d.get("extrapolated", False)),
                         {"wetted_area": d["wetted_area"], "lwl": d["lwl"]})
@@ -129,6 +148,7 @@ class BuildContext:
         self.table: HydroTable | None = None  # set once the hydrostatics exist (finish)
         self.righting: Any = None
         self.budget: massmod.MassBudget | None = None
+        self.hydro: Hydrostatics | None = None
 
     def get(self, name: str) -> Part:
         """Part `name`, built on first request."""
@@ -228,10 +248,9 @@ def build(spec: BoatSpec, table: HydroTable | None = None) -> Built:
     hydro = Hydrostatics(floating[0].shape.surface(), [v for p in parts for v in p.volumes()], mass=budget.mass,
                          cg=budget.cg, rho=water.rho)
     if table is None:
-        hmax, hstep = float(spec.get("hydrostatics.heel_max", 60.0)), float(spec.get("hydrostatics.heel_step", 2.5))
-        table = hydro.table(heels=np.arange(0.0, hmax + 1e-9, hstep))
+        table = hydro_table(hydro, spec)
     righting = TableRighting(table, spec.get("hydrostatics.attitude", "solved") == "solved")
-    ctx.table, ctx.righting, ctx.budget = table, righting, budget
+    ctx.table, ctx.righting, ctx.budget, ctx.hydro = table, righting, budget, hydro
     rules = [massmod.mass_rule(budget.mass)]
     for p in parts:
         if p.owner and hasattr(p.shape, "rules"):

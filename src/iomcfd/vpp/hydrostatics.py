@@ -48,10 +48,9 @@ def _cut(p: np.ndarray, q: np.ndarray) -> np.ndarray:
     return p + t[:, None] * (q - p)
 
 
-def _submerged(v: np.ndarray) -> Submerged:
-    """`submerged` on triangle corners v (M, 3, 3)."""
-    # (sums over the 3 corners are written out: numpy's reductions over a
-    # length-3 axis are several times slower)
+def _clip(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """The triangles of corners v (M, 3, 3) clipped to z ≤ 0 (K, 3, 3), and
+    the points where crossing edges meet the plane."""
     below = v[:, :, 2] <= 0.0
     nb = below[:, 0].astype(np.int8) + below[:, 1] + below[:, 2]
     k3 = np.arange(3)
@@ -68,6 +67,14 @@ def _submerged(v: np.ndarray) -> Submerged:
     pbc, pca = _cut(b2_, c2), _cut(a2, c2)
     T = np.concatenate([v[nb == 3], np.stack([a, pab, pac], axis=1),
                         np.stack([a2, b2_, pbc], axis=1), np.stack([a2, pbc, pca], axis=1)])
+    return T, np.concatenate([pab, pac, pbc, pca])
+
+
+def _submerged(v: np.ndarray) -> Submerged:
+    """`submerged` on triangle corners v (M, 3, 3)."""
+    # (sums over the 3 corners are written out: numpy's reductions over a
+    # length-3 axis are several times slower)
+    T, cut = _clip(v)
     p0, p1, p2 = T[:, 0], T[:, 1], T[:, 2]
     n = np.cross(p1 - p0, p2 - p0)  # twice the area vector
     vol6 = p0[:, 0] * n[:, 0] + p0[:, 1] * n[:, 1] + p0[:, 2] * n[:, 2]  # tetrahedra to the origin, on the plane
@@ -92,7 +99,6 @@ def _submerged(v: np.ndarray) -> Submerged:
     else:
         xf = yf = i_l = i_t = 0.0
     # The waterline: the points where crossing edges meet the plane.
-    cut = np.concatenate([pab, pac, pbc, pca])
     lwl = float(np.ptp(cut[:, 0])) if len(cut) else 0.0
     bwl = float(np.ptp(cut[:, 1])) if len(cut) else 0.0
     wetted = 0.5 * np.sqrt(n[:, 0] ** 2 + n[:, 1] ** 2 + n[:, 2] ** 2).sum()
@@ -114,6 +120,26 @@ def submerged(surface: stl.Surface) -> Submerged:
     lwl and bwl are the x and y extents of the cut.
     """
     return _submerged(surface.vertices[surface.triangles])
+
+
+def above_water(v: np.ndarray) -> np.ndarray:
+    """The triangles of corners v (M, 3, 3, earth frame, outward) clipped to
+    z ≥ 0, still outward."""
+    f = v * np.array([1.0, 1.0, -1.0])
+    T, _ = _clip(f[:, ::-1])  # mirrored in the plane, corners reversed to stay outward
+    return (T * np.array([1.0, 1.0, -1.0]))[:, ::-1]
+
+
+def projected_area(T: np.ndarray, d) -> tuple[float, np.ndarray]:
+    """The area of the triangles T (K, 3, 3) facing the direction d (unit)
+    projected on the plane normal to it, and the centroid of that area. The
+    silhouette of a closed body seen from d, exactly when every line along d
+    crosses the body at most twice (more crossings, e.g. a cockpit, count
+    the hidden faces too)."""
+    n = 0.5 * np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0])
+    w = np.maximum(n @ np.asarray(d, float), 0.0)
+    A = float(w.sum())
+    return A, (w @ T.mean(axis=1) / A if A > 0 else np.zeros(3))
 
 
 def placement(heel: float, trim: float, sink: float, x_trim: float) -> tuple[np.ndarray, np.ndarray]:
@@ -197,7 +223,9 @@ class Hydrostatics:
         """Sinkage and trim at heel φ [deg] where buoyancy = m g − Z_ext
         (Z_ext + up, e.g. the sails' and appendages' vertical forces) and the
         pitch moment of weight, buoyancy and M_ext (+ bow down, about the
-        boat origin, e.g. the sail drive at the CE height) is zero.
+        boat origin, e.g. the sail drive at the CE height) is zero. Z_ext
+        acts at the boat origin: M_ext holds the moment of where it acts
+        (x Z, as the parts' loads do).
 
         Newton's method on (sink, trim) from `start` = (sink m, trim deg),
         with the hydrostatic Jacobian from the waterplane (area, centroid,
@@ -252,61 +280,105 @@ class Hydrostatics:
         return Floating(heel=float(heel), sink=float(x[0]), trim=math.degrees(x[1]), rm=float(-K), gz=float(-K / W),
                         wetted_area=sub.wetted_area, lwl=sub.lwl, bwl=sub.bwl, volume=V, cb=cb, converged=ok)
 
-    def table(self, heels=None, M_ext=None, Z_ext: float = 0.0) -> "HydroTable":
-        """`float_at` on the grid heels × M_ext (defaults: φ 0-60° every
-        2.5°; M_ext −2 to +6 N m every 1 N m, bow-down sail moments of an
-        IOM upwind and downwind). Z_ext is one value for the whole table."""
+    def table(self, heels=None, M_ext=None, Z_ext=0.0) -> "HydroTable":
+        """`float_at` on the grid heels × M_ext × Z_ext (defaults: φ 0-60°
+        every 2.5°; M_ext −2 to +6 N m every 1 N m, bow-down sail moments of
+        an IOM upwind and downwind; Z_ext one layer at 0, a value or a list
+        of layers [N, + up])."""
         heels = np.arange(0.0, 60.0 + 1e-9, 2.5) if heels is None else np.asarray(heels, float)
         M_ext = np.linspace(-2.0, 6.0, 9) if M_ext is None else np.asarray(M_ext, float)
-        out = {k: np.zeros((len(heels), len(M_ext))) for k in HydroTable.KEYS}
-        conv = np.zeros((len(heels), len(M_ext)), bool)
+        Z = np.atleast_1d(np.asarray(Z_ext, float))
+        out = {k: np.zeros((len(heels), len(M_ext), len(Z))) for k in HydroTable.KEYS}
+        conv = np.zeros((len(heels), len(M_ext), len(Z)), bool)
         j0 = int(np.argmin(np.abs(M_ext)))
-        prev = (0.0, 0.0)
-        for i, h in enumerate(heels):
-            # start each heel from the last one at M_ext ≈ 0, then walk out from there
-            for js in (range(j0, len(M_ext)), range(j0 - 1, -1, -1)):
-                start = prev
-                for j in js:
-                    f = self.float_at(float(h), Z_ext, float(M_ext[j]), start=start)
-                    for k in HydroTable.KEYS:
-                        out[k][i, j] = getattr(f, k)
-                    conv[i, j] = f.converged
-                    start = (f.sink, f.trim)
-                    if j == j0:
-                        prev = start
+        for m, z in enumerate(Z):
+            prev = (0.0, 0.0)
+            for i, h in enumerate(heels):
+                # start each heel from the last one at M_ext ≈ 0, then walk out from there
+                for js in (range(j0, len(M_ext)), range(j0 - 1, -1, -1)):
+                    start = prev
+                    for j in js:
+                        f = self.float_at(float(h), float(z), float(M_ext[j]), start=start)
+                        for k in HydroTable.KEYS:
+                            out[k][i, j, m] = getattr(f, k)
+                        conv[i, j, m] = f.converged
+                        start = (f.sink, f.trim)
+                        if j == j0:
+                            prev = start
         if not conv.all():
-            bad = [(float(heels[i]), float(M_ext[j])) for i, j in zip(*np.nonzero(~conv))]
-            warnings.warn(f"hydrostatics did not converge at (heel, M_ext) = {bad}", stacklevel=2)
-        return HydroTable(heels, M_ext, out, conv, Z_ext)
+            bad = [(float(heels[i]), float(M_ext[j]), float(Z[m])) for i, j, m in zip(*np.nonzero(~conv))]
+            warnings.warn(f"hydrostatics did not converge at (heel, M_ext, Z_ext) = {bad}", stacklevel=2)
+        return HydroTable(heels, M_ext, out, conv, Z)
 
 
 @dataclass
 class HydroTable:
-    """`Hydrostatics.float_at` on a grid of heel φ [deg] and external pitch
-    moment M_ext [N m], read back by bicubic splines (C¹ and smooth).
-    Outside the grid the inputs are clamped to it and `extrapolated` is set."""
+    """`Hydrostatics.float_at` on a grid of heel φ [deg], external pitch
+    moment M_ext [N m] and external vertical force Z_ext [N] (one or more
+    layers), read back by bicubic splines in φ and M_ext (C¹ and smooth) and
+    a polynomial through the Z_ext layers (quadratic for three). Outside
+    the grid the inputs are clamped to it and `extrapolated` is set."""
 
     heels: np.ndarray
     M_ext: np.ndarray
-    values: dict  # key -> (n_heel, n_M) array
+    values: dict  # key -> (n_heel, n_M, n_Z) array (or (n_heel, n_M): one layer)
     converged: np.ndarray
-    Z_ext: float = 0.0
+    Z_ext: np.ndarray = field(default_factory=lambda: np.zeros(1))
     _splines: dict = field(default_factory=dict, repr=False)
 
     KEYS = ("sink", "trim", "rm", "wetted_area", "lwl", "bwl")
 
     def __post_init__(self):
+        self.Z_ext = np.atleast_1d(np.asarray(self.Z_ext, float))
+        self.values = {k: (v[:, :, None] if np.ndim(v) == 2 else np.asarray(v)) for k, v in self.values.items()}
         kx, ky = min(3, len(self.heels) - 1), min(3, len(self.M_ext) - 1)
-        self._splines = {k: RectBivariateSpline(self.heels, self.M_ext, self.values[k], kx=kx, ky=ky)
-                         for k in self.KEYS}
+        self._splines = {k: [RectBivariateSpline(self.heels, self.M_ext, self.values[k][:, :, m], kx=kx, ky=ky)
+                             for m in range(len(self.Z_ext))] for k in self.KEYS}
 
-    def at(self, heel: float, M_ext: float = 0.0) -> dict:
+    def _weights(self, z: float) -> np.ndarray:
+        """Lagrange weights of the Z_ext layers at z."""
+        Z = self.Z_ext
+        w = np.ones(len(Z))
+        for i in range(len(Z)):
+            for j in range(len(Z)):
+                if i != j:
+                    w[i] *= (z - Z[j]) / (Z[i] - Z[j])
+        return w
+
+    def at(self, heel: float, M_ext: float = 0.0, Z_ext: float = 0.0) -> dict:
         h = float(np.clip(heel, self.heels[0], self.heels[-1]))
         m = float(np.clip(M_ext, self.M_ext[0], self.M_ext[-1]))
-        out = {k: float(s(h, m)[0, 0]) for k, s in self._splines.items()}
-        out["extrapolated"] = h != heel or m != M_ext
+        if len(self.Z_ext) == 1:
+            out = {k: float(s[0](h, m)[0, 0]) for k, s in self._splines.items()}
+            z = Z_ext
+        else:
+            z = float(np.clip(Z_ext, self.Z_ext[0], self.Z_ext[-1]))
+            w = self._weights(z)
+            out = {k: float(sum(wi * si(h, m)[0, 0] for wi, si in zip(w, s))) for k, s in self._splines.items()}
+        out["extrapolated"] = h != heel or m != M_ext or z != Z_ext
         return out
 
     def rm(self, heel: float) -> float:
-        """RM_φ [N m] at M_ext = 0 (clamped to the grid)."""
-        return self.at(heel, 0.0)["rm"]
+        """RM_φ [N m] at M_ext = 0 and Z_ext = 0 (clamped to the grid)."""
+        return self.at(heel, 0.0, 0.0)["rm"]
+
+    def rows(self) -> list[dict]:
+        """The grid as table rows (vpp/tables.py), for the cache."""
+        out = []
+        for i, h in enumerate(self.heels):
+            for j, m in enumerate(self.M_ext):
+                for n, z in enumerate(self.Z_ext):
+                    out.append({"heel": float(h), "M_ext": float(m), "Z_ext": float(z),
+                                **{k: float(self.values[k][i, j, n]) for k in self.KEYS},
+                                "converged": float(self.converged[i, j, n])})
+        return out
+
+    @staticmethod
+    def from_rows(rows: list[dict]) -> "HydroTable":
+        axes = [np.array(sorted({r[k] for r in rows})) for k in ("heel", "M_ext", "Z_ext")]
+        shape = tuple(len(a) for a in axes)
+        idx = {(r["heel"], r["M_ext"], r["Z_ext"]): r for r in rows}
+        grid = [[[idx[(h, m, z)] for z in axes[2]] for m in axes[1]] for h in axes[0]]
+        values = {k: np.array([[[c[k] for c in b] for b in a] for a in grid]).reshape(shape) for k in HydroTable.KEYS}
+        conv = np.array([[[bool(c["converged"]) for c in b] for b in a] for a in grid]).reshape(shape)
+        return HydroTable(axes[0], axes[1], values, conv, axes[2])

@@ -32,6 +32,13 @@ def runs_dir() -> Path:
     return Path(env).resolve() if env else home() / "runs"
 
 
+def cache_dir() -> Path:
+    """Where the VPP keeps tables it computed ($IOMCFD_CACHE, default
+    <home>/.cache/iomcfd; safe to delete)."""
+    env = os.environ.get("IOMCFD_CACHE")
+    return Path(env).resolve() if env else home() / ".cache" / "iomcfd"
+
+
 def source_runs_dirs() -> list[Path]:
     """Where earlier runs are looked up (foil2d `start_from`): $IOMCFD_SOURCE_RUNS
     first (on GCP the results bucket, where tasks export), then runs_dir()."""

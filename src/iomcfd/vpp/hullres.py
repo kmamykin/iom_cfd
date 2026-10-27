@@ -179,21 +179,42 @@ def canoe_offsets(spec: hulls.CanoeSpec, sink: float = 0.0, trim: float = 0.0, x
     return x, z, _canoe_section(spec, x[:, None], z[None, :] + r[:, None])
 
 
+def _station_points(tri: np.ndarray, xs: float) -> np.ndarray | None:
+    """The segments (K, 2 ends, xyz) where the plane x = xs cuts the
+    triangles (M, 3 corners, xyz), or None."""
+    a, b = tri, tri[:, [1, 2, 0]]  # the edges of each triangle
+    # Half-open sides (x >= xs) make every cut triangle cross exactly two edges.
+    sa, sb = a[:, :, 0] >= xs, b[:, :, 0] >= xs
+    cross = sa != sb
+    cut = cross.any(axis=1)
+    if not cut.any():
+        return None
+    ea, eb, c = a[cut], b[cut], cross[cut]
+    dx = np.where(c, eb[:, :, 0] - ea[:, :, 0], 1.0)
+    p = ea + ((xs - ea[:, :, 0]) / dx)[:, :, None] * (eb - ea)  # (K, 3, xyz)
+    two = np.argsort(~c, axis=1, kind="stable")[:, :2]
+    return np.take_along_axis(p, two[:, :, None], axis=1)
+
+
 def surface_offsets(surface: Surface, sink: float = 0.0, trim: float = 0.0, x_trim: float | None = None,
-                    nx: int = 81, nz: int = 21) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+                    nx: int = 81, nz: int = 21, heel: float = 0.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """(x, z, y) as canoe_offsets, from a closed STL hull in the boat frame.
 
-    The surface is trimmed (rotated about the y axis through (x_trim, 0, 0),
-    default mid-length of its bounding box; exact, not small-angle) and then
-    sunk. Each station plane cuts the triangles into segments of the
-    section; y is the largest |y| where they cross each waterline. Stations
-    span the wetted length (the vertices below the waterline and the edges'
-    crossings of it), waterlines the lowest vertex to z = 0. A symmetric
-    hull is assumed (port and starboard are not told apart).
+    The surface is heeled by `heel` [deg, + to starboard] about the x axis
+    through the waterline origin, trimmed (rotated about the y axis through
+    (x_trim, 0, 0), default mid-length of its bounding box; exact, not
+    small-angle) and then sunk, as hydrostatics.place does. Each station
+    plane cuts the triangles into segments of the section; y is half the
+    section's width where they cross each waterline, (y_max − y_min) / 2:
+    the half-breadth of an upright symmetric hull, and of a heeled one the
+    centreplane hull of the same thickness (thin-ship theory has no heel).
+    Stations span the wetted length (the vertices below the waterline and
+    the edges' crossings of it), waterlines the lowest vertex to z = 0.
     """
     lo, hi = surface.bounds
     x_trim = 0.5 * (lo[0] + hi[0]) if x_trim is None else x_trim
-    placed = surface.rotated("y", -trim, about=(x_trim, 0.0, 0.0)).translated((0.0, 0.0, -sink))
+    placed = surface.rotated("x", heel) if heel else surface
+    placed = placed.rotated("y", -trim, about=(x_trim, 0.0, 0.0)).translated((0.0, 0.0, -sink))
     tri = placed.vertices[placed.triangles]  # (M, 3 corners, xyz)
     tri = tri[tri[:, :, 2].min(axis=1) < 0]
     if len(tri) == 0:
@@ -207,22 +228,41 @@ def surface_offsets(surface: Surface, sink: float = 0.0, trim: float = 0.0, x_tr
     z = np.linspace(za.min(), 0.0, nz)
     y = np.zeros((nx, nz))
     for i, xs in enumerate(x):
-        # Half-open sides (x >= xs) make every cut triangle cross exactly two edges.
-        sa, sb = a[:, :, 0] >= xs, b[:, :, 0] >= xs
-        cross = sa != sb
-        cut = cross.any(axis=1)
-        if not cut.any():
+        seg = _station_points(tri, xs)
+        if seg is None:
             continue
-        ea, eb, c = a[cut], b[cut], cross[cut]
-        dx = np.where(c, eb[:, :, 0] - ea[:, :, 0], 1.0)
-        p = ea + ((xs - ea[:, :, 0]) / dx)[:, :, None] * (eb - ea)  # (K, 3, xyz)
-        two = np.argsort(~c, axis=1, kind="stable")[:, :2]
-        seg = np.take_along_axis(p, two[:, :, None], axis=1)  # (K, 2 ends, xyz)
         y0, z0, y1, z1 = seg[:, 0, 1:2], seg[:, 0, 2:3], seg[:, 1, 1:2], seg[:, 1, 2:3]
         hit = (z0 >= z) != (z1 >= z)  # (K, nz)
         u = (z - z0) / np.where(z1 != z0, z1 - z0, 1.0)
-        y[i] = np.where(hit, np.abs(y0 + u * (y1 - y0)), 0.0).max(axis=0)
+        yy = y0 + u * (y1 - y0)
+        top, bot = np.where(hit, yy, -np.inf).max(axis=0), np.where(hit, yy, np.inf).min(axis=0)
+        y[i] = np.where(hit.any(axis=0), 0.5 * (top - bot), 0.0)
     return x, z, y
+
+
+def keel_line(surface: Surface, x) -> np.ndarray:
+    """The depth below z = 0 [m] of each station's lowest point (0 where the
+    station misses the body or the section is above the water)."""
+    tri = surface.vertices[surface.triangles]
+    out = np.zeros(len(np.atleast_1d(x)))
+    for i, xs in enumerate(np.atleast_1d(x)):
+        seg = _station_points(tri, float(xs))
+        if seg is not None:
+            out[i] = max(0.0, -float(seg[:, :, 2].min()))
+    return out
+
+
+def jones_keel_line(V, leeway_deg, x, T, rho: float):
+    """Jones' side force of a hull of keel line T(x) (stations x from the
+    bow) at leeway β_Y: S = π q T_max² sin β cos β (see hull_side_yaw), at
+    x_cp = ∫ x d(T²) / T_max² from the bow to the deepest station."""
+    x, T = np.asarray(x, float), np.asarray(T, float)
+    i = int(np.argmax(T))
+    T2 = T[: i + 1] ** 2
+    x_cp = float(trapezoid(x[: i + 1], T2) / T2[-1]) if T2[-1] > 0 else float(x[i])
+    beta = np.radians(np.asarray(leeway_deg, float))
+    S = 0.5 * math.pi * rho * np.asarray(V, float) ** 2 * T2[-1] * np.sin(beta) * np.cos(beta)
+    return S[()], x_cp
 
 
 def offsets_wetted_area(x, z, y) -> float:
