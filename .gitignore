@@ -42,3 +42,7 @@ cloud/gcp/jobs/
 
 # Private boats (licensed hull lines and their derived parameters)
 boats/private/
+
+# ORC 2026 sail tables, transcribed (copyright ORC; kept locally until our own data replaces them)
+/src/iomcfd/vpp/data/orc2026_sails.yaml
+/tests/test_vpp_sails_orc.py
