@@ -214,6 +214,18 @@ def test_canted_bulb_stays_at_the_draft(project):
     assert d["bulb_cg_above_draft"] > project.derive(dict(project.defaults))["bulb_cg_above_draft"]
 
 
+def test_fin_section_from_a_file(project, tmp_path):
+    """HT35 at 7.25 % (geometry/foils), 100 -> 80 mm: the fin is that thick at its root."""
+    p = {**project.defaults, "fin_section": "file:ht35-t0725.dat", "fin_mean_chord": 0.090, "fin_taper": 0.8}
+    d = project.prepare_case(tmp_path / "h", p)
+    assert d["fin_root_thickness"] == pytest.approx(0.00725, rel=1e-4)
+    assert d["fin_tip_thickness"] == pytest.approx(0.0058, rel=1e-4)
+    fin = project.surfaces(p)[1]
+    root = fin.vertices[fin.vertices[:, 2] > d["fin_z_root"] - 1e-6]
+    assert 2 * np.abs(root[:, 1]).max() == pytest.approx(0.00725, rel=0.01)
+    assert (tmp_path / "h" / "constant" / "triSurface" / "boat.stl").is_file()
+
+
 def test_fin_alone(project, tmp_path):
     p = {**project.defaults, "bulb": False}
     assert [s.name for s in project.surfaces(p)] == ["hull", "fin"]
