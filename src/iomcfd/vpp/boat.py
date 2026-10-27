@@ -264,7 +264,7 @@ def build(spec: BoatSpec, table: HydroTable | None = None) -> Built:
 
     sv = spec.get("solver") or {}
     settings = Settings(yaw=bool(sv.get("yaw", True)), optimise=bool(sv.get("optimise", True)),
-                        heel_max=float(sv.get("heel_max", 70.0)))
+                        heel_max=float(sv.get("heel_max", 70.0)), leeway_max=float(sv.get("leeway_max", 15.0)))
     boat = Boat(parts, righting, settings)
 
     w = spec.get("wind") or {}

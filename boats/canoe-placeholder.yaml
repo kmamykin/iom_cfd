@@ -98,8 +98,8 @@ hydrostatics:
   heel_max: 60.0
   heel_step: 2.5
 
-wind:                             # PLACEHOLDER range and profile
-  tws: [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+wind:                             # PLACEHOLDER profile; the range is the A rig's, up to its top wind (8 m/s, ~15 kn)
+  tws: [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0]
   weights: uniform                # uniform | [w, ...] | file:<club histogram.csv> (columns tws, weight)
   z_ref: 1.0                      # m, height the wind speed is measured at
   alpha: 0.12                     # power-law profile exponent
@@ -116,6 +116,7 @@ solver:
   yaw: true                       # solve the yaw balance with the balance control (the rudder)
   optimise: true                  # search the optimised control (the sails' flat)
   heel_max: 70.0
+  leeway_max: 10.0                # deg: no balance beyond it (the fin stalls about there)
 
 polar:
   twa: [30, 35, 40, 45, 50, 60, 75, 90, 105, 120, 135, 150, 165, 180]

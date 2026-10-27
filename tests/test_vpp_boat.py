@@ -86,6 +86,16 @@ def test_build_placeholder_boat(built):
 
 
 @needs_orc
+def test_solver_settings_from_the_boat_file(built):
+    from iomcfd.vpp.boat import BoatSpec, build
+
+    assert built.boat.settings.leeway_max == 15.0
+    spec = BoatSpec.load(config.home() / "boats" / "canoe-placeholder-foil.yaml",
+                         {"wind.tws": [2.0], "solver.leeway_max": 10.0})
+    assert build(spec).boat.settings.leeway_max == 10.0
+
+
+@needs_orc
 def test_race_and_rates_on_the_built_boat(built):
     from iomcfd.vpp.race import race, weighted
     from iomcfd.vpp.rates import rates, standard
