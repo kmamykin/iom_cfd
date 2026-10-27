@@ -97,6 +97,10 @@ least 4000 g (C.4.2).
 | 90 mm | 1.0 | 90 → 90 | 6.3 / 6.3 | 79k / 79k | 1.0 |
 | 90 mm | 0.8 | 100 → 80 | 7.0 / 5.6 | 88k / 70k | 1.5 |
 
+`fin_section` is any foil2d section spec: `naca0007`, or a coordinate file
+in `geometry/foils` such as `file:ht35-t0725.dat` (HT35 at 7.25 %, the
+fin of `ht35-keel`: 7.25 / 5.8 mm thick at 100 / 80 mm).
+
 Root I: second moment of the root section (c·t³, solid section, same t/c),
 against the constant-chord fin of the same mean chord: a rough measure of
 how much stiffer the fin is where the bulb's moment is largest
@@ -345,6 +349,10 @@ slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
   plus fine at 4°. 39 cases, meant for GCP.
 * `bulb-cant` (Track A3): the round NACA 0011 bulb at 0, 2 and 4° nose up,
   φ 25°, β_Y 0-4°, and upright at 0°.
+* `ht35-keel`: the chosen keel (HT35 at 7.25 %, 100 → 80 mm, round NACA
+  0011 bulb at 2° nose up) as the VPP's keel polar: φ 0-65° × β_Y −2 to
+  10° × V_b 0.5-3.7 m/s on medium (270 cases), plus fine at 0 and 4°.
+  Exported with `vpp export-table --model grid`.
 
 ## Limitations and next steps
 

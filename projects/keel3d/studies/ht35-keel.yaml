@@ -1,0 +1,54 @@
+study: ht35-keel
+project: keel3d
+description: >
+  The chosen keel as a polar for the VPP: HT35 at 7.25 % (custom-section's
+  recommendation, geometry/foils/ht35-t0725.dat), 100 -> 80 mm (lambda 0.8,
+  90 mm mean chord, as the bulb studies), on the round NACA 0011 bulb
+  (2380 g, 343 x 37.7 mm) at 2 deg nose up (bulb-section, bulb-cant).
+  Heel x leeway x boat speed over the range the VPP sails with the A rig up
+  to its top wind, 8 m/s: the baseline vpp run of canoe-placeholder
+  (20261027-213633, NACA 0007 keel table, TWS 1.5-8 m/s) solved V_b
+  0.55-3.63 m/s, heel 0-63 deg and leeway -0.6 to 5.2 deg over its polar;
+  leeway runs on to 10 deg, the VPP's limit, where the fin stalls. Speeds
+  roughly geometric (the coefficients change with Re only). The run is
+  exported as a grid table (vpp export-table --model grid) for
+  boats/canoe-placeholder.yaml. Medium mesh, as the keel table it
+  replaces; fine at 0 and 4 deg, heel 0 / 35 / 65, 1.5 m/s for the mesh
+  error. kOmegaSST with wall functions, fully turbulent: the inflow Tu only
+  sets the freestream k and omega, so one value, keel3d's 0.5 %, serves
+  every speed. Double body: no waves; above about 36 deg of heel the canoe
+  body's deck edge is under the mirror plane, so the 50 and 65 deg cases
+  are rough; above about 1.5 m/s the real hull makes big waves the mirror
+  plane can't. No re-trim, no sinkage.
+report:
+  max_leeway: 4
+highlights:
+  - name: upwind
+    why: Upwind (heel 35, 3 deg) across the boat speeds - does the fin's loading or the tip vortex change with Re?
+    where: {heel: 35, leeway: 3, mesh: medium}
+    compare: speed
+    views: [surface_cp_starboard, vortices, wake_slice]
+  - name: stall
+    why: Where the fin stalls - 6, 8 and 10 deg upright and at 35 deg heel, 1.5 m/s.
+    where: {heel: [0, 35], leeway: [6, 8, 10], speed: 1.5, mesh: medium}
+    compare: leeway
+    views: [surface_cp_starboard, wake_slice]
+defaults:
+  fin_section: "file:ht35-t0725.dat"
+  fin_mean_chord: 0.090
+  fin_taper: 0.8
+  bulb_section: naca0011
+  bulb_cant: 2.0
+  mesh: medium
+  Tu: 0.5
+sweep:
+  heel: [0, 10, 20, 35, 50, 65]
+  leeway: [-2, 0, 1, 2, 3, 4, 6, 8, 10]
+  speed: [0.5, 0.9, 1.5, 2.4, 3.7]
+cases:  # mesh error: fine at 0 and 4 deg, 1.5 m/s
+  - {heel: 0, leeway: 0, speed: 1.5, mesh: fine}
+  - {heel: 0, leeway: 4, speed: 1.5, mesh: fine}
+  - {heel: 35, leeway: 0, speed: 1.5, mesh: fine}
+  - {heel: 35, leeway: 4, speed: 1.5, mesh: fine}
+  - {heel: 65, leeway: 0, speed: 1.5, mesh: fine}
+  - {heel: 65, leeway: 4, speed: 1.5, mesh: fine}
