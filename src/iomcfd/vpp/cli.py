@@ -253,7 +253,7 @@ def cmd_sweep(args) -> None:
 def cmd_export_table(args) -> None:
     from . import keel3d
 
-    out = keel3d.export(args.run, _sets(args.select), args.out)
+    out = keel3d.export(args.run, _sets(args.select), args.out, model=args.model, fill=args.fill)
     print(f"wrote {out}")
 
 
@@ -323,6 +323,9 @@ def add_parser(sub) -> None:
     q.add_argument("run", help="<study>@<run id> (in $IOMCFD_SOURCE_RUNS, then runs/) or a results.csv")
     q.add_argument("--select", action="append", metavar="KEY=VALUE", help="the design's parameters (repeat)")
     q.add_argument("--out", required=True, help="the table, e.g. boats/tables/<name>.csv")
+    q.add_argument("--model", choices=["fit", "grid"], default="fit",
+                   help="fit: raw points at one speed, fitted by the boat; grid: heel x leeway x speed loads, as run")
+    q.add_argument("--fill", action="store_true", help="grid: fill missing cases along the leeway (flagged)")
     q.set_defaults(func=cmd_export_table)
     q = vs.add_parser("table", help="build a table from a recipe file (boats/tables/<name>.yaml)")
     q.add_argument("action", choices=["build"])

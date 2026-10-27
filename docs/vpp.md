@@ -22,6 +22,8 @@ uv run iomcfd vpp compare canoe-placeholder --set-b components.hull.forces.args.
 uv run iomcfd vpp sweep canoe-placeholder --vary components.keel.forces.args.table=tables/a.csv,tables/b.csv
 uv run iomcfd vpp export-table keel3d bulb-section@20261019-203823 --select bulb_aspect=1.0 ... \
     --out boats/tables/keel-round-bulb.csv      # one keel3d design as a table for a boat file
+uv run iomcfd vpp export-table keel3d ht35-keel@<run id> --select mesh=medium --model grid \
+    --out boats/tables/keel-ht35-3d.csv         # a heel x leeway x speed keel3d run as a grid table
 uv run iomcfd vpp table build boats/tables/keel-ht35.yaml   # a table built by a model from a recipe
 uv run iomcfd vpp compare canoe-placeholder --set-b components.keel.forces.args.table=tables/keel-ht35.csv
 ```
@@ -42,6 +44,14 @@ Every command takes `--no-cache` to compute the boat's tables afresh.
   `runs/` (e.g. `IOMCFD_SOURCE_RUNS=../bulb-design/runs`); `--select` picks
   the design's cases. The table holds the raw points and, in its header, the
   run, the filter and the geometry the forces belong to.
+* **Grid exports.** A keel3d run over heel × leeway × speed (every
+  combination, one design) exports with `--model grid` as a `model: grid`
+  table: per case X less the hull's 0° drag (the hull model has it), Y, and
+  K, M, N at the case's centre of lateral resistance; the vertical force
+  less its 0° value as `Zv`, `Mv`. `KeelGrid` reads it as it is, so the
+  speed dependence is the CFD's, not the C_F(Re) scaling of a fit. A missing
+  case is an error; `--fill` fills it along the leeway and flags it, as a
+  `not_converged` case is.
 * **Built tables.** `vpp table build <recipe>.yaml` evaluates a model on a
   grid and writes its table (`model: grid`). The one recipe so far,
   `keel-section`, puts another fin section on a keel3d table's keel from 2D
