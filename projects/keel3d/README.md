@@ -14,9 +14,22 @@ IOM?** Then: **what bulb section and cant?** (Track A of
 20261018-044718 (24 cases) showed that the medium mesh could not rank the
 planforms ([findings](findings/taper-selection.md)). The mesh has changed
 since (Mesh levels). taper-mesh, a mesh ladder for the first two fins to
-compare, ran as 20261018-234733: 11 of 16 cases finished, 4 failed on
-inverted cells in the fine and xfine meshes (fixed since, see the
-medial-axis limit below), and the job was cancelled; it is to be run again.
+compare (run 20261019-213145): medium can't rank them; fine can (xfine
+moves their 4° differences by less than 0.4 points). On fine the 90 mm
+constant-chord fin is 0.07 % of race time slower than the 100 → 80 mm
+fin, a tie; the tapered fin makes 2 % more S_h per degree on every mesh.
+A half-cell grid shift moves the constant-chord fin's S_h by 4-7 %
+([findings](findings/taper-mesh.md)). taper-gridshift traced that to a
+false camber when the grid is shifted across the centre plane; the aligned
+mirror-image grid doesn't have it ([findings](findings/taper-gridshift.md)).
+taper-compare (fine, β_Y 0-6°, 1 m/s, upright): the 100 → 80 mm fin is
+never slower than the constant 90 mm chord, 0.02 / 0.07 / 0.4-0.7 % faster
+at the light / working / high load, with its CLR 4 mm higher
+([findings](findings/taper-compare.md)). With the transition correction
+(2D, foil2d transition-delta) the light- and high-load advantage stays
+(+0.06 and +0.6-0.7 %) and the working load becomes a tie (−0.11 to
++0.07 % with the water's turbulence and one uncertain 2D point). One
+speed, upright.
 
 ## The question and how it is answered
 
@@ -183,7 +196,10 @@ the fin, bulb, near wake and boxes once more than `fine`, not the hull.
 * **`mesh_shift`** moves that grid in x and y by a fraction of the finest
   fin cell, to test how sensitive the forces are to where the grid lines
   fall. On medium, a shift of 0.5 broke the mirror image (by design) and
-  gave the constant-chord fin 10 % fewer faces (58k against 65k).
+  gave the constant-chord fin 10 % fewer faces (58k against 65k). In
+  taper-mesh it moved that fin's S_h at 4° by −4.3 % (medium) and +6.5 %
+  (fine). `mesh_shift_only: x` (or `y`) shifts along one axis; a shift in x
+  keeps an upright mesh a mirror image.
 
 With the wake box and the aligned grid, measured at β_Y = 4° with 100 mm
 mean chord (a 90 mm fin has cells 10 % smaller, so roughly 10-15 % more
@@ -195,7 +211,7 @@ of them; **estimate**):
 | coarse | not measured (0.47 M before) | | | |
 | medium | 1.07 / 1.08 M | 65k / 67k | 96.8 / 95.5 % | |
 | fine | 3.3 / 3.4 M | 172k / 175k | 97.8 / 97.5 % | |
-| xfine | about 14 M (**estimate**; too big for 11.7 GB of local Docker memory) | | | |
+| xfine | 16.4 / 16.5 M (λ 1.0 / 0.8 at 90 mm mean chord, taper-mesh; too big for 11.7 GB of local Docker memory) | | | |
 
 * **Layer addition is limited to 20 medial-axis iterations**
   (`nMedialAxisIter`). Unlimited, it moved interior points far from the
@@ -254,10 +270,15 @@ Per case (`results.csv`):
 
 While a case runs, its progress line ([docs/workflow.md](../../docs/workflow.md),
 "Progress and divergence"; `iomcfd gcp progress <study>` on GCP) adds the boat's latest
-`D_h` and `S_h` [N] and `D_h_change`, `S_h_change`: how far their means
-over the last `conv_window` iterations moved from the window before,
-relative to D_h and to max(D_h, S_h). The case stops when both are below
-`conv_tol`.
+`D_h` and `S_h` [N]; `D_h_change`, `S_h_change`: how far their means
+over the last `conv_window` iterations moved from the window before; and
+`D_h_drift`, `S_h_drift`: how far the second half of the last window moved
+from its first half; all relative to D_h and to max(D_h, S_h). The case
+stops when all four are below `conv_tol` (or when simpleFoam's residuals
+reach their `residualControl` limits). The drift test came after taper-mesh
+run 20261019-213145: one case's window means agreed by chance, because the
+earlier window held the start-up transient, and it stopped at 402
+iterations with D_h still climbing 4 % per window.
 
 `iomcfd report`:
 * `keel_forces.png`: S_h and D_h against β_Y, and D_h against S_h;
@@ -273,7 +294,17 @@ relative to D_h and to max(D_h, S_h). The case stops when both are below
 * `spanload.png`: local C_l and normalised load along the span near the
   working load, against elliptic;
 * `mesh_check.md` when a study runs cases on more than one mesh, and
-  `shift_check.md` when it runs cases with more than one `mesh_shift`.
+  `shift_check.md` when it runs cases with more than one `mesh_shift`;
+* `transition_compare.md` (and `transition_cases_tu*.csv`,
+  `transition_compare_tu*.csv`) when `data/<fin_section>-transition.csv`
+  exists: the comparison again with the fin's drag and leeway corrected
+  for laminar flow. Strip by strip along `spanload.csv`, the 2D difference
+  between the transition model and the fully turbulent model at the
+  strip's chord and C_l: drag Σ dC_d q c ds, leeway the side-force-weighted
+  mean dα (`transition_delta`, `transition_correction`). One table per
+  water turbulence Tu of the 2D polars; the loads stay the fully turbulent
+  ones. The table comes from a foil2d run
+  (`tools/keel3d_transition_table.py`; for NACA 0007: transition-delta).
 
 Study `report:` options: `compare_at` (reference design and leeway angles,
 default `{fin_taper: 1.0, leeway: [2, 4, 6]}`), `vdrdv` (the resistance
@@ -292,7 +323,18 @@ slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
   resistance on every mesh ([findings](findings/taper-selection.md)).
 * `taper-mesh`: 0007/90 constant chord against 100 → 80 mm, β_Y 0, 2, 4° on
   medium and fine, 4° on xfine, and the constant-chord fin at 4° with the
-  grid shifted. Picks the mesh level for the planform comparison.
+  grid shifted. Picks the mesh level for the planform comparison: fine
+  (run 20261019-213145).
+* `taper-gridshift`: why the grid shift moves the constant-chord fin's S_h
+  by 4-7 %: shifted grids at 0° (mesh camber would show as S_h ≠ 0) and at
+  4° in x only, y only and both, for both fins. 8 cases, mostly fine. Run
+  20261020-183155: a shift in y gives a false camber (S_h 0.23 N at 0° on
+  fine), a shift in x moves S_h 0.5 %; the tapered fin is far less
+  sensitive.
+* `taper-compare`: the planform comparison on fine, both fins at β_Y 0, 2,
+  4, 6°, 1 m/s, upright; ranked at the constant-chord fin's S_h at 2, 4,
+  6°. Run 20261020-183208: the tapered fin is never slower, faster at
+  high load.
 * `bulb-smoke`: the bulb options on xcoarse (fin alone; flat bottom, canted,
   heeled; flat top).
 * `bulb-endplate` (Track A1): the λ 0.8 fin with and without the NACA 0011
@@ -306,12 +348,14 @@ slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
 
 ## Limitations and next steps
 
-* **Transition.** Correct the fully turbulent 3D section drag strip by
-  strip with foil2d: for each strip in `spanload.csv`, the 2D drag difference
-  between kOmegaSSTLM and kOmegaSST at the local chord's Reynolds number and
-  the local C_l. Needs a foil2d run of NACA 0007 over the fins' chord range
-  (80-100 mm for taper-mesh's fins) with both turbulence models. Without it
-  the tapered tips get no penalty for low-Re laminar separation.
+* **Transition.** The flow is fully turbulent; the report corrects the
+  fin afterwards by 2D strip theory (`transition_compare.md`, for NACA 0007
+  at 80-100 mm chord and 1 m/s). Hull and bulb stay fully turbulent, the
+  steady 2D points at 4° are uncertain (the flow sheds), and the 80 mm, 4°,
+  Tu 0.1 % point decides the working-load comparison of taper-compare (a
+  time-accurate foil2d case would settle it). Fully turbulent kOmegaSST
+  also makes a laminar-like bubble at the leading edge at 6°
+  (taper-compare findings).
 * **Heel φ** (upwind 10-20°) and **other speeds** (V_b 0.75, 1.5 m/s) for
   the best two planforms.
 * **Market-like fins**: 100 → 70 mm (λ 0.7, mean 85 mm, less area) is a

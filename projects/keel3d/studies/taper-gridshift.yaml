@@ -1,0 +1,38 @@
+study: taper-gridshift
+project: keel3d
+description: >
+  Why does the constant-chord fin's side force move 4-7 % when the
+  background grid is shifted by half the finest fin cell? In taper-mesh run
+  20261019-213145 the shift (in x and y) changed S_h at 4 deg by -4.3 % on
+  medium and +6.5 % on fine, more than the planforms differ (2 %), and the
+  spanwise loading kept its shape, so the fin's whole circulation changed.
+  Hypothesis: the shift takes the trailing edge off the y = 0 plane of cell
+  faces, the snapped edge is no longer symmetric and acts as a small camber.
+  Tests: (1) at 0 deg a shifted grid then gives S_h != 0 (the aligned
+  mirror-image mesh gives |S_h| < 0.003 N); (2) at 4 deg a shift in x only
+  (the mesh stays a mirror image) changes S_h little, a shift in y only as
+  much as in both. Also the tapered fin's sensitivity, not measured yet.
+  NACA 0007, 90 mm mean chord: constant chord and 100 -> 80 mm (lambda 0.8).
+  Fine mesh (the planform comparison's), 1 m/s, upright; one medium case at
+  0 deg for the sign (the shift moved S_h down on medium, up on fine). The
+  4 deg cases with no shift repeat taper-mesh's as the reference here.
+highlights:
+  - name: shifted-trailing-edge
+    why: Does a grid shifted across the centre plane give the constant-chord fin an asymmetric trailing edge (mesh camber), and does a shift along x alone leave its side force alone?
+    where: {fin_taper: 1.0, leeway: 4}
+    compare: mesh_shift_only
+    views: [surface_cp_starboard, section, wake_slice]
+defaults:
+  fin_mean_chord: 0.090
+  speed: 1.0
+  heel: 0
+  mesh: fine
+cases:
+  - {fin_taper: 1.0, leeway: 0, mesh_shift: 0.5}
+  - {fin_taper: 1.0, leeway: 0, mesh_shift: 0.5, mesh: medium}
+  - {fin_taper: 1.0, leeway: 4}
+  - {fin_taper: 1.0, leeway: 4, mesh_shift: 0.5}
+  - {fin_taper: 1.0, leeway: 4, mesh_shift: 0.5, mesh_shift_only: x}
+  - {fin_taper: 1.0, leeway: 4, mesh_shift: 0.5, mesh_shift_only: y}
+  - {fin_taper: 0.8, leeway: 4}
+  - {fin_taper: 0.8, leeway: 4, mesh_shift: 0.5}

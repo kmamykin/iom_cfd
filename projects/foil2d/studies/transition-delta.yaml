@@ -1,0 +1,30 @@
+study: transition-delta
+project: foil2d
+description: >
+  The 2D input for keel3d's transition correction. keel3d is fully
+  turbulent (kOmegaSST with wall functions), so laminar flow and laminar
+  separation on the fin are missing, and their effect differs between
+  fins: the tapered 100 -> 80 mm fin's tip runs at Re 70k, the constant
+  90 mm chord at 79k (keel3d taper-compare run 20261020-183208, where the
+  tapered fin led by 0.07 % of race time at the working load). This study
+  gives the drag difference between the transition model and the fully
+  turbulent model at equal section lift, dCd(Re, Cl), and the angle
+  difference, for NACA 0007 at 80, 90 and 100 mm chord (the fins' local
+  chords) at 1 m/s, 0-7 deg (local Cl up to about 0.55 at the 6 deg high
+  load). keel3d applies it strip by strip along the span (spanload.csv).
+  kOmegaSSTLM at Tu 0.1 % and 1 % (foil2d's two water-turbulence levels;
+  the pond value is unknown), kOmegaSST at Tu 0.5 % (keel3d's setting).
+  Medium mesh, steady solver, as fin-profile-selection. Caveat
+  (transient-check): at Tu 0.1 % the steady 4 deg points of 0007/90 and
+  0007/100 shed, and their window averages were 5-14 % off the
+  time-accurate drag; the time-accurate values at 4 deg, 1 m/s, Tu 0.1 %
+  exist for 90 and 100 mm (transient-check runs) and serve as a check.
+defaults:
+  foil: naca0007
+  speed: 1.0
+sweep:
+  chord: [0.08, 0.09, 0.10]
+  aoa: [0, 1, 2, 3, 4, 5, 6, 7]
+zip:
+  turbulence: [kOmegaSSTLM, kOmegaSSTLM, kOmegaSST]
+  Tu: [0.1, 1.0, 0.5]
