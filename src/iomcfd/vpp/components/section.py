@@ -5,7 +5,7 @@ keel3d gives the whole keel (hull, fin and bulb) with its own section (the
 fin's 2D behaviour, so it is applied as a difference at equal fin lift:
 
 * the fin's lift L_fin = share · S_h / cos φ (its share of keel3d's side
-  force, `KeelFits.fin_share`; the fin's lift is normal to its heeled plane)
+  force, `PolarFit.fin_share`; the fin's lift is normal to its heeled plane)
   gives the section lift coefficient C_l = L_fin / (q c b) on the fin's mean
   chord c and exposed span b;
 * drag: + (C_d,new − C_d,ref)(C_l) · q c b, profile drag at equal C_l (the
@@ -56,6 +56,20 @@ class Branch:
         return float(np.interp(c, self.cl, self.alpha)), float(np.interp(c, self.cl, self.cd)), out
 
 
+def section_polars(polars: dict, tu: float, resolve):
+    """The fin-section polar table at turbulence intensity `tu` [%] from
+    {<tu>: {base: [csv], replace: [csv]}} (foil2d results.csv or their
+    site/data copies, found by `resolve`; later files replace earlier points
+    of the same section, speed and angle, as sectiondesign.cfd_table)."""
+    from ...sectiondesign import cfd_table
+
+    entry = next((v for k, v in (polars or {}).items() if math.isclose(float(k), tu)), None)
+    if entry is None:
+        raise ValueError(f"no section polars for Tu {tu:g} %")
+    return cfd_table([resolve(str(f)) for f in entry.get("base") or []],
+                     [resolve(str(f)) for f in entry.get("replace") or []], tu=tu)
+
+
 def deltas(polars, foil: str, reference: str) -> dict[float, tuple[Branch, Branch]]:
     """{speed: (new, reference)} from a polar table (foil, speed, aoa, Cl, Cd)."""
     out = {}
@@ -71,7 +85,7 @@ def deltas(polars, foil: str, reference: str) -> dict[float, tuple[Branch, Branc
 
 @dataclass
 class SectionChange:
-    base: object  # a KeelFits
+    base: object  # a PolarFit (components/keel.py)
     branches: dict[float, tuple[Branch, Branch]]
     chord: float  # the fin's mean chord [m]
     span: float  # the fin's exposed span [m]
@@ -83,6 +97,7 @@ class SectionChange:
 
     def __post_init__(self):
         self.name, self.kind, self.attitude = self.base.name, self.base.kind, self.base.attitude
+        self.controls, self.covers = getattr(self.base, "controls", ()), getattr(self.base, "covers", frozenset())
         self._speeds = sorted(self.branches)
         self.provenance = f"{getattr(self.base, 'provenance', '')} + section {self.label}"
 

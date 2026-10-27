@@ -34,8 +34,8 @@ Wind: Python-VPP builds its own heeled apparent wind (log profile from 10 m,
 cross-course component × cos φ, no leeway). `Wind.tws` is passed as its 10 m
 TWS in m/s; z_ref and alpha are ignored.
 
-Trim: State.flat is Python-VPP's flat (same ORC meaning; set flat_min to its
-FLAT_MIN = 0.53). RED, its second trim variable, is held at `PyVPPSails.red`:
+Trim: the sails' `flat` control is Python-VPP's flat (same ORC meaning; its
+lower bound is FLAT_MIN = 0.53). RED, its second trim variable, is held at `PyVPPSails.red`:
 upwind 2 = full sails, 1-2 furls the jib foot, < 1 reefs the main; for a kite
 RED ≤ 1 scales the area by RED². Our solver does not search it.
 """
@@ -52,7 +52,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from ..solver import Attitude, Boat, Settings
-from .base import Loads, State, Wind
+from .base import Control, Loads, State, Wind
 
 PHI_MAX = 35.0  # Python-VPP's default heel limit (VPP.set_analysis phi_max) [deg]
 
@@ -116,6 +116,7 @@ class PyVPPHydro:
     name: str = "hydro"
     kind: str = "hydro"
     attitude: bool = False
+    controls: tuple = ()
 
     def loads(self, s: State, w: Wind) -> Loads:
         Fx, Fy, Mx = self.hydro.update(s.V, s.heel, s.leeway, w.twa, w.tws)
@@ -130,12 +131,17 @@ class PyVPPSails:
 
     aero: Any  # a python_vpp AeroMod with its sail set
     red: float
+    flat_min: float = 0.53  # Python-VPP's FLAT_MIN
     name: str = "sails"
     kind: str = "aero"
     attitude: bool = False
 
+    @property
+    def controls(self) -> tuple:
+        return (Control("flat", "optimise", 1.0, lo=self.flat_min, hi=1.0),)
+
     def loads(self, s: State, w: Wind) -> Loads:
-        Fx, Fy, Mx = self.aero.update(s.V, s.heel, w.tws, w.twa, s.flat, self.red)
+        Fx, Fy, Mx = self.aero.update(s.V, s.heel, w.tws, w.twa, s.controls.get(f"{self.name}.flat", 1.0), self.red)
         return Loads(X=float(Fx), Y=-float(Fy), K=float(Mx),
                      info={"aws": float(self.aero.aws), "awa": float(self.aero.awa)})
 
@@ -148,16 +154,16 @@ def heel_limit(sail: Any) -> float:
 
 def boat(pv: SimpleNamespace, yacht: Any, sail: str = "J1", red: float | None = None) -> Boat:
     """Our Boat with Python-VPP's forces: main + `sail`, RED held at `red`
-    (default full sail: 2 upwind, 1 for a kite). Yaw off, flat_min =
+    (default full sail: 2 upwind, 1 for a kite). Yaw off, flat down to
     Python-VPP's FLAT_MIN, and its heel limit as our heel_max flag. Its heel
     limit is a hard bound in Python-VPP but only a flag here."""
     s = next(x for x in yacht.sails if x.name == sail)
     aero = pv.AeroMod(yacht)
     aero.sails[1], aero.up = s, s.up  # as VPPMod._solve_row
     righting = PyVPPRighting(yacht)
-    settings = Settings(yaw=False, flat_min=pv.FLAT_MIN, V_max=10.0, heel_max=heel_limit(s))
+    settings = Settings(yaw=False, V_max=10.0, heel_max=heel_limit(s))
     red = (2.0 if s.up else 1.0) if red is None else red
-    return Boat([PyVPPHydro(pv.HydroMod(yacht), righting), PyVPPSails(aero, red)], righting, settings)
+    return Boat([PyVPPHydro(pv.HydroMod(yacht), righting), PyVPPSails(aero, red, pv.FLAT_MIN)], righting, settings)
 
 
 def residual(pv: SimpleNamespace, b: Boat, w: Wind, V: float, heel: float, leeway: float, flat: float

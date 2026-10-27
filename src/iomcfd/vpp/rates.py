@@ -2,10 +2,11 @@
 
 Each perturbation modifies a built boat (or its spec) and the race is
 re-timed at the baseline's best-VMG points. At those points the true wind
-angle and `flat` are optimal, so to first order (the envelope theorem) only
-the boat speed has to be re-solved, at the same angle and flat; that keeps a
-rates run to a few solves per wind speed instead of a full VMG search.
-`check=True` re-optimises angle and flat as well, to test that shortcut.
+angle and the optimised control (the sails' `flat`) are optimal, so to first
+order (the envelope theorem) only the boat speed has to be re-solved, at the
+same angle and flat; that keeps a rates run to a few solves per wind speed
+instead of a full VMG search. `check=True` re-optimises angle and flat as
+well, to test that shortcut.
 """
 
 from __future__ import annotations
@@ -15,23 +16,9 @@ import math
 from dataclasses import dataclass, replace
 from typing import Callable
 
-from .components.base import Loads, State, Wind
+from .components.base import Loads, Perturbation, Scaled, State, Wind, scale_component, with_part  # noqa: F401
 from .race import Course, RaceRow, WindRange, boat_lengths, race, race_row, weighted
 from .solver import Attitude, Boat, best_vmg, solve_point
-
-
-@dataclass
-class Scaled:
-    """A component whose loads are multiplied by `factor`."""
-
-    base: object
-    factor: float
-
-    def __post_init__(self):
-        self.name, self.kind, self.attitude = self.base.name, self.base.kind, self.base.attitude
-
-    def loads(self, s: State, w: Wind) -> Loads:
-        return self.base.loads(s, w).scaled(self.factor)
 
 
 @dataclass
@@ -44,6 +31,7 @@ class ExtraDrag:
     name: str = "extra-drag"
     kind: str = "hydro"
     attitude: bool = False
+    controls: tuple = ()
 
     def loads(self, s: State, w: Wind) -> Loads:
         return Loads.at((self.x, 0.0, self.z), X=-self.D)
@@ -57,48 +45,6 @@ class RightingChange:
     def at(self, heel: float, M_ext: float = 0.0, Z_ext: float = 0.0) -> Attitude:
         a = self.base.at(heel, M_ext, Z_ext)
         return replace(a, rm=a.rm * self.factor)
-
-
-@dataclass
-class Perturbation:
-    name: str  # what changes, e.g. "drag +0.01 N"
-    apply: Callable[[Boat], Boat]
-    note: str = ""
-
-
-def _with(boat: Boat, name: str, fn) -> Boat:
-    b = copy.copy(boat)
-    b.components = [fn(c) if c.name == name else c for c in boat.components]
-    return b
-
-
-def scale_component(name: str, f: float) -> Callable[[Boat], Boat]:
-    return lambda b: _with(b, name, lambda c: Scaled(c, f))
-
-
-def scale_fields(name: str, f: float, *fields: str) -> Callable[[Boat], Boat]:
-    """Multiply list or scalar fields of a dataclass component (e.g. KeelFits k)."""
-
-    def fn(c):
-        kw = {}
-        for k in fields:
-            v = getattr(c, k)
-            kw[k] = [f * x for x in v] if isinstance(v, list) else f * v
-        return replace(c, **kw)
-
-    return lambda b: _with(b, name, fn)
-
-
-def keel_leeway(name: str, deg: float) -> Callable[[Boat], Boat]:
-    """The keel needs `deg` more leeway for the same side force (its lift
-    curve moved by −deg); for a Foil, its zero-lift angle."""
-
-    def fn(c):
-        if hasattr(c, "S0") and hasattr(c, "a"):
-            return replace(c, S0=[s0 - a * deg for s0, a in zip(c.S0, c.a)])
-        raise TypeError(f"{name}: no lift-curve offset for {type(c).__name__}")
-
-    return lambda b: _with(b, name, fn)
 
 
 def add_drag(D: float) -> Callable[[Boat], Boat]:
@@ -120,23 +66,15 @@ def scale_righting(f: float) -> Callable[[Boat], Boat]:
 
 
 def standard(boat: Boat, rebuild: Callable[[dict], Boat] | None = None) -> list[Perturbation]:
-    """The rates the plan asks for, as far as the boat's components allow.
-    `rebuild(overrides)` builds the boat from its spec with dotted-path
-    overrides, for changes of mass and its position."""
-    names = {c.name: c for c in boat.components}
-    out = [Perturbation("drag +0.01 N", add_drag(0.01), "constant drag at the hull"),
+    """A constant drag and RM_φ; each part's own rates (its force model's
+    perturbations(), e.g. the keel fits' D0, k, slope and leeway), else its
+    loads +1 %; and with `rebuild(overrides)` (the boat from its spec with
+    dotted-path overrides) the mass and its height."""
+    out = [Perturbation("drag +0.01 N", add_drag(0.01), "constant drag at the hull", dD=0.01),
            Perturbation("RM_φ +1 %", scale_righting(1.01))]
-    for n in ("hull", "sails", "rudder", "windage"):
-        if n in names:
-            out.append(Perturbation(f"{n} loads +1 %", scale_component(n, 1.01)))
-    k = names.get("keel")
-    if k is not None and hasattr(k, "k"):
-        out += [Perturbation("keel D0 +1 %", scale_fields("keel", 1.01, "D0_friction", "D0_pressure")),
-                Perturbation("keel k +1 % (T_eff −0.5 %)", scale_fields("keel", 1.01, "k")),
-                Perturbation("keel side slope +1 %", scale_fields("keel", 1.01, "a")),
-                Perturbation("keel leeway +1°", keel_leeway("keel", 1.0))]
-    elif k is not None:
-        out.append(Perturbation("keel loads +1 %", scale_component("keel", 1.01)))
+    for c in boat.components:
+        own = getattr(c, "perturbations", list)()
+        out += own or [Perturbation(f"{c.name} loads +1 %", scale_component(c.name, 1.01))]
     if rebuild is not None:
         out += [Perturbation("VCG −1 mm", lambda b: rebuild({"mass.vcg_shift": -0.001})),
                 Perturbation("mass +10 g at the CG", lambda b: rebuild({"mass.extra": 0.010}))]
@@ -165,7 +103,8 @@ def _retime(boat: Boat, course: Course, wind: WindRange, base: list[RaceRow], ch
     for r in base:
         pts = []
         for p in (r.up, r.down):
-            pts.append(solve_point(boat, Wind(r.tws, p.twa, wind.z_ref, wind.alpha), flat=p.flat, guess=p)
+            hold = {k.key: p.controls[k.key] for k in boat.controls("optimise") if k.key in p.controls}
+            pts.append(solve_point(boat, Wind(r.tws, p.twa, wind.z_ref, wind.alpha), hold=hold, guess=p)
                        if p.converged else p)
         out.append(race_row(course, r.tws, r.weight, *pts))
     return out
@@ -182,10 +121,9 @@ def rates(boat: Boat, course: Course, wind: WindRange, base: list[RaceRow], pert
         for r0, r1 in zip(base, rows):
             rate = Rate(pt.name, r0.tws, r1.t_up - r0.t_up, r1.t_down - r0.t_down, r1.t - r0.t,
                         100 * (r1.t - r0.t) / r0.t)
-            if pt.name.startswith("drag +"):
-                dD = float(pt.name.split("+")[1].split()[0])
-                rate.vdrdv_up = _vdrdv(dD, r0.up, r1.up)
-                rate.vdrdv_down = _vdrdv(dD, r0.down, r1.down)
+            if pt.dD is not None:
+                rate.vdrdv_up = _vdrdv(pt.dD, r0.up, r1.up)
+                rate.vdrdv_down = _vdrdv(pt.dD, r0.down, r1.down)
             out.append(rate)
         summary[pt.name] = 100 * (weighted(rows) - t0) / t0
     return out, summary

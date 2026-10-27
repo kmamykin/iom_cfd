@@ -109,15 +109,14 @@ def cmd_point(args) -> None:
 
     b = _built(args)
     t = time.time()
-    p = solve_point(b.boat, Wind(args.tws, args.twa, b.wind.z_ref, b.wind.alpha),
-                    flat=args.flat)
+    p = solve_point(b.boat, Wind(args.tws, args.twa, b.wind.z_ref, b.wind.alpha), hold=_sets(args.hold))
     print(f"solved in {time.time() - t:.2f} s")
     for k, v in p.row().items():
-        if not k.startswith(("X_", "Y_", "K_", "N_")):
+        if not k.startswith(("X_", "Y_", "Z_", "K_", "M_", "N_")):
             print(f"  {k}: {v:.4g}" if isinstance(v, float) else f"  {k}: {v}")
-    print("  component       X [N]     Y [N]    K [N·m]   N [N·m]")
+    print("  component       X [N]     Y [N]     Z [N]    K [N·m]   M [N·m]   N [N·m]")
     for name, ld in p.parts.items():
-        print(f"  {name:12s} {ld.X:9.4f} {ld.Y:9.4f} {ld.K:9.4f} {ld.N:9.4f}")
+        print(f"  {name:12s} {ld.X:9.4f} {ld.Y:9.4f} {ld.Z:9.4f} {ld.K:9.4f} {ld.M:9.4f} {ld.N:9.4f}")
 
 
 def cmd_compare(args) -> None:
@@ -173,7 +172,7 @@ def cmd_sweep(args) -> None:
         rows = _retime(b.boat, base.course, base.wind, rows0, check=args.full)
         t = weighted(rows)
         r = {**over, "dt_pct": 100 * (t - t0) / t0, "boat_lengths": boat_lengths(t - t0, t0, base.course),
-             "bulb_z_cg": b.info["bulb_z_cg"], "rm_30deg_Nm": b.info["rm_30deg_Nm"]}
+             **{k: v for k, v in b.info.items() if isinstance(v, (int, float))}}
         for x0, x1 in zip(rows0, rows):
             r[f"dt_pct_{x0.tws:g}"] = 100 * (x1.t - x0.t) / x0.t
         r["flags"] = " ".join(sorted({f for x in rows for p in (x.up, x.down) for f in p.flags}))
@@ -184,6 +183,13 @@ def cmd_sweep(args) -> None:
     print(f"wrote {out / 'sweep.csv'}")
 
 
+def cmd_export_table(args) -> None:
+    from . import keel3d
+
+    out = keel3d.export(args.run, _sets(args.select), args.out)
+    print(f"wrote {out}")
+
+
 def cmd_hydro(args) -> None:
     from .mass import check_rules
 
@@ -192,7 +198,7 @@ def cmd_hydro(args) -> None:
     for r in b.mass.to_rows():
         print(f"  {r}")
     print(" heel    RM N·m   GZ mm   sink mm   trim deg   wetted m²")
-    tab = b.boat.righting.table
+    tab = b.table
     for h in range(0, 61, 5):
         d = tab.at(float(h), 0.0)
         gz = d["rm"] / (b.mass.mass * 9.80665) * 1000
@@ -218,15 +224,23 @@ def add_parser(sub) -> None:
     q = boat_cmd("point", cmd_point, "one equilibrium with each component's forces")
     q.add_argument("--tws", type=float, required=True, help="m/s at the reference height")
     q.add_argument("--twa", type=float, required=True, help="deg from the course")
-    q.add_argument("--flat", type=float, help="hold flat (default: search)")
+    q.add_argument("--hold", action="append", metavar="KEY=VALUE",
+                   help="hold a control, e.g. sails.flat=0.8 or sails.set=1 (default: search)")
     q = boat_cmd("compare", cmd_compare, "race time of two boats (or one with --set-b changes)")
     q.add_argument("other", nargs="?", help="second boat file (default: the same with --set-b)")
     q.add_argument("--set-b", action="append", metavar="KEY=VALUE", help="override for boat B only")
     boat_cmd("hydro", cmd_hydro, "mass budget and righting moment against heel")
     q = boat_cmd("sweep", cmd_sweep, "race time of variants (e.g. CFD designs) against the boat file")
     q.add_argument("--vary", action="append", metavar="KEY=V1,V2,..",
-                   help="dotted path and values, e.g. keel.select.bulb_bottom=2,4,8 (repeat for a grid)")
+                   help="dotted path and values, e.g. components.keel.forces.args.table=a.csv,b.csv "
+                        "(repeat for a grid)")
     q.add_argument("--variant", action="append", metavar="K1=V1;K2=V2",
                    help="one variant: overrides separated by ';' (repeat; instead of --vary)")
     q.add_argument("--full", action="store_true", help="re-search angle and flat (default: the baseline's)")
     q.add_argument("--out", help="output directory")
+    q = vs.add_parser("export-table", help="a CFD run's results for one design as a VPP table (for a boat file)")
+    q.add_argument("tool", choices=["keel3d"])
+    q.add_argument("run", help="<study>@<run id> (in $IOMCFD_SOURCE_RUNS, then runs/) or a results.csv")
+    q.add_argument("--select", action="append", metavar="KEY=VALUE", help="the design's parameters (repeat)")
+    q.add_argument("--out", required=True, help="the table, e.g. boats/tables/<name>.csv")
+    q.set_defaults(func=cmd_export_table)

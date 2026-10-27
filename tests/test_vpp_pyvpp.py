@@ -67,14 +67,14 @@ class FakeAero:
 def test_mapping_solves_pyvpp_equilibrium():
     y = FakeYacht()
     hydro, aero, righting = FakeHydro(y), FakeAero(), pyvpp.PyVPPRighting(y)
-    b = Boat([pyvpp.PyVPPHydro(hydro, righting), pyvpp.PyVPPSails(aero, red=2.0)], righting,
-             Settings(yaw=False, flat_min=0.53))
+    b = Boat([pyvpp.PyVPPHydro(hydro, righting), pyvpp.PyVPPSails(aero, red=2.0, flat_min=0.53)], righting,
+             Settings(yaw=False))
     w = Wind(3.0, 45.0)
     p = solve_point(b, w)
     assert p.converged
     # VPPMod._equilibrium: Fxh − Fxa, Fyh − Fya, Mxh − Mxa all vanish at our solution
     Fxh, Fyh, Mxh = hydro.update(p.V, p.heel, p.leeway, w.twa, w.tws)
-    Fxa, Fya, Mxa = aero.update(p.V, p.heel, w.tws, w.twa, p.flat, 2.0)
+    Fxa, Fya, Mxa = aero.update(p.V, p.heel, w.tws, w.twa, p.controls["sails.flat"], 2.0)
     assert np.allclose([Fxh - Fxa, Fyh - Fya, Mxh - Mxa], 0.0, atol=1e-6)
     # base.py signs: drag aft, keel side force to windward and heeling (K_sf Rm4 − RmV > 0),
     # sail side force to leeward and heeling
@@ -129,7 +129,7 @@ class Case:
         return (f"{self.tws_kn:4.0f} {self.twa:5.0f} {self.sail:3} {t['red']:5.3f} | "
                 f"{t['V'] / KNOTS:6.3f} {t['heel']:6.2f} {t['leeway']:5.2f} {t['flat']:5.3f} | "
                 f"{x.V / KNOTS:6.3f} {x.heel:6.2f} {x.leeway:5.2f} {self.res_fixed:8.1e} {x.converged!s:5} "
-                f"{self.t_fixed:5.1f} | {f.V / KNOTS:6.3f} {f.heel:6.2f} {f.leeway:5.2f} {f.flat:5.3f} "
+                f"{self.t_fixed:5.1f} | {f.V / KNOTS:6.3f} {f.heel:6.2f} {f.leeway:5.2f} {f.controls['sails.flat']:5.3f} "
                 f"{self.res_free:8.1e} {f.converged!s:5} {self.t_free:5.1f} | {self.bound} {' '.join(f.flags)}")
 
 
@@ -169,13 +169,14 @@ def cases() -> list[Case]:
                     bound.append("leeway")
                 b = pyvpp.boat(pv, yacht, sail.name, red=red)
                 t0 = time.perf_counter()
-                fixed = solve_point(b, w, flat=flat)
+                fixed = solve_point(b, w, hold={"sails.flat": flat})
                 t1 = time.perf_counter()
                 free = solve_point(b, w)
                 t2 = time.perf_counter()
                 out.append(Case(tws_kn, twa, sail.name, theirs, " ".join(bound), fixed, free,
-                                pyvpp.residual(pv, b, w, fixed.V, fixed.heel, fixed.leeway, fixed.flat),
-                                pyvpp.residual(pv, b, w, free.V, free.heel, free.leeway, free.flat),
+                                pyvpp.residual(pv, b, w, fixed.V, fixed.heel, fixed.leeway,
+                                               fixed.controls["sails.flat"]),
+                                pyvpp.residual(pv, b, w, free.V, free.heel, free.leeway, free.controls["sails.flat"]),
                                 t1 - t0, t2 - t1))
     print(f"\nPython-VPP {t_theirs:.1f} s for {len(TWS_KN) * len(TWA)} points x {vpp.Nsails} sail sets\n"
           + _table(out))

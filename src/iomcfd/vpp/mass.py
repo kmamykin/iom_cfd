@@ -131,11 +131,18 @@ def _rule(clause: str, quantity: str, value: float, lo: float | None, hi: float 
 def check_rules(total_mass: float, keel_mass: float, draft: float) -> list[RuleResult]:
     """C.4.1 draft [m], C.4.2 total mass [kg] and C.6.4 keel mass [kg]. A
     value on a limit passes (to 1e-9, so a sum of parts at 2.5 kg does)."""
-    return [
-        _rule("C.4.1", "draft", draft, *DRAFT),
-        _rule("C.4.2", "total mass", total_mass, MIN_MASS, None),
-        _rule("C.6.4", "keel mass (fin + bulb)", keel_mass, *KEEL_MASS),
-    ]
+    k = keel_rules(keel_mass, draft)
+    return [k[0], mass_rule(total_mass), k[1]]
+
+
+def mass_rule(total_mass: float) -> RuleResult:
+    """C.4.2: the boat's total mass [kg]."""
+    return _rule("C.4.2", "total mass", total_mass, MIN_MASS, None)
+
+
+def keel_rules(keel_mass: float, draft: float) -> list[RuleResult]:
+    """C.4.1 draft [m] and C.6.4 keel mass [kg]."""
+    return [_rule("C.4.1", "draft", draft, *DRAFT), _rule("C.6.4", "keel mass (fin + bulb)", keel_mass, *KEEL_MASS)]
 
 
 def _section_centroid(section: str) -> float:
@@ -146,7 +153,8 @@ def _section_centroid(section: str) -> float:
     return float(((x + np.roll(x, -1)) * cross).sum() / (3.0 * cross.sum()))
 
 
-def keel_items(p: dict[str, Any], n: int = 201) -> tuple[list[MassItem], list[tuple[float, np.ndarray]]]:
+def keel_items(p: dict[str, Any], n: int = 201, z_root: float | None = None
+               ) -> tuple[list[MassItem], list[tuple[float, np.ndarray]]]:
     """Mass items and displaced volumes of the keel from a keel3d-style
     parameter dict (projects/keel3d/defaults.yaml), via `keel_geometry`.
 
@@ -163,7 +171,7 @@ def keel_items(p: dict[str, Any], n: int = 201) -> tuple[list[MassItem], list[tu
     nearer half chord), and the fin's 120 g also covers the parts inside
     the hull and the bulb, which are ignored here.
     """
-    g = keel_geometry(p)
+    g = keel_geometry(p, z_root=z_root)
     span, root, tip = g["fin_span"], g["fin_root_chord"], g["fin_tip_chord"]
     eta = np.linspace(0.0, 1.0, n)  # 0 at the root, 1 at the tip
     c = root + (tip - root) * eta

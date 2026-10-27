@@ -27,8 +27,10 @@ def bulb_spec(p: dict[str, Any], length: float, x_cg: float, z_axis: float) -> a
                            cant=float(p["bulb_cant"]))
 
 
-def keel_geometry(p: dict[str, Any]) -> dict[str, Any]:
-    """Sizes of hull, fin and bulb from the study parameters (upright boat)."""
+def keel_geometry(p: dict[str, Any], z_root: float | None = None) -> dict[str, Any]:
+    """Sizes of hull, fin and bulb from the study parameters (upright boat).
+    `z_root`: the hull's bottom at the fin's root quarter chord [m] (default:
+    the canoe body of the hull_* parameters there)."""
     bulb_mass = float(p["keel_mass"]) - float(p["fin_mass"])
     bulb_volume = bulb_mass / float(p["lead_density"])
     _, _, d_over_l = ap.foil_body_coefficients(p["bulb_section"])
@@ -38,7 +40,8 @@ def keel_geometry(p: dict[str, Any]) -> dict[str, Any]:
         float(p["bulb_aspect"]), float(p["bulb_top"]), float(p["bulb_bottom"])))
 
     hull = hull_spec(p)
-    z_root = -float(hulls.canoe_depth(hull, float(p["fin_x"])))  # hull bottom at the root quarter chord
+    if z_root is None:
+        z_root = -float(hulls.canoe_depth(hull, float(p["fin_x"])))  # hull bottom at the root quarter chord
     sweep = math.tan(math.radians(float(p["fin_sweep"])))
     # The bulb's lowest point is at the draft (with cant, the tail's), its
     # centre of mass under the fin's quarter chord at the bulb (plus bulb_x).

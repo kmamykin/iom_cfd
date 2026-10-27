@@ -11,59 +11,73 @@ description: >
 water: {temperature: 15.0}
 air: {temperature: 15.0}
 
-hull:
-  geometry: canoe                 # canoe (CanoeSpec) | file:<path.stl> (stl_scale, stl_rotate, stl_translate)
-  params: {}                      # CanoeSpec fields; empty = keel3d's defaults (hull_* in keel.params win)
-  form_factor: 0.10               # (1 + k) - 1; methodology.md uses ITTC-57 x 1.10
-  cf_factor: 1.0                  # < 1 brackets a laminar run (surface-roughness.md: up to -41 %)
-  waves: michell                  # michell | none
-  side_force: auto                # auto: off when the keel model already holds the hull's side force (keel3d)
+# Parts: each a shape (class + args: geometry, mass, buoyancy, where it
+# mounts) and a force model (forces: class + args); "." = iomcfd.vpp.components.
+# controls: override a part's controls (role balance | optimise | choice |
+# hold, or {default, lo, hi, options}). Any entry by its dotted path, e.g.
+# --set components.rudder.args.span=0.21. Another design = another boat file
+# (or vpp compare --set-b), e.g. a keel3d design as its own table.
+components:
+  hull:
+    class: .hull.CanoeHull
+    args:
+      params: {}                  # CanoeSpec fields (geometry/hulls.py); empty = keel3d's canoe body
+    forces:
+      class: .hull.IttcMichell
+      args:
+        form_factor: 0.10         # (1 + k) - 1; methodology.md uses ITTC-57 x 1.10
+        cf_factor: 1.0            # < 1 brackets a laminar run (surface-roughness.md: up to -41 %)
+        waves: michell            # michell | none
+        side_force: auto          # auto: off when another part's loads hold it (keel3d's double body)
 
-keel:
-  model: keel3d                   # keel3d (CFD fits) | foil (lifting line, rung 0)
-  # keel3d-style parameters (projects/keel3d/defaults.yaml): geometry and mass of fin and bulb
-  params: {fin_section: naca0007, fin_mean_chord: 0.09, fin_taper: 0.8, bulb_section: naca0011}
-  # CFD fits: a keel3d run (<study>@<run id>, looked up in $IOMCFD_SOURCE_RUNS
-  # then runs/; or a path to its results.csv) and the design to take from it
-  results: bulb-section@20261019-203823
-  select: {fin_taper: 0.8, bulb_section: naca0011, bulb_aspect: 1.0, bulb_top: 2.0, bulb_bottom: 2.0, mesh: medium}
-  max_leeway: 4.0
-  friction_factor: {fin: 1.0, bulb: 1.0}   # bulb-section's transition correction would be {fin: 0.80, bulb: 0.52}
-  # Another fin section on the keel3d keel: 2D foil2d polars (100 mm chord, custom-section study)
-  # applied as the change in profile drag and angle at equal fin lift (components/section.py).
-  # foil = reference: no change. E.g. --set keel.section.foil=file:ht35-t0725.dat
-  section:
-    foil: naca0007
-    reference: naca0007           # the keel3d run's fin section
-    tu: 0.1                       # % : which polars
-    polars:
-      "0.1":                      # steady screen, time-accurate 2-5 deg replacing it (as custom-section.md)
-        base: [site/data/custom-steady.csv]
-        replace: [site/data/custom-transient.csv, site/data/custom-transient-15.csv,
-                  site/data/custom-transient-rerun.csv, site/data/custom-0007-rest.csv]
-      "1": {base: [site/data/custom-tu.csv]}   # steady
-      "2": {base: [site/data/custom-tu.csv]}   # steady
-  e: 0.9                          # foil model only
+  keel:
+    class: .keel.ParametricKeel   # keel3d's parametric fin and bulb (projects/keel3d/defaults.yaml)
+    mount: {host: hull, x: 0.50}    # fin quarter chord at the root, m aft of the bow
+    args:
+      draft: 0.42                 # m, waterline to the bulb bottom (C.4.1)
+      mass: 2.5                   # kg, fin + bulb (C.6.4)
+      fin: {section: naca0007, root_chord: 0.100, tip_chord: 0.080, sweep: 0.0, mass: 0.120}
+      bulb: {section: naca0011, aspect: 1.0, top: 2.0, bottom: 2.0, cant: 0.0, x: 0.0, density: 11340}
+    forces:
+      class: .keel.PolarFit       # keel3d CFD fits; .keel.FinAndBulb = lifting line, no CFD (rung 0)
+      args:
+        # keel3d bulb-section@20261019-203823, round bulb, medium mesh:
+        # iomcfd vpp export-table keel3d bulb-section@20261019-203823 --select fin_taper=0.8
+        #   --select bulb_section=naca0011 --select bulb_aspect=1.0 --select bulb_top=2.0
+        #   --select bulb_bottom=2.0 --select mesh=medium --out boats/tables/keel-round-bulb.csv
+        table: tables/keel-round-bulb.csv
+        max_leeway: 4.0
+        friction_factor: {fin: 1.0, bulb: 1.0}   # bulb-section's transition correction would be {fin: 0.80, bulb: 0.52}
 
-rudder:                           # appendage3d defaults
-  section: naca0008
-  root_chord: 0.085
-  tip_chord: 0.060
-  span: 0.20
-  x: 0.86                         # root leading edge, m aft of the bow
-  e: 0.9
-  downwash: 1.0                   # fraction of the keel's elliptic far-field downwash ε = 2 C_L / (π A)
+  rudder:                         # appendage3d defaults
+    class: .foils.ParametricFoil
+    mount: {host: hull, x: 0.86}    # root leading edge, m aft of the bow
+    args: {section: naca0008, root_chord: 0.085, tip_chord: 0.060, span: 0.20}
+    forces:
+      class: .foils.LiftingLine
+      args:
+        e: 0.9
+        downwash: {from: keel, factor: 1.0}   # fraction of the keel's elliptic far-field downwash ε = 2 C_L / (π A)
+    controls: {angle: balance}    # δ_R closes the yaw balance (held at 0 with solver.yaw false)
 
-rig:
-  rig: iom_a
-  sails: orc2026                  # ORC VPP Documentation 2026 coefficients (full scale; not to be published)
-  level: low                      # ORC coefficient set
-  mast_x: 0.40
-  deck: 0.06
+  sails:
+    class: .sails.Rig
+    args: {rig: iom_a, mast_x: 0.40, deck: 0.06}
+    forces:
+      class: .sails.OrcSails      # ORC VPP Documentation 2026 coefficients (full scale; not to be published)
+      args:
+        level: low                # ORC coefficient set
+        sets: {upwind: 0.0, downwind: 60.0}   # set: lowest β_TW; ORC's jib downwind set (goose-winged jib) from 60°
+    controls:
+      flat: {lo: 0.53}            # ORC FLAT_MIN (§5.1.3)
 
-windage:                          # topsides after ORC Table 5.12 (C_D 0.816 on freeboard x beam / x length)
-  freeboard: 0.06                 # m, mean (default: the canoe body's)
-  x: 0.5
+  windage:                        # topsides after ORC Table 5.12 (C_D 0.816 on freeboard x beam / x length)
+    shape: hull
+    forces:
+      class: .windage.OrcWindage
+      args:
+        freeboard: 0.06           # m, mean (default: the hull's)
+        x: 0.5
 
 mass:                             # PLACEHOLDER component masses and centres (boat frame, m)
   items:
@@ -96,10 +110,9 @@ course:                           # PLACEHOLDER race settings
   gybe_s: 2.0
 
 solver:
-  yaw: true
-  flat_min: 0.53                  # ORC FLAT_MIN (§5.1.3)
+  yaw: true                       # solve the yaw balance with the balance control (the rudder)
+  optimise: true                  # search the optimised control (the sails' flat)
   heel_max: 70.0
-  jib_downwind: true              # also try ORC's jib downwind set (goose-winged jib) from β_TW 60°
 
 polar:
   twa: [30, 35, 40, 45, 50, 60, 75, 90, 105, 120, 135, 150, 165, 180]

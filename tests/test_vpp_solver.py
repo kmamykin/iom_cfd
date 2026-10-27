@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from iomcfd.vpp import frames
-from iomcfd.vpp.components.base import Loads, State, Wind
+from iomcfd.vpp.components.base import Control, Loads, Scaled, State, Wind
 from iomcfd.vpp.race import Course, WindRange, boat_lengths, race_row, weighted
 from iomcfd.vpp.solver import Boat, Point, Settings, SineRighting, best_vmg, evaluate, solve_point
 
@@ -120,14 +120,16 @@ class ToyRudder:
     name: str = "rudder"
     kind: str = "hydro"
     attitude: bool = False
+    controls: tuple = (Control("angle", "balance"),)
 
     def loads(self, st: State, w: Wind) -> Loads:
-        return Loads.at(frames.heeled_point(self.x, 0.0, self.z, st.heel), Y=self.r * st.V**2 * st.rudder)
+        return Loads.at(frames.heeled_point(self.x, 0.0, self.z, st.heel),
+                        Y=self.r * st.V**2 * st.controls["rudder.angle"])
 
 
 def toy_boat(yaw: bool, **sails) -> Boat:
     return Boat([ConstSails(**sails), ToyHull(), ToyRudder()], SineRighting(10.0),
-                Settings(yaw=yaw, optimise_flat=False))
+                Settings(yaw=yaw, optimise=False))
 
 
 def test_toy_without_yaw_matches_closed_form():
@@ -156,13 +158,13 @@ def test_toy_with_yaw_matches_closed_form():
     assert zs > 0
     assert math.radians(p.heel) == pytest.approx(phi, abs=1e-7)
     assert p.leeway == pytest.approx(yh / V**2, rel=1e-6)
-    assert p.rudder == pytest.approx(yr / (0.4 * V**2), rel=1e-6)
+    assert p.controls["rudder.angle"] == pytest.approx(yr / (0.4 * V**2), rel=1e-6)
 
 
 def test_balances_hold_at_the_solution():
     b = toy_boat(yaw=True)
     p = solve_point(b, Wind(3.0, 45.0))
-    total, _, att, _ = evaluate(b, State(p.V, p.heel, p.leeway, p.rudder), Wind(3.0, 45.0))
+    total, _, att, _ = evaluate(b, State(p.V, p.heel, p.leeway, p.controls), Wind(3.0, 45.0))
     assert abs(total.X) < 1e-6 and abs(total.Y) < 1e-6 and abs(total.N) < 1e-6
     assert total.K == pytest.approx(att.rm, abs=1e-6)
 
@@ -187,8 +189,15 @@ class FlatSails(ConstSails):
     """Thrust and side force scale with flat; side force with flat² (a
     flatter sail loses heeling force faster than drive)."""
 
+    flat_min: float = 0.5
+
+    @property
+    def controls(self) -> tuple:
+        return (Control("flat", "optimise", 1.0, lo=self.flat_min, hi=1.0),)
+
     def loads(self, s: State, w: Wind) -> Loads:
-        T, S = self.T0 * s.flat, self.S0 * s.flat**2
+        f = s.controls["sails.flat"]
+        T, S = self.T0 * f, self.S0 * f**2
         return Loads.at((self.x_ce, -self.h * math.sin(math.radians(s.heel)), self.h * math.cos(math.radians(s.heel))),
                         X=T, Y=-S)
 
@@ -196,11 +205,12 @@ class FlatSails(ConstSails):
 def test_flat_search_finds_an_interior_optimum():
     # V² = T0 f / (d (1 + 8 φ²)) with tan φ = 9 f² / 4: best near f = 0.28
     hull = ToyHull(s=20.0, heel_drag=8.0)
-    b = Boat([FlatSails(S0=9.0), hull, ToyRudder()], SineRighting(4.0), Settings(yaw=False, flat_min=0.1))
+    b = Boat([FlatSails(S0=9.0, flat_min=0.1), hull, ToyRudder()], SineRighting(4.0), Settings(yaw=False))
     p = solve_point(b, Wind(3.0, 45.0))
-    assert p.converged and 0.2 < p.flat < 0.4
-    for f in (p.flat - 0.03, p.flat + 0.03, 1.0):
-        q = solve_point(b, Wind(3.0, 45.0), flat=min(f, 1.0))
+    flat = p.controls["sails.flat"]
+    assert p.converged and 0.2 < flat < 0.4
+    for f in (flat - 0.03, flat + 0.03, 1.0):
+        q = solve_point(b, Wind(3.0, 45.0), hold={"sails.flat": min(f, 1.0)})
         assert q.V <= p.V + 1e-6
 
 
@@ -235,22 +245,10 @@ def test_wind_range_uniform_and_histogram(tmp_path):
 # --- robustness (found with stand-ins for Python-VPP's YD-41) ----------------
 
 
-@dataclass
-class Scaled:
-    base: object
-    f: float
-
-    def __post_init__(self):
-        self.name, self.kind, self.attitude = self.base.name, self.base.kind, self.base.attitude
-
-    def loads(self, s, w):
-        return self.base.loads(s, w).scaled(self.f)
-
-
 def test_tolerances_scale_with_the_boat():
     # a boat 1000 times as forceful: same speed, still converged
     b = Boat([Scaled(c, 1e3) for c in (ConstSails(), ToyHull(), ToyRudder())], SineRighting(1e4),
-             Settings(yaw=True, optimise_flat=False))
+             Settings(yaw=True, optimise=False))
     p = solve_point(b, Wind(3.0, 45.0))
     assert p.converged
     assert p.V == pytest.approx(1.0, rel=1e-8)
@@ -279,7 +277,24 @@ class CappedRighting:
 def test_flat_search_when_full_power_cannot_balance():
     # 9 f² cos φ = 10 sin φ cos² φ needs f² <= 5/9: flat 1 has no balance; the fastest
     # (thrust ∝ f, no heel drag) is the stability limit, f = 0.745
-    b = Boat([FlatSails(S0=9.0), ToyHull(s=20.0), ToyRudder()], CappedRighting(10.0),
-             Settings(yaw=False, flat_min=0.3))
+    b = Boat([FlatSails(S0=9.0, flat_min=0.3), ToyHull(s=20.0), ToyRudder()], CappedRighting(10.0),
+             Settings(yaw=False))
     p = solve_point(b, Wind(3.0, 45.0))
-    assert p.converged and 0.70 < p.flat < math.sqrt(5 / 9) + 1e-6
+    assert p.converged and 0.70 < p.controls["sails.flat"] < math.sqrt(5 / 9) + 1e-6
+
+
+# --- controls -----------------------------------------------------------------
+
+
+def test_controls_are_keyed_by_part_and_held_when_yaw_is_off():
+    b = toy_boat(yaw=False)
+    assert [(k.key, k.role) for k in b.controls()] == [("rudder.angle", "balance")]
+    p = solve_point(b, Wind(3.0, 45.0))
+    assert p.controls == {"rudder.angle": 0.0}  # the balance control's default
+    assert list(p.row())[:6] == ["tws", "twa", "V", "heel", "leeway", "rudder.angle"]
+
+
+def test_one_control_per_role():
+    b = Boat([FlatSails(), FlatSails(name="jib"), ToyHull()], SineRighting(10.0), Settings(yaw=False))
+    with pytest.raises(NotImplementedError):
+        solve_point(b, Wind(3.0, 45.0))

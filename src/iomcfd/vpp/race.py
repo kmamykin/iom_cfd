@@ -67,8 +67,9 @@ class RaceRow:
     def row(self) -> dict:
         return {"tws": self.tws, "weight": self.weight,
                 "twa_up": self.up.twa, "V_up": self.up.V, "vmg_up": self.up.vmg, "heel_up": self.up.heel,
-                "leeway_up": self.up.leeway, "flat_up": self.up.flat,
+                "leeway_up": self.up.leeway, **{f"{k}_up": v for k, v in self.up.controls.items()},
                 "twa_down": self.down.twa, "V_down": self.down.V, "vmg_down": -self.down.vmg,
+                **{f"{k}_down": v for k, v in self.down.controls.items()},
                 "t_up_s": self.t_up, "t_down_s": self.t_down, "t_s": self.t,
                 "flags_up": " ".join(self.up.flags), "flags_down": " ".join(self.down.flags)}
 

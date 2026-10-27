@@ -3,27 +3,30 @@ forces balance (docs/nomenclature.md, balance equations; port tack).
 
 Nested, so that every point is well defined and a failure stays local:
 
-1. inner: for a boat speed V_b and sail trim, solve
+1. inner: for a boat speed V_b and the held controls, solve
    ΣY = 0 (S_a = S_h), ΣK = RM_φ (roll) and ΣN = 0 (yaw) for heel φ,
-   leeway β_Y and rudder angle δ_R; sinkage and trim follow from the
-   hydrostatics at each evaluation;
+   leeway β_Y and the part's balance control (the rudder angle δ_R);
+   sinkage and trim follow from the hydrostatics at each evaluation;
 2. middle: the V_b where the drive surplus ΣX = T_a − D_h is zero;
-3. outer: the trim (`flat`) that gives the greatest V_b.
+3. outer: the optimised control (the sails' `flat`) that gives the
+   greatest V_b, for each allowed option of the choice control (sail set).
 
-With `yaw=False` the rudder is held at `rudder` and the yaw balance is
-dropped (ORC style: "the yaw moment balance is ignored").
+The solver knows only the roles of the controls the parts declare
+(components/base.py), at most one of each. With `yaw=False`, or no balance
+control, the yaw balance is dropped (ORC style: "the yaw moment balance is
+ignored") and the balance control is held at its default.
 """
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Protocol
 
 import numpy as np
 from scipy.optimize import brentq, minimize_scalar, root
 
-from .components.base import Component, Loads, State, Wind
+from .components.base import Component, Control, Loads, State, Wind
 
 
 @dataclass
@@ -54,17 +57,14 @@ class SineRighting:
 
 @dataclass
 class Settings:
-    yaw: bool = True  # solve the yaw balance with the rudder
-    rudder: float = 0.0  # δ_R when yaw is False [deg]
-    flat_min: float = 0.5  # lowest flat the outer search may use
-    optimise_flat: bool = True
+    yaw: bool = True  # solve the yaw balance with the balance control
+    optimise: bool = True  # search the optimised control (else hold it at its default)
     heel_max: float = 70.0  # beyond this the point is flagged
     leeway_max: float = 15.0  # an inner solution beyond this is rejected
     V_min: float = 0.02
     V_max: float = 6.0
     tol: float = 1e-8  # balance residual relative to the boat's force and moment scale
     attitude_passes: int = 2  # fixed-point passes between hull loads and trim
-    sailsets: tuple = ((0, 0.0),)  # (sail set, lowest β_TW it may be used at); the faster one is kept
 
 
 @dataclass
@@ -76,6 +76,18 @@ class Boat:
     def component(self, name: str) -> Component:
         return next(c for c in self.components if c.name == name)
 
+    def controls(self, role: str | None = None) -> list[Control]:
+        """The parts' controls with their keys, in part order."""
+        out = [replace(k, key=f"{c.name}.{k.name}") for c in self.components for k in getattr(c, "controls", ())]
+        return [k for k in out if role is None or k.role == role]
+
+    def control(self, role: str) -> Control | None:
+        """The one control of this role, if any."""
+        ks = self.controls(role)
+        if len(ks) > 1:
+            raise NotImplementedError(f"more than one {role} control: {[k.key for k in ks]}")
+        return ks[0] if ks else None
+
 
 @dataclass
 class Point:
@@ -84,10 +96,7 @@ class Point:
     V: float = math.nan
     heel: float = math.nan
     leeway: float = math.nan
-    rudder: float = math.nan
-    flat: float = math.nan
-    twist: float = 0.0
-    sailset: int = 0
+    controls: dict[str, float] = field(default_factory=dict)
     sink: float = math.nan
     trim: float = math.nan
     rm: float = math.nan
@@ -102,12 +111,14 @@ class Point:
         return self.V * math.cos(math.radians(self.twa))
 
     def row(self) -> dict:
-        r = {k: getattr(self, k) for k in ("tws", "twa", "V", "heel", "leeway", "rudder", "flat", "twist", "sailset",
-                                           "sink", "trim", "rm", "residual", "converged", "extrapolated")}
+        r = {k: getattr(self, k) for k in ("tws", "twa", "V", "heel", "leeway")}
+        r.update(self.controls)
+        r.update({k: getattr(self, k) for k in ("sink", "trim", "rm", "residual", "converged", "extrapolated")})
         r["vmg"] = self.vmg
         r["flags"] = " ".join(self.flags)
         for name, ld in self.parts.items():
-            r[f"X_{name}"], r[f"Y_{name}"], r[f"K_{name}"], r[f"N_{name}"] = ld.X, ld.Y, ld.K, ld.N
+            for q in "XYZKMN":
+                r[f"{q}_{name}"] = getattr(ld, q)
             for k, v in ld.info.items():
                 if isinstance(v, (int, float)):
                     r[f"{name}_{k}"] = v
@@ -119,8 +130,7 @@ class Point:
 
 
 def _afloat(s: State, att: Attitude) -> State:
-    return s.but(sink=att.sink, trim=att.trim, wetted=att.info.get("wetted_area", math.nan),
-                 lwl=att.info.get("lwl", math.nan))
+    return s.but(sink=att.sink, trim=att.trim, hydro=att.info)
 
 
 def evaluate(boat: Boat, s: State, w: Wind) -> tuple[Loads, dict[str, Loads], Attitude, State]:
@@ -147,12 +157,23 @@ def evaluate(boat: Boat, s: State, w: Wind) -> tuple[Loads, dict[str, Loads], At
     return total, parts, att, s1
 
 
-def _balance(boat: Boat, w: Wind, V: float, flat: float, twist: float, sailset: int, x) -> np.ndarray:
-    heel, leeway = float(x[0]), float(x[1])
-    rudder = float(x[2]) if boat.settings.yaw else boat.settings.rudder
-    total, _, att, _ = evaluate(boat, State(V, heel, leeway, rudder, flat, twist, sailset), w)
+def _yaw(boat: Boat) -> Control | None:
+    """The control that closes the yaw balance, if it is solved."""
+    return boat.control("balance") if boat.settings.yaw else None
+
+
+def _state(V: float, x, fixed: dict[str, float], bal: Control | None) -> State:
+    """State at V for unknowns x = [heel, leeway(, balance control)]."""
+    c = dict(fixed)
+    if bal is not None:
+        c[bal.key] = float(x[2])
+    return State(V, float(x[0]), float(x[1]), c)
+
+
+def _balance(boat: Boat, w: Wind, V: float, fixed: dict[str, float], bal: Control | None, x) -> np.ndarray:
+    total, _, att, _ = evaluate(boat, _state(V, x, fixed, bal), w)
     r = [total.Y, total.K - att.rm]
-    if boat.settings.yaw:
+    if bal is not None:
         r.append(total.N)
     return np.asarray(r)
 
@@ -175,13 +196,15 @@ def _scale(parts: dict[str, Loads], att: Attitude) -> float:
     return max(1.0, sum(abs(v.Y) for v in parts.values()), sum(abs(v.K) for v in parts.values()), abs(att.rm))
 
 
-def solve_inner(boat: Boat, w: Wind, V: float, flat: float, twist: float = 0.0, x0=None, sailset: int = 0) -> Inner:
-    """Heel, leeway (and rudder) balancing side force, roll (and yaw) at V."""
+def solve_inner(boat: Boat, w: Wind, V: float, fixed: dict[str, float], x0=None) -> Inner:
+    """Heel, leeway (and the balance control) balancing side force, roll
+    (and yaw) at V, with the other controls at `fixed`."""
     st = boat.settings
-    n = 3 if st.yaw else 2
+    bal = _yaw(boat)
+    n = 3 if bal is not None else 2
     starts = [] if x0 is None else [np.asarray(x0, float)[:n]]
     starts += [np.array([h, b, 0.0][:n]) for h, b in ((10.0, 3.0), (25.0, 4.0), (2.0, 1.0), (40.0, 6.0))]
-    _, parts0, att0, _ = evaluate(boat, State(V, *[float(v) for v in starts[0][:2]], 0.0, flat, twist, sailset), w)
+    _, parts0, att0, _ = evaluate(boat, _state(V, [*starts[0][:2], 0.0], fixed, bal), w)
     tol = st.tol * _scale(parts0, att0)
 
     def good(x, rnorm):
@@ -190,11 +213,11 @@ def solve_inner(boat: Boat, w: Wind, V: float, flat: float, twist: float = 0.0, 
     best = None
     for xs in starts:
         try:
-            sol = root(lambda x: _balance(boat, w, V, flat, twist, sailset, x), xs, method="hybr")
+            sol = root(lambda x: _balance(boat, w, V, fixed, bal, x), xs, method="hybr")
         except (ValueError, FloatingPointError):
             continue
         x = sol.x
-        res = _balance(boat, w, V, flat, twist, sailset, x)
+        res = _balance(boat, w, V, fixed, bal, x)
         rnorm = float(np.max(np.abs(res))) if np.all(np.isfinite(res)) else math.inf
         if good(x, rnorm):
             best = (x, rnorm)
@@ -205,26 +228,24 @@ def solve_inner(boat: Boat, w: Wind, V: float, flat: float, twist: float = 0.0, 
         return Inner(np.full(n, math.nan), False, math.nan)
     x, rnorm = best
     ok = good(x, rnorm)
-    rudder = float(x[2]) if st.yaw else st.rudder
-    s = State(V, float(x[0]), float(x[1]), rudder, flat, twist, sailset)
-    total, parts, att, s1 = evaluate(boat, s, w)
+    total, parts, att, s1 = evaluate(boat, _state(V, x, fixed, bal), w)
     sc = _scale(parts, att)
     return Inner(x, ok, total.X if ok else math.nan, total, parts, att, s1, rnorm / sc, sc)
 
 
-def solve_speed(boat: Boat, w: Wind, flat: float, twist: float = 0.0, V0: float | None = None, x0=None,
-                sailset: int = 0) -> tuple[float, Inner | None]:
-    """The V_b at which the drive surplus vanishes, for fixed trim; nan if
-    there is none in [V_min, V_max]. Steps up and down from V0 by 20 % until
-    two neighbouring balanced speeds bracket a sign change of the surplus
-    (from + to −; the fastest such pair), then refines with Brent."""
+def solve_speed(boat: Boat, w: Wind, fixed: dict[str, float], V0: float | None = None, x0=None
+                ) -> tuple[float, Inner | None]:
+    """The V_b at which the drive surplus vanishes, for fixed controls; nan
+    if there is none in [V_min, V_max]. Steps up and down from V0 by 20 %
+    until two neighbouring balanced speeds bracket a sign change of the
+    surplus (from + to −; the fastest such pair), then refines with Brent."""
     st = boat.settings
     cache: dict[float, Inner] = {}
     guess = [x0]
 
     def g(V: float) -> float:
         if V not in cache:
-            inn = solve_inner(boat, w, V, flat, twist, guess[0], sailset)
+            inn = solve_inner(boat, w, V, fixed, guess[0])
             if inn.ok:
                 guess[0] = inn.x
             cache[V] = inn
@@ -262,74 +283,90 @@ def solve_speed(boat: Boat, w: Wind, flat: float, twist: float = 0.0, V0: float 
         Vr = brentq(gf, lo, hi, xtol=1e-9, rtol=1e-12)
     except ValueError:
         return math.nan, None
-    inn = cache.get(Vr) or solve_inner(boat, w, Vr, flat, twist, guess[0], sailset)
+    inn = cache.get(Vr) or solve_inner(boat, w, Vr, fixed, guess[0])
     return Vr, inn
 
 
-def solve_point(boat: Boat, w: Wind, flat: float | None = None, twist: float = 0.0, guess: Point | None = None,
-                sailset: int | None = None) -> Point:
-    """The fastest balanced state for wind w. flat=None searches flat in
-    [flat_min, 1] (when settings.optimise_flat), else holds it. Every sail set
-    allowed at this β_TW is tried (or only `sailset`) and the fastest kept."""
-    sets = [s for s, a_min in boat.settings.sailsets if w.twa >= a_min - 1e-9] if sailset is None else [sailset]
+def solve_point(boat: Boat, w: Wind, hold: dict[str, float] | None = None, guess: Point | None = None) -> Point:
+    """The fastest balanced state for wind w. The optimised control is
+    searched between its bounds (when settings.optimise), and every option
+    of the choice control allowed at this β_TW is tried and the fastest
+    kept; `hold` {key: value} holds either instead."""
+    hold = dict(hold or {})
+    ch = boat.control("choice")
+    if ch is None:
+        return _solve_point_set(boat, w, hold, guess)
+    if ch.key in hold:
+        sets = [hold[ch.key]]
+    else:
+        sets = [v for v, a_min in ch.options if w.twa >= a_min - 1e-9]
     best = None
-    for k in sets or [0]:
-        p = _solve_point_set(boat, w, flat, twist, guess, k)
+    for k in sets or [ch.default]:
+        p = _solve_point_set(boat, w, {**hold, ch.key: float(k)}, guess)
         if best is None or (p.converged and (not best.converged or p.V > best.V)):
             best = p
     return best
 
 
-def _solve_point_set(boat: Boat, w: Wind, flat: float | None, twist: float, guess: Point | None, sailset: int
-                     ) -> Point:
+def _solve_point_set(boat: Boat, w: Wind, hold: dict[str, float], guess: Point | None) -> Point:
     st = boat.settings
+    bal, opt = _yaw(boat), boat.control("optimise")
+    fixed = {k.key: k.default for k in boat.controls() if bal is None or k.key != bal.key}
+    fixed.update(hold)
     V0 = guess.V if guess and math.isfinite(guess.V) else None
     x0 = None
     if guess and math.isfinite(guess.heel):
-        x0 = [guess.heel, guess.leeway, guess.rudder if math.isfinite(guess.rudder) else 0.0]
+        r = guess.controls.get(bal.key, math.nan) if bal is not None else math.nan
+        x0 = [guess.heel, guess.leeway, r if math.isfinite(r) else 0.0]
     memo: dict[float, tuple[float, Inner | None]] = {}
 
     def speed(f: float) -> float:
         f = round(float(f), 6)
         if f not in memo:
-            memo[f] = solve_speed(boat, w, f, twist, V0, x0, sailset)
+            memo[f] = solve_speed(boat, w, fixed if opt is None else {**fixed, opt.key: f}, V0, x0)
         return memo[f][0]
 
-    if flat is not None or not st.optimise_flat:
-        f_best = 1.0 if flat is None else float(flat)
+    if opt is None:
+        f_best = 0.0
+    elif opt.key in hold or not st.optimise:
+        f_best = float(fixed[opt.key])
     else:
-        v1, v2 = speed(1.0), speed(0.98)
+        v1, v2 = speed(opt.hi), speed(opt.hi - 0.02)
         if not math.isfinite(v1) or (math.isfinite(v2) and v2 > v1):
-            # coarse scan (flat 1 may have no balance at all), then refine around the best
-            grid = np.linspace(st.flat_min, 1.0, 6)
+            # coarse scan (the top of the range may have no balance at all), then refine around the best
+            grid = np.linspace(opt.lo, opt.hi, 6)
             vals = [speed(f) for f in grid]
             ok = [i for i, v in enumerate(vals) if math.isfinite(v)]
             if not ok:
-                f_best = 1.0
+                f_best = opt.hi
             else:
                 i = max(ok, key=lambda j: vals[j])
                 lo, hi = grid[max(i - 1, 0)], grid[min(i + 1, len(grid) - 1)]
                 r = minimize_scalar(lambda f: -speed(f) if math.isfinite(speed(f)) else 0.0,
                                     bounds=(lo, hi), method="bounded", options={"xatol": 1e-3})
-                cands = [(speed(f), f) for f in (float(r.x), float(grid[i]), 1.0) if math.isfinite(speed(f))]
+                cands = [(speed(f), f) for f in (float(r.x), float(grid[i]), opt.hi) if math.isfinite(speed(f))]
                 f_best = max(cands)[1]
         else:
-            f_best = 1.0
+            f_best = opt.hi
     V = speed(f_best)
-    p = Point(w.tws, w.twa, flat=f_best, twist=twist, sailset=sailset)
+    p = Point(w.tws, w.twa)
     inn = memo[round(f_best, 6)][1]
+    if opt is not None:
+        fixed = {**fixed, opt.key: f_best}
+    p.controls = {k.key: fixed.get(k.key, math.nan) for k in boat.controls()}
     if not math.isfinite(V) or inn is None or not inn.ok:
         p.flags.append("no-equilibrium")
         return p
     s = inn.state
-    p.V, p.heel, p.leeway, p.rudder = V, s.heel, s.leeway, s.rudder
+    p.V, p.heel, p.leeway = V, s.heel, s.leeway
+    p.controls = {k.key: s.controls[k.key] for k in boat.controls()}
     p.sink, p.trim, p.rm = s.sink, s.trim, inn.att.rm
     p.residual = max(inn.residual, abs(inn.surplus) / inn.scale)
     p.converged = p.residual < 1e-6
     p.extrapolated = inn.total.extrapolated or any(v.extrapolated for v in inn.parts.values())
     p.parts = inn.parts
-    if f_best <= st.flat_min + 2e-3:
-        p.flags.append("flat-at-min")
+    if opt is not None and f_best <= opt.lo + 2e-3:
+        p.flags.append(f"{opt.name}-at-min")
     if s.heel > st.heel_max:
         p.flags.append("heel-over-max")
     if p.extrapolated:

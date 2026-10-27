@@ -1,15 +1,32 @@
 """A boat definition (boats/<name>.yaml) and the solver-ready model built from it.
 
-The YAML names each part's model and its inputs (see boats/canoe-placeholder.yaml).
-`--set a.b.c=value` overrides any entry by its dotted path. Building does the
-slow work once: the hydrostatic table (sinkage, trim and RM_φ over heel and
-pitch moment) and the hull's wave-resistance table.
+The boat file lists its parts under `components:`, each a shape and a force
+model named by class (see boats/canoe-placeholder.yaml):
+
+    <part>:
+      class: .keel.ParametricKeel     # the shape ("." = iomcfd.vpp.components)
+      mount: {host: hull, x: 0.50}    # where it hangs (the shape reads it)
+      args: {...}                     # the shape's inputs
+      forces: {class: .keel.PolarFit, args: {...}}
+      controls: {<name>: <role> | {field: value}}   # override the part's controls
+    windage:
+      shape: hull                     # another part's shape (its mass counted there)
+      forces: {...}
+
+The builder knows no part by name: shapes and force models get a
+`BuildContext` to read the environment and the parts they depend on
+(`ctx.get`, `ctx.host`), built on first request. Then the hydrostatics of
+the one shape with a surface(), the other parts' masses and buoyant
+volumes, and each force model's finish(ctx). `--set a.b.c=value` overrides
+any entry by its dotted path. Building does the slow work once: the
+hydrostatic table (sinkage, trim and RM_φ over heel and pitch moment) and
+the hull's wave-resistance table.
 """
 
 from __future__ import annotations
 
 import copy
-import math
+import importlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -18,20 +35,13 @@ import numpy as np
 import yaml
 
 from .. import config, physics
-from ..geometry import hulls, stl
-from ..geometry.keel import keel_geometry
 from . import mass as massmod
-from . import sails_orc
-from .components.hull import CanoeHull
-from .components.keel import Bulb, Foil, KeelFits, lift_slope
-from .components.sails import SAILSETS, OrcSails, rig_centroid
-from .components.section import SectionChange, deltas
-from .components.windage import Windage
+from .components.base import Part
 from .hydrostatics import Hydrostatics, HydroTable
 from .race import Course, WindRange
 from .solver import Attitude, Boat, Settings
 
-KEEL3D_DEFAULTS = config.projects_dir() / "keel3d" / "defaults.yaml"
+COMPONENTS = "iomcfd.vpp.components"
 
 
 # ---------------------------------------------------------------------------
@@ -76,68 +86,6 @@ class BoatSpec:
         return d
 
 
-# keel3d parameters that make the keel (geometry and mass): with keel.model
-# keel3d they are taken from the CFD run, so mass and VCG match the forces.
-KEEL_KEYS = ("draft", "keel_mass", "fin_mass", "lead_density", "fin_section", "fin_mean_chord", "fin_taper",
-             "fin_sweep", "fin_x", "bulb", "bulb_section", "bulb_x", "bulb_aspect", "bulb_top", "bulb_bottom",
-             "bulb_cant")
-HULL_KEYS = ("hull_length", "hull_beam", "hull_draft", "hull_beam_at", "hull_draft_at", "hull_entry", "hull_run",
-             "hull_section")
-
-
-def keel_params(spec: BoatSpec, run_row: dict | None = None) -> dict[str, Any]:
-    """keel3d-style parameters: keel3d's defaults, the hull's CanoeSpec fields
-    as hull_*, keel.params, then the CFD run's keel (run_row)."""
-    p = yaml.safe_load(KEEL3D_DEFAULTS.read_text())
-    for k, v in (spec.get("hull.params") or {}).items():
-        p[f"hull_{k}"] = v
-    p.update(spec.get("keel.params") or {})
-    if run_row:
-        p.update({k: run_row[k] for k in KEEL_KEYS if k in run_row})
-    return p
-
-
-def keel3d_row(path: Path, select: dict | None) -> dict:
-    """The parameters of the first keel3d case matching `select`."""
-    import pandas as pd
-
-    df = pd.read_csv(path)
-    for k, val in (select or {}).items():
-        if isinstance(val, (str, bool)):
-            df = df[df[k].astype(str) == str(val)]
-        else:
-            df = df[np.isclose(df[k].astype(float), float(val))]
-    if df.empty:
-        raise ValueError(f"no keel3d rows match {select} in {path}")
-    row = df.iloc[0].to_dict()
-    return {k: (bool(v) if k == "bulb" else v) for k, v in row.items()}
-
-
-def canoe_spec(p: dict[str, Any]) -> hulls.CanoeSpec:
-    fields = {f: p[f"hull_{f}"] for f in ("length", "beam", "draft", "beam_at", "draft_at", "entry", "run",
-                                          "rise_fwd", "rise_aft", "section", "freeboard") if f"hull_{f}" in p}
-    return hulls.CanoeSpec(**fields)
-
-
-def resolve_results(ref: str, base: Path | None) -> Path:
-    """A keel3d run's results.csv from `<study>@<run id>` (looked up in
-    config.source_runs_dirs()) or a path (relative to the boat file, then the
-    repo root)."""
-    if "@" in ref and not ref.endswith(".csv"):
-        study, run = ref.split("@", 1)
-        for d in config.source_runs_dirs():
-            p = d / study / run / "results.csv"
-            if p.exists():
-                return p
-        raise FileNotFoundError(f"{ref}: no {study}/{run}/results.csv in {[str(d) for d in config.source_runs_dirs()]}"
-                                " (set IOMCFD_SOURCE_RUNS to the runs/ that holds it)")
-    for b in ([base] if base else []) + [config.home()]:
-        p = (b / ref).resolve()
-        if p.exists():
-            return p if p.suffix == ".csv" else p / "results.csv"
-    raise FileNotFoundError(ref)
-
-
 # ---------------------------------------------------------------------------
 # righting from the hydrostatic table
 
@@ -154,6 +102,88 @@ class TableRighting:
                         {"wetted_area": d["wetted_area"], "lwl": d["lwl"]})
 
 
+
+
+# ---------------------------------------------------------------------------
+# build
+
+
+def resolve_class(path: str) -> type:
+    """A class by dotted path; a leading "." is relative to iomcfd.vpp.components."""
+    full = COMPONENTS + path if path.startswith(".") else path
+    module, _, name = full.rpartition(".")
+    try:
+        return getattr(importlib.import_module(module), name)
+    except (ImportError, AttributeError) as e:
+        raise ValueError(f"no class {path} ({e})") from None
+
+
+class BuildContext:
+    """What a part's shape and force model may ask for while the boat is built."""
+
+    def __init__(self, spec: "BoatSpec", water: physics.Fluid, air: physics.Fluid):
+        self.spec, self.water, self.air = spec, water, air
+        self.warnings: list[str] = []
+        self.parts: dict[str, Part] = {}
+        self._stack: list[str] = []
+        self.table: HydroTable | None = None  # set once the hydrostatics exist (finish)
+        self.righting: Any = None
+        self.budget: massmod.MassBudget | None = None
+
+    def get(self, name: str) -> Part:
+        """Part `name`, built on first request."""
+        if name in self.parts:
+            return self.parts[name]
+        if name in self._stack:
+            raise ValueError(f"components: {' -> '.join([*self._stack, name])} is a cycle")
+        e = self.spec.get(f"components.{name}")
+        if not isinstance(e, dict):
+            raise ValueError(f"components: no part {name}")
+        self._stack.append(name)
+        try:
+            owner = "shape" not in e
+            if owner:
+                shape = resolve_class(str(e["class"])).build(self, name, mount=e.get("mount"), **(e.get("args") or {}))
+            else:
+                shape = self.get(str(e["shape"])).shape
+            f = e.get("forces") or {}
+            if "class" not in f:
+                raise ValueError(f"components.{name}: no forces.class")
+            forces = resolve_class(str(f["class"])).build(self, name, shape, **(f.get("args") or {}))
+            ctl = {c.name: c for c in (*(getattr(shape, "controls", ()) if owner else ()),
+                                       *getattr(forces, "controls", ()))}
+            for k, v in (e.get("controls") or {}).items():
+                if k not in ctl:
+                    raise ValueError(f"components.{name}: no control {k} (it has {list(ctl) or 'none'})")
+                ctl[k] = ctl[k].override(v)
+            part = Part(name, shape, forces, tuple(ctl.values()), owner)
+        finally:
+            self._stack.pop()
+        self.parts[name] = part
+        return part
+
+    def host(self, mount: dict | None) -> Any:
+        """The shape a part hangs from: `mount: {host: <part>, ...}`."""
+        if not mount or "host" not in mount:
+            raise ValueError(f"{self._stack[-1]}: needs mount: {{host: <part>, x: ...}}")
+        return self.get(str(mount["host"])).shape
+
+    def covered(self, what: str) -> bool:
+        """Whether some part's loads already hold `what` (e.g. "hull.side_force")."""
+        return any(what in p.covers for p in self.parts.values())
+
+    def resolve(self, ref: str) -> Path:
+        """A file named in the boat file: relative to it, then to the repo root."""
+        for b in ([self.spec.path.parent] if self.spec.path else []) + [config.home()]:
+            p = (b / ref).resolve()
+            if p.exists():
+                return p
+        raise FileNotFoundError(ref)
+
+    def warn(self, msg: str) -> None:
+        self.warnings.append(msg)
+
+
 @dataclass
 class Built:
     """A built boat and what it was built from."""
@@ -163,7 +193,7 @@ class Built:
     wind: WindRange
     course: Course
     mass: massmod.MassBudget
-    keel: dict
+    table: HydroTable
     hydro: Hydrostatics
     info: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
@@ -172,38 +202,15 @@ class Built:
 def build(spec: BoatSpec, table: HydroTable | None = None) -> Built:
     water = physics.fresh_water(float(spec.get("water.temperature", 15.0)))
     air = physics.air(float(spec.get("air.temperature", 15.0)))
-    warnings: list[str] = []
-
-    # --- geometry: hull and keel -------------------------------------------
-    kmodel = spec.get("keel.model", "keel3d")
-    run_row, results = None, None
-    if kmodel == "keel3d":
-        results = resolve_results(str(spec.get("keel.results")), spec.path.parent if spec.path else None)
-        run_row = keel3d_row(results, spec.get("keel.select"))
-    p = keel_params(spec, run_row)
-    if run_row:
-        diff = [k for k in HULL_KEYS if k in run_row and not np.isclose(float(run_row[k]), float(p[k]))]
-        if diff:
-            warnings.append(f"the keel3d run's hull differs from this boat's in {diff}: its side force and yaw "
-                            "moment include that hull")
-    kg = keel_geometry(p)
-    geom = spec.get("hull.geometry", "canoe")
-    if geom != "canoe":
-        raise NotImplementedError(f"hull.geometry {geom}: only the parametric canoe body so far")
-    cs = canoe_spec(p)
-    hull_surface = hulls.canoe(cs)
-
-    # --- rudder -----------------------------------------------------------------
-    r = spec.get("rudder") or {}
-    r_root, r_tip, r_span = float(r.get("root_chord", 0.085)), float(r.get("tip_chord", 0.060)), float(r.get("span", 0.20))
-    r_chord = 0.5 * (r_root + r_tip)
-    r_x = float(r.get("x", 0.86)) + 0.25 * r_chord
-    r_z = -float(hulls.canoe_depth(cs, min(r_x, cs.length))) - 0.5 * r_span
+    ctx = BuildContext(spec, water, air)
+    names = list(spec.get("components") or {})
+    if not names:
+        raise ValueError(f"{spec.path}: no components")
+    parts = [ctx.get(n) for n in names]
 
     # --- mass and hydrostatics -----------------------------------------------
     items = massmod.MassBudget.from_list(spec.get("mass.items") or [])
-    keel_items, app_volumes = massmod.keel_items(p)
-    budget = massmod.MassBudget([*keel_items, *items.items])
+    budget = massmod.MassBudget([*(i for p in parts for i in p.mass_items()), *items.items])
     if spec.get("mass.extra"):
         budget = budget.with_item(massmod.MassItem("extra (rates)", float(spec.get("mass.extra")),
                                                    tuple(budget.cg)))
@@ -214,126 +221,44 @@ def build(spec: BoatSpec, table: HydroTable | None = None) -> Built:
         dz = float(spec.get("mass.vcg_shift"))
         budget = massmod.MassBudget([massmod.MassItem(i.name, i.m, (i.cg[0], i.cg[1], i.cg[2] + dz), i.source)
                                      for i in budget.items])
-    rudder_vol = 0.5 * float(foils_area(r.get("section", "naca0008"))) * (r_root**2 + r_tip**2) * r_span
-    app_volumes = [*app_volumes, (rudder_vol, np.array([r_x, 0.0, r_z]))]
-    hydro = Hydrostatics(hull_surface, app_volumes, mass=budget.mass, cg=budget.cg, rho=water.rho)
+    floating = [p for p in parts if p.owner and hasattr(p.shape, "surface")]
+    if len(floating) != 1:
+        raise ValueError(f"components: {len(floating)} parts with a floating surface ({[p.name for p in floating]}); "
+                         "one hull")
+    hydro = Hydrostatics(floating[0].shape.surface(), [v for p in parts for v in p.volumes()], mass=budget.mass,
+                         cg=budget.cg, rho=water.rho)
     if table is None:
         hmax, hstep = float(spec.get("hydrostatics.heel_max", 60.0)), float(spec.get("hydrostatics.heel_step", 2.5))
         table = hydro.table(heels=np.arange(0.0, hmax + 1e-9, hstep))
     righting = TableRighting(table, spec.get("hydrostatics.attitude", "solved") == "solved")
-    for rr in massmod.check_rules(budget.mass, float(p["keel_mass"]), float(p["draft"])):
+    ctx.table, ctx.righting, ctx.budget = table, righting, budget
+    rules = [massmod.mass_rule(budget.mass)]
+    for p in parts:
+        if p.owner and hasattr(p.shape, "rules"):
+            rules += p.shape.rules()
+    for rr in rules:
         if not rr.ok:
-            warnings.append(f"class rule {rr.clause} ({rr.quantity}) fails: {rr.value:.4g} not in "
-                            f"[{rr.lo}, {rr.hi}]")
-
-    # --- components ------------------------------------------------------------
-    comps = []
-    if kmodel == "keel3d":
-        keel = KeelFits.from_results(results, spec.get("keel.select"), float(spec.get("keel.max_leeway", 4.0)),
-                                     spec.get("keel.friction_factor"))
-        keel.nu, keel.rho = water.nu, water.rho
-        q_ref = 0.5 * keel.rho * keel.V_ref**2
-        cla = float(np.mean(keel.a)) * 180 / math.pi / (q_ref * kg["fin_area_m2"])  # per rad, on the fin area
-        hull_side = False
-        sec = spec.get("keel.section") or {}
-        ref = str(sec.get("reference", p["fin_section"]))
-        if sec.get("foil") and str(sec["foil"]) != ref:
-            if ref != str(p["fin_section"]):
-                warnings.append(f"keel.section.reference {ref} is not the keel3d fin's section {p['fin_section']}")
-            keel = SectionChange(keel, deltas(section_polars(spec, float(sec.get("tu", 0.1))), str(sec["foil"]), ref),
-                                 chord=float(p["fin_mean_chord"]), span=kg["fin_span"],
-                                 x=float(p["fin_x"]), z=kg["fin_z_root"] - 0.5 * kg["fin_span"], rho=water.rho,
-                                 label=f"{sec['foil']} for {ref}, Tu {float(sec.get('tu', 0.1)):g} %")
-    elif kmodel == "foil":
-        fin = Foil(kg["fin_span"], float(p["fin_mean_chord"]), str(p["fin_section"]),
-                   x=float(p["fin_x"]), z=kg["fin_z_root"] - 0.5 * kg["fin_span"], e=float(spec.get("keel.e", 0.9)),
-                   rho=water.rho, nu=water.nu, name="keel")
-        bulb = Bulb(kg["bulb_length"], kg["bulb_diameter"], bulb_wetted(kg), x=kg["bulb_x_cg"], z=kg["bulb_z_cg"],
-                    rho=water.rho, nu=water.nu)
-        comps.append(bulb)
-        keel = fin
-        cla = lift_slope(fin.aspect)
-        hull_side = True
-    else:
-        raise ValueError(f"keel.model {kmodel}: keel3d or foil")
-    side = spec.get("hull.side_force", "auto")
-    hull = CanoeHull(cs, water.rho, water.nu, float(spec.get("hull.form_factor", 0.10)),
-                     float(spec.get("hull.cf_factor", 1.0)), spec.get("hull.waves", "michell") == "michell",
-                     hull_side if side == "auto" else bool(side), sink0=float(table.at(0.0, 0.0)["sink"]))
-    aspect = 2 * kg["fin_span"] / float(p["fin_mean_chord"])
-    eps = float(r.get("downwash", 1.0)) * 2 * cla / (math.pi * aspect)  # ε per unit leeway
-    rudder = Foil(r_span, r_chord, str(r.get("section", "naca0008")), x=r_x, z=r_z, e=float(r.get("e", 0.9)),
-                  downwash=eps, rudder=True, rho=water.rho, nu=water.nu, name="rudder")
-    rig_spec = spec.get("rig") or {}
-    if rig_spec.get("sails", "orc2026") != "orc2026":
-        raise NotImplementedError(f"rig.sails {rig_spec.get('sails')}: only orc2026 so far")
-    rig = sails_orc.iom_a_rig_geometry(mast_x=float(rig_spec.get("mast_x", 0.40)),
-                                       deck=float(rig_spec.get("deck", 0.06)))
-    sails = OrcSails(rig, z_wind=rig_centroid(rig), rho=air.rho, level=str(rig_spec.get("level", "low")))
-    wd = spec.get("windage") or {}
-    fb = float(wd.get("freeboard", cs.freeboard))
-    windage = Windage(fb * cs.beam, fb * cs.length, freeboard=fb, beam=cs.beam, x=float(wd.get("x", 0.5)),
-                      rho=air.rho)
-    comps = [hull, keel, *comps, rudder, sails, windage]
+            ctx.warn(f"class rule {rr.clause} ({rr.quantity}) fails: {rr.value:.4g} not in [{rr.lo}, {rr.hi}]")
+    for p in parts:
+        if hasattr(p.forces, "finish"):
+            p.forces.finish(ctx)
 
     sv = spec.get("solver") or {}
-    settings = Settings(yaw=bool(sv.get("yaw", True)), flat_min=float(sv.get("flat_min", 0.5)),
-                        heel_max=float(sv.get("heel_max", 70.0)),
-                        sailsets=SAILSETS if sv.get("jib_downwind", True) else ((0, 0.0),))
-    boat = Boat(comps, righting, settings)
+    settings = Settings(yaw=bool(sv.get("yaw", True)), optimise=bool(sv.get("optimise", True)),
+                        heel_max=float(sv.get("heel_max", 70.0)))
+    boat = Boat(parts, righting, settings)
 
     w = spec.get("wind") or {}
     wts = w.get("weights", "uniform")
     if isinstance(wts, str) and wts.startswith("file:"):
-        wind = WindRange.from_histogram(resolve_file(wts[5:], spec), float(w.get("z_ref", 1.0)),
-                                        float(w.get("alpha", 0.0)))
+        wind = WindRange.from_histogram(ctx.resolve(wts[5:]), float(w.get("z_ref", 1.0)), float(w.get("alpha", 0.0)))
     else:
         tws = [float(v) for v in w.get("tws", [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0])]
         wind = WindRange(tws, [] if wts == "uniform" else [float(x) for x in wts], float(w.get("z_ref", 1.0)),
                          float(w.get("alpha", 0.0)))
     course = Course(**{k: float(v) if k != "laps" else int(v) for k, v in (spec.get("course") or {}).items()})
 
-    info = {"mass_kg": round(budget.mass, 4), "cg": [round(float(c), 4) for c in budget.cg],
-            "bulb_mass_kg": kg["bulb_mass_kg"], "bulb_z_cg": round(kg["bulb_z_cg"], 4),
-            "fin_span": round(kg["fin_span"], 4), "keel": getattr(keel, "provenance", kmodel),
-            "rudder_downwash_per_leeway": round(eps, 4), "rm_30deg_Nm": round(table.rm(30.0), 4)}
-    return Built(spec, boat, wind, course, budget, kg, hydro, info, warnings)
-
-
-def section_polars(spec: BoatSpec, tu: float):
-    """The fin-section polar table at turbulence intensity `tu` [%] from
-    keel.section.polars: {<tu>: {base: [csv], replace: [csv]}} (foil2d
-    results.csv or their site/data copies; later files replace earlier
-    points of the same section, speed and angle, as sectiondesign.cfd_table)."""
-    from ..sectiondesign import cfd_table
-
-    table = spec.get("keel.section.polars") or {}
-    entry = next((v for k, v in table.items() if math.isclose(float(k), tu)), None)
-    if entry is None:
-        raise ValueError(f"keel.section.polars has no entry for Tu {tu:g} %")
-    paths = lambda key: [resolve_file(str(f), spec) for f in entry.get(key) or []]  # noqa: E731
-    return cfd_table(paths("base"), paths("replace"), tu=tu)
-
-
-def foils_area(section: str) -> float:
-    from ..geometry import foils
-
-    return foils.load(section).area()
-
-
-def bulb_wetted(kg: dict) -> float:
-    """Wetted area of the bulb: keel3d's derived value when present, else a
-    body of revolution's ~0.75 π d L (an estimate)."""
-    return float(kg.get("bulb_wetted_area_m2") or 0.75 * math.pi * kg["bulb_diameter"] * kg["bulb_length"])
-
-
-def resolve_file(ref: str, spec: BoatSpec) -> Path:
-    for b in ([spec.path.parent] if spec.path else []) + [config.home()]:
-        p = (b / ref).resolve()
-        if p.exists():
-            return p
-    raise FileNotFoundError(ref)
-
-
-def read_stl(ref: str) -> stl.Surface:  # pragma: no cover - for real hulls later
-    return stl.read(config.geometry_dir() / ref)
+    info = {"mass_kg": round(budget.mass, 4), "cg": [round(float(c), 4) for c in budget.cg]}
+    info |= {f"{p.name}.{k}": v for p in parts for k, v in p.info().items()}
+    info["rm_30deg_Nm"] = round(table.rm(30.0), 4)
+    return Built(spec, boat, wind, course, budget, table, hydro, info, ctx.warnings)

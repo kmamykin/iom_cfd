@@ -3,6 +3,9 @@ rigging are in the sail model): pure drag along the apparent wind, after ORC
 2026 §5.4 (Table 5.12, eq. 5.27-5.30): C_D·A = C_D (A_front |cos β| +
 A_side sin β) with C_D 0.816, at 0.66 (freeboard + B sin φ) above the
 waterline. ORC's areas: freeboard × beam ahead, heeled freeboard × LOA abeam.
+
+A force model on the hull's shape (`shape: hull` in the boat file): beam,
+length and, unless given, freeboard come from its dimensions().
 """
 
 from __future__ import annotations
@@ -15,7 +18,7 @@ from .base import Loads, State, Wind
 
 
 @dataclass
-class Windage:
+class OrcWindage:
     front_area: float  # m², freeboard × beam
     side_area: float  # m², freeboard × length
     freeboard: float = 0.06  # m, mean
@@ -26,6 +29,16 @@ class Windage:
     name: str = "windage"
     kind: str = "aero"
     attitude: bool = False
+    controls: tuple = ()
+    covers: frozenset = frozenset()
+
+    @classmethod
+    def build(cls, ctx, name: str, shape, *, cd: float = 0.816, freeboard: float | None = None,
+              x: float = 0.5) -> "OrcWindage":
+        d = shape.dimensions()
+        fb = float(d["freeboard"] if freeboard is None else freeboard)
+        return cls(fb * d["beam"], fb * d["length"], freeboard=fb, beam=d["beam"], cd=float(cd), x=float(x),
+                   rho=ctx.air.rho, name=name)
 
     def loads(self, s: State, w: Wind) -> Loads:
         p = math.radians(s.heel)

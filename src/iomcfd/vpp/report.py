@@ -64,21 +64,23 @@ def summary_md(path: Path, boat: str, info: dict, rows: list[RaceRow], course: C
     for k, v in info.items():
         L.append(f"* {k}: {v}")
     L += ["", "Results are relative to the model (no real-world calibration). Downwind is lower confidence.", ""]
+    keys = list(rows[0].up.controls) if rows else []
     L += ["## Race", "",
           f"W/L course: {course.laps} laps of {course.leg:g} m, {course.tacks_per_leg:g} tacks "
           f"({course.tack_s:g} s) and {course.gybes_per_leg:g} gybes ({course.gybe_s:g} s) per leg; "
           f"{distance(course):g} m along the wind.", "",
-          "| TWS m/s | weight | β_TW up | V_b up | VMG up | heel up | leeway up | flat up | β_TW down | VMG down "
-          "| race s |",
-          "|---|---|---|---|---|---|---|---|---|---|---|"]
+          "| TWS m/s | weight | β_TW up | V_b up | VMG up | heel up | leeway up | "
+          + "".join(f"{k} up | " for k in keys) + "β_TW down | VMG down | race s |",
+          "|" + "---|" * (10 + len(keys))]
     for r in rows:
         L.append(f"| {r.tws:g} | {r.weight:g} | {r.up.twa:.1f} | {r.up.V:.3f} | {r.up.vmg:.3f} | {r.up.heel:.1f} | "
-                 f"{r.up.leeway:.2f} | {r.up.flat:.2f} | {r.down.twa:.1f} | {-r.down.vmg:.3f} | {r.t:.1f} |")
+                 f"{r.up.leeway:.2f} | " + "".join(f"{r.up.controls.get(k, math.nan):.2f} | " for k in keys)
+                 + f"{r.down.twa:.1f} | {-r.down.vmg:.3f} | {r.t:.1f} |")
     L += ["", f"Weighted race time: {t:.1f} s.", ""]
     if rate_summary:
         L += ["## Exchange rates", "",
               "Change in weighted race time (and boat lengths over the race) per perturbation, re-timed at the "
-              "baseline's best-VMG angles and flat (envelope theorem).", "",
+              "baseline's best-VMG angles and optimised controls (envelope theorem).", "",
               "| perturbation | race time % | boat lengths |", "|---|---|---|"]
         for name, pct in rate_summary.items():
             L.append(f"| {name} | {pct:+.3f} | {boat_lengths(pct / 100 * t, t, course):+.2f} |")
