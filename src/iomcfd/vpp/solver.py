@@ -119,6 +119,7 @@ class Point:
         for name, ld in self.parts.items():
             for q in "XYZKMN":
                 r[f"{q}_{name}"] = getattr(ld, q)
+            r[f"{name}_extrapolated"] = ld.extrapolated
             for k, v in ld.info.items():
                 if isinstance(v, (int, float)):
                     r[f"{name}_{k}"] = v

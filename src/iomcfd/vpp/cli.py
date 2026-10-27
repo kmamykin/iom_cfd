@@ -53,30 +53,71 @@ def _out_dir(args, name: str) -> Path:
     return runs / "vpp" / name / dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d-%H%M%S")
 
 
+def _run_info(args, b, timings: dict) -> dict:
+    """run.json: what was run, with the values the build resolved (course,
+    wind, settings, each part's classes and controls) and, for each --set
+    path, the boat file's own value."""
+    from dataclasses import asdict
+
+    from .boat import BoatSpec
+    from .tables import _plain
+
+    def cls(o) -> str | None:
+        return None if o is None else f"{type(o).__module__}.{type(o).__qualname__}"
+
+    sets = _sets(args.set)
+    original = BoatSpec.load(b.spec.path) if b.spec.path else None
+    controls = b.boat.controls()
+    parts = [{"name": c.name, "kind": c.kind, "attitude": c.attitude, "shape": cls(getattr(c, "shape", None)),
+              "forces": cls(getattr(c, "forces", c)), "owner": getattr(c, "owner", True),
+              "controls": [asdict(k) for k in controls if k.key.startswith(f"{c.name}.")]} for c in b.boat.components]
+    return _plain({
+        "boat": b.spec.name, "file": str(b.spec.path), "overrides": sets,
+        "file_values": {k: original.get(k) if original else None for k in sets},
+        "created": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+        "git": config.git_describe(), "info": b.info, "warnings": b.warnings,
+        "course": asdict(b.course),
+        "wind": {"tws": b.wind.tws, "weights": b.wind.weights, "z_ref": b.wind.z_ref, "alpha": b.wind.alpha},
+        "settings": asdict(b.boat.settings), "parts": parts, "timings": timings})
+
+
 def cmd_run(args) -> None:
     from . import report
-    from .race import race, weighted
+    from .race import boat_lengths, race, weighted
     from .rates import rates, standard
+    from .response import responses
     from .solver import polar
 
+    timings: dict[str, float] = {}
+    t = time.time()
     b = _built(args)
+    timings["build_s"] = round(time.time() - t, 2)
     out = _out_dir(args, b.spec.name)
     out.mkdir(parents=True, exist_ok=True)
+
+    def info() -> None:
+        (out / "run.json").write_text(json.dumps(_run_info(args, b, timings), indent=2, default=str) + "\n")
+
     (out / "boat.yaml").write_text(yaml.safe_dump(b.spec.data, sort_keys=False))
-    (out / "run.json").write_text(json.dumps({
-        "boat": b.spec.name, "file": str(b.spec.path), "overrides": _sets(args.set),
-        "created": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-        "git": config.git_describe(), "info": b.info, "warnings": b.warnings}, indent=2, default=str) + "\n")
+    info()
     report.write_csv(out / "mass.csv", b.mass.to_rows())
+    report.write_csv(out / "hydro.csv", b.table.rows())
     t = time.time()
     rows = race(b.boat, b.wind, b.course)
-    print(f"race: {time.time() - t:.1f} s, weighted race time {weighted(rows):.1f} s")
+    timings["race_s"] = round(time.time() - t, 2)
+    print(f"race: {timings['race_s']:.1f} s, weighted race time {weighted(rows):.1f} s")
     report.write_csv(out / "race.csv", [r.row() for r in rows])
+    report.write_csv(out / "vmg.csv", [r.up.row() | {"leg": "up"} for r in rows] +
+                     [r.down.row() | {"leg": "down"} for r in rows])
     warnings = list(b.warnings)
     for r in rows:
         for leg, p in (("up", r.up), ("down", r.down)):
             if not p.converged or p.flags:
                 warnings.append(f"TWS {r.tws:g} {leg}: {' '.join(p.flags) or 'not converged'}")
+    t = time.time()
+    report.write_csv(out / "response.csv", responses(b.boat, rows, b.wind))
+    timings["response_s"] = round(time.time() - t, 2)
+    print(f"response: {timings['response_s']:.1f} s")
     rr, rs = None, None
     if not args.no_rates:
         from .boat import build as rebuild_fn
@@ -86,24 +127,47 @@ def cmd_run(args) -> None:
 
         t = time.time()
         rr, rs = rates(b.boat, b.course, b.wind, rows, standard(b.boat, rebuild), check=args.check)
-        print(f"rates: {time.time() - t:.1f} s")
+        timings["rates_s"] = round(time.time() - t, 2)
+        print(f"rates: {timings['rates_s']:.1f} s")
         report.write_csv(out / "rates.csv", [x.row() for x in rr])
+        t0 = weighted(rows)
+        report.write_csv(out / "rates_summary.csv", [
+            {"name": n, "dt_pct": pct, "boat_lengths": boat_lengths(pct / 100 * t0, t0, b.course)}
+            for n, pct in rs.items()])
     pts = []
     if not args.no_polar:
         t = time.time()
         twa = [float(a) for a in (b.spec.get("polar.twa") or [35, 45, 60, 90, 120, 150, 180])]
         pts = polar(b.boat, b.wind.tws, twa, b.wind.z_ref, b.wind.alpha)
-        print(f"polar: {time.time() - t:.1f} s")
+        timings["polar_s"] = round(time.time() - t, 2)
+        print(f"polar: {timings['polar_s']:.1f} s")
         report.write_csv(out / "polar.csv", [p.row() for p in pts])
-        report.write_csv(out / "vmg.csv", [r.up.row() | {"leg": "up"} for r in rows] +
-                         [r.down.row() | {"leg": "down"} for r in rows])
         try:
             report.polar_figure(pts, rows, out / "polar.png", b.spec.name)
         except ImportError:
             pass
     report.summary_md(out / "summary.md", b.spec.name, b.info, rows, b.course, rr, rs, warnings)
+    info()
     print(f"wrote {out}")
     print((out / "summary.md").read_text())
+    print(f"report: {report.html_report(out)}")
+
+
+def cmd_report(args) -> None:
+    """report.html of a run folder again (e.g. after a template change)."""
+    from . import report
+    from ..runner import list_runs
+
+    p = Path(args.run)
+    if not (p / "run.json").is_file():
+        runs = Path(args.runs) if getattr(args, "runs", None) else config.runs_dir()
+        sdir = runs / "vpp" / args.run
+        ids = list_runs(sdir)
+        run_id = ids[-1] if ids and args.run_id in (None, "latest") else args.run_id
+        if run_id not in ids:
+            raise SystemExit(f"no run {args.run_id or ''} of {args.run} in {sdir} (runs: {', '.join(ids) or 'none'})")
+        p = sdir / run_id
+    print(f"wrote {report.html_report(p)}")
 
 
 def cmd_point(args) -> None:
@@ -228,11 +292,15 @@ def add_parser(sub) -> None:
         q.set_defaults(func=func)
         return q
 
-    q = boat_cmd("run", cmd_run, "race time per wind, exchange rates and a polar; writes runs/vpp/<boat>/<id>/")
+    q = boat_cmd("run", cmd_run, "race time per wind, exchange rates, a polar and report.html; writes runs/vpp/<boat>/<id>/")
     q.add_argument("--no-rates", action="store_true")
     q.add_argument("--no-polar", action="store_true")
     q.add_argument("--check", action="store_true", help="rates by a full re-search, not the envelope shortcut")
     q.add_argument("--out", help="output directory (default runs/vpp/<boat>/<UTC time>)")
+    q = vs.add_parser("report", help="write a run's report.html again (nothing is solved)")
+    q.add_argument("run", help="a run directory, or a boat name (its runs in runs/vpp/<boat>/)")
+    q.add_argument("--run-id", help="YYYYMMDD-HHMMSS (default: the latest)")
+    q.set_defaults(func=cmd_report)
     q = boat_cmd("point", cmd_point, "one equilibrium with each component's forces")
     q.add_argument("--tws", type=float, required=True, help="m/s at the reference height")
     q.add_argument("--twa", type=float, required=True, help="deg from the course")

@@ -13,6 +13,7 @@ it. Several inputs are placeholders (see [Inputs to replace](#inputs-to-replace)
 
 ```
 uv run iomcfd vpp run canoe-placeholder         # race time, exchange rates, polar -> runs/vpp/<boat>/<UTC time>/
+uv run iomcfd vpp report canoe-placeholder      # write the latest run's report.html again (--run-id, or a run dir)
 uv run iomcfd vpp point canoe-placeholder --tws 3 --twa 45   # one equilibrium, each part's forces
 uv run iomcfd vpp point canoe-placeholder --tws 3 --twa 45 --hold sails.flat=0.8
 uv run iomcfd vpp hydro canoe-placeholder       # mass budget, RM and GZ against heel
@@ -95,13 +96,37 @@ Each run writes these files:
 
 | file | contents |
 |---|---|
-| `race.csv` | best VMG angle, speed, heel, leeway and flat, plus race time, per wind speed |
-| `rates.csv` | the change in race time per perturbation and wind |
-| `polar.csv`, `polar.png` | the polar |
-| `vmg.csv` | the best-VMG points with every component's forces |
+| `report.html` | one page that draws the files below; open it from the folder (it needs no server) |
+| `race.csv` | best VMG angle, speed, heel, leeway and the controls, plus race time, per wind speed |
+| `vmg.csv` | the best-VMG points in full, polar.csv's columns plus `leg` |
+| `polar.csv`, `polar.png` | the polar: per point the state, the controls, each part's X, Y, Z, K, M, N, its `<part>_extrapolated` flag and its info (`hull_Rf`, `sails_aws`, …) |
+| `response.csv` | each part's loads around every best-VMG state, one input varied at a time (below) |
+| `hydro.csv` | the hydrostatic table as built: heel × M_ext × Z_ext → sink, trim, rm, wetted_area, lwl, bwl |
+| `rates.csv`, `rates_summary.csv` | the change in race time per perturbation and wind; and weighted, in % and boat lengths |
 | `mass.csv` | the mass budget |
 | `summary.md` | a summary of the run |
-| `boat.yaml`, `run.json` | the boat as run, and the run's metadata |
+| `boat.yaml`, `run.json` | the boat as run; the run's metadata |
+
+* **run.json** holds what the build resolved: `course`, `wind`, the solver
+  `settings` (defaults included), each part's shape and force-model classes
+  and its controls after the boat file's overrides (`parts`), the `--set`
+  overrides with the boat file's own values (`file_values`), and the time
+  each stage took (`timings`).
+* **response.csv** starts from each converged best-VMG point (vmg.csv) and
+  varies one input with the others held: V_b (0.5–1.5 ×), heel (0–50°),
+  leeway (0–6°), the optimised control over its bounds, the balance control
+  ± 5° and each allowed option of the choice control, always including the
+  solved value. `solver.evaluate` re-solves sinkage and trim at each sample.
+  Off the solved state the boat is not in balance: these are the force
+  models' own responses (`var` and `value` say what was varied).
+* **report.html** embeds the run's files as written, so the page and its
+  numbers can't drift apart. It leaves out the ORC sail-coefficient columns
+  (`sails_CL`, `sails_CD`: copyright ORC); the CSVs keep them. Its sections:
+  summary and polar, the boat file as run, the balance at one point, the
+  force models, hydrostatics and the mass budget, the race with a race-time
+  calculator, exchange rates, and the frames and symbols.
+  `vpp report <boat | run dir>` writes it again, e.g. after a change to
+  `vpp/report_template.html`; nothing is solved.
 
 ## How it works
 

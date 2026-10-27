@@ -1,11 +1,16 @@
 """Files a VPP run writes: polar.csv, vmg.csv / race.csv, rates.csv, a polar
-plot and summary.md."""
+plot, summary.md and report.html (the run's CSVs embedded in one page,
+report_template.html)."""
 
 from __future__ import annotations
 
 import csv
+import io
+import json
 import math
 from pathlib import Path
+
+import yaml
 
 from .race import Course, RaceRow, boat_lengths, distance, weighted
 from .rates import Rate
@@ -97,3 +102,48 @@ def summary_md(path: Path, boat: str, info: dict, rows: list[RaceRow], course: C
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(L) + "\n")
     return path
+
+
+TEMPLATE = Path(__file__).parent / "report_template.html"
+CSVS = ("polar", "vmg", "race", "rates", "rates_summary", "mass", "hydro", "response")
+ORC = ("_CL", "_CD")  # the ORC 2026 sail coefficients: copyright ORC, kept off the page
+
+
+def _without_orc(text: str) -> str:
+    """The CSV without its ORC coefficient columns (cells unchanged)."""
+    rows = list(csv.reader(io.StringIO(text)))
+    keep = [i for i, k in enumerate(rows[0] if rows else []) if not k.endswith(ORC)]
+    if not rows or len(keep) == len(rows[0]):
+        return text
+    buf = io.StringIO()
+    csv.writer(buf).writerows([[r[i] for i in keep] for r in rows])
+    return buf.getvalue()
+
+
+def _text(path: Path) -> str:
+    with open(path, newline="") as f:  # as written: csv's \r\n line ends kept
+        return f.read()
+
+
+def _block(kind: str, name: str, text: str) -> str:
+    """A <script> data block; "</" escaped (the page undoes it)."""
+    esc = text.replace("</", "<\\/")
+    return f'<script type="{kind}" data-file="{name}">{esc}</script>'
+
+
+def html_report(run_dir: str | Path) -> Path:
+    """report.html in a run folder: its CSVs, run.json and boat.yaml
+    embedded as they are (the ORC columns dropped), drawn by the template."""
+    run_dir = Path(run_dir)
+    blocks = [_block("text/csv", f"{n}.csv", _without_orc(_text(run_dir / f"{n}.csv")))
+              for n in CSVS if (run_dir / f"{n}.csv").is_file()]
+    run = json.loads((run_dir / "run.json").read_text())
+    boat = _text(run_dir / "boat.yaml")
+    blocks += [_block("application/json", "run.json", json.dumps(run)),
+               _block("application/json", "boat.json", json.dumps(yaml.safe_load(boat), default=str)),
+               _block("text/plain", "boat.yaml", boat)]
+    title = f"{run.get('boat', 'boat')} · VPP run {run_dir.name}".replace("&", "&amp;").replace("<", "&lt;")
+    html = TEMPLATE.read_text().replace("__TITLE__", title).replace("__DATA__", "\n".join(blocks))
+    out = run_dir / "report.html"
+    out.write_text(html)
+    return out
