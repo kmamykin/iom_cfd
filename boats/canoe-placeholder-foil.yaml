@@ -1,0 +1,117 @@
+# The rung-0 boat: canoe-placeholder.yaml's parts with the simplest models,
+# no CFD and no tables to compute (the tests build it): the keel's forces from
+# lifting-line theory instead of keel3d CFD, the analytic canoe body with
+# upright Michell waves, ORC's windage areas, and no vertical forces in the
+# hydrostatics.
+#
+# A stand-in IOM until the Alioth lines arrive: keel3d's canoe body (≈ Bantock:
+# LWL 0.99 m, 3.62 L, 0.142 m²) with the recommended bulb (bulb-section and
+# bulb-cant findings) on the market-like tapered fin, the A rig and the ORC
+# 2026 sail coefficients. Every number marked PLACEHOLDER is a guess to be
+# replaced with a measurement.
+boat: canoe-placeholder-foil
+description: >
+  keel3d canoe body, NACA 0007 fin 100 -> 80 mm (90 mm mean), NACA 0011 round
+  bulb 2380 g at the 420 mm draft, A rig, ORC 2026 sails.
+
+water: {temperature: 15.0}
+air: {temperature: 15.0}
+
+# Parts: each a shape (class + args: geometry, mass, buoyancy, where it
+# mounts) and a force model (forces: class + args); "." = iomcfd.vpp.components.
+# controls: override a part's controls (role balance | optimise | choice |
+# hold, or {default, lo, hi, options}). Any entry by its dotted path, e.g.
+# --set components.rudder.args.span=0.21. Another design = another boat file
+# (or vpp compare --set-b), e.g. a keel3d design as its own table.
+components:
+  hull:
+    class: .hull.CanoeHull
+    args:
+      params: {}                  # CanoeSpec fields (geometry/hulls.py); empty = keel3d's canoe body
+    forces:
+      class: .hull.IttcMichell
+      args:
+        form_factor: 0.10         # (1 + k) - 1; methodology.md uses ITTC-57 x 1.10
+        cf_factor: 1.0            # < 1 brackets a laminar run (surface-roughness.md: up to -41 %)
+        waves: michell            # michell | none
+        side_force: auto          # auto: off when another part's loads hold it (keel3d's double body)
+
+  keel:
+    class: .keel.ParametricKeel   # keel3d's parametric fin and bulb (projects/keel3d/defaults.yaml)
+    mount: {host: hull, x: 0.50}    # fin quarter chord at the root, m aft of the bow
+    args:
+      draft: 0.42                 # m, waterline to the bulb bottom (C.4.1)
+      mass: 2.5                   # kg, fin + bulb (C.6.4)
+      fin: {section: naca0007, root_chord: 0.100, tip_chord: 0.080, sweep: 0.0, mass: 0.120}
+      bulb: {section: naca0011, aspect: 1.0, top: 2.0, bottom: 2.0, cant: 0.0, x: 0.0, density: 11340}
+    forces:
+      class: .keel.FinAndBulb     # lifting line on the fin, friction drag of the bulb (rung 0, no CFD)
+      args: {e: 0.9}
+
+  rudder:                         # appendage3d defaults
+    class: .foils.ParametricFoil
+    mount: {host: hull, x: 0.86}    # root leading edge, m aft of the bow
+    args: {section: naca0008, root_chord: 0.085, tip_chord: 0.060, span: 0.20}
+    forces:
+      class: .foils.LiftingLine
+      args:
+        e: 0.9
+        downwash: {from: keel, factor: 1.0}   # fraction of the keel's elliptic far-field downwash ε = 2 C_L / (π A)
+    controls: {angle: balance}    # δ_R closes the yaw balance (held at 0 with solver.yaw false)
+
+  sails:
+    class: .sails.Rig
+    args: {rig: iom_a, mast_x: 0.40, deck: 0.06}
+    forces:
+      class: .sails.OrcSails      # ORC VPP Documentation 2026 coefficients (full scale; not to be published)
+      args:
+        level: low                # ORC coefficient set
+        sets: {upwind: 0.0, downwind: 60.0}   # set: lowest β_TW; ORC's jib downwind set (goose-winged jib) from 60°
+    controls:
+      flat: {lo: 0.53}            # ORC FLAT_MIN (§5.1.3)
+
+  windage:                        # topsides after ORC Table 5.12 (C_D 0.816 on freeboard x beam / x length)
+    shape: hull
+    forces:
+      class: .windage.OrcWindage
+      args:
+        freeboard: 0.06           # m, mean (default: the hull's)
+        x: 0.5
+
+mass:                             # PLACEHOLDER component masses and centres (boat frame, m)
+  items:
+    - {name: hull and deck, m: 0.40, cg: [0.48, 0.0, 0.01]}
+    - {name: "rig A: mast, booms, sails, rigging", m: 0.22, cg: [0.42, 0.0, 0.55]}
+    - {name: sail winch, m: 0.12, cg: [0.40, 0.0, -0.02]}
+    - {name: "rudder servo, receiver, battery", m: 0.20, cg: [0.60, 0.0, -0.01]}
+    - {name: rudder blade, m: 0.02, cg: [0.87, 0.0, -0.12]}
+    - {name: fittings and fin box, m: 0.06, cg: [0.50, 0.0, 0.0]}
+  fill_to: 4.0                    # corrector weight up to the class minimum (C.4.2)
+  corrector_at: [0.50, 0.0, -0.03]
+
+hydrostatics:
+  attitude: solved                # solved (sinkage and trim under the sails' pitch moment) | static
+  heel_max: 60.0
+  heel_step: 2.5
+
+wind:                             # PLACEHOLDER range and profile
+  tws: [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+  weights: uniform                # uniform | [w, ...] | file:<club histogram.csv> (columns tws, weight)
+  z_ref: 1.0                      # m, height the wind speed is measured at
+  alpha: 0.12                     # power-law profile exponent
+
+course:                           # PLACEHOLDER race settings
+  leg: 100.0
+  laps: 2
+  tacks_per_leg: 4
+  gybes_per_leg: 2
+  tack_s: 3.0
+  gybe_s: 2.0
+
+solver:
+  yaw: true                       # solve the yaw balance with the balance control (the rudder)
+  optimise: true                  # search the optimised control (the sails' flat)
+  heel_max: 70.0
+
+polar:
+  twa: [30, 35, 40, 45, 50, 60, 75, 90, 105, 120, 135, 150, 165, 180]

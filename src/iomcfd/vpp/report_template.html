@@ -1,0 +1,1966 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Saira+Condensed:wght@500;600;700&display=swap">
+<!-- The run's report (vpp/report.py: html_report). The run folder's CSVs, run.json and boat.yaml are
+     embedded below as <script> data blocks, as written; the script at the end draws every figure. -->
+<style>
+/* Layout: a technical notebook. A 68ch reading column, figures that break out to a 1160px band,
+   a sticky index of sections across the top. Colour: cool chart-table paper, navy ink, one navy accent;
+   components keep one hue each across every figure. */
+:root {
+  --paper: #eef2f5;
+  --surface: #fbfcfd;
+  --sunk: #e4eaef;
+  --ink: #0f1d2b;
+  --ink-2: #3d4c5a;
+  --muted: #687684;
+  --rule: #d0d9e0;
+  --grid: #e2e8ed;
+  --axis: #b7c3cc;
+  --accent: #0b5aa6;
+  --accent-ink: #ffffff;
+  --accent-soft: #dce8f5;
+  --flag: #9a4f00;
+  --flag-soft: #fbead6;
+  --ok: #0d6f37;
+  --ok-soft: #dcf1e4;
+  --c-sails: #eb6834;
+  --c-sails-2: #a8431a;
+  --c-hull: #1baf7a;
+  --c-keel: #eda100;
+  --c-keel-2: #a86f00;
+  --c-rudder: #e87ba4;
+  --c-windage: #008300;
+  --c-bulb: #6250d6;
+  --c-rm: #52514e;
+  --c-mass: #3e5568;
+  --leg-up: #1c5cab;
+  --leg-down: #6250d6;
+  --div-neg: #2a78d6;
+  --div-pos: #e34948;
+  --div-mid: #ecebe7;
+  --tws0: #86b6ef; --tws1: #6da7ec; --tws2: #5598e7; --tws3: #3987e5;
+  --tws4: #2a78d6; --tws5: #256abf; --tws6: #184f95; --tws7: #0d366b;
+  --f-display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0b1116; --surface: #111920; --sunk: #17212a; --ink: #e7edf2; --ink-2: #b4c0ca; --muted: #8492a0;
+    --rule: #253039; --grid: #1d2730; --axis: #36434e; --accent: #74b2f0; --accent-ink: #06121e; --accent-soft: #15283b;
+    --flag: #f0a94b; --flag-soft: #2c2012; --ok: #52c487; --ok-soft: #0f2518;
+    --c-sails: #d95926; --c-sails-2: #f08a5d; --c-hull: #199e70; --c-keel: #c98500; --c-keel-2: #f0b84a; --c-rudder: #d55181;
+    --c-windage: #1f9a1f; --c-bulb: #9085e9; --c-rm: #c3c2b7; --c-mass: #8fa7ba; --leg-up: #5598e7; --leg-down: #9085e9;
+    --div-neg: #3987e5; --div-pos: #e66767; --div-mid: #2f3236;
+    --tws0: #184f95; --tws1: #1c5cab; --tws2: #256abf; --tws3: #2a78d6; --tws4: #3987e5; --tws5: #6da7ec; --tws6: #9ec5f4; --tws7: #cde2fb;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0b1116; --surface: #111920; --sunk: #17212a; --ink: #e7edf2; --ink-2: #b4c0ca; --muted: #8492a0;
+  --rule: #253039; --grid: #1d2730; --axis: #36434e; --accent: #74b2f0; --accent-ink: #06121e; --accent-soft: #15283b;
+  --flag: #f0a94b; --flag-soft: #2c2012; --ok: #52c487; --ok-soft: #0f2518;
+  --c-sails: #d95926; --c-sails-2: #f08a5d; --c-hull: #199e70; --c-keel: #c98500; --c-keel-2: #f0b84a; --c-rudder: #d55181;
+  --c-windage: #1f9a1f; --c-bulb: #9085e9; --c-rm: #c3c2b7; --c-mass: #8fa7ba; --leg-up: #5598e7; --leg-down: #9085e9;
+  --div-neg: #3987e5; --div-pos: #e66767; --div-mid: #2f3236;
+  --tws0: #184f95; --tws1: #1c5cab; --tws2: #256abf; --tws3: #2a78d6; --tws4: #3987e5; --tws5: #6da7ec; --tws6: #9ec5f4; --tws7: #cde2fb;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--f-body); font-size: 16px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+a { color: var(--accent); text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.prose { max-width: 68ch; }
+.prose p, .prose ul { margin: 0 0 14px; }
+.prose ul { padding-left: 20px; }
+.prose li { margin-bottom: 6px; }
+h1, h2 { font-family: var(--f-display); font-weight: 600; letter-spacing: 0.005em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(44px, 7vw, 76px); line-height: 0.95; }
+h2 { font-size: clamp(30px, 4vw, 42px); line-height: 1.02; margin-bottom: 14px; }
+h3 { font-size: 18px; line-height: 1.3; margin: 0 0 6px; font-weight: 600; text-wrap: balance; }
+h4 { font-size: 14px; margin: 0 0 4px; font-weight: 600; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+.eyebrow code { text-transform: none; letter-spacing: 0; color: var(--ink-2); background: none; padding: 0; }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+:not(pre) > code { background: var(--sunk); padding: 1px 5px; border-radius: 4px; color: var(--ink); white-space: nowrap; }
+pre { font-family: var(--f-mono); font-size: 13px; line-height: 1.55; background: var(--sunk); color: var(--ink); padding: 14px 16px; border-radius: 6px; overflow-x: auto; margin: 0; }
+pre .c { color: var(--muted); }
+pre .k { color: var(--accent); }
+sub { font-size: 0.72em; line-height: 0; }
+
+/* top bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--surface); border-bottom: 1px solid var(--rule); }
+.bar .wrap { display: flex; align-items: center; gap: 18px; padding-block: 0; }
+.bar .brand { font-family: var(--f-display); font-weight: 700; font-size: 19px; letter-spacing: 0.02em; white-space: nowrap; }
+.bar nav { overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+.bar nav::-webkit-scrollbar { display: none; }
+.bar nav ul { list-style: none; display: flex; gap: 2px; margin: 0; padding: 0; }
+.bar nav a { display: block; padding: 12px 9px; font-size: 13.5px; color: var(--ink-2); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+.bar nav a:hover { color: var(--ink); border-bottom-color: var(--axis); }
+
+/* hero */
+.hero { padding-block: 44px 40px; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 400px); gap: 40px; align-items: start; }
+.lede { font-size: 19px; line-height: 1.55; color: var(--ink-2); max-width: 60ch; margin: 18px 0 22px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; margin: 0 0 18px; }
+.facts div { background: var(--surface); padding: 10px 12px; }
+.facts dt { font-size: 12px; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-family: var(--f-display); font-size: 24px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.facts dd small { font-family: var(--f-body); font-size: 12.5px; font-weight: 400; color: var(--ink-2); }
+.note { font-size: 13.5px; color: var(--ink-2); border-left: 3px solid var(--flag); background: var(--flag-soft); padding: 8px 12px; border-radius: 0 4px 4px 0; max-width: 68ch; }
+
+/* sections */
+section.s { padding-block: 56px 24px; border-top: 1px solid var(--rule); }
+figure { margin: 24px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px 14px; min-width: 0; }
+figure.bare { background: none; border: 0; padding: 0; }
+figcaption { font-size: 13.5px; color: var(--ink-2); margin-top: 10px; max-width: 80ch; line-height: 1.5; }
+figcaption b { color: var(--ink); font-weight: 600; }
+.fig-title { font-weight: 600; font-size: 14.5px; margin: 0 0 8px; }
+.scroll-x { overflow-x: auto; }
+svg { display: block; max-width: 100%; height: auto; font-family: var(--f-body); }
+svg.wide { min-width: 860px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; }
+.grid2 > *, .grid3 > * { min-width: 0; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 20px; }
+.grid2 figure, .grid3 figure { margin: 0; }
+
+/* svg classes */
+.grid-l { stroke: var(--grid); stroke-width: 1; fill: none; }
+.axis-l { stroke: var(--axis); stroke-width: 1; fill: none; }
+.tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.alab { fill: var(--ink-2); font-size: 12px; }
+.ink { fill: var(--ink); }
+.ink2 { fill: var(--ink-2); }
+.mut { fill: var(--muted); }
+.ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.dot { stroke: var(--surface); stroke-width: 2; }
+.hit { fill: transparent; cursor: crosshair; }
+.cross { stroke: var(--muted); stroke-width: 1; }
+.band { fill: var(--sunk); }
+.box { fill: var(--surface); stroke: var(--axis); stroke-width: 1; }
+.box-sunk { fill: var(--sunk); stroke: var(--axis); stroke-width: 1; }
+.box-acc { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.wire { stroke: var(--ink-2); stroke-width: 1.3; fill: none; }
+.wire-acc { stroke: var(--accent); stroke-width: 1.6; fill: none; }
+.arrowhead { fill: var(--ink-2); }
+.arrowhead-acc { fill: var(--accent); }
+.t12 { font-size: 12px; } .t11 { font-size: 11px; } .t13 { font-size: 13px; } .t14 { font-size: 14px; }
+.tm { font-family: var(--f-mono); }
+.b6 { font-weight: 600; }
+.bar-hit { cursor: default; }
+.bar-hit:hover .barfill, .bar-hit:focus .barfill { opacity: 0.8; }
+
+/* tooltip */
+#tip { position: fixed; z-index: 50; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 6px 22px rgba(10, 20, 30, 0.18); min-width: 150px; max-width: 280px; }
+#tip .tt { font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+#tip .row { display: grid; grid-template-columns: 14px auto 1fr; gap: 6px; align-items: center; font-variant-numeric: tabular-nums; }
+#tip .row .k { width: 12px; height: 3px; border-radius: 2px; }
+#tip .row .v { font-weight: 600; }
+#tip .row .n { color: var(--ink-2); }
+
+/* controls */
+.controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 0 0 12px; }
+.chip { font: inherit; font-size: 13px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.chip:hover { border-color: var(--axis); }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip .sw { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--ink-2); margin: 0 0 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
+.legend i.sq { width: 11px; height: 11px; border-radius: 3px; }
+label.ctl { font-size: 13px; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; }
+select, input[type="number"] { font: inherit; font-size: 13.5px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 5px; padding: 3px 6px; }
+input[type="number"] { width: 72px; font-variant-numeric: tabular-nums; }
+.slider { display: grid; grid-template-columns: 78px minmax(0, 1fr) 64px; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.slider input { width: 100%; accent-color: var(--accent); }
+.slider output { font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; font-weight: 500; }
+button.act { font: inherit; font-size: 13px; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 5px; padding: 6px 12px; cursor: pointer; }
+button.ghost { font: inherit; font-size: 13px; background: none; color: var(--accent); border: 1px solid var(--accent); border-radius: 5px; padding: 5px 11px; cursor: pointer; }
+
+/* readouts */
+.readout { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.readout div { background: var(--surface); padding: 7px 10px; }
+.readout dt { font-size: 11.5px; color: var(--muted); }
+.readout dd { margin: 0; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pill { font-family: var(--f-mono); font-size: 11.5px; padding: 1px 7px; border-radius: 999px; background: var(--flag-soft); color: var(--flag); white-space: nowrap; display: inline-block; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.acc { background: var(--accent-soft); color: var(--accent); }
+
+/* tables */
+.tw { overflow-x: auto; margin: 14px 0; }
+table { border-collapse: collapse; font-size: 13.5px; width: 100%; }
+th { text-align: left; font-weight: 600; font-size: 12px; color: var(--ink-2); border-bottom: 1px solid var(--axis); padding: 6px 10px 6px 0; vertical-align: bottom; }
+td { border-bottom: 1px solid var(--rule); padding: 7px 10px 7px 0; vertical-align: top; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.dotc { text-align: center; }
+.dotc i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.dotc i.o { background: none; border: 1.5px solid var(--axis); }
+details { margin: 10px 0; }
+details > summary { cursor: pointer; font-size: 13.5px; color: var(--accent); }
+
+/* yaml explorer */
+.yx { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 0; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.yx-src { background: var(--sunk); padding: 10px 0; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.5; overflow-x: auto; max-height: 640px; overflow-y: auto; }
+.yx-src button { display: block; width: 100%; text-align: left; font: inherit; color: var(--ink); background: none; border: 0; border-left: 3px solid transparent; padding: 4px 14px 4px 13px; cursor: pointer; white-space: pre; }
+.yx-src button:hover { background: var(--grid); }
+.yx-src button[aria-pressed="true"] { background: var(--accent-soft); border-left-color: var(--accent); }
+.yx-src .ky { color: var(--accent); }
+.yx-src .cm { color: var(--muted); }
+.yx-det { padding: 16px 18px; min-width: 0; }
+.yx-det h3 { font-family: var(--f-mono); font-size: 15px; }
+.yx-det dl { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 6px 12px; font-size: 13.5px; margin: 10px 0; }
+.yx-det dt { color: var(--muted); }
+.yx-det dd { margin: 0; }
+.yx-det table { font-size: 12.5px; }
+.yx-det code { white-space: normal; overflow-wrap: anywhere; }
+.dotc { white-space: nowrap; }
+
+/* stacks and nested */
+.layers { display: grid; gap: 6px; }
+.layers div { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: baseline; background: var(--surface); border: 1px solid var(--rule); border-radius: 5px; padding: 8px 12px; font-size: 13.5px; }
+.layers div b { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-weight: 500; }
+.nest { border: 1.5px solid var(--axis); border-radius: 8px; padding: 12px 14px 14px; background: var(--surface); }
+.nest .nest { margin-top: 12px; background: var(--paper); }
+.nest .nest .nest { background: var(--surface); }
+.nest .nest .nest .nest { background: var(--accent-soft); border-color: var(--accent); }
+.nest-h { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); gap: 6px 14px; font-size: 13px; align-items: start; }
+.nest-h .lv { font-weight: 600; font-size: 14px; }
+.nest-h .lv code { font-size: 12.5px; }
+.nest-h .fn { font-size: 12.5px; color: var(--ink-2); grid-column: 1; }
+.nest-h dl { margin: 0; }
+.nest-h dt { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.nest-h dd { margin: 0; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 470px), 1fr)); gap: 20px; margin: 22px 0; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.card .hd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card .hd .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.card .hd h3 { margin: 0; }
+.card .cls { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.card p { margin: 0; font-size: 14.5px; }
+.card .eq { font-family: var(--f-mono); font-size: 12.5px; background: var(--sunk); padding: 8px 10px; border-radius: 5px; line-height: 1.6; overflow-x: auto; white-space: pre; }
+.card dl { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 4px 10px; font-size: 13px; margin: 0; }
+.card dt { color: var(--muted); }
+.card dd { margin: 0; }
+.big { font-family: var(--f-display); font-size: 46px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.sub { font-size: 13px; color: var(--ink-2); }
+footer { padding-block: 40px 60px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); margin-top: 30px; }
+
+@media (max-width: 860px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
+  .yx { grid-template-columns: minmax(0, 1fr); }
+  .yx-src { max-height: 340px; }
+  .nest-h { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chip, .yx-src button, .bar nav a { transition: background-color 120ms, border-color 120ms, color 120ms; }
+}
+
+/* report: X, Y, Z (and further quantities) of one part share these hues; parts keep theirs */
+:root { --q-x: #2a78d6; --q-y: #6250d6; --q-z: #687684; --q-w: #a86f00; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --q-x: #5598e7; --q-y: #9085e9; --q-z: #8492a0; --q-w: #f0b84a; }
+}
+:root[data-theme="dark"] { --q-x: #5598e7; --q-y: #9085e9; --q-z: #8492a0; --q-w: #f0b84a; }
+.yx-src .ln { display: block; }
+.yx-src .ln.set { background: var(--flag-soft); box-shadow: inset 3px 0 0 var(--flag); }
+.missing { font-size: 13.5px; color: var(--ink-2); border-left: 3px solid var(--axis); background: var(--sunk); padding: 8px 12px; border-radius: 0 4px 4px 0; max-width: 80ch; margin: 10px 0; }
+.warnlist { margin: 0; padding-left: 18px; font-size: 13.5px; }
+.warnlist li { margin-bottom: 3px; }
+.card .args { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); line-height: 1.5; overflow-wrap: anywhere; }
+.card .row3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.card h4 { font-size: 12.5px; color: var(--ink-2); font-weight: 600; margin: 0 0 2px; }
+.controls.tight { margin: 0 0 4px; gap: 6px; }
+.controls.tight .chip { font-size: 12px; padding: 2px 9px; }
+td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
+.hero .facts { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.yx-det td:first-child code { white-space: nowrap; overflow-wrap: normal; }
+.yx-det td code { overflow-wrap: break-word; }
+.yx-det td:first-child { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="wrap">
+    <span class="brand">VPP report</span>
+    <nav aria-label="Sections">
+      <ul>
+        <li><a href="#summary">Summary</a></li>
+        <li><a href="#polar-fig">Polar</a></li>
+        <li><a href="#inputs">Inputs</a></li>
+        <li><a href="#balance">Balance</a></li>
+        <li><a href="#forces">Force models</a></li>
+        <li><a href="#hydro">Hydrostatics</a></li>
+        <li><a href="#race">Race</a></li>
+        <li><a href="#rates">Rates</a></li>
+        <li><a href="#frames">Frames</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+
+<header class="hero" id="summary">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow" id="eyebrow"></div>
+      <h1 id="boat-name"></h1>
+      <p class="lede" id="boat-desc"></p>
+      <div class="controls" id="ovr-pills"></div>
+      <dl class="facts" id="facts"></dl>
+      <div id="warn"></div>
+    </div>
+    <figure style="margin:0" id="polar-fig">
+      <div class="fig-title">Polar: boat speed V<sub>b</sub> [m/s] against β<sub>TW</sub></div>
+      <div class="controls" id="polar-chips" role="group" aria-label="Highlight a wind speed"></div>
+      <div id="polar"></div>
+      <figcaption id="polar-cap"></figcaption>
+    </figure>
+  </div>
+  <div class="wrap"><details id="polar-table-box"><summary>V<sub>b</sub> [m/s] at every polar point (polar.csv)</summary><div class="tw"><table id="polar-table"></table></div></details></div>
+</header>
+
+<main>
+<!-- INPUTS -->
+<section class="s" id="inputs">
+  <div class="wrap">
+    <div class="eyebrow"><code>boat.yaml</code><code>run.json</code></div>
+    <h2>Inputs: the boat file as run</h2>
+    <div class="prose"><p id="inputs-lede"></p></div>
+    <div class="tw" id="ovr-wrap"><table id="ovr-table"></table></div>
+    <div class="yx">
+      <div class="yx-src" id="yx-src" role="group" aria-label="Boat file blocks"></div>
+      <div class="yx-det" id="yx-det" aria-live="polite"></div>
+    </div>
+    <details><summary>boat.yaml as run</summary><pre id="yaml-raw"></pre></details>
+  </div>
+</section>
+
+<!-- BALANCE -->
+<section class="s" id="balance">
+  <div class="wrap">
+    <div class="eyebrow"><code>polar.csv</code><code>vmg.csv</code></div>
+    <h2>The balance at one point</h2>
+    <div class="prose"><p>Each part's loads at a solved point. Along the course and across it they cancel, the roll moment equals the righting moment RM<sub>φ</sub> and the yaw moment is zero; the Σ bars are the residuals. The vertical force and the pitch moment go to the hydrostatics, which set sinkage and trim. Pick a point here or click one on the polar.</p></div>
+    <div class="controls">
+      <label class="ctl" for="bal-tws">TWS</label><select id="bal-tws"></select>
+      <label class="ctl" for="bal-twa">β<sub>TW</sub></label><select id="bal-twa"></select>
+      <span id="bal-flags"></span>
+    </div>
+    <dl class="readout" id="bal-state"></dl>
+    <div class="legend" id="bal-legend" style="margin-top:14px"></div>
+    <div class="grid2" id="bal-charts" style="margin-top:6px"></div>
+  </div>
+</section>
+
+<!-- FORCE MODELS -->
+<section class="s" id="forces">
+  <div class="wrap">
+    <div class="eyebrow"><code>response.csv</code><code>polar.csv</code><code>vmg.csv</code></div>
+    <h2>The force models</h2>
+    <div class="prose"><p>Each part's loads around one of the race's best-VMG states. One input varies at a time and the others stay at the solved state; sinkage and trim follow from the hydrostatics. Off the state the boat is not in balance: these curves are the force models' own response, and the ringed point is the solved state. Hollow points read a part's table outside its range.</p></div>
+    <div class="controls" id="fm-tws" role="group" aria-label="Wind speed"></div>
+    <div class="controls" id="fm-leg" role="group" aria-label="Leg"></div>
+    <dl class="readout" id="fm-readout"></dl>
+    <div class="cards" id="fm-cards"></div>
+    <h3 style="margin-top:26px">Where the drive goes: each part's drag at the best-VMG points [N]</h3>
+    <div class="legend" id="budget-legend"></div>
+    <div class="grid2" id="budget"></div>
+  </div>
+</section>
+
+<!-- HYDROSTATICS -->
+<section class="s" id="hydro">
+  <div class="wrap">
+    <div class="eyebrow"><code>hydro.csv</code><code>mass.csv</code><code>vmg.csv</code></div>
+    <h2>Righting moment, attitude and the mass budget</h2>
+    <div class="prose"><p id="hydro-lede"></p></div>
+    <div class="grid2">
+      <figure style="margin:0">
+        <div class="fig-title">RM<sub>φ</sub> [N·m] against heel, with each wind's upwind point</div>
+        <div id="rm-chart"></div>
+        <figcaption id="rm-cap"></figcaption>
+      </figure>
+      <figure style="margin:0">
+        <div class="fig-title">Trim [deg, + bow down] against the pitch moment M<sub>ext</sub> [N·m, + bow down]</div>
+        <div class="controls"><label class="ctl" for="hy-heel">heel</label><select id="hy-heel"></select></div>
+        <div id="trim-chart"></div>
+        <figcaption>The table at Z<sub>ext</sub> = 0 and the chosen heel. Hover for sinkage, waterline length and wetted area.</figcaption>
+      </figure>
+    </div>
+    <figure id="z-fig">
+      <div class="fig-title">Sinkage [mm, + down] against the parts' vertical force Z<sub>ext</sub> [N, + up], at the chosen heel and M<sub>ext</sub> = 0</div>
+      <div id="z-chart"></div>
+      <figcaption id="z-cap"></figcaption>
+    </figure>
+    <h3 style="margin-top:22px">Attitude at the best-VMG points</h3>
+    <div class="legend"><span><i style="background:var(--leg-up)"></i>upwind</span><span><i style="background:var(--leg-down)"></i>downwind</span></div>
+    <div class="grid3" id="att-charts"></div>
+    <div class="grid2" style="margin-top:20px">
+      <figure style="margin:0">
+        <div class="fig-title">Mass budget [kg]</div>
+        <div id="mass-chart"></div>
+        <figcaption>mass.csv: the parts' own items, then the boat file's, then the corrector. Hover a bar for its position and source.</figcaption>
+      </figure>
+      <figure style="margin:0">
+        <div class="fig-title">Where the mass sits: side view, x aft from the bow, z up from the waterline</div>
+        <div class="sub">Dot area is proportional to mass; hover a dot for its name.</div>
+        <div id="mass-xz"></div>
+        <dl class="readout" id="mass-out" style="margin-top:10px"></dl>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- RACE -->
+<section class="s" id="race">
+  <div class="wrap">
+    <div class="eyebrow"><code>race.csv</code><code>run.json: course</code></div>
+    <h2>The race</h2>
+    <div class="prose"><p id="race-lede"></p></div>
+    <div class="legend"><span><i style="background:var(--leg-up)"></i>upwind</span><span><i style="background:var(--leg-down)"></i>downwind</span></div>
+    <div class="grid3" id="race-charts"></div>
+    <figure>
+      <div class="fig-title">Race-time calculator</div>
+      <div class="grid2" style="align-items:start">
+        <div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px" id="calc-course"></div>
+          <h4 style="margin-top:16px">Weight of each wind speed</h4>
+          <div class="controls" style="margin-top:6px">
+            <button class="chip" type="button" id="w-run" aria-pressed="true">As run</button>
+            <button class="chip" type="button" id="w-uniform" aria-pressed="false">Uniform</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px" id="calc-w"></div>
+        </div>
+        <div>
+          <div class="sub">Weighted race time</div>
+          <div class="big" id="calc-total">–</div>
+          <div class="sub" id="calc-delta"></div>
+          <div class="legend" style="margin-top:12px"><span><i class="sq" style="background:var(--leg-up)"></i>upwind legs</span><span><i class="sq" style="background:var(--leg-down)"></i>downwind legs</span></div>
+          <div id="calc-chart"></div>
+        </div>
+      </div>
+      <figcaption>The run's best VMG at each wind speed with the course's leg times: leg / VMG + tacks × tack time upwind, leg / VMG + gybes × gybe time downwind, times the laps, then the weighted mean over the winds. The VMGs don't depend on these settings, so nothing needs solving again.</figcaption>
+    </figure>
+    <details><summary>race.csv</summary><div class="tw"><table id="race-table"></table></div></details>
+  </div>
+</section>
+
+<!-- RATES -->
+<section class="s" id="rates">
+  <div class="wrap">
+    <div class="eyebrow"><code>rates_summary.csv</code><code>rates.csv</code></div>
+    <h2>Exchange rates</h2>
+    <div class="prose"><p>The change in race time from one small change to the boat, re-timed at the baseline's best-VMG angles and optimised controls (to first order the race time moves only through the boat speed there).</p></div>
+    <div id="rates-body">
+      <figure>
+        <div class="fig-title">Change in weighted race time per perturbation</div>
+        <div class="legend"><span><i class="sq" style="background:var(--div-pos)"></i>slower</span><span><i class="sq" style="background:var(--div-neg)"></i>faster</span></div>
+        <div class="scroll-x" id="rates-chart"></div>
+        <figcaption id="rates-cap"></figcaption>
+      </figure>
+      <figure>
+        <div class="fig-title">Where in the wind range each change bites: % of that wind's race time</div>
+        <div class="scroll-x" id="rates-heat"></div>
+        <figcaption>Each row is coloured on its own scale (darker = a larger share of that row's biggest effect), so read colour within a row and the numbers across rows.</figcaption>
+      </figure>
+      <figure id="vdr-fig">
+        <div class="fig-title">V dR/dV implied by the drag step [N]</div>
+        <div class="legend"><span><i style="background:var(--leg-up)"></i>upwind</span><span><i style="background:var(--leg-down)"></i>downwind</span></div>
+        <div id="vdr-chart"></div>
+        <figcaption>ΔV/V = −ΔD / (V dR/dV): the slope a hand estimate assumes when it turns drag into speed. The VPP's includes the sails' response to the slower boat.</figcaption>
+      </figure>
+      <details><summary>rates.csv</summary><div class="tw"><table id="rates-table"></table></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- FRAMES -->
+<section class="s" id="frames">
+  <div class="wrap">
+    <div class="eyebrow"><code>vpp/frames.py</code><code>docs/nomenclature.md</code></div>
+    <h2>Frames and nomenclature</h2>
+    <div class="prose">
+      <p><b>Forces</b> (X, Y, Z) are in the <b>course frame</b>: X along the course, the direction of V<sub>b</sub>, + forward; Y horizontal and across it, + to windward (port, on port tack); Z up. <b>Positions</b> (x, y, z) are in the <b>boat frame</b>: x along the centreline, + aft from the bow; y + to port; z + up from the waterline. Neither frame heels: heel turns the boat's points about the centreline and the axes stay level. Moments K, M, N are about the bow on the waterline. Everything is for port tack; starboard is the mirror image.</p>
+    </div>
+    <figure>
+      <div class="grid2" style="align-items:start">
+        <div>
+          <div class="fig-title">From above: X follows the course, not the bow or the wind</div>
+          <svg id="ax-plan" viewBox="0 0 460 500" role="img" aria-label="Plan view. X points forward along the course. The centreline is turned to windward of it by the leeway, and the boat's x runs aft along the centreline from the bow. The true and apparent winds come from angles measured from the course."></svg>
+        </div>
+        <div>
+          <div class="fig-title">From astern: the boat heels, the axes stay level</div>
+          <svg id="ax-stern" viewBox="0 0 460 500" role="img" aria-label="View from astern of the heeled boat. Y stays horizontal and Z vertical. The sails' heel force is normal to the heeled mast, so it has a leeward and a downward part; the keel's side force is horizontal; the rudder's lift is normal to its heeled blade, so it also pushes up."></svg>
+        </div>
+      </div>
+      <figcaption>Illustrative angles (β<sub>TW</sub> 42°, β<sub>AW</sub> 27°, leeway 2.5° drawn 4×, heel 30°), not this run's numbers. Left: the course is neither the centreline nor the wind; the bow is the origin of every moment. Right: looking forward from astern. The sails' heel force is normal to the heeled mast, so on the level axes it has a leeward part (−Y) and a downward part (−Z); the rudder's lift is normal to its heeled blade, so it also pushes up.</figcaption>
+    </figure>
+    <h3 style="margin-top:22px">Which frame each number is in</h3>
+    <div class="tw"><table>
+      <thead><tr><th>quantity</th><th>frame</th><th>directions</th></tr></thead>
+      <tbody>
+        <tr><td>forces X, Y, Z of every part (<code>X_&lt;part&gt;</code> …)</td><td>course</td><td>X along V<sub>b</sub>, + forward · Y horizontal, + to windward · Z + up</td></tr>
+        <tr><td>moments K, M, N (<code>K_&lt;part&gt;</code> …)</td><td>about the bow on the waterline; the arms ignore the leeway (cos β<sub>Y</sub> ≈ 1)</td><td>K + heels to starboard · M + bow down · N + bow to port (to windward)</td></tr>
+        <tr><td>points: centre of effort, CLR, mass CGs (<code>mass.csv</code>, <code>sails_z_ce</code>)</td><td>boat, heeled, on level axes</td><td>x + aft from the bow · y + port · z + up from the waterline</td></tr>
+        <tr><td>β<sub>TW</sub>, β<sub>AW</sub> (<code>twa</code>, <code>sails_awa</code>)</td><td>from the course</td><td>where the wind comes from: 0° dead ahead, + from port</td></tr>
+        <tr><td>the sails' effective angle (<code>sails_awa_eff</code>)</td><td>from the centreline, normal to the heeled mast</td><td>β<sub>AW</sub> − β<sub>Y</sub>, then tan β<sub>eff</sub> = tan β cos φ</td></tr>
+        <tr><td>hull, keel and rudder drag and side force</td><td>course: the water comes from dead ahead along it</td><td>D<sub>h</sub> = −X, S<sub>h</sub> = +Y</td></tr>
+        <tr><td>windage drag</td><td>along the apparent wind</td><td>X = −D cos β<sub>AW</sub>, Y = −D sin β<sub>AW</sub></td></tr>
+        <tr><td>leeway β<sub>Y</sub>, rudder δ<sub>R</sub> (<code>leeway</code>, <code>rudder.angle</code>)</td><td>centreline against the course</td><td>β<sub>Y</sub> + bow to port · δ<sub>R</sub> + trailing edge to port</td></tr>
+        <tr><td>heel φ, sinkage, trim (<code>heel</code>, <code>sink</code>, <code>trim</code>)</td><td>boat</td><td>φ + to starboard · sinkage + down [m] · trim + bow down [deg]</td></tr>
+      </tbody>
+    </table></div>
+    <h3 style="margin-top:22px">Symbols</h3>
+    <div class="tw"><table>
+      <thead><tr><th>symbol</th><th>meaning</th><th>columns</th></tr></thead>
+      <tbody>
+        <tr><td>V<sub>b</sub></td><td>boat speed through the water [m/s]</td><td><code>V</code>, <code>V_up</code>, <code>V_down</code></td></tr>
+        <tr><td>VMG</td><td>speed made good along the wind, V<sub>b</sub> cos β<sub>TW</sub> (downwind written positive in race.csv)</td><td><code>vmg</code>, <code>vmg_up</code>, <code>vmg_down</code></td></tr>
+        <tr><td>φ</td><td>heel angle, + to starboard [deg]</td><td><code>heel</code></td></tr>
+        <tr><td>β<sub>Y</sub></td><td>leeway: the angle between the course and the centreline, + bow to port [deg]</td><td><code>leeway</code></td></tr>
+        <tr><td>β<sub>TW</sub>, β<sub>AW</sub></td><td>true and apparent wind angles, from the course [deg]</td><td><code>twa</code>, <code>sails_awa</code></td></tr>
+        <tr><td>V<sub>TW</sub>, V<sub>AW</sub> (TWS, AWS)</td><td>true wind speed at the reference height; apparent wind speed at the rig's height [m/s]</td><td><code>tws</code>, <code>sails_aws</code></td></tr>
+        <tr><td>δ<sub>R</sub></td><td>rudder angle, + trailing edge to port [deg]</td><td><code>rudder.angle</code></td></tr>
+        <tr><td>flat</td><td>the sails' depowering (ORC), optimised between its bounds</td><td><code>sails.flat</code></td></tr>
+        <tr><td>D<sub>h</sub> = D<sub>v</sub> + D<sub>r</sub> + D<sub>i</sub></td><td>hydrodynamic drag along the course: viscous, residuary (waves), induced</td><td><code>hull_Rf</code> (R<sub>f</sub>), <code>hull_Rw</code> (R<sub>w</sub>), <code>keel_D0</code>, <code>keel_Di</code>, <code>rudder_Dv</code>, <code>rudder_Di</code></td></tr>
+        <tr><td>S<sub>h</sub></td><td>hydrodynamic side force, + to windward</td><td><code>keel_S</code>, <code>Y_keel</code>, <code>Y_rudder</code>, <code>Y_hull</code></td></tr>
+        <tr><td>T<sub>a</sub>, S<sub>a</sub></td><td>aerodynamic thrust along the course and side force across it (+ to leeward)</td><td><code>X_sails</code>, −<code>Y_sails</code></td></tr>
+        <tr><td>drive, heel force</td><td>the sails' force along the centreline and normal to the heeled mast</td><td><code>sails_drive</code>, <code>sails_heel_force</code></td></tr>
+        <tr><td>Z<sub>CE</sub></td><td>height of the sails' centre of effort above the waterline [m]</td><td><code>sails_z_ce</code></td></tr>
+        <tr><td>RM<sub>φ</sub>, GZ</td><td>hydrostatic righting moment at heel φ [N·m]; its arm RM<sub>φ</sub> / (m g)</td><td><code>rm</code></td></tr>
+        <tr><td>M<sub>ext</sub>, Z<sub>ext</sub></td><td>the parts' pitch moment and vertical force that the hydrostatics float the boat under</td><td><code>M_ext</code>, <code>Z_ext</code> (hydro.csv); ΣM, ΣZ of the parts</td></tr>
+        <tr><td>α, L</td><td>a foil's angle of attack [deg] and lift [N]</td><td><code>rudder_alpha</code>, <code>rudder_L</code></td></tr>
+        <tr><td>A, D</td><td>windage: projected area above the water [m²] and drag [N]</td><td><code>windage_A</code>, <code>windage_D</code></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap" id="foot"></div></footer>
+<div id="tip" hidden></div>
+__DATA__
+<script>
+(function () {
+"use strict";
+const NS = "http://www.w3.org/2000/svg";
+// ---------- helpers ----------
+function E(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs || {}) {
+    if (k === "text") e.textContent = attrs[k];
+    else if (attrs[k] !== undefined && attrs[k] !== null) e.setAttribute(k, attrs[k]);
+  }
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function H(tag, attrs, parent) {
+  const e = document.createElement(tag);
+  for (const k in attrs || {}) {
+    if (k === "text") e.textContent = attrs[k];
+    else if (k === "html") e.innerHTML = attrs[k];
+    else e.setAttribute(k, attrs[k]);
+  }
+  if (parent) parent.appendChild(e);
+  return e;
+}
+// SVG text with subscripts written as x_{sub}
+function T(parent, x, y, str, attrs) {
+  const t = E("text", Object.assign({ x, y }, attrs || {}), parent);
+  const parts = String(str).split(/_\{([^}]*)\}/);
+  parts.forEach((p, i) => {
+    if (!p) return;
+    if (i % 2 === 0) t.appendChild(document.createTextNode(p));
+    else {
+      E("tspan", { dy: 3.5, "font-size": "0.75em", text: p }, t);
+      E("tspan", { dy: -3.5, text: " " }, t);
+    }
+  });
+  return t;
+}
+function fx(v, d) {
+  if (d === undefined) d = 2;
+  if (v === null || v === undefined || !isFinite(v)) return "–";
+  const s = Math.abs(v).toFixed(d);
+  return (v < 0 && Number(s) !== 0 ? "−" : "") + s;
+}
+function sg(v, d) { return (v > 0 ? "+" : "") + fx(v, d); }
+function lin(d0, d1, r0, r1) {
+  const f = (v) => r0 + ((v - d0) * (r1 - r0)) / (d1 - d0);
+  f.inv = (p) => d0 + ((p - r0) * (d1 - d0)) / (r1 - r0);
+  return f;
+}
+function nice(lo, hi, n) {
+  const span = hi - lo, raw = span / (n || 5), mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const e = raw / mag, step = (e >= 7.5 ? 10 : e >= 3.5 ? 5 : e >= 1.5 ? 2 : 1) * mag;
+  const out = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) out.push(Number(v.toFixed(10)));
+  return out;
+}
+function svgRoot(w, h, label) {
+  const s = E("svg", { viewBox: `0 0 ${w} ${h}`, role: "img", "aria-label": label || "" });
+  return s;
+}
+function svgPt(s, ev) {
+  const p = s.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+  return p.matrixTransform(s.getScreenCTM().inverse());
+}
+function arrow(g, x1, y1, x2, y2, cls, head) {
+  head = head || 7;
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  const bx = x2 - head * Math.cos(a), by = y2 - head * Math.sin(a);
+  E("line", { x1, y1, x2: bx, y2: by, class: cls || "wire" }, g);
+  const w = head * 0.55;
+  E("polygon", {
+    points: `${x2},${y2} ${bx + w * Math.sin(a)},${by - w * Math.cos(a)} ${bx - w * Math.sin(a)},${by + w * Math.cos(a)}`,
+    class: cls === "wire-acc" ? "arrowhead-acc" : "arrowhead",
+  }, g);
+}
+function colorArrow(g, x1, y1, x2, y2, color, width, head) {
+  head = head || 11;
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  const bx = x2 - head * Math.cos(a), by = y2 - head * Math.sin(a);
+  E("line", { x1, y1, x2: bx, y2: by, style: `stroke:${color};stroke-width:${width || 3};stroke-linecap:round` }, g);
+  const w = head * 0.5;
+  E("polygon", { points: `${x2},${y2} ${bx + w * Math.sin(a)},${by - w * Math.cos(a)} ${bx - w * Math.sin(a)},${by + w * Math.cos(a)}`, style: `fill:${color}` }, g);
+}
+function legendInto(host, items) {
+  host.replaceChildren();
+  items.forEach((it) => {
+    const s = H("span", {}, host);
+    const i = H("i", { class: it.sq ? "sq" : "" }, s);
+    i.style.background = it.color;
+    s.appendChild(document.createTextNode(it.name));
+  });
+}
+
+// ---------- tooltip ----------
+const tip = document.getElementById("tip");
+function showTip(ev, title, rows) {
+  tip.replaceChildren();
+  H("div", { class: "tt", text: title }, tip);
+  rows.forEach((r) => {
+    const row = H("div", { class: "row" }, tip);
+    const k = H("span", { class: "k" }, row);
+    if (r[2]) k.style.background = r[2];
+    H("span", { class: "v", text: r[1] }, row);
+    H("span", { class: "n", text: r[0] }, row);
+  });
+  tip.hidden = false;
+  let x, y;
+  if (ev.clientX !== undefined && ev.type !== "focus") { x = ev.clientX + 14; y = ev.clientY + 14; }
+  else { const b = ev.target.getBoundingClientRect(); x = b.right + 8; y = b.top; }
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  if (x + tw > window.innerWidth - 8) x = Math.max(8, x - tw - 28);
+  if (y + th > window.innerHeight - 8) y = Math.max(8, y - th - 28);
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.hidden = true; }
+
+// ---------- line chart ----------
+let clipN = 0;
+function lineChart(host, o) {
+  const W = o.w || 560, Hh = o.h || 300, m = Object.assign({ l: 50, r: 16, t: 12, b: 40 }, o.m || {});
+  const s = svgRoot(W, Hh, o.label);
+  const x = lin(o.x.lo, o.x.hi, m.l, W - m.r), y = lin(o.y.lo, o.y.hi, Hh - m.b, m.t);
+  (o.bands || []).forEach((b) => {
+    const x0 = x(Math.max(b.lo, o.x.lo)), x1 = x(Math.min(b.hi, o.x.hi));
+    E("rect", { x: x0, y: m.t, width: x1 - x0, height: Hh - m.b - m.t, class: "band" }, s);
+    if (b.label) T(s, x0 + 5, m.t + 13, b.label, { class: "t11 mut" });
+  });
+  const yt = o.y.ticks || nice(o.y.lo, o.y.hi, o.y.n || 5);
+  const xt = o.x.ticks || nice(o.x.lo, o.x.hi, o.x.n || 6);
+  const yf = o.y.fmt || ((v) => String(v)), xf = o.x.fmt || ((v) => String(v));
+  yt.forEach((v) => {
+    E("line", { x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: v === 0 ? "axis-l" : "grid-l" }, s);
+    E("text", { x: m.l - 7, y: y(v) + 4, class: "tick", "text-anchor": "end", text: yf(v) }, s);
+  });
+  xt.forEach((v) => E("text", { x: x(v), y: Hh - m.b + 16, class: "tick", "text-anchor": "middle", text: xf(v) }, s));
+  E("line", { x1: m.l, x2: W - m.r, y1: Hh - m.b, y2: Hh - m.b, class: "axis-l" }, s);
+  if (o.x.label) T(s, (m.l + W - m.r) / 2, Hh - 6, o.x.label, { class: "alab", "text-anchor": "middle" });
+  (o.refs || []).forEach((r) => {
+    if (r.y !== undefined) {
+      E("line", { x1: m.l, x2: W - m.r, y1: y(r.y), y2: y(r.y), style: `stroke:${r.color || "var(--muted)"};stroke-width:1.5` }, s);
+      if (r.label) T(s, W - m.r - 4, y(r.y) - 5, r.label, { class: "t11 ink2", "text-anchor": "end" });
+    }
+    if (r.x !== undefined) {
+      E("line", { y1: m.t, y2: Hh - m.b, x1: x(r.x), x2: x(r.x), style: `stroke:${r.color || "var(--muted)"};stroke-width:1.5` }, s);
+      if (r.label) { const end = x(r.x) > W - m.r - 70; T(s, x(r.x) + (end ? -5 : 5), m.t + 12, r.label, { class: "t11 ink2", "text-anchor": end ? "end" : "start" }); }
+    }
+  });
+  const cid = "clip" + (++clipN);
+  const cp = E("clipPath", { id: cid }, E("defs", {}, s));
+  E("rect", { x: m.l - 6, y: m.t - 6, width: W - m.l - m.r + 12, height: Hh - m.b - m.t + 12 }, cp);
+  const g = E("g", { "clip-path": `url(#${cid})` }, s);
+  o.series.forEach((se) => {
+    let seg = [], segs = [];
+    se.pts.forEach((p) => {
+      if (p[1] === null || p[1] === undefined || !isFinite(p[1])) { if (seg.length) segs.push(seg); seg = []; }
+      else seg.push(p);
+    });
+    if (seg.length) segs.push(seg);
+    segs.forEach((sg2) => {
+      if (sg2.length > 1) E("path", { d: "M" + sg2.map((p) => `${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("L"), class: "ln", style: `stroke:${se.color}` + (se.dash ? ";stroke-dasharray:6 5" : "") }, g);
+    });
+    (se.marks || []).forEach((p) => {
+      E("circle", { cx: x(p[0]), cy: y(p[1]), r: p[2] || 5, class: "dot", style: `fill:${p[3] || se.color}` }, g);
+    });
+    // dots: hollow where se.hollow(p) (a table read outside its range)
+    if (se.dots) se.pts.forEach((p) => {
+      if (p[1] === null || !isFinite(p[1])) return;
+      const hol = se.hollow && se.hollow(p);
+      E("circle", { cx: x(p[0]), cy: y(p[1]), r: 3.5, class: hol ? "" : "dot", style: hol ? `fill:var(--surface);stroke:${se.color};stroke-width:1.6` : `fill:${se.color}` }, g);
+    });
+    // rings: the solved state on a response curve
+    (se.rings || []).forEach((p) => {
+      if (finite(p[0]) && finite(p[1])) E("circle", { cx: x(p[0]), cy: y(p[1]), r: 7, style: "fill:none;stroke:var(--ink);stroke-width:1.5" }, g);
+    });
+    if (se.end) {
+      const last = segs.length ? segs[segs.length - 1].slice(-1)[0] : null;
+      if (last) T(g, x(last[0]) + (se.end.dx || 6), y(last[1]) + (se.end.dy || 4), se.end.text, { class: "t11 ink2", "text-anchor": se.end.anchor || "start" });
+    }
+  });
+  (o.annot || []).forEach((a) => T(s, x(a.x) + (a.dx || 0), y(a.y) + (a.dy || 0), a.text, { class: "t11 ink2", "text-anchor": a.anchor || "start" }));
+  const xs = [...new Set(o.series.filter((se) => !se.noTip).flatMap((se) => se.pts.map((p) => p[0])))].sort((a, b) => a - b);
+  const ch = E("line", { class: "cross", y1: m.t, y2: Hh - m.b, visibility: "hidden" }, s);
+  const hover = E("g", {}, s);
+  const hit = E("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: Hh - m.t - m.b, class: "hit" }, s);
+  hit.addEventListener("pointermove", (ev) => {
+    const pt = svgPt(s, ev), xv = x.inv(pt.x);
+    let best = xs[0];
+    xs.forEach((v) => { if (Math.abs(v - xv) < Math.abs(best - xv)) best = v; });
+    ch.setAttribute("x1", x(best)); ch.setAttribute("x2", x(best)); ch.setAttribute("visibility", "visible");
+    hover.replaceChildren();
+    const rows = [];
+    o.series.forEach((se) => {
+      if (se.noTip) return;
+      const p = se.pts.find((q) => Math.abs(q[0] - best) < 1e-9);
+      if (p && p[1] !== null && isFinite(p[1])) {
+        rows.push([se.name, (o.y.tip || yf)(p[1], p, se), se.color]);
+        E("circle", { cx: x(p[0]), cy: y(p[1]), r: 4.5, class: "dot", style: `fill:${se.color}` }, hover);
+      }
+    });
+    (o.extraTip ? o.extraTip(best) : []).forEach((r) => rows.push(r));
+    showTip(ev, o.x.tipTitle ? o.x.tipTitle(best) : xf(best), rows);
+  });
+  hit.addEventListener("pointerleave", () => { ch.setAttribute("visibility", "hidden"); hover.replaceChildren(); hideTip(); });
+  host.replaceChildren(s);
+  return { s, x, y, m };
+}
+
+// ---------- horizontal bars ----------
+function roundBar(x0, x1, yy, h, r) {
+  const w = Math.abs(x1 - x0); r = Math.min(r, w, h / 2);
+  if (w < 0.5) return "";
+  if (x1 >= x0) return `M${x0},${yy}H${x1 - r}Q${x1},${yy} ${x1},${yy + r}V${yy + h - r}Q${x1},${yy + h} ${x1 - r},${yy + h}H${x0}Z`;
+  return `M${x0},${yy}H${x1 + r}Q${x1},${yy} ${x1},${yy + r}V${yy + h - r}Q${x1},${yy + h} ${x1 + r},${yy + h}H${x0}Z`;
+}
+function barH(host, o) {
+  const W = o.w || 460, rowH = o.rowH || 28, m = { l: o.ml || 84, r: o.mr || 62, t: o.mt || 6, b: o.mb || 22 };
+  const Hh = m.t + m.b + rowH * o.rows.length;
+  const s = svgRoot(W, Hh, o.label);
+  const max = o.max || Math.max(1e-9, ...o.rows.map((r) => Math.abs(r.value))) * 1.04;
+  const neg = o.rows.some((r) => r.value < 0) || o.sym;
+  const x = lin(neg ? -max : 0, max, m.l, W - m.r);
+  nice(neg ? -max : 0, max, o.nt || 4).forEach((v) => {
+    if (Math.abs(v) > max) return;
+    E("line", { x1: x(v), x2: x(v), y1: m.t, y2: Hh - m.b, class: v === 0 ? "axis-l" : "grid-l" }, s);
+    E("text", { x: x(v), y: Hh - m.b + 15, class: "tick", "text-anchor": "middle", text: (o.tickFmt || ((t) => fx(t, 1)))(v) }, s);
+  });
+  o.rows.forEach((r, i) => {
+    const yy = m.t + i * rowH, bh = Math.min(16, rowH - 8), by = yy + (rowH - bh) / 2;
+    const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `${r.label}: ${(o.fmt || fx)(r.value)}` }, s);
+    E("rect", { x: 0, y: yy, width: W, height: rowH, fill: "transparent" }, g);
+    T(g, m.l - 8, yy + rowH / 2 + 4, r.label, { class: "t12 " + (r.strong ? "ink b6" : "ink2"), "text-anchor": "end" });
+    const d = roundBar(x(0), x(r.value), by, bh, 4);
+    if (d) E("path", { d, class: "barfill", style: `fill:${r.color}` }, g);
+    const tx = o.valueCol ? W - m.r + 10 : x(r.value) + (r.value >= 0 ? 6 : -6);
+    T(g, tx, yy + rowH / 2 + 4, r.text || (o.fmt || fx)(r.value), { class: "t12 " + (r.strong ? "ink b6" : "ink2"), "text-anchor": o.valueCol || r.value >= 0 ? "start" : "end" });
+    const tipRows = r.tip || [[o.unit || "", (o.fmt || fx)(r.value), r.color]];
+    g.addEventListener("pointermove", (ev) => showTip(ev, r.label, tipRows));
+    g.addEventListener("focus", (ev) => showTip(ev, r.label, tipRows));
+    g.addEventListener("pointerleave", hideTip);
+    g.addEventListener("blur", hideTip);
+  });
+  host.replaceChildren(s);
+  return s;
+}
+
+// ---------- the run's files ----------
+function block(name) {
+  const el = document.querySelector(`script[data-file="${name}"]`);
+  return el ? el.textContent.replace(/<\\\//g, "</") : null;
+}
+function cell(s) {
+  if (s === undefined || s === "") return null;
+  if (s === "True") return true;
+  if (s === "False") return false;
+  if (s === "nan") return NaN;
+  if (s === "inf") return Infinity;
+  if (s === "-inf") return -Infinity;
+  if (/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return Number(s);
+  return s;
+}
+// RFC 4180: quoted fields, doubled quotes, line ends inside quotes
+function parseCSV(text) {
+  const rows = [];
+  let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(f); rows.push(row); row = []; f = "";
+    } else f += c;
+  }
+  if (f !== "" || row.length) { row.push(f); rows.push(row); }
+  const head = rows.shift() || [];
+  return rows.filter((r) => r.length > 1 || r[0] !== "").map((r) => {
+    const o = {};
+    head.forEach((h, j) => { o[h] = cell(r[j]); });
+    return o;
+  });
+}
+const csvOf = (n) => { const t = block(n); return t === null ? null : parseCSV(t); };
+const jsonOf = (n) => { const t = block(n); return t === null ? null : JSON.parse(t); };
+const RUN = jsonOf("run.json") || {};
+const BOAT = jsonOf("boat.json") || {};
+const POLAR = csvOf("polar.csv");
+const VMG = csvOf("vmg.csv") || [];
+const RACE = csvOf("race.csv") || [];
+const RATES = csvOf("rates.csv");
+const RSUM = csvOf("rates_summary.csv");
+const MASS = csvOf("mass.csv") || [];
+const HYDRO = csvOf("hydro.csv");
+const RESP = csvOf("response.csv");
+const INFO = RUN.info || {};
+const COURSE = RUN.course || {};
+const G = 9.80665;
+
+// ---------- small helpers ----------
+const uniq = (a) => [...new Set(a)].sort((p, q) => p - q);
+const finite = (v) => typeof v === "number" && isFinite(v);
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const subs = (s) => esc(s).replace(/_\{([^}]*)\}|_([A-Za-zφ]+)/g, (m, a, b) => `<sub>${a || b}</sub>`);
+function missing(host, text) { host.replaceChildren(); H("p", { class: "missing", text }, host); }
+function niceMax(v) {
+  if (!(v > 0)) return 1;
+  const t = nice(0, v, 4), st = t.length > 1 ? t[1] - t[0] : v;
+  return Math.ceil(v / st - 1e-9) * st;
+}
+// a y range around the values (and zero, when asked), padded
+function span(vals, zero) {
+  const f = vals.filter(finite);
+  let lo = f.length ? Math.min(...f) : 0, hi = f.length ? Math.max(...f) : 1;
+  if (zero) { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  if (hi - lo < 1e-9) { const d = Math.abs(hi) * 0.1 || 1; lo -= d; hi += d; }
+  const pad = 0.08 * (hi - lo);
+  return { lo: zero && lo === 0 ? 0 : lo - pad, hi: zero && hi === 0 ? 0 : hi + pad };
+}
+const tk = (v) => { const t = String(Number(v.toPrecision(6))); return v < 0 ? "−" + t.slice(1) : t; };
+function auto(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "boolean") return String(v);
+  if (typeof v !== "number") return String(v);
+  if (!isFinite(v)) return isNaN(v) ? "nan" : v > 0 ? "inf" : "−inf";
+  if (Number.isInteger(v)) return String(v);
+  const d = Math.min(5, Math.max(0, 3 - Math.floor(Math.log10(Math.abs(v)))));
+  return fx(v, d);
+}
+function legend(host, items) {
+  host.replaceChildren();
+  items.forEach((it) => {
+    const s = H("span", {}, host);
+    const i = H("i", { class: it.sq ? "sq" : "" }, s);
+    i.style.background = it.dash ? `repeating-linear-gradient(90deg, ${it.color} 0 5px, transparent 5px 8px)` : it.color;
+    if (it.ring) { i.style.background = "none"; i.style.border = `1.5px solid ${it.color}`; i.style.borderRadius = "50%"; i.style.width = "10px"; i.style.height = "10px"; }
+    H("span", { html: subs(it.name) }, s);
+  });
+}
+function table(t, rows, cols) {
+  t.replaceChildren();
+  cols = cols || Object.keys(rows[0] || {}).map((k) => [k, k]);
+  const num = (k) => rows.some((r) => typeof r[k] === "number");
+  const tr = H("tr", {}, H("thead", {}, t));
+  cols.forEach(([k, h]) => H("th", { class: num(k) ? "n" : "", html: subs(h) }, tr));
+  const tb = H("tbody", {}, t);
+  rows.forEach((r) => {
+    const x = H("tr", {}, tb);
+    cols.forEach(([k, , f]) => H("td", { class: num(k) ? "n" : "", text: f ? f(r[k], r) : auto(r[k]) }, x));
+  });
+}
+function hover(g, title, rows) {
+  g.addEventListener("pointermove", (ev) => showTip(ev, title, rows));
+  g.addEventListener("focus", (ev) => showTip(ev, title, rows));
+  g.addEventListener("pointerleave", hideTip);
+  g.addEventListener("blur", hideTip);
+}
+
+// ---------- wind speeds, parts, controls ----------
+const TWS = uniq((POLAR || []).map((p) => p.tws).concat(RACE.map((r) => r.tws)));
+function twsC(t) {
+  const n = TWS.length, i = TWS.indexOf(t);
+  if (n <= 1) return "var(--tws4)";
+  if (n <= 8) return `var(--tws${Math.round((i * 7) / (n - 1))})`;
+  return `color-mix(in oklab, var(--tws7) ${Math.round((100 * i) / (n - 1))}%, var(--tws0))`;
+}
+const COLS = Object.keys((POLAR && POLAR[0]) || VMG[0] || {});
+const found = COLS.filter((c) => c.startsWith("X_")).map((c) => c.slice(2));
+const named = (RUN.parts || []).map((p) => p.name);
+const PARTS = named.filter((n) => found.includes(n)).concat(found.filter((n) => !named.includes(n)));
+const KNOWN = ["sails", "hull", "keel", "rudder", "windage"];
+const EXTRA = ["var(--c-bulb)", "var(--c-mass)", "var(--c-keel-2)", "var(--c-sails-2)"];
+const pc = (n) => KNOWN.includes(n) ? `var(--c-${n})` : (EXTRA[PARTS.filter((m) => !KNOWN.includes(m)).indexOf(n)] || "var(--muted)");
+const partOf = (n) => (RUN.parts || []).find((p) => p.name === n) || { name: n, controls: [] };
+const CONTROLS = (RUN.parts || []).flatMap((p) => p.controls || []);
+const ctrl = (key) => CONTROLS.find((k) => k.key === key);
+const CTRL_SYM = { "rudder.angle": "δ_R", "sails.flat": "flat", "sails.set": "sail set" };
+const ctrlSym = (key) => CTRL_SYM[key] || key;
+const SETDESC = { upwind: "main + jib", downwind: "main + goose-winged jib" };
+function choiceName(key, v) {
+  const part = key.split(".")[0];
+  const args = ((((BOAT.components || {})[part] || {}).forces || {}).args) || {};
+  const names = args.sets ? Object.keys(args.sets) : null;
+  return names && names[Math.round(v)] !== undefined ? names[Math.round(v)] : fx(v, 0);
+}
+function ctrlText(key, v) {
+  const k = ctrl(key);
+  if (k && k.role === "choice") { const n = choiceName(key, v); return SETDESC[n] ? `${n}: ${SETDESC[n]}` : n; }
+  return /angle/.test(key) ? fx(v, 2) + "°" : fx(v, 3);
+}
+const infoKeys = (n) => COLS.filter((c) => c.startsWith(n + "_") && c !== n + "_extrapolated").map((c) => c.slice(n.length + 1));
+const UNIT = { Rf: "N", Rw: "N", D0: "N", Di: "N", Dv: "N", L: "N", D: "N", S: "N", drive: "N", heel_force: "N", D_bulb: "N",
+  wetted: "m²", A: "m²", alpha: "deg", awa: "deg", awa_eff: "deg", aws: "m/s", z_ce: "m", x_ce: "m" };
+const INFO_NAME = { Rf: "R_f friction", Rw: "R_w waves", wetted: "wetted area", D0: "D_0 zero-lift drag", Di: "D_i induced drag",
+  S: "S_h side force", alpha: "α angle of attack", L: "L lift", Dv: "D_v profile drag", aws: "V_AW", awa: "β_AW from the course",
+  awa_eff: "β_eff mast-normal", z_ce: "Z_CE", x_ce: "x_CE", drive: "drive", heel_force: "heel force", D: "D drag",
+  A: "A projected area", D_bulb: "bulb drag" };
+const QC = ["var(--q-x)", "var(--q-y)", "var(--q-z)", "var(--q-w)"];
+const short = (c) => (c ? String(c).replace(/^iomcfd\.vpp\.components\./, ".") : "–");
+
+// ---------- the race ----------
+const W_RACE = RACE.reduce((a, r) => a + r.weight, 0);
+const tRun = W_RACE > 0 ? RACE.reduce((a, r) => a + r.weight * r.t_s, 0) / W_RACE : NaN;
+const DIST = 2 * (COURSE.laps || 0) * (COURSE.leg || 0);
+const raceAt = (tws) => RACE.find((r) => r.tws === tws);
+const sel = { tws: TWS[Math.floor((TWS.length - 1) / 2)], key: "up" };
+const listeners = [];
+function select(tws, key) { sel.tws = tws; sel.key = key; listeners.forEach((f) => f()); }
+function pointAt(tws, key) {
+  if (key === "up" || key === "down") return VMG.find((r) => r.tws === tws && r.leg === key);
+  return (POLAR || []).find((p) => p.tws === tws && p.twa === key);
+}
+
+// ---------- summary ----------
+(function summary() {
+  document.getElementById("boat-name").textContent = RUN.boat || "boat";
+  document.getElementById("boat-desc").textContent = String(BOAT.description || "").trim();
+  const eb = document.getElementById("eyebrow");
+  H("code", { text: String(RUN.file || "").replace(/^.*\/(boats\/)/, "$1") }, eb);
+  H("span", { text: "run created " + String(RUN.created || "").replace("T", " ").replace("+00:00", " UTC") }, eb);
+  H("span", { text: "git " + (RUN.git || "?") }, eb);
+  const op = document.getElementById("ovr-pills");
+  const ov = Object.entries(RUN.overrides || {});
+  if (ov.length) ov.forEach(([k, v]) => H("span", { class: "pill", text: `--set ${k}=${JSON.stringify(v)}` }, op));
+  else H("span", { class: "pill ok", text: "the boat file as written: no overrides" }, op);
+  const up = RACE.map((r) => r.vmg_up).filter(finite), dn = RACE.map((r) => r.vmg_down).filter(finite);
+  const cg = INFO.cg || [NaN, NaN, NaN], tm = RUN.timings || {};
+  const tsum = Object.values(tm).reduce((a, v) => a + v, 0);
+  const equal = RACE.every((r) => r.weight === RACE[0].weight);
+  const rng = (a, d) => (a.length ? `${fx(Math.min(...a), d)}–${fx(Math.max(...a), d)}` : "–");
+  const items = [
+    ["Weighted race time", fx(tRun, 1) + " s", `${COURSE.laps} laps of ${fx(COURSE.leg, 0)} m; ${RACE.length} wind speeds, ${equal ? "equal weights" : "weighted"}`],
+    ["Mass", fx(INFO.mass_kg, 3) + " kg", `CG ${fx(Math.abs(cg[2] * 1000), 0)} mm ${cg[2] < 0 ? "below" : "above"} the waterline, ${fx(cg[0] * 1000, 0)} mm aft of the bow`],
+    ["RM at 30° heel", fx(INFO.rm_30deg_Nm, 2) + " N·m", "GZ " + fx((INFO.rm_30deg_Nm / (INFO.mass_kg * G)) * 1000, 0) + " mm"],
+    ["Best VMG upwind", rng(up, 2) + " m/s", `over TWS ${rng(TWS, 1)} m/s`],
+    ["Best VMG downwind", rng(dn, 2) + " m/s", `over TWS ${rng(TWS, 1)} m/s`],
+    ["Compute", fx(tsum, 0) + " s", Object.entries(tm).map(([k, v]) => `${k.replace(/_s$/, "")} ${fx(v, 0)}`).join(", ")],
+  ];
+  const host = document.getElementById("facts");
+  items.forEach(([k, v, s]) => {
+    const d = H("div", {}, host);
+    H("dt", { text: k }, d);
+    const dd = H("dd", { text: v }, d);
+    dd.appendChild(document.createElement("br"));
+    H("small", { text: s }, dd);
+  });
+  const list = (RUN.warnings || []).slice();
+  RACE.forEach((r) => ["up", "down"].forEach((l) => { if (r["flags_" + l]) list.push(`TWS ${r.tws} ${l}: ${r["flags_" + l]}`); }));
+  if (POLAR) {
+    const nc = POLAR.filter((p) => !p.converged).length, ne = POLAR.filter((p) => p.converged && p.extrapolated).length;
+    if (nc) list.push(`${nc} of ${POLAR.length} polar points have no balance (left off the polar)`);
+    if (ne) list.push(`${ne} polar points read a table outside its range (hollow on the polar)`);
+  }
+  const warn = document.getElementById("warn");
+  if (list.length) {
+    const d = H("div", { class: "note" }, warn);
+    H("b", { text: "Warnings and flags" }, d);
+    const ul = H("ul", { class: "warnlist" }, d);
+    list.forEach((w) => H("li", { text: w }, ul));
+  } else H("span", { class: "pill ok", text: "no warnings or flags" }, warn);
+})();
+
+// ---------- polar ----------
+(function polar() {
+  const host = document.getElementById("polar"), chips = document.getElementById("polar-chips"), cap = document.getElementById("polar-cap");
+  if (!POLAR) { missing(host, "No polar in this run (vpp run --no-polar)."); document.getElementById("polar-table-box").hidden = true; return; }
+  const ok = POLAR.filter((p) => p.converged);
+  const nc = POLAR.length - ok.length;
+  cap.innerHTML = `One line per true wind speed (m/s at the reference height), angle from the course. Ringed dots are the best-VMG angles the race uses; hollow points read a table outside its range${nc ? `; ${nc} points without a balance are left out` : ""}. <b>Click a point</b> to load its balance.`;
+  const vmax = niceMax(Math.max(...ok.map((p) => p.V), ...RACE.flatMap((r) => [r.V_up, r.V_down]).filter(finite)) * 1.03);
+  const W = 340, Hh = 540, cx = 40, cy = 270, R = 232;
+  const s = svgRoot(W, Hh, "Polar diagram of boat speed against true wind angle, one line per wind speed");
+  const rr = (v) => (v / vmax) * R;
+  const Pt = (twa, V) => { const a = (twa * Math.PI) / 180; return [cx + rr(V) * Math.sin(a), cy - rr(V) * Math.cos(a)]; };
+  nice(0, vmax, 4).filter((v) => v > 0).forEach((v) => {
+    E("path", { d: `M${cx},${cy - rr(v)} A${rr(v)},${rr(v)} 0 0 1 ${cx},${cy + rr(v)}`, class: "grid-l" }, s);
+    E("text", { x: cx - 6, y: cy - rr(v) + 4, class: "tick", "text-anchor": "end", text: fx(v, 1) }, s);
+  });
+  for (let a = 0; a <= 180; a += 30) {
+    const [x2, y2] = Pt(a, vmax);
+    E("line", { x1: cx, y1: cy, x2, y2, class: a === 0 || a === 180 ? "axis-l" : "grid-l" }, s);
+    const [lx, ly] = Pt(a, vmax * 1.045);
+    E("text", { x: lx, y: ly + 4, class: "tick", "text-anchor": a === 0 || a === 180 ? "middle" : "start", text: a + "°" }, s);
+  }
+  T(s, W - 4, 14, "β_{TW} from the course", { class: "t11 mut", "text-anchor": "end" });
+  const lines = E("g", {}, s), marks = E("g", {}, s), hov = E("g", {}, s), selg = E("g", {}, s);
+  const groups = {};
+  TWS.forEach((t) => {
+    const g = E("g", {}, lines);
+    const pts = ok.filter((p) => p.tws === t).sort((a, b) => a.twa - b.twa);
+    if (pts.length > 1) E("path", { d: "M" + pts.map((p) => Pt(p.twa, p.V).map((v) => v.toFixed(1)).join(",")).join("L"), class: "ln", style: `stroke:${twsC(t)}` }, g);
+    pts.forEach((p) => {
+      const [px, py] = Pt(p.twa, p.V);
+      E("circle", { cx: px, cy: py, r: 2.6, style: p.extrapolated ? `fill:var(--surface);stroke:${twsC(t)};stroke-width:1.4` : `fill:${twsC(t)}` }, g);
+    });
+    groups[t] = g;
+  });
+  RACE.forEach((r) => {
+    [[r.twa_up, r.V_up], [r.twa_down, r.V_down]].forEach(([a, v]) => {
+      if (!finite(v)) return;
+      const [px, py] = Pt(a, v);
+      E("circle", { cx: px, cy: py, r: 5, style: `fill:${twsC(r.tws)};stroke:var(--ink);stroke-width:1.5`, "data-tws": r.tws, class: "vmgdot" }, marks);
+    });
+  });
+  const lab = (t, dx, dy) => {
+    const pts = ok.filter((p) => p.tws === t);
+    if (!pts.length) return;
+    const p = pts.reduce((a, b) => (Math.abs(b.twa - 120) < Math.abs(a.twa - 120) ? b : a));
+    const [px, py] = Pt(p.twa, p.V);
+    T(s, px + dx, py + dy, t + " m/s", { class: "t11 ink2" });
+  };
+  if (TWS.length) { lab(TWS[TWS.length - 1], 6, 4); if (TWS.length > 1) lab(TWS[0], -40, 18); }
+  let only = null;
+  function paint() {
+    TWS.forEach((t) => { groups[t].style.opacity = only === null || only === t ? 1 : 0.15; });
+    marks.querySelectorAll(".vmgdot").forEach((c) => { c.style.opacity = only === null || only === Number(c.getAttribute("data-tws")) ? 1 : 0.15; });
+    chips.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === String(only))));
+  }
+  H("button", { class: "chip", type: "button", "data-t": "null", text: "All" }, chips).addEventListener("click", () => { only = null; paint(); });
+  TWS.forEach((t) => {
+    const b = H("button", { class: "chip", type: "button", "data-t": String(t) }, chips);
+    H("span", { class: "sw" }, b).style.background = twsC(t);
+    b.appendChild(document.createTextNode(String(t)));
+    b.addEventListener("click", () => { only = only === t ? null : t; paint(); });
+  });
+  paint();
+  function nearest(pt) {
+    let best = null, bd = 1e9;
+    ok.forEach((p) => {
+      if (only !== null && p.tws !== only) return;
+      const [px, py] = Pt(p.twa, p.V), d = Math.hypot(px - pt.x, py - pt.y);
+      if (d < bd) { bd = d; best = p; }
+    });
+    return bd < 24 ? best : null;
+  }
+  s.addEventListener("pointermove", (ev) => {
+    const p = nearest(svgPt(s, ev));
+    hov.replaceChildren();
+    if (!p) { hideTip(); s.style.cursor = "default"; return; }
+    s.style.cursor = "pointer";
+    const [px, py] = Pt(p.twa, p.V);
+    E("circle", { cx: px, cy: py, r: 6, style: "fill:none;stroke:var(--ink);stroke-width:1.5" }, hov);
+    showTip(ev, `TWS ${p.tws} m/s · βTW ${p.twa}°`, [
+      ["V_b, m/s", fx(p.V, 3), twsC(p.tws)], ["VMG, m/s", fx(p.vmg, 3)], ["heel", fx(p.heel, 1) + "°"], ["leeway", fx(p.leeway, 2) + "°"],
+    ].concat(CONTROLS.map((k) => [ctrlSym(k.key), ctrlText(k.key, p[k.key])])).concat(p.flags ? [["flags", p.flags]] : []));
+  });
+  s.addEventListener("pointerleave", () => { hov.replaceChildren(); hideTip(); });
+  s.addEventListener("click", (ev) => {
+    const p = nearest(svgPt(s, ev));
+    if (!p) return;
+    select(p.tws, p.twa);
+    document.getElementById("balance").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
+  listeners.push(() => {
+    selg.replaceChildren();
+    const p = pointAt(sel.tws, sel.key);
+    if (!p || !p.converged) return;
+    const [px, py] = Pt(p.twa, p.V);
+    E("circle", { cx: px, cy: py, r: 8, style: "fill:none;stroke:var(--accent);stroke-width:2" }, selg);
+  });
+  host.replaceChildren(s);
+  // the table
+  const t = document.getElementById("polar-table");
+  const twa = uniq(POLAR.map((p) => p.twa));
+  const tr = H("tr", {}, H("thead", {}, t));
+  H("th", { html: "β<sub>TW</sub> \\ TWS" }, tr);
+  TWS.forEach((v) => H("th", { class: "n", text: v + " m/s" }, tr));
+  const tb = H("tbody", {}, t);
+  twa.forEach((a) => {
+    const x = H("tr", {}, tb);
+    H("td", { text: a + "°" }, x);
+    TWS.forEach((v) => {
+      const p = POLAR.find((q) => q.tws === v && q.twa === a);
+      H("td", { class: "n", text: !p || !p.converged ? "–" : fx(p.V, 3) + (p.extrapolated ? "*" : ""), title: p && p.flags ? p.flags : "" }, x);
+    });
+  });
+  [["best up β_TW", "twa_up", 1, "°"], ["best up V_b", "V_up", 3, ""], ["best down β_TW", "twa_down", 1, "°"], ["best down V_b", "V_down", 3, ""]].forEach(([h, k, d, u]) => {
+    const x = H("tr", {}, tb);
+    H("td", { html: "<b>" + subs(h) + "</b>" }, x);
+    TWS.forEach((v) => { const r = raceAt(v); H("td", { class: "n", text: r ? fx(r[k], d) + u : "–" }, x); });
+  });
+  H("caption", { text: "* read a table outside its range; – no balance. Hover a cell for its flags.", style: "caption-side:bottom;text-align:left;font-size:12.5px;color:var(--muted);padding-top:6px" }, t);
+})();
+
+// ---------- inputs ----------
+const KEY_DOCS = [
+  ["boat", "name of the boat; its runs go to runs/vpp/<boat>/"],
+  ["description", "free text"],
+  ["water.temperature", "°C: density and viscosity of fresh water"],
+  ["air.temperature", "°C: density of air"],
+  ["components", "the parts: each a shape (class + args) and a force model (forces)"],
+  ["components.*.class", "the shape class, a dotted path (a leading \".\" is iomcfd.vpp.components)"],
+  ["components.*.shape", "uses another part's shape; its mass and volume count once, at that part"],
+  ["components.*.mount.host", "the part it hangs from"],
+  ["components.*.mount.x", "where it mounts, m aft of the bow"],
+  ["components.*.args.canoe", "CanoeSpec fields of the canoe body, as a mesh ({} = keel3d's canoe)"],
+  ["components.*.args.params", "CanoeSpec fields of the analytic canoe ({} = keel3d's canoe)"],
+  ["components.*.args.stl", "the hull's lines as an STL"],
+  ["components.*.args.scale", "STL scale to metres"],
+  ["components.*.args.rotate", "STL rotations [[axis, deg], …]"],
+  ["components.*.args.translate", "STL offset [x, y, z], m"],
+  ["components.*.args.draft", "waterline to the bulb's bottom, m (class rule C.4.1)"],
+  ["components.*.args.mass", "fin + bulb, kg (C.6.4)"],
+  ["components.*.args.fin.section", "the fin's section"],
+  ["components.*.args.fin.root_chord", "fin chord at the root, m"],
+  ["components.*.args.fin.tip_chord", "fin chord at the tip, m"],
+  ["components.*.args.fin.sweep", "sweep of the quarter-chord line, deg (+ tip aft)"],
+  ["components.*.args.fin.mass", "fin mass, kg"],
+  ["components.*.args.bulb.section", "the bulb's section (its thickness ratio)"],
+  ["components.*.args.bulb.aspect", "width / height of the bulb's sections (1 = round)"],
+  ["components.*.args.bulb.top", "superellipse exponent of the upper half: 2 elliptic, 4–8 flat top"],
+  ["components.*.args.bulb.bottom", "and of the lower half"],
+  ["components.*.args.bulb.cant", "deg nose up, about the bulb's centre of mass"],
+  ["components.*.args.bulb.x", "bulb centre of mass aft of the fin's quarter chord, m"],
+  ["components.*.args.bulb.density", "kg/m³ (lead: 11340)"],
+  ["components.*.args.section", "the foil's section"],
+  ["components.*.args.root_chord", "chord at the root, m"],
+  ["components.*.args.tip_chord", "chord at the tip, m"],
+  ["components.*.args.span", "span below the hull, m"],
+  ["components.*.args.rig", "the rig: iom_a (A rig) only so far"],
+  ["components.*.args.mast_x", "mast position, m aft of the bow"],
+  ["components.*.args.deck", "deck height at the mast, m above the waterline"],
+  ["components.*.forces.class", "the force model class, a dotted path"],
+  ["components.*.forces.args.form_factor", "k of the friction: ½ρV²S(1 + k)C_F (ITTC-57)"],
+  ["components.*.forces.args.cf_factor", "friction multiplier"],
+  ["components.*.forces.args.waves", "michell (upright) · michell-heeled (each heel at its static sinkage) · none"],
+  ["components.*.forces.args.side_force", "the hull's slender-body side force; auto = off when another part covers it"],
+  ["components.*.forces.args.table", "the force table (boats/tables/): vpp export-table or vpp table build"],
+  ["components.*.forces.args.max_leeway", "leeway range of the fits, deg; beyond it the point is flagged"],
+  ["components.*.forces.args.friction_factor.*", "scales that part's friction (laminar transition)"],
+  ["components.*.forces.args.vertical", "delta: the table's vertical force less its zero-leeway value · none"],
+  ["components.*.forces.args.e", "span efficiency of the induced drag"],
+  ["components.*.forces.args.downwash.from", "the part whose downwash this foil sits in"],
+  ["components.*.forces.args.downwash.factor", "× that part's elliptic downwash"],
+  ["components.*.forces.args.level", "ORC coefficient set"],
+  ["components.*.forces.args.sets.*", "an ORC sail set and the lowest β_TW it may be used at, deg"],
+  ["components.*.forces.args.cd", "drag coefficient on the projected area"],
+  ["components.*.forces.args.freeboard", "freeboard of ORC's windage area, m"],
+  ["components.*.forces.args.x", "where ORC's windage acts, m aft of the bow"],
+  ["components.*.controls.*", "the control's role (balance | optimise | choice | hold) or its fields"],
+  ["components.*.controls.*.*", "a field of the control: lo and hi bound the search"],
+  ["mass.items", "name, m [kg], cg [x, y, z] in the boat frame"],
+  ["mass.fill_to", "corrector weight up to this total, kg (C.4.2: 4 kg)"],
+  ["mass.corrector_at", "where the corrector goes [x, y, z], m"],
+  ["mass.extra", "extra mass at the CG, kg (the mass rate)"],
+  ["mass.vcg_shift", "every item moved up by this, m (the VCG rate)"],
+  ["hydrostatics.attitude", "solved: sinkage and trim under the parts' pitch moment and vertical force · static: none"],
+  ["hydrostatics.Z_ext", "vertical-force layers of the table, N; [0.0] ignores the parts' vertical forces"],
+  ["hydrostatics.heel_max", "heel range of the table, deg"],
+  ["hydrostatics.heel_step", "heel step of the table, deg"],
+  ["wind.tws", "true wind speeds at z_ref, m/s"],
+  ["wind.weights", "uniform, a list, or file:<csv> (a club histogram of tws, weight)"],
+  ["wind.z_ref", "height the tws is given at, m"],
+  ["wind.alpha", "power-law exponent of the wind profile"],
+  ["course.leg", "m along the wind, mark to mark"],
+  ["course.laps", "beats and runs"],
+  ["course.tacks_per_leg", "tacks per beat"],
+  ["course.gybes_per_leg", "gybes per run"],
+  ["course.tack_s", "seconds lost per tack"],
+  ["course.gybe_s", "seconds lost per gybe"],
+  ["course.boat_length", "m, to turn time into boat lengths"],
+  ["solver.yaw", "solve the yaw balance with the balance control (false: hold it, ORC style)"],
+  ["solver.optimise", "search the optimised control (false: hold it at its default)"],
+  ["solver.heel_max", "beyond this heel a point is flagged, deg"],
+  ["solver.leeway_max", "an inner solution beyond this leeway is rejected, deg"],
+  ["solver.V_min", "lowest boat speed searched, m/s"],
+  ["solver.V_max", "highest boat speed searched, m/s"],
+  ["solver.tol", "balance residual, relative to the boat's force and moment scale"],
+  ["solver.attitude_passes", "fixed-point passes between the attitude-dependent loads and trim"],
+  ["polar.twa", "true wind angles of the polar, deg from the course"],
+].map(([p, d]) => [new RegExp("^" + p.replace(/\./g, "\\.").replace(/\*/g, "[^.]+") + "$"), d]);
+const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); return m ? m[1] : ""; };
+
+(function inputs() {
+  const ov = RUN.overrides || {}, fv = RUN.file_values || {};
+  const isSet = (path) => Object.keys(ov).some((k) => path === k || path.startsWith(k + "."));
+  document.getElementById("inputs-lede").innerHTML = `The boat file as this run read it (<code>${esc(String(RUN.file || "").replace(/^.*\/(boats\/)/, "$1"))}</code>)${Object.keys(ov).length ? ", with the run's <code>--set</code> overrides applied and marked" : ", with no overrides"}. Pick a block for each value and what it means, and for what the build made of it: each part's classes and controls, and the values it filled in by default.`;
+  const ot = document.getElementById("ovr-table");
+  if (Object.keys(ov).length) {
+    table(ot, Object.keys(ov).map((k) => ({ path: k, file: k in fv ? fv[k] : null, run: ov[k] })),
+      [["path", "--set path", (v) => v], ["file", "in the boat file", (v) => (v === null ? "(not in the file)" : JSON.stringify(v))], ["run", "as run", (v) => JSON.stringify(v)]]);
+  } else document.getElementById("ovr-wrap").hidden = true;
+  document.getElementById("yaml-raw").textContent = block("boat.yaml") || "";
+  // the blocks: boat + description, then each top-level key, each component on its own
+  const blocks = [];
+  const top = Object.keys(BOAT);
+  const head = top.filter((k) => k === "boat" || k === "description");
+  if (head.length) blocks.push({ title: "boat", obj: Object.fromEntries(head.map((k) => [k, BOAT[k]])), ind: 0 });
+  top.filter((k) => !head.includes(k)).forEach((k) => {
+    const v = BOAT[k];
+    if (k === "components" && v && typeof v === "object" && !Array.isArray(v)) {
+      Object.keys(v).forEach((c, i) => blocks.push({ title: `components.${c}`, obj: { [c]: v[c] }, base: "components", ind: 2, header: i === 0, part: c }));
+    } else blocks.push({ title: k, obj: { [k]: v }, ind: 0 });
+  });
+  ["course", "wind", "solver"].forEach((k) => { if (!(k in BOAT)) blocks.push({ title: k, obj: { [k]: {} }, ind: 0, absent: true }); });
+  function scalar(v) {
+    if (v === null || v === undefined) return "null";
+    if (typeof v === "string") {
+      const t = v.trim(), one = t.length > 60 ? t.slice(0, 57) + "…" : t;
+      return /[:#[\]{},\n"']|^$/.test(t) ? JSON.stringify(one) : one;
+    }
+    return String(v);
+  }
+  function lines(key, v, ind, path, out) {
+    const pad = " ".repeat(ind);
+    if (Array.isArray(v)) {
+      if (v.every((x) => x === null || typeof x !== "object")) out.push({ text: `${pad}${key}: [${v.map(scalar).join(", ")}]`, path });
+      else { out.push({ text: `${pad}${key}:`, path }); v.forEach((it, i) => item(it, ind + 2, `${path}.${i}`, out)); }
+    } else if (v && typeof v === "object") {
+      const ks = Object.keys(v);
+      if (!ks.length) out.push({ text: `${pad}${key}: {}`, path });
+      else { out.push({ text: `${pad}${key}:`, path }); ks.forEach((k) => lines(k, v[k], ind + 2, `${path}.${k}`, out)); }
+    } else out.push({ text: `${pad}${key}: ${scalar(v)}`, path });
+  }
+  function item(it, ind, path, out) {
+    if (it && typeof it === "object" && !Array.isArray(it)) {
+      Object.keys(it).forEach((k, j) => {
+        const tmp = [];
+        lines(k, it[k], ind + 2, `${path}.${k}`, tmp);
+        if (j === 0) tmp[0].text = " ".repeat(ind) + "- " + tmp[0].text.trimStart();
+        out.push(...tmp);
+      });
+    } else out.push({ text: `${" ".repeat(ind)}- ${scalar(it)}`, path });
+  }
+  const src = document.getElementById("yx-src"), det = document.getElementById("yx-det");
+  const btns = blocks.map((b, i) => {
+    const out = [];
+    if (b.header) out.push({ text: "components:", path: "components" });
+    Object.keys(b.obj).forEach((k) => lines(k, b.obj[k], b.ind, b.base ? `${b.base}.${k}` : k, out));
+    const btn = H("button", { type: "button", "aria-pressed": "false" }, src);
+    out.forEach((l) => {
+      const s = H("span", { class: "ln" + (isSet(l.path) ? " set" : "") }, btn);
+      const m = l.text.match(/^(\s*(?:- )?)([^:\s][^:]*?)(:)(.*)$/);
+      if (m) { s.appendChild(document.createTextNode(m[1])); H("span", { class: "ky", text: m[2] }, s); s.appendChild(document.createTextNode(m[3] + m[4])); }
+      else s.textContent = l.text;
+      if (b.absent) H("span", { class: "cm", text: "   # not in the file: defaults" }, s);
+    });
+    btn.addEventListener("click", () => show(i));
+    return btn;
+  });
+  function leafs(obj, base, out) {
+    Object.keys(obj).forEach((k) => {
+      const path = base ? `${base}.${k}` : k, v = obj[k];
+      if (v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length) leafs(v, path, out);
+      else out.push([path, v]);
+    });
+    return out;
+  }
+  function valueCell(td, v) {
+    if (Array.isArray(v) && v.some((x) => x && typeof x === "object")) {
+      const t = H("table", {}, td);
+      const ks = [...new Set(v.flatMap((x) => Object.keys(x || {})))];
+      const tr = H("tr", {}, H("thead", {}, t));
+      ks.forEach((k) => H("th", { text: k }, tr));
+      const tb = H("tbody", {}, t);
+      v.forEach((x) => { const r = H("tr", {}, tb); ks.forEach((k) => H("td", { class: "mono", text: Array.isArray(x[k]) ? "[" + x[k].join(", ") + "]" : scalar(x[k]) }, r)); });
+    } else H("code", { text: Array.isArray(v) ? "[" + v.map(scalar).join(", ") + "]" : v && typeof v === "object" ? "{}" : scalar(v) }, td);
+  }
+  function show(i) {
+    const b = blocks[i];
+    btns.forEach((x, j) => x.setAttribute("aria-pressed", String(i === j)));
+    det.replaceChildren();
+    const h = H("h3", { text: b.title }, det);
+    if (b.absent) { h.appendChild(document.createTextNode(" ")); H("span", { class: "pill", text: "not in the file" }, h); }
+    if (b.part) {
+      const p = partOf(b.part);
+      const dl = H("dl", {}, det);
+      [["shape", short(p.shape) + (p.owner === false ? " (another part's shape)" : "")], ["forces", short(p.forces)],
+        ["kind", (p.kind || "–") + (p.attitude ? ", loads depend on sinkage and trim" : "")]].forEach(([k, v]) => {
+        H("dt", { text: k }, dl); H("code", { text: v }, H("dd", {}, dl));
+      });
+      if ((p.controls || []).length) {
+        H("h4", { text: "Controls, as the solver saw them", style: "margin-top:12px" }, det);
+        table(H("table", {}, H("div", { class: "tw" }, det)), p.controls, [["key", "key", (v) => v], ["role", "role", (v) => v], ["default", "default", (v) => auto(v)],
+          ["lo", "lo", (v) => (v === null ? "–" : auto(v))], ["hi", "hi", (v) => (v === null ? "–" : auto(v))],
+          ["options", "options (value, lowest β_TW)", (v) => (v && v.length ? v.map((o) => `(${o.join(", ")})`).join(" ") : "–")]]);
+      }
+      const bi = Object.entries(INFO).filter(([k]) => k.startsWith(b.part + "."));
+      if (bi.length) {
+        H("h4", { text: "What the build reported", style: "margin-top:12px" }, det);
+        table(H("table", {}, H("div", { class: "tw" }, det)), bi.map(([k, v]) => ({ key: k.slice(b.part.length + 1), value: v })), [["key", "key", (v) => v], ["value", "value", (v) => (typeof v === "number" ? auto(v) : String(v))]]);
+      }
+    }
+    const vals = leafs(b.obj, b.base || "", []);
+    if (vals.length && !b.absent) {
+      H("h4", { text: "Values in the file", style: "margin-top:12px" }, det);
+      const t = H("table", {}, H("div", { class: "tw" }, det)), tb = H("tbody", {}, t);
+      vals.forEach(([path, v]) => {
+        const r = H("tr", {}, tb);
+        const rel = path.split(".").slice(b.part ? 2 : 1).join(".") || path;
+        H("code", { text: rel }, H("td", {}, r));
+        const td = H("td", {}, r);
+        valueCell(td, v);
+        if (isSet(path)) {
+          const k = Object.keys(ov).find((q) => path === q || path.startsWith(q + "."));
+          td.appendChild(document.createTextNode(" "));
+          H("span", { class: "pill", text: `--set; file: ${k in fv && fv[k] !== null ? JSON.stringify(fv[k]) : "none"}` }, td);
+        }
+        H("td", { text: docOf(path), style: "color:var(--ink-2)" }, r);
+      });
+    }
+    const resolved = { course: RUN.course, wind: RUN.wind, solver: RUN.settings }[b.title];
+    if (resolved) {
+      H("h4", { text: "Values the run used", style: "margin-top:12px" }, det);
+      const inFile = BOAT[b.title] || {};
+      const t = H("table", {}, H("div", { class: "tw" }, det)), tb = H("tbody", {}, t);
+      Object.entries(resolved).forEach(([k, v]) => {
+        const r = H("tr", {}, tb);
+        H("code", { text: k }, H("td", {}, r));
+        H("code", { text: Array.isArray(v) ? "[" + v.map(auto).join(", ") + "]" : auto(v) }, H("td", {}, r));
+        H("span", { class: k in inFile ? "pill acc" : "pill", text: k in inFile ? "file" : "default" }, H("td", {}, r));
+        H("td", { text: docOf(`${b.title}.${k}`), style: "color:var(--ink-2)" }, r);
+      });
+    }
+  }
+  const first = blocks.findIndex((b) => b.part);
+  show(first >= 0 ? first : 0);
+})();
+
+// ---------- balance ----------
+(function balance() {
+  const sT = document.getElementById("bal-tws"), sA = document.getElementById("bal-twa");
+  const host = document.getElementById("bal-charts");
+  if (!VMG.length && !POLAR) { missing(host, "No solved points in this run."); return; }
+  TWS.forEach((t) => H("option", { value: t, text: t + " m/s" }, sT));
+  function fillA() {
+    sA.replaceChildren();
+    [["up", "best VMG up"], ["down", "best VMG down"]].forEach(([k, lab]) => {
+      const p = pointAt(sel.tws, k);
+      if (p) H("option", { value: k, text: `${lab}, ${fx(p.twa, 1)}°` }, sA);
+    });
+    uniq((POLAR || []).filter((p) => p.tws === sel.tws).map((p) => p.twa)).forEach((a) => H("option", { value: a, text: a + "°" }, sA));
+  }
+  sT.addEventListener("change", () => select(Number(sT.value), sel.key));
+  sA.addEventListener("change", () => select(sel.tws, sA.value === "up" || sA.value === "down" ? sA.value : Number(sA.value)));
+  legend(document.getElementById("bal-legend"), PARTS.map((n) => ({ name: n, color: pc(n), sq: true })).concat([{ name: "RM_φ (hydrostatics)", color: "var(--c-rm)", sq: true }]));
+  const defs = [
+    ["X", "ΣX: drive and drag along the course [N]", "N"],
+    ["Y", "ΣY: side forces, + to windward [N]", "N"],
+    ["K", "ΣK: roll moments, + heels to starboard [N·m]", "N·m"],
+    ["N", "ΣN: yaw moments, + bow to windward [N·m]", "N·m"],
+    ["Z", "ΣZ: vertical forces, + up [N], to the hydrostatics", "N"],
+    ["M", "ΣM: pitch moments, + bow down [N·m], to the hydrostatics", "N·m"],
+  ];
+  const figs = defs.map(([, title]) => {
+    const f = H("figure", { style: "margin:0" }, host);
+    H("div", { class: "fig-title", text: title }, f);
+    return H("div", {}, f);
+  });
+  function render() {
+    fillA();
+    sT.value = String(sel.tws);
+    sA.value = String(sel.key);
+    const p = pointAt(sel.tws, sel.key);
+    const st = document.getElementById("bal-state"), fl = document.getElementById("bal-flags");
+    st.replaceChildren(); fl.replaceChildren();
+    if (!p || !p.converged) {
+      H("span", { class: "pill", text: "no balance at this point" }, fl);
+      figs.forEach((f) => f.replaceChildren());
+      return;
+    }
+    const items = [["V_b", fx(p.V, 3) + " m/s"], ["VMG", fx(Math.abs(p.vmg), 3) + " m/s"], ["heel φ", fx(p.heel, 1) + "°"], ["leeway β_Y", fx(p.leeway, 2) + "°"]];
+    CONTROLS.forEach((k) => items.push([ctrlSym(k.key), ctrlText(k.key, p[k.key])]));
+    items.push(["sinkage", fx(p.sink * 1000, 2) + " mm"], ["trim", fx(p.trim, 2) + "°"], ["RM_φ", fx(p.rm, 3) + " N·m"]);
+    const aws = COLS.find((c) => c.endsWith("_aws")), awa = COLS.find((c) => c.endsWith("_awa"));
+    if (aws) items.push(["V_AW", fx(p[aws], 2) + " m/s"]);
+    if (awa) items.push(["β_AW", fx(p[awa], 1) + "°"]);
+    items.forEach(([k, v]) => { const d = H("div", {}, st); H("dt", { html: subs(k) }, d); H("dd", { text: v }, d); });
+    (p.flags ? String(p.flags).split(" ") : []).forEach((f) => H("span", { class: "pill", text: f, style: "margin-right:6px" }, fl));
+    if (!p.flags) H("span", { class: "pill ok", text: "no flags" }, fl);
+    defs.forEach(([q, title, unit], i) => {
+      const rows = PARTS.map((n) => ({ label: n, value: p[`${q}_${n}`], color: pc(n) }));
+      const sum = PARTS.reduce((a, n) => a + p[`${q}_${n}`], 0);
+      if (q === "K") {
+        rows.push({ label: "Σ parts", value: sum, color: "var(--ink)", strong: true, text: fx(sum, 3) });
+        rows.push({ label: "RM φ", value: p.rm, color: "var(--c-rm)", strong: true, text: fx(p.rm, 3) });
+      } else rows.push({ label: q === "Z" || q === "M" ? "Σ → hydrostatics" : "Σ", value: sum, color: "var(--ink)", strong: true, text: fx(sum, q === "Z" || q === "M" ? 3 : 4) });
+      const max = Math.max(1e-6, ...rows.map((r) => Math.abs(r.value)).filter(finite)) * 1.45;
+      barH(figs[i], { rows, max, sym: true, unit, w: 470, ml: 120, mr: 58, fmt: (v) => fx(v, 3), label: title });
+    });
+  }
+  listeners.push(render);
+})();
+
+// ---------- force models ----------
+(function forces() {
+  const host = document.getElementById("fm-cards");
+  if (!RESP || !RESP.length) { missing(host, "No response.csv in this run."); return; }
+  const respTws = uniq(RESP.map((r) => r.tws));
+  const fm = { tws: respTws.includes(sel.tws) ? sel.tws : respTws[0], leg: "up" };
+  const tw = document.getElementById("fm-tws"), lg = document.getElementById("fm-leg");
+  H("span", { class: "ctl", text: "TWS" }, tw);
+  respTws.forEach((t) => {
+    const b = H("button", { class: "chip", type: "button", "data-t": String(t) }, tw);
+    H("span", { class: "sw" }, b).style.background = twsC(t);
+    b.appendChild(document.createTextNode(t + " m/s"));
+    b.addEventListener("click", () => { fm.tws = t; render(); });
+  });
+  H("span", { class: "ctl", text: "best VMG" }, lg);
+  [["up", "upwind"], ["down", "downwind"]].forEach(([k, lab]) => {
+    const b = H("button", { class: "chip", type: "button", "data-l": k, text: lab }, lg);
+    b.addEventListener("click", () => { fm.leg = k; render(); });
+  });
+  const VARL = { V: "V_{b} [m/s]", heel: "heel φ [deg]", leeway: "leeway β_{Y} [deg]" };
+  const varLabel = (v) => VARL[v] || (ctrlSym(v) === v ? v : `${ctrlSym(v)} (${v})`).replace("δ_R", "δ_{R}") + (/angle/.test(v) ? " [deg]" : "");
+  const varChip = (v) => ({ V: "V_b", heel: "heel", leeway: "leeway" })[v] || ctrlSym(v);
+  function xAxis(v, xs) {
+    const k = ctrl(v);
+    let lo = Math.min(...xs), hi = Math.max(...xs);
+    if (k && k.role === "choice") return { lo: lo - 0.4, hi: hi + 0.4, ticks: xs, fmt: (x) => choiceName(v, x), label: varLabel(v), tipTitle: (x) => `${ctrlSym(v)}: ${choiceName(v, x)}` };
+    if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+    return { lo, hi, label: varLabel(v), tipTitle: (x) => `${varChip(v)} ${auto(x)}` };
+  }
+  const opVal = (op, v) => ({ V: op.V, heel: op.heel, leeway: op.leeway })[v] ?? op[v];
+  function bestVar(n, rows, vars) {
+    let best = vars[0], bv = -1;
+    vars.forEach((v) => {
+      const rv = rows.filter((r) => r.var === v);
+      const r = Math.max(...["X", "Y", "Z"].map((q) => { const a = rv.map((x) => x[`${q}_${n}`]).filter(finite); return a.length ? Math.max(...a) - Math.min(...a) : 0; }));
+      if (r > bv + 1e-12) { bv = r; best = v; }
+    });
+    return best;
+  }
+  const cards = PARTS.map((n) => {
+    const p = partOf(n), spec = ((BOAT.components || {})[n]) || {};
+    const c = H("article", { class: "card" }, host);
+    const hd = H("div", { class: "hd" }, c);
+    H("span", { class: "sw" }, hd).style.background = pc(n);
+    H("h3", { text: n }, hd);
+    H("span", { class: "cls", text: `${short(p.shape)}${p.owner === false ? " (shared)" : ""} · ${short(p.forces)}` }, hd);
+    const args = (spec.forces || {}).args;
+    if (args && Object.keys(args).length) H("div", { class: "args", text: Object.entries(args).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ") }, c);
+    const card = { n, varSel: null, grpSel: null };
+    H("h4", { text: "Its X, Y, Z [N] against one input, the others held" }, c);
+    card.varChips = H("div", { class: "controls tight", role: "group", "aria-label": "Input" }, c);
+    card.respLeg = H("div", { class: "legend" }, c);
+    card.resp = H("div", {}, c);
+    H("h4", { text: "What else it reports, against the same input" }, c);
+    card.grpChips = H("div", { class: "controls tight", role: "group", "aria-label": "Quantity" }, c);
+    card.infoLeg = H("div", { class: "legend" }, c);
+    card.info = H("div", {}, c);
+    H("h4", { text: "As sailed: X, Y, Z [N] at the polar's balanced points of this wind speed" }, c);
+    card.sail = H("div", {}, c);
+    return card;
+  });
+  function chipsInto(host, items, cur, onPick, plain) {
+    host.replaceChildren();
+    items.forEach(([k, label]) => {
+      const b = H("button", { class: "chip", type: "button", "aria-pressed": String(k === cur), html: plain ? esc(label) : subs(label) }, host);
+      b.addEventListener("click", () => onPick(k));
+    });
+  }
+  function draw(card, rows, op) {
+    const n = card.n;
+    const ext = (r) => r && r[`${n}_extrapolated`] === true;
+    const vars = [...new Set(rows.map((r) => r.var))].filter((v) => rows.filter((r) => r.var === v).length > 1);
+    if (!card.varSel || !vars.includes(card.varSel)) card.varSel = bestVar(n, rows, vars);
+    chipsInto(card.varChips, vars.map((v) => [v, varChip(v)]), card.varSel, (v) => { card.varSel = v; draw(card, rows, op); });
+    const rv = rows.filter((r) => r.var === card.varSel).sort((a, b) => a.value - b.value);
+    const xs = rv.map((r) => r.value), x0 = opVal(op, card.varSel);
+    const xa = xAxis(card.varSel, xs);
+    legend(card.respLeg, [{ name: "X", color: QC[0] }, { name: "Y", color: QC[1] }, { name: "Z", color: QC[2], dash: true }, { name: "solved state", color: "var(--ink)", ring: true }]);
+    const series = ["X", "Y", "Z"].map((q, i) => ({ name: q, color: QC[i], dash: q === "Z", dots: true, hollow: (p) => ext(p[2]),
+      pts: rv.map((r) => [r.value, r[`${q}_${n}`], r]), rings: [[x0, op[`${q}_${n}`]]] }));
+    lineChart(card.resp, { w: 470, h: 230, m: { l: 50 }, x: xa,
+      y: Object.assign(span(series.flatMap((s) => s.pts.map((p) => p[1])), true), { n: 5, tip: (v) => fx(v, 3) + " N" }),
+      refs: [{ x: x0, color: "var(--axis)" }], series, label: `${n}: X, Y, Z against ${card.varSel}` });
+    // its info quantities, by unit
+    const groups = {};
+    infoKeys(n).forEach((k) => { const u = UNIT[k] || "other"; (groups[u] = groups[u] || []).push(k); });
+    const gn = Object.keys(groups).sort((a, b) => (a === "N" ? -1 : b === "N" ? 1 : 0));
+    if (!gn.length) { card.grpChips.replaceChildren(); card.infoLeg.replaceChildren(); missing(card.info, "This part reports nothing else."); }
+    else {
+      if (!card.grpSel || !groups[card.grpSel]) card.grpSel = gn[0];
+      chipsInto(card.grpChips, gn.map((u) => [u, groups[u].map((k) => k).join(", ") + (u === "other" ? "" : ` [${u}]`)]), card.grpSel, (u) => { card.grpSel = u; draw(card, rows, op); }, true);
+      const ks = groups[card.grpSel];
+      legend(card.infoLeg, ks.map((k, i) => ({ name: INFO_NAME[k] || k, color: QC[i % QC.length] })));
+      const ser = ks.map((k, i) => ({ name: INFO_NAME[k] || k, color: QC[i % QC.length], dots: true, hollow: (p) => ext(p[2]),
+        pts: rv.map((r) => [r.value, r[`${n}_${k}`], r]), rings: [[x0, op[`${n}_${k}`]]] }));
+      const u = card.grpSel === "other" ? "" : " " + card.grpSel;
+      lineChart(card.info, { w: 470, h: 210, m: { l: 50 }, x: xa,
+        y: Object.assign(span(ser.flatMap((s) => s.pts.map((p) => p[1])), ["N", "m²"].includes(card.grpSel)), { n: 5, tip: (v) => auto(v) + u }),
+        refs: [{ x: x0, color: "var(--axis)" }], series: ser, label: `${n}: ${ks.join(", ")} against ${card.varSel}` });
+    }
+    // as sailed
+    if (!POLAR) { missing(card.sail, "No polar in this run."); return; }
+    const pts = POLAR.filter((p) => p.tws === fm.tws && p.converged).sort((a, b) => a.twa - b.twa);
+    const r = raceAt(fm.tws);
+    const ss = ["X", "Y", "Z"].map((q, i) => ({ name: q, color: QC[i], dash: q === "Z", dots: true, hollow: (p) => ext(p[2]), pts: pts.map((p) => [p.twa, p[`${q}_${n}`], p]) }));
+    lineChart(card.sail, { w: 470, h: 200, m: { l: 50 }, x: { lo: Math.min(30, ...pts.map((p) => p.twa)), hi: 180, ticks: [30, 60, 90, 120, 150, 180], label: "β_{TW} [deg]", tipTitle: (v) => `βTW ${v}°` },
+      y: Object.assign(span(ss.flatMap((s) => s.pts.map((p) => p[1])), true), { n: 4, tip: (v) => fx(v, 3) + " N" }),
+      refs: r ? [{ x: r.twa_up, label: "best up" }, { x: r.twa_down, label: "best down" }].filter((q) => finite(q.x)) : [], series: ss, label: `${n}: X, Y, Z across the polar` });
+  }
+  function render() {
+    tw.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === String(fm.tws))));
+    lg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.l === fm.leg)));
+    const op = pointAt(fm.tws, fm.leg);
+    const rows = RESP.filter((r) => r.tws === fm.tws && r.leg === fm.leg);
+    const ro = document.getElementById("fm-readout");
+    ro.replaceChildren();
+    if (!op || !rows.length) { cards.forEach((c) => { missing(c.resp, "No best-VMG state at this wind (the point has no balance)."); c.info.replaceChildren(); c.sail.replaceChildren(); }); return; }
+    [["β_TW", fx(op.twa, 1) + "°"], ["V_b", fx(op.V, 3) + " m/s"], ["heel φ", fx(op.heel, 1) + "°"], ["leeway β_Y", fx(op.leeway, 2) + "°"]]
+      .concat(CONTROLS.map((k) => [ctrlSym(k.key), ctrlText(k.key, op[k.key])]))
+      .forEach(([k, v]) => { const d = H("div", {}, ro); H("dt", { html: subs(k) }, d); H("dd", { text: v }, d); });
+    cards.forEach((c) => draw(c, rows, op));
+  }
+  render();
+})();
+
+// ---------- drag budget ----------
+(function budget() {
+  const host = document.getElementById("budget");
+  if (!VMG.length) { missing(host, "No best-VMG points in this run."); return; }
+  legend(document.getElementById("budget-legend"), PARTS.map((n) => ({ name: n, color: pc(n), sq: true })));
+  ["up", "down"].forEach((leg) => {
+    const f = H("figure", { style: "margin:0" }, host);
+    H("div", { class: "fig-title", text: leg === "up" ? "Upwind" : "Downwind" }, f);
+    const rows = TWS.map((t) => VMG.find((r) => r.tws === t && r.leg === leg)).filter((r) => r && r.converged);
+    const Wd = 470, Hh = 260, m = { l: 44, r: 10, t: 12, b: 36 };
+    const s = svgRoot(Wd, Hh, `Drag of each part at the best-VMG points, ${leg}wind`);
+    const drag = (r, n) => Math.max(0, -r[`X_${n}`]);
+    const max = niceMax(Math.max(1e-6, ...rows.map((r) => PARTS.reduce((a, n) => a + drag(r, n), 0))) * 1.04);
+    const y = lin(0, max, Hh - m.b, m.t);
+    const bw = (Wd - m.l - m.r) / Math.max(1, TWS.length);
+    nice(0, max, 5).forEach((v) => {
+      E("line", { x1: m.l, x2: Wd - m.r, y1: y(v), y2: y(v), class: v === 0 ? "axis-l" : "grid-l" }, s);
+      E("text", { x: m.l - 6, y: y(v) + 4, class: "tick", "text-anchor": "end", text: tk(v) }, s);
+    });
+    rows.forEach((r) => {
+      const i = TWS.indexOf(r.tws), cx = m.l + bw * i + bw / 2, cw = Math.min(28, bw - 10);
+      const tot = PARTS.reduce((a, n) => a + drag(r, n), 0);
+      const drive = PARTS.reduce((a, n) => a + Math.max(0, r[`X_${n}`]), 0);
+      const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `TWS ${r.tws}: drag ${fx(tot, 2)} N` }, s);
+      E("rect", { x: cx - bw / 2, y: m.t, width: bw, height: Hh - m.t - m.b, fill: "transparent" }, g);
+      let acc = 0;
+      const segs = PARTS.filter((n) => drag(r, n) > 0);
+      segs.forEach((n, j) => {
+        const d = drag(r, n), y0 = y(acc), y1 = y(acc + d);
+        const top = j === segs.length - 1, rr = Math.min(4, (y0 - y1) / 2, cw / 2);
+        const path = top
+          ? `M${cx - cw / 2},${y0} V${y1 + rr} Q${cx - cw / 2},${y1} ${cx - cw / 2 + rr},${y1} H${cx + cw / 2 - rr} Q${cx + cw / 2},${y1} ${cx + cw / 2},${y1 + rr} V${y0} Z`
+          : `M${cx - cw / 2},${y0} V${y1} H${cx + cw / 2} V${y0} Z`;
+        E("path", { d: path, class: "barfill", style: `fill:${pc(n)};stroke:var(--surface);stroke-width:${y0 - y1 > 3 ? 1 : 0}` }, g);
+        acc += d;
+      });
+      E("text", { x: cx, y: Hh - m.b + 15, class: "tick", "text-anchor": "middle", text: String(r.tws) }, s);
+      const tr = segs.slice().reverse().map((n) => [n, `${fx(drag(r, n), 3)} N · ${fx((100 * drag(r, n)) / tot, 0)} %`, pc(n)]);
+      tr.push(["total drag", fx(tot, 3) + " N"], ["drive (parts with X > 0)", fx(drive, 3) + " N"], ["β_TW", fx(r.twa, 1) + "°"]);
+      hover(g, `TWS ${r.tws} m/s, ${leg}wind`, tr);
+    });
+    T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS [m/s] · drag [N]", { class: "alab", "text-anchor": "middle" });
+    H("div", {}, f).appendChild(s);
+    H("figcaption", { text: "At balance the drive equals the total drag, so each column is also the drive. A part pushing forward (X > 0, such as windage downwind) adds to the drive instead; hover for it." }, f);
+  });
+})();
+
+// ---------- hydrostatics ----------
+(function hydro() {
+  const att = (BOAT.hydrostatics || {}).attitude || "solved";
+  document.getElementById("hydro-lede").innerHTML = `hydro.csv is the hydrostatic table this run solved with: the boat floated at each heel, pitch moment M<sub>ext</sub> and vertical force Z<sub>ext</sub> of its grid, read back by splines between the grid points (attitude <code>${esc(att)}</code>). The attitude charts and the mass budget are this run's own points.`;
+  const up = VMG.filter((r) => r.leg === "up" && r.converged), dn = VMG.filter((r) => r.leg === "down" && r.converged);
+  const mass = INFO.mass_kg, W = mass * G;
+  if (!HYDRO || !HYDRO.length) {
+    ["rm-chart", "trim-chart", "z-chart"].forEach((id) => missing(document.getElementById(id), "No hydro.csv in this run."));
+  } else {
+    const heels = uniq(HYDRO.map((r) => r.heel)), Ms = uniq(HYDRO.map((r) => r.M_ext)), Zs = uniq(HYDRO.map((r) => r.Z_ext));
+    const near0 = (a) => a.reduce((p, q) => (Math.abs(q) < Math.abs(p) ? q : p));
+    const m0 = near0(Ms), z0 = near0(Zs);
+    const idx = new Map(HYDRO.map((r) => [`${r.heel}|${r.M_ext}|${r.Z_ext}`, r]));
+    const at = (h, m, z) => idx.get(`${h}|${m}|${z}`);
+    const rm = heels.map((h) => [h, at(h, m0, z0).rm]);
+    lineChart(document.getElementById("rm-chart"), {
+      w: 470, h: 270, x: { lo: heels[0], hi: heels[heels.length - 1], label: "heel φ [deg]", tipTitle: (v) => `φ ${fx(v, 1)}°` },
+      y: { lo: 0, hi: niceMax(Math.max(...rm.map((p) => p[1]), ...up.map((r) => r.rm)) * 1.05), n: 5, tip: (v) => fx(v, 3) + " N·m" },
+      series: [{ name: "RM φ", color: "var(--c-rm)", pts: rm, marks: up.map((r) => [r.heel, r.rm, 5, twsC(r.tws)]) }],
+      extraTip: (h) => { const r = at(h, m0, z0); return r ? [["GZ", fx((r.rm / W) * 1000, 1) + " mm"], ["sinkage", fx(r.sink * 1000, 2) + " mm"], ["trim", fx(r.trim, 2) + "°"], ["wetted", fx(r.wetted_area, 4) + " m²"]] : []; },
+      label: "Righting moment against heel",
+    });
+    document.getElementById("rm-cap").innerHTML = `The table at M<sub>ext</sub> = ${auto(m0)} N·m and Z<sub>ext</sub> = ${auto(z0)} N. Dots are the race's best-VMG upwind points at their own heel and RM<sub>φ</sub>, which include their pitch moment and vertical force, coloured by wind speed (${TWS[0]} → ${TWS[TWS.length - 1]} m/s, light to dark).`;
+    const sh = document.getElementById("hy-heel");
+    const med = up.length ? up.map((r) => r.heel).sort((a, b) => a - b)[Math.floor(up.length / 2)] : heels[0];
+    const h0 = heels.reduce((p, q) => (Math.abs(q - med) < Math.abs(p - med) ? q : p));
+    heels.forEach((h) => H("option", { value: h, text: h + "°" }, sh));
+    sh.value = String(h0);
+    const zfig = document.getElementById("z-fig");
+    function drawAt(h) {
+      lineChart(document.getElementById("trim-chart"), {
+        w: 470, h: 270, x: { lo: Ms[0], hi: Ms[Ms.length - 1], label: "M_{ext} [N·m, + bow down]", tipTitle: (v) => `M_ext ${auto(v)} N·m, φ ${h}°` },
+        y: Object.assign(span(Ms.map((m) => at(h, m, z0).trim), true), { n: 6, tip: (v) => fx(v, 2) + "°" }),
+        series: [{ name: "trim", color: "var(--accent)", dots: true, pts: Ms.map((m) => [m, at(h, m, z0).trim]) }],
+        extraTip: (m) => { const r = at(h, m, z0); return r ? [["sinkage", fx(r.sink * 1000, 2) + " mm"], ["LWL", fx(r.lwl, 3) + " m"], ["wetted", fx(r.wetted_area, 4) + " m²"]] : []; },
+        label: "Trim against pitch moment",
+      });
+      if (Zs.length > 1) {
+        // the table reads Z_ext by the Lagrange polynomial through its layers (HydroTable.at)
+        const lag = (f, z) => Zs.reduce((a, zi, i) => a + f(zi) * Zs.reduce((w, zj, j) => (j === i ? w : (w * (z - zj)) / (zi - zj)), 1), 0);
+        const zz = Array.from({ length: 33 }, (_, i) => Zs[0] + ((Zs[Zs.length - 1] - Zs[0]) * i) / 32);
+        const sk = (z) => lag((q) => at(h, m0, q).sink * 1000, z), tr = (z) => lag((q) => at(h, m0, q).trim, z);
+        lineChart(document.getElementById("z-chart"), {
+          w: 900, h: 240, x: { lo: Zs[0], hi: Zs[Zs.length - 1], label: "Z_{ext} [N, + up]", tipTitle: (v) => `Z_ext ${sg(v, 2)} N, φ ${h}°` },
+          y: Object.assign(span(zz.map(sk), false), { n: 5, tip: (v) => fx(v, 2) + " mm" }),
+          series: [{ name: "sinkage", color: "var(--accent)", pts: zz.map((z) => [z, sk(z)]), marks: Zs.map((z) => [z, at(h, m0, z).sink * 1000, 5]) }],
+          extraTip: (z) => [["trim", fx(tr(z), 2) + "°"]],
+          label: "Sinkage against vertical force",
+        });
+      }
+    }
+    if (Zs.length > 1) {
+      const zs = VMG.filter((r) => r.converged).map((r) => PARTS.reduce((a, n) => a + r[`Z_${n}`], 0));
+      document.getElementById("z-cap").innerHTML = `The table's ${Zs.length} Z<sub>ext</sub> layers (<code>hydrostatics.Z_ext</code>), read in between by the polynomial through them (the dots). At the best-VMG points the parts' vertical forces add up to ΣZ = ${fx(Math.min(...zs), 2)} to ${fx(Math.max(...zs), 2)} N.`;
+    } else missing(zfig, "One Z_ext layer: the parts' vertical forces don't move the boat (hydrostatics.Z_ext).");
+    sh.addEventListener("change", () => drawAt(Number(sh.value)));
+    drawAt(h0);
+  }
+  // attitude at best VMG
+  const ah = document.getElementById("att-charts");
+  const xo = { lo: TWS[0], hi: TWS[TWS.length - 1], ticks: TWS.length <= 10 ? TWS : undefined, label: "TWS [m/s]", tipTitle: (v) => `TWS ${v} m/s` };
+  [["heel φ [deg]", (r) => r.heel, 1, "°", true], ["sinkage [mm, + down]", (r) => r.sink * 1000, 2, " mm", false], ["trim [deg, + bow down]", (r) => r.trim, 2, "°", false]].forEach(([title, f, d, u, zero]) => {
+    const fig = H("figure", { style: "margin:0" }, ah);
+    H("div", { class: "fig-title", text: title }, fig);
+    const el = H("div", {}, fig);
+    const su = up.map((r) => [r.tws, f(r)]), sd = dn.map((r) => [r.tws, f(r)]);
+    lineChart(el, { w: 360, h: 220, m: { l: 46 }, x: xo, y: Object.assign(span(su.concat(sd).map((p) => p[1]), zero), { n: 4, tip: (v) => fx(v, d) + u }),
+      series: [{ name: "upwind", color: "var(--leg-up)", dots: true, pts: su }, { name: "downwind", color: "var(--leg-down)", dots: true, pts: sd }], label: title });
+  });
+  // mass
+  const items = MASS.filter((r) => r.name !== "total").sort((a, b) => b.m - a.m);
+  const tot = MASS.find((r) => r.name === "total");
+  if (!items.length) { missing(document.getElementById("mass-chart"), "No mass.csv in this run."); return; }
+  barH(document.getElementById("mass-chart"), { w: 470, ml: 170, mr: 52, rowH: 26, rows: items.map((it) => ({ label: it.name.length > 26 ? it.name.slice(0, 25) + "…" : it.name, value: it.m, color: "var(--c-mass)",
+    tip: [["mass", fx(it.m, 3) + " kg", "var(--c-mass)"], ["x, z", fx(it.x, 3) + ", " + fx(it.z, 3) + " m"], ["source", it.source || "the boat file"]] })), fmt: (v) => fx(v, 3), tickFmt: (v) => fx(v, 1), label: "Mass budget" });
+  // side view of the items
+  const Wd = 470, Hh = 300, pad = 36;
+  const xsA = items.map((i) => i.x).concat([0]), zsA = items.map((i) => i.z).concat([0]);
+  const x0 = Math.min(...xsA) - 0.05, x1 = Math.max(...xsA) + 0.08, z0 = Math.min(...zsA) - 0.06, z1 = Math.max(...zsA) + 0.06;
+  const k = Math.min((Wd - 2 * pad) / (x1 - x0), (Hh - 2 * pad) / (z1 - z0));
+  const X = (x) => pad + (x - x0) * k, Z = (z) => Hh - pad - (z - z0) * k;
+  const s = svgRoot(Wd, Hh, "Side view of the mass items and the centre of gravity");
+  E("line", { x1: 0, x2: Wd, y1: Z(0), y2: Z(0), style: "stroke:var(--accent);stroke-width:1" }, s);
+  T(s, Wd - 6, Z(0) - 6, "waterline z = 0", { class: "t11 mut", "text-anchor": "end" });
+  E("line", { x1: X(0), x2: X(0), y1: pad / 2, y2: Hh - pad / 2, style: "stroke:var(--axis);stroke-width:1;stroke-dasharray:3 4" }, s);
+  T(s, X(0) + 4, Hh - pad / 2 + 2, "bow, x = 0", { class: "t11 mut" });
+  const mmax = Math.max(...items.map((i) => i.m));
+  items.forEach((it, i) => {
+    const r = 3 + 16 * Math.sqrt(it.m / mmax);
+    const g = E("g", { tabindex: 0, role: "img", "aria-label": `${it.name}: ${fx(it.m, 3)} kg` }, s);
+    E("circle", { cx: X(it.x), cy: Z(it.z), r: Math.max(r, 10), fill: "transparent" }, g);
+    E("circle", { cx: X(it.x), cy: Z(it.z), r, style: "fill:var(--c-mass);fill-opacity:0.5;stroke:var(--surface);stroke-width:1.5" }, g);
+    if (i === 0) T(g, X(it.x) + r + 4, Z(it.z) + 4, `${it.name.split(/[:,]/)[0]} ${fx(it.m, 2)} kg`, { class: "t11 ink2" });
+    hover(g, it.name, [["mass", fx(it.m, 3) + " kg", "var(--c-mass)"], ["x, z", fx(it.x, 3) + ", " + fx(it.z, 3) + " m"], ["source", it.source || "the boat file"]]);
+  });
+  if (tot) {
+    const cx = X(tot.x), cz = Z(tot.z);
+    E("circle", { cx, cy: cz, r: 8, style: "fill:var(--surface);stroke:var(--ink);stroke-width:2" }, s);
+    E("path", { d: `M${cx - 8},${cz} A8,8 0 0 1 ${cx},${cz - 8} L${cx},${cz} Z M${cx + 8},${cz} A8,8 0 0 1 ${cx},${cz + 8} L${cx},${cz} Z`, class: "ink" }, s);
+    T(s, cx - 12, cz + 4, "CG", { class: "t12 ink b6", "text-anchor": "end" });
+  }
+  document.getElementById("mass-xz").appendChild(s);
+  const mo = document.getElementById("mass-out");
+  [["total", fx(tot ? tot.m : mass, 3) + " kg"], ["CG x (aft)", fx((tot ? tot.x : NaN) * 1000, 0) + " mm"], ["CG z (up)", fx((tot ? tot.z : NaN) * 1000, 0) + " mm"],
+    ["RM at 30°", fx(INFO.rm_30deg_Nm, 3) + " N·m"]].forEach(([kk, v]) => { const d = H("div", {}, mo); H("dt", { text: kk }, d); H("dd", { text: v }, d); });
+})();
+
+// ---------- race ----------
+(function raceSection() {
+  const c = COURSE;
+  document.getElementById("race-lede").innerHTML = `For each wind speed the best VMG upwind and downwind (vmg.csv has those points in full), and the windward–leeward race in run.json's course: ${c.laps} laps of ${auto(c.leg)} m along the wind, ${auto(c.tacks_per_leg)} tacks of ${auto(c.tack_s)} s per beat and ${auto(c.gybes_per_leg)} gybes of ${auto(c.gybe_s)} s per run. The weighted race time is ${fx(tRun, 1)} s.`;
+  const host = document.getElementById("race-charts");
+  if (!RACE.length) { missing(host, "No race.csv in this run."); return; }
+  const xo = { lo: TWS[0], hi: TWS[TWS.length - 1], ticks: TWS.length <= 10 ? TWS : undefined, label: "TWS [m/s]", tipTitle: (v) => `TWS ${v} m/s` };
+  // the best-VMG points in full (vmg.csv), up and down
+  const leg = (l) => TWS.map((t) => VMG.find((r) => r.tws === t && r.leg === l)).filter((r) => r && r.converged);
+  const ups = leg("up"), dns = leg("down");
+  const charts = [["Best VMG [m/s]", (r) => Math.abs(r.vmg), 3, " m/s", true], ["Best-VMG β_TW [deg]", (r) => r.twa, 1, "°", false],
+    ["Heel φ at best VMG [deg]", (r) => r.heel, 1, "°", true], ["Leeway β_Y at best VMG [deg]", (r) => r.leeway, 2, "°", true]];
+  CONTROLS.filter((k) => k.role !== "choice").forEach((k) => charts.push([`${ctrlSym(k.key)} at best VMG (${k.key})`, (r) => r[k.key], 3, /angle/.test(k.key) ? "°" : "", false]));
+  const choices = CONTROLS.filter((k) => k.role === "choice");
+  charts.forEach(([title, f, d, u, zero]) => {
+    const fig = H("figure", { style: "margin:0" }, host);
+    H("div", { class: "fig-title", html: subs(title) }, fig);
+    const el = H("div", {}, fig);
+    const su = ups.map((r) => [r.tws, f(r)]), sd = dns.map((r) => [r.tws, f(r)]);
+    lineChart(el, { w: 360, h: 230, m: { l: 46 }, x: xo, y: Object.assign(span(su.concat(sd).map((p) => p[1]), zero), { n: 4, tip: (v) => fx(v, d) + u }),
+      series: [{ name: "upwind", color: "var(--leg-up)", dots: true, pts: su }, { name: "downwind", color: "var(--leg-down)", dots: true, pts: sd }], label: title,
+      extraTip: (t) => choices.flatMap((k) => ["up", "down"].map((l) => { const r = VMG.find((q) => q.tws === t && q.leg === l); return r ? [`${ctrlSym(k.key)} ${l}`, choiceName(k.key, r[k.key])] : null; }).filter(Boolean)) });
+  });
+  table(document.getElementById("race-table"), RACE);
+  // calculator
+  const course = { leg: c.leg, laps: c.laps, tacks_per_leg: c.tacks_per_leg, tack_s: c.tack_s, gybes_per_leg: c.gybes_per_leg, gybe_s: c.gybe_s };
+  const labels = { leg: "leg [m]", laps: "laps", tacks_per_leg: "tacks per beat", tack_s: "s per tack", gybes_per_leg: "gybes per run", gybe_s: "s per gybe" };
+  const inC = {};
+  const hc = document.getElementById("calc-course");
+  Object.keys(course).forEach((k) => {
+    const l = H("label", { class: "ctl", for: "c-" + k, style: "display:grid;gap:2px" }, hc);
+    l.appendChild(document.createTextNode(labels[k]));
+    const inp = H("input", { type: "number", id: "c-" + k, value: course[k], min: 0, step: k === "leg" ? 10 : 1 }, l);
+    inp.addEventListener("input", () => { const v = Number(inp.value); if (isFinite(v) && v >= 0) { course[k] = v; mark(null); draw(); } });
+    inC[k] = inp;
+  });
+  const w = RACE.map((r) => r.weight);
+  const hw = document.getElementById("calc-w");
+  const inps = RACE.map((r, i) => {
+    const l = H("label", { class: "ctl", for: "w-" + i, style: "display:grid;gap:2px" }, hw);
+    l.appendChild(document.createTextNode(r.tws + " m/s"));
+    const inp = H("input", { type: "number", id: "w-" + i, value: r.weight, min: 0, step: 0.5 }, l);
+    inp.addEventListener("input", () => { const v = Number(inp.value); if (isFinite(v) && v >= 0) { w[i] = v; mark(null); draw(); } });
+    return inp;
+  });
+  const bRun = document.getElementById("w-run"), bU = document.getElementById("w-uniform");
+  function mark(b) { bRun.setAttribute("aria-pressed", String(b === bRun)); bU.setAttribute("aria-pressed", String(b === bU)); }
+  bRun.addEventListener("click", () => {
+    RACE.forEach((r, i) => { w[i] = r.weight; inps[i].value = r.weight; });
+    Object.keys(course).forEach((k) => { course[k] = c[k]; inC[k].value = c[k]; });
+    mark(bRun); draw();
+  });
+  bU.addEventListener("click", () => { RACE.forEach((r, i) => { w[i] = 1; inps[i].value = 1; }); mark(bU); draw(); });
+  function draw() {
+    const rows = RACE.map((r, i) => {
+      const upT = course.laps * (r.vmg_up > 0 ? course.leg / r.vmg_up + course.tacks_per_leg * course.tack_s : Infinity);
+      const dnT = course.laps * (r.vmg_down > 0 ? course.leg / r.vmg_down + course.gybes_per_leg * course.gybe_s : Infinity);
+      return { tws: r.tws, up: upT, dn: dnT, t: upT + dnT, w: w[i] };
+    });
+    const ws = rows.reduce((a, r) => a + r.w, 0);
+    const tot = ws > 0 ? rows.reduce((a, r) => a + r.w * r.t, 0) / ws : NaN;
+    document.getElementById("calc-total").textContent = isFinite(tot) ? fx(tot, 1) + " s" : "–";
+    const dd = tot - tRun;
+    document.getElementById("calc-delta").textContent = isFinite(tot) ? (Math.abs(dd) < 0.05 ? "the same as the run's " + fx(tRun, 1) + " s" : sg(dd, 1) + " s against the run's " + fx(tRun, 1) + " s (" + sg((100 * dd) / tRun, 2) + " %)") : "set at least one weight above zero";
+    const hostC = document.getElementById("calc-chart");
+    const Wd = 470, Hh = 250, m = { l: 44, r: 10, t: 12, b: 36 };
+    const s = svgRoot(Wd, Hh, "Race time per wind speed, upwind and downwind legs stacked");
+    const fin = rows.filter((r) => isFinite(r.t));
+    const max = niceMax(Math.max(1, ...fin.map((r) => r.t)) * 1.04);
+    const y = lin(0, max, Hh - m.b, m.t);
+    const bw = (Wd - m.l - m.r) / rows.length;
+    nice(0, max, 5).forEach((v) => { E("line", { x1: m.l, x2: Wd - m.r, y1: y(v), y2: y(v), class: v === 0 ? "axis-l" : "grid-l" }, s); E("text", { x: m.l - 6, y: y(v) + 4, class: "tick", "text-anchor": "end", text: String(v) }, s); });
+    rows.forEach((r, i) => {
+      const cx = m.l + bw * i + bw / 2, cw = Math.min(24, bw - 10);
+      E("text", { x: cx, y: Hh - m.b + 15, class: "tick", "text-anchor": "middle", text: String(r.tws) }, s);
+      if (!isFinite(r.t)) return;
+      const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `TWS ${r.tws}: ${fx(r.t, 1)} s` }, s);
+      E("rect", { x: cx - bw / 2, y: m.t, width: bw, height: Hh - m.t - m.b, fill: "transparent" }, g);
+      const yUp = y(r.up), yTop = y(r.t);
+      E("rect", { x: cx - cw / 2, y: yUp, width: cw, height: y(0) - yUp, class: "barfill", style: "fill:var(--leg-up);opacity:" + (r.w > 0 ? 1 : 0.3) }, g);
+      E("path", { d: `M${cx - cw / 2},${yUp - 2} V${yTop + 4} Q${cx - cw / 2},${yTop} ${cx - cw / 2 + 4},${yTop} H${cx + cw / 2 - 4} Q${cx + cw / 2},${yTop} ${cx + cw / 2},${yTop + 4} V${yUp - 2} Z`, class: "barfill", style: "fill:var(--leg-down);opacity:" + (r.w > 0 ? 1 : 0.3) }, g);
+      hover(g, `TWS ${r.tws} m/s`, [["upwind legs", fx(r.up, 1) + " s", "var(--leg-up)"], ["downwind legs", fx(r.dn, 1) + " s", "var(--leg-down)"], ["race", fx(r.t, 1) + " s"], ["weight", auto(r.w)]]);
+    });
+    T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS [m/s] · race time [s]", { class: "alab", "text-anchor": "middle" });
+    hostC.replaceChildren(s);
+  }
+  draw();
+})();
+
+// ---------- exchange rates ----------
+(function ratesSection() {
+  const body = document.getElementById("rates-body");
+  if (!RSUM || !RATES) { missing(body, "No exchange rates in this run (vpp run --no-rates)."); return; }
+  barH(document.getElementById("rates-chart"), {
+    w: 760, ml: 210, mr: 170, rowH: 28, sym: true, valueCol: true,
+    rows: RSUM.map((s) => ({ label: s.name.replace(/_([^\s{]+)/g, "_{$1}"), value: s.dt_pct, color: s.dt_pct > 0 ? "var(--div-pos)" : "var(--div-neg)", text: sg(s.dt_pct, 3) + " %  ·  " + sg(s.boat_lengths, 2) + " BL",
+      tip: [["race time", sg(s.dt_pct, 3) + " %", s.dt_pct > 0 ? "var(--div-pos)" : "var(--div-neg)"], ["seconds", sg((s.dt_pct / 100) * tRun, 2) + " s"], ["boat lengths", sg(s.boat_lengths, 2)]] })),
+    fmt: (v) => sg(v, 3) + " %", tickFmt: (v) => fx(v, 1) + " %", label: "Exchange rates",
+  });
+  document.getElementById("rates-cap").innerHTML = `Percent of the ${fx(tRun, 1)} s weighted race time (rates_summary.csv, as in summary.md) and the same as boat lengths over the ${auto(DIST)} m sailed along the wind (Δt × distance / t / ${auto(COURSE.boat_length || 1)} m).`;
+  const names = [...new Set(RATES.map((r) => r.name))], tws = uniq(RATES.map((r) => r.tws));
+  const host = document.getElementById("rates-heat");
+  const cw = 64, ch = 28, ml = 210, mt = 24;
+  const Wd = ml + cw * tws.length + 4, Hh = mt + ch * names.length + 4;
+  const s = svgRoot(Wd, Hh, "Heat map of the exchange rates per wind speed");
+  tws.forEach((t, j) => E("text", { x: ml + cw * j + cw / 2, y: 16, class: "tick", "text-anchor": "middle", text: t + " m/s" }, s));
+  names.forEach((n, i) => {
+    const rows = RATES.filter((r) => r.name === n);
+    const mx = Math.max(...rows.map((r) => Math.abs(r.dt_pct)).filter(finite)) || 1;
+    T(s, ml - 8, mt + ch * i + ch / 2 + 4, n.replace(/_([^\s{]+)/g, "_{$1}"), { class: "t12 ink2", "text-anchor": "end" });
+    rows.forEach((r) => {
+      const j = tws.indexOf(r.tws);
+      if (j < 0 || !finite(r.dt_pct)) return;
+      const f = Math.abs(r.dt_pct) / mx, pct = Math.round(15 + 85 * f);
+      const col = r.dt_pct >= 0 ? "var(--div-pos)" : "var(--div-neg)";
+      const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `${n} at ${r.tws} m/s: ${sg(r.dt_pct, 3)} %` }, s);
+      E("rect", { x: ml + cw * j + 1, y: mt + ch * i + 1, width: cw - 2, height: ch - 2, rx: 3, style: `fill:color-mix(in oklab, ${col} ${pct}%, var(--div-mid))` }, g);
+      E("text", { x: ml + cw * j + cw / 2, y: mt + ch * i + ch / 2 + 4, "text-anchor": "middle", class: "t11", style: `fill:${pct > 62 ? "#ffffff" : "var(--ink)"};font-variant-numeric:tabular-nums`, text: sg(r.dt_pct, Math.abs(r.dt_pct) < 0.01 ? 4 : 3) }, g);
+      hover(g, `${n} · TWS ${r.tws}`, [["% of this wind's race time", sg(r.dt_pct, 4), col], ["seconds, up", sg(r.dt_up, 3)], ["seconds, down", sg(r.dt_down, 3)]]);
+    });
+  });
+  host.replaceChildren(s);
+  s.style.minWidth = Wd * 0.85 + "px";
+  const dr = RATES.filter((r) => finite(r.vdrdv_up) || finite(r.vdrdv_down));
+  if (dr.length) {
+    lineChart(document.getElementById("vdr-chart"), { w: 900, h: 260, x: { lo: tws[0], hi: tws[tws.length - 1], ticks: tws.length <= 10 ? tws : undefined, label: "TWS [m/s]", tipTitle: (v) => `TWS ${v} m/s` },
+      y: Object.assign(span(dr.flatMap((r) => [r.vdrdv_up, r.vdrdv_down]), true), { n: 6, tip: (v) => fx(v, 3) + " N" }),
+      series: [{ name: "upwind", color: "var(--leg-up)", dots: true, pts: dr.map((r) => [r.tws, r.vdrdv_up]) }, { name: "downwind", color: "var(--leg-down)", dots: true, pts: dr.map((r) => [r.tws, r.vdrdv_down]) }], label: "V dR/dV" });
+  } else document.getElementById("vdr-fig").hidden = true;
+  table(document.getElementById("rates-table"), RATES);
+})();
+
+// ---------- frames (static: illustrative angles) ----------
+(function axes() {
+  const rad = (a) => (a * Math.PI) / 180, LX = 4, twa = 42, awa = 27, lee = 2.5, heel = 30;
+  const hs = { length: 0.99, beam: 0.165, freeboard: 0.06, draft: 0.053 };
+  const ink = "var(--ink)", mut = "var(--muted)";
+  {
+    const s = document.getElementById("ax-plan");
+    const B = { x: 285, y: 250 }, k = 205, l = rad(lee * LX);
+    const pt = (x, y) => [B.x + k * (x * Math.sin(l) - y * Math.cos(l)), B.y + k * (x * Math.cos(l) + y * Math.sin(l))];
+    const pol = (r, a) => [B.x - r * Math.sin(rad(a)), B.y - r * Math.cos(rad(a))];
+    const arcP = (r, a1, color) => { const [x1, y1] = pol(r, a1); E("path", { d: `M${B.x},${B.y - r} A${r},${r} 0 0 0 ${x1},${y1}`, style: `fill:none;stroke:${color};stroke-width:1.5` }, s); };
+    E("line", { x1: B.x, y1: 14, x2: B.x, y2: 490, style: "stroke:var(--axis);stroke-width:1;stroke-dasharray:5 4" }, s);
+    T(s, B.x + 8, 26, "course: the direction of V_{b}", { class: "t11 mut" });
+    const hb = (x) => (hs.beam / 2) * Math.sqrt(Math.max(0, 1 - ((x - 0.6) / 0.6) ** 2));
+    const xs = Array.from({ length: 41 }, (_, i) => (hs.length * i) / 40);
+    const outline = xs.map((x) => pt(x, -hb(x))).concat(xs.map((x) => pt(x, hb(x))).reverse());
+    E("path", { d: "M" + outline.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" L") + " Z", style: "fill:var(--sunk);stroke:var(--ink);stroke-width:1.5" }, s);
+    const c0 = pt(-0.55, 0), c1 = pt(hs.length, 0), c2 = pt(1.1, 0);
+    E("line", { x1: c0[0], y1: c0[1], x2: c1[0], y2: c1[1], style: "stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 4" }, s);
+    colorArrow(s, c1[0], c1[1], c2[0], c2[1], mut, 2, 9);
+    T(s, c2[0] + 8, c2[1] - 2, "x + aft", { class: "t12 b6 ink2" });
+    T(s, c2[0] + 8, c2[1] + 12, "boat frame", { class: "t11 mut" });
+    const m = pt(0.4, 0);
+    E("circle", { cx: m[0], cy: m[1], r: 3, class: "ink" }, s);
+    T(s, m[0] - 12, m[1] + 4, "mast", { class: "t11 mut", "text-anchor": "end" });
+    const cl = pt(0.75, 0.13);
+    T(s, cl[0] - 4, cl[1], "centreline", { class: "t11 mut", "text-anchor": "end" });
+    [[twa, "var(--leg-up)", "true wind", 238, 16], [awa, "var(--c-sails)", "apparent wind", 222, -6]].forEach(([a, c, lab, r0, dy]) => {
+      const p0 = pol(r0, a), p1 = pol(104, a);
+      E("line", { x1: p1[0], y1: p1[1], x2: B.x, y2: B.y, style: `stroke:${c};stroke-width:1;stroke-dasharray:2 3` }, s);
+      colorArrow(s, p0[0], p0[1], p1[0], p1[1], c, 3);
+      T(s, p0[0] - 6, p0[1] + dy, lab, { class: "t12 b6 ink", "text-anchor": "end" });
+    });
+    arcP(112, lee * LX, "var(--ink-2)");
+    arcP(132, awa, "var(--c-sails)");
+    arcP(152, twa, "var(--leg-up)");
+    T(s, B.x + 6, B.y - 108, "β_{Y} leeway (drawn ×" + LX + ")", { class: "t11 ink2" });
+    T(s, B.x + 6, B.y - 128, "β_{AW}", { class: "t11 ink2" });
+    T(s, B.x + 6, B.y - 148, "β_{TW}", { class: "t11 ink2" });
+    colorArrow(s, B.x, B.y, B.x, B.y - 88, ink, 2.5, 11);
+    colorArrow(s, B.x, B.y, B.x - 88, B.y, ink, 2.5, 11);
+    T(s, B.x + 8, B.y - 78, "X", { class: "t14 b6 ink" });
+    T(s, B.x + 22, B.y - 78, "+ forward, along V_{b}", { class: "t11 ink2" });
+    T(s, B.x - 88, B.y - 9, "Y", { class: "t14 b6 ink" });
+    T(s, B.x - 88, B.y + 17, "+ to windward", { class: "t11 ink2" });
+    E("circle", { cx: B.x, cy: B.y, r: 4, style: "fill:var(--surface);stroke:var(--ink);stroke-width:2" }, s);
+    T(s, B.x + 12, B.y + 4, "origin: bow, waterline", { class: "t11 mut" });
+    T(s, 14, B.y + 4, "port, windward", { class: "t11 mut" });
+  }
+  {
+    const s = document.getElementById("ax-stern");
+    const O = { x: 250, y: 300 }, k = 190, f = 13, p = rad(heel);
+    const sc = (y, z) => [O.x - k * (y * Math.cos(p) - z * Math.sin(p)), O.y - k * (y * Math.sin(p) + z * Math.cos(p))];
+    E("line", { x1: 0, y1: O.y, x2: 460, y2: O.y, style: "stroke:var(--accent);stroke-width:1" }, s);
+    T(s, 10, O.y - 8, "port, windward", { class: "t11 mut" });
+    T(s, 450, O.y + 16, "starboard, leeward", { class: "t11 mut", "text-anchor": "end" });
+    T(s, 450, O.y - 8, "waterline", { class: "t11 mut", "text-anchor": "end" });
+    const A = { x: 96, y: 96 };
+    colorArrow(s, A.x, A.y, A.x - 72, A.y, ink, 2.5, 11);
+    colorArrow(s, A.x, A.y, A.x, A.y - 72, ink, 2.5, 11);
+    T(s, A.x - 74, A.y + 18, "Y", { class: "t14 b6 ink" });
+    T(s, A.x - 60, A.y + 18, "+ to windward", { class: "t11 ink2" });
+    T(s, A.x + 8, A.y - 62, "Z", { class: "t14 b6 ink" });
+    T(s, A.x + 22, A.y - 62, "+ up", { class: "t11 ink2" });
+    T(s, A.x - 74, A.y + 36, "level at any heel; the boat's", { class: "t11 mut" });
+    T(s, A.x - 74, A.y + 50, "y, z are taken on the same axes", { class: "t11 mut" });
+    const b = hs.beam, fb = 2 * hs.freeboard, d = 2 * hs.draft;
+    const sec = [[b, fb], [b, 0], [0.62 * b, -0.75 * d], [0, -d], [-0.62 * b, -0.75 * d], [-b, 0], [-b, fb]].map(([yy, zz]) => sc(yy, zz));
+    const fin0 = sc(0, -d), fin1 = sc(0, -0.4), r0 = sc(0, -0.03), r1 = sc(0, -0.23), m0 = sc(0, fb), m1 = sc(0, 1.25);
+    E("line", { x1: m0[0], y1: m0[1], x2: m1[0], y2: m1[1], style: "stroke:var(--ink);stroke-width:2.5" }, s);
+    E("line", { x1: fin0[0], y1: fin0[1], x2: fin1[0], y2: fin1[1], style: "stroke:var(--c-keel);stroke-width:4" }, s);
+    E("circle", { cx: fin1[0], cy: fin1[1], r: 9, style: "fill:var(--c-bulb)" }, s);
+    E("path", { d: "M" + sec.map((q) => q[0].toFixed(1) + "," + q[1].toFixed(1)).join(" L") + " Z", style: "fill:var(--sunk);stroke:var(--ink);stroke-width:1.5" }, s);
+    E("line", { x1: r0[0], y1: r0[1], x2: r1[0], y2: r1[1], style: "stroke:var(--c-rudder);stroke-width:6;stroke-linecap:round" }, s);
+    E("circle", { cx: O.x, cy: O.y, r: 3.5, style: "fill:var(--surface);stroke:var(--ink);stroke-width:2" }, s);
+    T(s, m1[0] + 8, m1[1] + 4, "mast", { class: "t11 mut" });
+    const ka = (a) => [O.x + 92 * Math.sin(rad(a)), O.y - 92 * Math.cos(rad(a))];
+    const k0 = ka(-26), k1 = ka(20);
+    E("path", { d: `M${k0[0]},${k0[1]} A92,92 0 0 1 ${k1[0]},${k1[1]}`, style: "fill:none;stroke:var(--ink-2);stroke-width:1.5" }, s);
+    const k2 = ka(25);
+    colorArrow(s, k1[0], k1[1], k2[0], k2[1], "var(--ink-2)", 1.5, 8);
+    T(s, k0[0] - 6, k0[1] - 2, "K + heels to starboard", { class: "t11 ink2", "text-anchor": "end" });
+    const F = 7, Ys = -F * Math.cos(p), Zs = -F * Math.sin(p);
+    const ce = sc(0, 0.66), cy = [ce[0] - f * Ys, ce[1]], cz = [ce[0] - f * Ys, ce[1] - f * Zs];
+    E("line", { x1: ce[0], y1: ce[1], x2: cy[0], y2: cy[1], style: "stroke:var(--c-sails);stroke-width:1.3;stroke-dasharray:4 3" }, s);
+    E("line", { x1: cy[0], y1: cy[1], x2: cz[0], y2: cz[1], style: "stroke:var(--c-sails);stroke-width:1.3;stroke-dasharray:4 3" }, s);
+    colorArrow(s, ce[0], ce[1], cz[0], cz[1], "var(--c-sails)", 3);
+    E("circle", { cx: ce[0], cy: ce[1], r: 4, style: "fill:var(--c-sails);stroke:var(--surface);stroke-width:2" }, s);
+    T(s, cy[0] + 6, ce[1] + 4, "−Y", { class: "t11 ink2" });
+    T(s, cy[0] + 6, (cy[1] + cz[1]) / 2 + 10, "−Z", { class: "t11 ink2" });
+    T(s, Math.min(cz[0] + 70, 452), cz[1] + 20, "sails: heel force ⟂ mast", { class: "t12 b6 ink", "text-anchor": "end" });
+    const kp = sc(0, -0.2), kt = [kp[0] - f * 5.4, kp[1] - f * 0.9];
+    colorArrow(s, kp[0], kp[1], kt[0], kt[1], "var(--c-keel)", 3);
+    T(s, kt[0] - 6, kt[1] + 18, "keel: side force S_{h}", { class: "t11 ink2", "text-anchor": "end" });
+    const L = 1.4, rp = sc(0, -0.12), rt = [rp[0] - f * L * Math.cos(p), rp[1] - f * L * Math.sin(p)];
+    colorArrow(s, rp[0], rp[1], rt[0], rt[1], "var(--c-rudder)", 3, 9);
+    T(s, rt[0] - 6, rt[1] + 8, "rudder: lift ⟂ blade", { class: "t11 ink2", "text-anchor": "end" });
+  }
+})();
+
+// ---------- footer ----------
+(function footer() {
+  const files = [...document.querySelectorAll("script[data-file]")].map((e) => e.getAttribute("data-file"));
+  document.getElementById("foot").innerHTML = `Written by <code>iomcfd vpp report</code> (src/iomcfd/vpp/report.py) from this run folder's ${files.map((f) => `<code>${esc(f)}</code>`).join(", ")}, embedded as written. Boat <code>${esc(RUN.boat || "")}</code>, git <code>${esc(RUN.git || "")}</code>, run created ${esc(String(RUN.created || ""))}. The ORC 2026 sail coefficients are copyright ORC: their columns (<code>sails_CL</code>, <code>sails_CD</code>) are left off this page; the run's polar.csv keeps them. Results are relative to the model: nothing here is calibrated against a real boat.`;
+})();
+
+select(sel.tws, sel.key);
+})();
+</script>
+</body>
+</html>

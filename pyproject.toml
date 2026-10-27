@@ -40,4 +40,5 @@ packages = ["src/iomcfd"]
 testpaths = ["tests"]
 markers = [
     "docker: needs the iom-cfd Docker image (OpenFOAM) to run",
+    "external: needs a checkout outside the repo (PYVPP_PATH)",
 ]

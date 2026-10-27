@@ -1,0 +1,24 @@
+# The keel of keel-round-bulb.csv with an HT35 fin at 7.25 % (custom-section's
+# recommendation) instead of keel3d's NACA 0007: no 3D CFD of it exists, so
+# the fin section's 2D foil2d polars are applied to the 3D keel as the change
+# in profile drag and angle at equal fin lift (components/section.py), on a
+# grid of heel × leeway × V_b. Build: iomcfd vpp table build boats/tables/keel-ht35.yaml
+# The geometry, and so the fin's volume and mass, stays the 3D run's.
+recipe: keel-section
+source: keel-round-bulb.csv
+fit: {max_leeway: 4.0, friction_factor: {fin: 1.0, bulb: 1.0}}   # the source's fits, as a boat file reads them
+water: {temperature: 15.0}
+section:
+  foil: file:ht35-t0725.dat
+  reference: naca0007            # the keel3d run's fin section
+  tu: 0.1                        # % : which polars
+  polars:                        # foil2d results (100 mm chord), custom-section's site copies
+    "0.1":                       # steady screen, time-accurate 2-5 deg replacing it (as custom-section.md)
+      base: [site/data/custom-steady.csv]
+      replace: [site/data/custom-transient.csv, site/data/custom-transient-15.csv,
+                site/data/custom-transient-rerun.csv, site/data/custom-0007-rest.csv]
+grid:                            # loads / V_b² are interpolated cubically; held outside, and flagged
+  heel: {from: 0.0, to: 60.0, step: 5.0}
+  leeway: {from: -2.0, to: 8.0, step: 0.5}
+  V: {from: 0.2, to: 2.6, step: 0.2}
+out: keel-ht35.csv

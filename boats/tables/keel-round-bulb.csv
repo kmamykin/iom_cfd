@@ -1,0 +1,72 @@
+# vpp-table: 1
+# component: keel
+# model: fit
+# dims:
+# - heel
+# - leeway
+# - V
+# frame: inflow
+# point: boat
+# units:
+#   heel: deg
+#   leeway: deg
+#   V: m/s
+#   X: N
+#   Y: N
+#   Z: N
+#   x: m
+# fluid:
+#   rho: 999.1285486882772
+#   nu: 1.1369594858033692e-06
+# reference:
+#   length: 0.09
+# includes:
+# - host.side_force
+# - host.yaw_moment
+# note: 'keel3d double body: canoe body, fin and bulb under a mirror plane at the waterline (no waves); Z includes the double body''s suction'
+# params:
+#   draft: 0.42
+#   keel_mass: 2.5
+#   fin_mass: 0.12
+#   lead_density: 11340.0
+#   fin_section: naca0007
+#   fin_mean_chord: 0.09
+#   fin_taper: 0.8
+#   fin_sweep: 0.0
+#   fin_x: 0.5
+#   bulb: true
+#   bulb_section: naca0011
+#   bulb_x: 0.0
+#   bulb_aspect: 1.0
+#   bulb_top: 2.0
+#   bulb_bottom: 2.0
+#   bulb_cant: 0.0
+#   hull_length: 0.99
+#   hull_beam: 0.165
+#   hull_draft: 0.053
+#   hull_beam_at: 0.55
+#   hull_draft_at: 0.5
+#   hull_entry: 2.0
+#   hull_run: 2.0
+#   hull_section: 2.0
+# source:
+#   tool: keel3d
+#   run: bulb-section@20261019-203823
+#   file: bulb-section/20261019-203823/results.csv
+#   sha256: 36706c82ba8ddd97ddf5dbfaa37f65afc55fcdc88a1b0fbe14b46417a6ad53e8
+#   select:
+#     fin_taper: 0.8
+#     bulb_section: naca0011
+#     bulb_aspect: 1.0
+#     bulb_top: 2.0
+#     bulb_bottom: 2.0
+#     mesh: medium
+# created: '2026-10-27T01:02:40+00:00'
+# git: 07ad64b-dirty
+case,status,heel,leeway,V,X,Y,Z,x,y,z,X_hull,X_friction_fin,X_friction_bulb,Y_fin
+bulb_aspect1_bulb_bottom2_bulb_top2_heel0_leeway0_meshmedium,ok,0.0,0.0,1.0,-0.7073137642100003,0.0091518878720499,-2.7091911544,0.47712581083920425,0.0,-0.17989970148903556,-0.343890087305,-0.20825328016,-0.078783295883,0.00802288053145
+bulb_aspect1_bulb_bottom2_bulb_top2_heel0_leeway2_meshmedium,ok,0.0,2.0,1.0,-0.7449224062992827,3.1286024102940804,-2.7876238516000007,0.4774271678957328,0.0,-0.179902177839905,-0.355395995597674,-0.1985555702699217,-0.0794925401815614,2.6025716742900795
+bulb_aspect1_bulb_bottom2_bulb_top2_heel0_leeway4_meshmedium,ok,0.0,4.0,1.0,-0.8754877323360147,6.124497026025249,-3.013255101550002,0.4768244537826757,0.0,-0.1798972251381661,-0.3891483623637565,-0.1744059559579371,-0.081686702840042,5.08620384360904
+bulb_aspect1_bulb_bottom2_bulb_top2_heel25_leeway0_meshmedium,ok,25.0,0.0,1.0,-0.70799663099,-0.033626298339,-2.754317584199999,0.4537555355817833,0.0,-0.20443770458294042,-0.3514608155700001,-0.207080637135,-0.078413336679,0.0031487195338
+bulb_aspect1_bulb_bottom2_bulb_top2_heel25_leeway2_meshmedium,ok,25.0,2.0,1.0,-0.7407886866397968,2.64605969849755,-1.7357793027,0.4475915899086353,0.0,-0.2079892656230085,-0.3636146704622727,-0.198777326718098,-0.079244249767531,2.2144625769156696
+bulb_aspect1_bulb_bottom2_bulb_top2_heel25_leeway4_meshmedium,ok,25.0,4.0,1.0,-0.8500741292359584,5.204879686342987,-0.922801794475,0.4599194812549312,0.0,-0.2008861435428723,-0.3911728305081358,-0.1767720810255485,-0.0810084142201822,4.3166319224859

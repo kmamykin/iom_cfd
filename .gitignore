@@ -3,6 +3,8 @@
 /runs
 # Downloaded cloud results
 /cloud-results/
+# Tables the VPP computed (config.cache_dir); rebuilt on demand
+/.cache/
 
 # Python
 __pycache__/
@@ -38,3 +40,10 @@ cloud/gcp/jobs/
 /site/_generated/
 /site/.quarto/
 /site/**/index_files/
+
+# Private boats (licensed hull lines and their derived parameters)
+boats/private/
+
+# ORC 2026 sail tables, transcribed (copyright ORC; kept locally until our own data replaces them)
+/src/iomcfd/vpp/data/orc2026_sails.yaml
+/tests/test_vpp_sails_orc.py

@@ -442,8 +442,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_site)
 
     from .cloud import gcp
+    from .vpp import cli as vpp_cli
 
     gcp.add_parser(sub)
+    vpp_cli.add_parser(sub)
     return ap
 
 
