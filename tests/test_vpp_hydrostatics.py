@@ -8,7 +8,7 @@ import pytest
 
 from iomcfd.geometry import hulls, stl
 from iomcfd.physics import G, fresh_water
-from iomcfd.vpp.hydrostatics import Hydrostatics, place, placement, submerged
+from iomcfd.vpp.hydrostatics import Hydrostatics, HydroTable, place, placement, submerged
 
 RHO = fresh_water().rho
 
@@ -165,3 +165,19 @@ def test_table_interpolates_and_flags_extrapolation():
     out = tab.at(55.0, 1.0)
     assert out["extrapolated"] and out["rm"] == pytest.approx(tab.at(40.0, 1.0)["rm"])  # clamped
     assert tab.at(20.0, 9.0)["extrapolated"]
+
+
+def test_table_flags_cells_with_no_equilibrium():
+    # trim = M_ext, except a node with no equilibrium (heel 20, M_ext 3) that holds garbage
+    heels, M = np.array([0.0, 10.0, 20.0, 30.0]), np.array([0.0, 1.0, 2.0, 3.0])
+    trim = np.tile(M, (4, 1)).astype(float)
+    conv = np.ones((4, 4), bool)
+    trim[2, 3], conv[2, 3] = 55.0, False
+    values = {k: (trim if k == "trim" else np.zeros((4, 4))) for k in HydroTable.KEYS}
+    tab = HydroTable(heels, M, values, conv)
+    assert not tab.at(5.0, 0.5)["extrapolated"] and tab.at(5.0, 0.5)["trim"] == pytest.approx(0.5)
+    assert not tab.at(15.0, 1.5)["extrapolated"]
+    near = tab.at(25.0, 2.5)  # a corner of its cell found no equilibrium
+    assert near["extrapolated"] and near["trim"] == pytest.approx(2.5, abs=1e-6)  # the linear continuation
+    assert tab.at(15.0, 2.5)["extrapolated"]
+    assert HydroTable.from_rows(tab.rows()).at(25.0, 2.5)["extrapolated"]

@@ -180,8 +180,8 @@ class IttcMichell:
     waves: str = "michell"  # michell | michell-heeled | none
     side_force: bool | str = True  # "auto": off when another part covers <name>.side_force
     sink0: float = 0.0  # upright static sinkage at the boat's mass [m], + down
-    V_grid: tuple = tuple(np.round(np.arange(0.1, 3.01, 0.1), 3))
-    trim_grid: tuple = (-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0)
+    V_grid: tuple = tuple(np.round(np.arange(0.1, 4.01, 0.1), 3))
+    trim_grid: tuple = (-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 15.0)
     heel_grid: tuple = tuple(np.arange(0.0, 45.1, 5.0))  # michell-heeled
     name: str = "hull"
     kind: str = "hydro"

@@ -9,7 +9,10 @@ description: >
   to its top wind, 8 m/s: the baseline vpp run of canoe-placeholder
   (20261027-213633, NACA 0007 keel table, TWS 1.5-8 m/s) solved V_b
   0.55-3.63 m/s, heel 0-63 deg and leeway -0.6 to 5.2 deg over its polar;
-  leeway runs on to 10 deg, the VPP's limit, where the fin stalls. Speeds
+  leeway runs on to 8 deg, the VPP's limit (solver.leeway_max), where the
+  fin starts to stall. Run 20261027-215521 also ran 10 deg: stalled, not
+  converged at heel 0-35, and a fifth of the compute, so it was dropped
+  (findings/ht35-keel.md). Speeds
   roughly geometric (the coefficients change with Re only). The run is
   exported as a grid table (vpp export-table --model grid) for
   boats/canoe-placeholder.yaml. Medium mesh, as the keel table it
@@ -29,9 +32,14 @@ highlights:
     compare: speed
     views: [surface_cp_starboard, vortices, wake_slice]
   - name: stall
-    why: Where the fin stalls - 6, 8 and 10 deg upright and at 35 deg heel, 1.5 m/s.
+    why: Where the fin stalls - 6, 8 and 10 deg upright and at 35 deg heel, 1.5 m/s (10 deg in run 20261027-215521 only).
     where: {heel: [0, 35], leeway: [6, 8, 10], speed: 1.5, mesh: medium}
     compare: leeway
+    views: [surface_cp_starboard, wake_slice]
+  - name: re
+    why: The Re effect - upright at 4 deg, side force per V^2 +9 % and drag per V^2 down from 0.5 to 3.7 m/s; does the fin's loading or its wake change with speed?
+    where: {heel: 0, leeway: 4, mesh: medium}
+    compare: speed
     views: [surface_cp_starboard, wake_slice]
 defaults:
   fin_section: "file:ht35-t0725.dat"
@@ -43,7 +51,7 @@ defaults:
   Tu: 0.5
 sweep:
   heel: [0, 10, 20, 35, 50, 65]
-  leeway: [-2, 0, 1, 2, 3, 4, 6, 8, 10]
+  leeway: [-2, 0, 1, 2, 3, 4, 6, 8]
   speed: [0.5, 0.9, 1.5, 2.4, 3.7]
 cases:  # mesh error: fine at 0 and 4 deg, 1.5 m/s
   - {heel: 0, leeway: 0, speed: 1.5, mesh: fine}

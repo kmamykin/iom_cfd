@@ -148,11 +148,14 @@ Each run writes these files:
     force (`hydrostatics.Z_ext`: three layers, read back by a quadratic;
     one layer ignores the vertical forces), from the hull's surface clipped
     at the heeled waterline, plus the appendages' volumes
-    (`hydrostatics.py`);
+    (`hydrostatics.py`). The pitch moment runs −2 to 10 N·m (every 0.5
+    above 6). Where a large bow-down moment buries the bow there is no
+    equilibrium: those nodes are continued linearly for the splines, and a
+    point in a cell next to one is flagged `extrapolated`;
   * each force model's finish: the hull's Michell wave-resistance table
-    (over V_b and trim at the static sinkage; with `michell-heeled` also
-    over heel, each at its own static sinkage) and the windage's
-    projected-area table (over heel and the wind's angle to the
+    (V_b 0.1–4 m/s and trim −2 to 15° at the static sinkage; with
+    `michell-heeled` also over heel, each at its own static sinkage) and the
+    windage's projected-area table (over heel and the wind's angle to the
     centreline).
 * **Solve** (`solver.py`), nested:
   * **inner:** side force, roll and yaw balance give heel, leeway and the
@@ -237,6 +240,21 @@ tables are fully turbulent, so the HT35 section's laminar gain is in
 neither. At 7.5–8 m/s the polar has no equilibrium at β_TW 30–40°, and
 upwind the boat sails at 56–61° of heel with 15–26° of rudder (no rudder
 stall model): the A rig is past its range there.
+
+**Trim tables extended (2026-10-28).** The hydrostatic table stopped at a
+6 N·m bow-down moment (8.2° of trim) and the wave table at 4° of trim and
+3 m/s, so downwind from 5 m/s the trim and the wave drag were held at those
+edges. With the ranges above, the weighted race time is 439.0 s (434.8 s
+before): the downwind legs are 0.9 % (5 m/s) to 13.8 % (8 m/s) slower and
+the upwind ones unchanged up to 7 m/s. Dead downwind the boat trims 0.7° bow
+down at 1.5 m/s, 2.8° at 4, 4.5° at 5, 6.6° at 6 and 7.4–8.0° at 6.5–7.5
+m/s, where the solver flattens the sails to keep the bow up; at 8 m/s it
+trims 17° (24° on the VMG course, flagged): the bow is buried. The canoe
+body has 60 mm of freeboard and a flat deck, so its bow deck reaches the
+water at about 7° of trim, and its masses are placeholders: these trims are
+the stand-in hull's, and Michell's thin-ship waves are out of their depth
+above a few degrees. The keel comparison above was made before the
+extension, with both keels on the same clamped tables.
 
 ## Inputs to replace
 

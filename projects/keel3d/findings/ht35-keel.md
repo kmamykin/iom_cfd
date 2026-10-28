@@ -177,7 +177,32 @@ Weighted (uniform over 14 winds): 434.8 s against 430.4 s, **+1.0 %
     transitional). This run is fully turbulent, as the old table is, so
     neither VPP time includes it; the race-time difference above is no
     verdict on the section.
-11. **The top of the wind range is past the A rig.** At TWS 7.5-8 the polar
+**Update, same day: trim tables extended** (VPP run 20261028-175817;
+[docs/vpp.md](../../../docs/vpp.md#the-3d-keel-table-2026-10-28)). The
+hydrostatics stopped at 8.2° of trim and the waves at 4° and 3 m/s, so
+downwind from 5 m/s the VPP held them. Extended, the weighted race time is
+439.0 s (434.8 s): downwind +0.9 % at 5 m/s to +13.8 % at 8 m/s, upwind
+unchanged to 7 m/s. Dead-downwind trim: 0.7° bow down at 1.5 m/s, 2.8° at
+4, 4.5° at 5, 6.6° at 6, 7.4-8.0° at 6.5-7.5, 17° at 8 (bow buried). The
+keel comparison in the table above predates it.
+
+12. **2° of bulb cant stays about right once the trim is counted, on these
+    inputs.** With Gilbert's rule (zero bulb incidence at cant = trim +
+    β_Y sin φ) and the run's VMG points, the ideal cant rises with the wind
+    on both legs: upwind 1.5° (1.5 m/s) to 3.7° (4) to 7.2° (7), downwind
+    0.7° to 2.8° to 7.4°. Pricing the misalignment with bulb-cant's
+    upright drag curve (0.30 mN per deg² at 1 m/s, × V_b²) and this run's
+    drag exchange rates per wind and leg, the race-time cost over TWS
+    1.5-7 m/s is 0.101, 0.065, 0.042, 0.032, 0.036 and 0.052 % at 0-5° of
+    cant (best 3°); over 1.5-5 m/s it is best at 2° (0.009 %, 3°: 0.014 %).
+    The optimum moves by about 1° with the wind range and is worth about
+    0.01 % of race time. Confidence: low. The trims are the placeholder
+    hull's and masses'; the drag curve is measured only to 4° and at 1 m/s
+    with no leeway; the bulb's side force at heel (bulb-cant: +0.5 % at 2°,
+    +1.2 % at 4°, which favours more cant upwind) is left out; and the VPP's
+    keel table has no trim, so the VPP itself can't price cant.
+
+13. **The top of the wind range is past the A rig.** At TWS 7.5-8 the polar
     has no equilibrium at β_TW 30-40° (5 points; the old keel solved
     them), and the upwind VMG points sail at 56-61° of heel with the
     rudder at −15 to −26° (old −12 to −26°). The rudder has no stall model,
@@ -247,7 +272,11 @@ Weighted (uniform over 14 winds): 434.8 s against 430.4 s, **+1.0 %
   γ-Re_θ on HT35 7.25 %, or a laminar-run correction like bulb-section's)?
   Without it the VPP can't show the section's gain (conclusion 10).
 * The top winds: a B rig, or a rudder stall model, before trusting
-  TWS 7-8 m/s upwind (conclusion 11).
+  TWS 7-8 m/s upwind (conclusion 13).
+* Bulb cant against trim (conclusion 12): with the real hull lines and
+  masses, re-run the estimate; if the trims stay large, a keel3d sweep of
+  bulb incidence (bulb_cant −6 to +4°, upright, at the downwind speeds
+  1.2-2.4 m/s) would replace the extrapolated drag curve.
 * A time-accurate check of one stalled case (φ 0, β_Y 8°, 1.5 m/s): the
   steady window mean against a pimpleFoam average.
 * Fine mesh at 0.5 and 3.7 m/s (β_Y 4°, φ 0 and 35) to bound the y+ effect

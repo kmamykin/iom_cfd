@@ -65,7 +65,9 @@ def test_foil_lift_and_rudder_sign():
 
 # The weighted race time at 07ad64b (before the components refactor), which
 # the refactor reproduced bit for bit; a change here is a change of the model.
-PINNED_RACE_S = 507.52813971251095
+# 507.52813971251095 until the trim tables were extended (pitch moment to
+# 10 N m, waves to 15° and 4 m/s): the new nodes move the splines, −2.7e-6.
+PINNED_RACE_S = 507.5267728187576
 
 
 @pytest.fixture(scope="module")
