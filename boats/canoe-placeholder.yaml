@@ -5,8 +5,8 @@
 # replaced with a measurement.
 boat: canoe-placeholder
 description: >
-  keel3d canoe body, NACA 0007 fin 100 -> 80 mm (90 mm mean), NACA 0011 round
-  bulb 2380 g at the 420 mm draft, A rig, ORC 2026 sails.
+  keel3d canoe body, HT35 7.25 % fin 100 -> 80 mm (90 mm mean), NACA 0011 round
+  bulb 2380 g at the 420 mm draft, 2 deg nose up, A rig, ORC 2026 sails.
 
 water: {temperature: 15.0}
 air: {temperature: 15.0}
@@ -37,20 +37,19 @@ components:
     args:
       draft: 0.42                 # m, waterline to the bulb bottom (C.4.1)
       mass: 2.5                   # kg, fin + bulb (C.6.4)
-      fin: {section: naca0007, root_chord: 0.100, tip_chord: 0.080, sweep: 0.0, mass: 0.120}
-      bulb: {section: naca0011, aspect: 1.0, top: 2.0, bottom: 2.0, cant: 0.0, x: 0.0, density: 11340}
+      fin: {section: "file:ht35-t0725.dat", root_chord: 0.100, tip_chord: 0.080, sweep: 0.0, mass: 0.120}
+      bulb: {section: naca0011, aspect: 1.0, top: 2.0, bottom: 2.0, cant: 2.0, x: 0.0, density: 11340}
     forces:
       class: .keel.PolarFit       # keel3d CFD fits; .keel.FinAndBulb = lifting line, no CFD (rung 0)
       args:
-        # keel3d bulb-section@20261019-203823, round bulb, medium mesh:
-        # iomcfd vpp export-table keel3d bulb-section@20261019-203823 --select fin_taper=0.8
-        #   --select bulb_section=naca0011 --select bulb_aspect=1.0 --select bulb_top=2.0
-        #   --select bulb_bottom=2.0 --select mesh=medium --out boats/tables/keel-round-bulb.csv
-        table: tables/keel-round-bulb.csv
-        max_leeway: 4.0
-        friction_factor: {fin: 1.0, bulb: 1.0}   # bulb-section's transition correction would be {fin: 0.80, bulb: 0.52}
+        # keel3d ht35-keel@20261027-215521, heel x leeway x V_b, medium mesh, fully turbulent:
+        # iomcfd vpp export-table keel3d ht35-keel@20261027-215521 --select mesh=medium --model grid
+        #   --out boats/tables/keel-ht35-3d.csv
+        # A grid table (KeelGrid) carries its own Re dependence: max_leeway and friction_factor don't apply.
+        table: tables/keel-ht35-3d.csv
         vertical: delta           # keel3d's vertical force less its zero-leeway suction | none
-        # another fin section = another table: tables/keel-ht35.csv (iomcfd vpp table build boats/tables/keel-ht35.yaml)
+        # the NACA 0007 fin, cant 0 (bulb-section@20261019-203823, 1 m/s fits): tables/keel-round-bulb.csv,
+        #   with max_leeway: 4.0 and friction_factor: {fin: 1.0, bulb: 1.0}
 
   rudder:                         # appendage3d defaults
     class: .foils.ParametricFoil
@@ -116,7 +115,7 @@ solver:
   yaw: true                       # solve the yaw balance with the balance control (the rudder)
   optimise: true                  # search the optimised control (the sails' flat)
   heel_max: 70.0
-  leeway_max: 10.0                # deg: no balance beyond it (the fin stalls about there)
+  leeway_max: 8.0                 # deg: no balance beyond it (the fin starts to stall at 6-10 deg)
 
 polar:
   twa: [30, 35, 40, 45, 50, 60, 75, 90, 105, 120, 135, 150, 165, 180]
