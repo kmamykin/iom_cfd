@@ -1,0 +1,19 @@
+# venue: a club with racing winds peaking at 3 m/s (5.8 kt), with a tail into the breeze (no measured data)
+# distribution: Weibull, shape k = 2 (Rayleigh), scale 4.243 m/s: mode 3.00, median 3.53, mean 3.76 m/s (assumed)
+# weight: % of races per 0.5 m/s bin around tws (tws -/+ 0.25 m/s); the boat files' tws grid, 1.5-8 m/s
+# left out, outside the grid: 8.3 % of races below 1.25 m/s and 2.3 % above 8.25 m/s (the A rig's top); the rest sums to 100
+tws,weight
+1.5,8.199
+2,9.922
+2.5,10.948
+3,11.281
+3.5,10.991
+4,10.204
+4.5,9.070
+5,7.745
+5.5,6.369
+6,5.052
+6.5,3.870
+7,2.867
+7.5,2.055
+8,1.427

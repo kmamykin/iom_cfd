@@ -23,12 +23,13 @@ from .solver import Attitude, Boat, best_vmg, solve_point
 
 @dataclass
 class ExtraDrag:
-    """A constant drag force [N] at (x, z): a stand-in for any part's drag."""
+    """A fixed drag force [N] at (x, z), the same at every speed and heel: a
+    stand-in for any small drag (a fitting, a rough patch)."""
 
     D: float
     x: float = 0.5
     z: float = -0.02
-    name: str = "extra-drag"
+    name: str = "fixed-drag"
     kind: str = "hydro"
     attitude: bool = False
     controls: tuple = ()
@@ -66,11 +67,11 @@ def scale_righting(f: float) -> Callable[[Boat], Boat]:
 
 
 def standard(boat: Boat, rebuild: Callable[[dict], Boat] | None = None) -> list[Perturbation]:
-    """A constant drag and RM_φ; each part's own rates (its force model's
+    """A fixed drag and RM_φ; each part's own rates (its force model's
     perturbations(), e.g. the keel fits' D0, k, slope and leeway), else its
-    loads +1 %; and with `rebuild(overrides)` (the boat from its spec with
+    loads (all its forces and moments) +1 %; and with `rebuild(overrides)` (the boat from its spec with
     dotted-path overrides) the mass and its height."""
-    out = [Perturbation("drag +0.01 N", add_drag(0.01), "constant drag at the hull", dD=0.01),
+    out = [Perturbation("fixed drag +0.01 N", add_drag(0.01), "the same at every speed", dD=0.01),
            Perturbation("RM_φ +1 %", scale_righting(1.01))]
     for c in boat.components:
         own = getattr(c, "perturbations", list)()

@@ -109,7 +109,7 @@ def test_race_and_rates_on_the_built_boat(built):
         assert 0 <= r.up.heel < 60
     assert weighted(rows) == pytest.approx(PINNED_RACE_S, rel=1e-9)
     rs, summary = rates(built.boat, built.course, built.wind, rows, standard(built.boat))
-    assert summary["drag +0.01 N"] > 0
+    assert summary["fixed drag +0.01 N"] > 0
     assert summary["RM_φ +1 %"] < 0
 
 

@@ -138,8 +138,10 @@ Each run writes these files:
   numbers can't drift apart. It leaves out the ORC sail-coefficient columns
   (`sails_CL`, `sails_CD`: copyright ORC); the CSVs keep them. Its sections:
   summary and polar, the boat file as run, the balance at one point, the
-  force models, hydrostatics and the mass budget, the race with a race-time
-  calculator, exchange rates, and the frames and symbols.
+  force models, hydrostatics and the mass budget, the race (the winds'
+  weights as a distribution, then a race-time calculator), exchange rates,
+  and the frames and symbols. Wind speeds are given in m/s and knots: a
+  second tick row in kt on every wind-speed axis.
   `vpp report <boat | run dir>` writes it again, e.g. after a change to
   `vpp/report_template.html`; nothing is solved.
 
@@ -174,12 +176,23 @@ Each run writes these files:
 * **Race** (`race.py`): the best VMG upwind and downwind at each wind speed,
   then the leg times plus a fixed time per tack and gybe. The default is
   uniform weights over the wind speeds; `wind.weights: file:<csv>` takes a
-  club histogram instead.
-* **Exchange rates** (`rates.py`): a drag step, RM_φ, each part's own rates
-  (the keel fits' D0, k, slope and leeway) or else its loads +1 %, and the
-  mass and its height. Each is re-timed at the baseline's best-VMG angles
+  venue's winds instead (columns tws, weight, after `#` comment lines; the
+  file's tws replace the boat file's). `boats/venue_winds.csv` is a club
+  whose racing winds peak at 3 m/s with a tail into the breeze: a Weibull
+  of shape 2 (Rayleigh, the usual model of wind speed) with its mode at
+  3 m/s, so a median of 3.5 and a mean of 3.8 m/s (assumed, not measured).
+  Its weights are % of races per 0.5 m/s bin on the 1.5–8 m/s grid, from
+  8.2 % at 1.5 m/s and 11.3 % at 3 m/s to 1.4 % at 8 m/s.
+  `iom-alternative` uses it. `vpp compare` races each boat in its own
+  boat file's winds, so compare it with a boat on uniform weights with
+  `--set wind.weights=file:venue_winds.csv` (applied to both). A run's
+  report re-weights its race in the page without a new solve.
+* **Exchange rates** (`rates.py`): a fixed drag (0.01 N at every speed),
+  RM_φ, each part's own rates (the keel fits' D0, k, slope and leeway) or
+  else its loads (all its forces and moments: the hull's resistance and its
+  side force, when it has one) +1 %, and the mass and its height. Each is re-timed at the baseline's best-VMG angles
   and flat. By the envelope theorem that is exact
-  to first order; `--check` re-searches instead. The drag step also gives
+  to first order; `--check` re-searches instead. The fixed drag also gives
   the V dR/dV the sails and hull really imply, for comparison with
   `racetime.VDRDV`.
 

@@ -222,7 +222,7 @@ class Scaled(Wrapper):
 
 @dataclass
 class Perturbation:
-    name: str  # what changes, e.g. "drag +0.01 N"
+    name: str  # what changes, e.g. "fixed drag +0.01 N"
     apply: Callable  # Boat -> Boat
     note: str = ""
     dD: float | None = None  # a constant drag step [N]: the rates report the V dR/dV it implies

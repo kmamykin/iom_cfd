@@ -39,8 +39,8 @@ def _run(d, polar=True, rates=True):
     report.write_csv(d / "particulars.csv", [{"condition": "floating", "sink": -0.002, "trim": 0.4, "cb": 0.42,
                                                "gm_t": 0.21, "converged": 1.0}])
     if rates:
-        report.write_csv(d / "rates.csv", [{"name": "drag +0.01 N", "tws": 3.0, "dt": 1.2, "dt_pct": 0.27}])
-        report.write_csv(d / "rates_summary.csv", [{"name": "drag +0.01 N", "dt_pct": 0.27, "boat_lengths": 1.1}])
+        report.write_csv(d / "rates.csv", [{"name": "fixed drag +0.01 N", "tws": 3.0, "dt": 1.2, "dt_pct": 0.27}])
+        report.write_csv(d / "rates_summary.csv", [{"name": "fixed drag +0.01 N", "dt_pct": 0.27, "boat_lengths": 1.1}])
     (d / "run.json").write_text(json.dumps({"boat": "toy", "info": {}, "course": {"leg": 100.0, "laps": 2}}))
     (d / "boat.yaml").write_text("boat: toy\ndescription: a </script> in the text\ncomponents: {}\n")
     return d

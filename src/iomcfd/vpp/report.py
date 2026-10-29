@@ -91,7 +91,7 @@ def summary_md(path: Path, boat: str, info: dict, rows: list[RaceRow], course: C
             L.append(f"| {name} | {pct:+.3f} | {boat_lengths(pct / 100 * t, t, course):+.2f} |")
         vd = [r for r in rates_rows or [] if math.isfinite(r.vdrdv_up)]
         if vd:
-            L += ["", "V dR/dV implied by the drag step (compare racetime.VDRDV, 1.354 N at 1 m/s):", "",
+            L += ["", "V dR/dV implied by the fixed drag (compare racetime.VDRDV, 1.354 N at 1 m/s):", "",
                   "| TWS m/s | V_b up | V dR/dV up N | V_b down | V dR/dV down N |", "|---|---|---|---|---|"]
             byt = {r.tws: r for r in rows}
             for r in vd:
