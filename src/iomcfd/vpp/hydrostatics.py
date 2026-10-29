@@ -317,7 +317,10 @@ class HydroTable:
     moment M_ext [N m] and external vertical force Z_ext [N] (one or more
     layers), read back by bicubic splines in φ and M_ext (C¹ and smooth) and
     a polynomial through the Z_ext layers (quadratic for three). Outside
-    the grid the inputs are clamped to it and `extrapolated` is set."""
+    the grid the inputs are clamped to it and `extrapolated` is set. A node
+    with no equilibrium (the bow buried by a large bow-down moment) is
+    continued linearly along M_ext from its converged neighbours for the
+    splines, and a point in a cell that touches one is `extrapolated`."""
 
     heels: np.ndarray
     M_ext: np.ndarray
@@ -331,9 +334,36 @@ class HydroTable:
     def __post_init__(self):
         self.Z_ext = np.atleast_1d(np.asarray(self.Z_ext, float))
         self.values = {k: (v[:, :, None] if np.ndim(v) == 2 else np.asarray(v)) for k, v in self.values.items()}
+        conv = np.asarray(self.converged, bool)
+        self.converged = conv[:, :, None] if conv.ndim == 2 else conv
+        # a cell (heel, M_ext) is good when its four corners converged in every layer
+        good = self.converged.all(axis=2)
+        self._cell_ok = good[:-1, :-1] & good[1:, :-1] & good[:-1, 1:] & good[1:, 1:]
         kx, ky = min(3, len(self.heels) - 1), min(3, len(self.M_ext) - 1)
-        self._splines = {k: [RectBivariateSpline(self.heels, self.M_ext, self.values[k][:, :, m], kx=kx, ky=ky)
+        self._splines = {k: [RectBivariateSpline(self.heels, self.M_ext, self._filled(self.values[k][:, :, m], m),
+                                                 kx=kx, ky=ky)
                              for m in range(len(self.Z_ext))] for k in self.KEYS}
+
+    def _filled(self, v: np.ndarray, m: int) -> np.ndarray:
+        """Layer m of a value with its non-converged nodes continued linearly
+        along M_ext from the nearest two converged ones (held when only one)."""
+        v, M = v.copy(), self.M_ext
+        for i in range(len(self.heels)):
+            ok = self.converged[i, :, m]
+            if ok.all() or not ok.any():
+                continue
+            j_ok = np.nonzero(ok)[0]
+            for j in np.nonzero(~ok)[0]:
+                lo, hi = j_ok[j_ok < j], j_ok[j_ok > j]
+                if len(lo) and len(hi):
+                    a, b = lo[-1], hi[0]
+                elif len(j_ok) >= 2:
+                    a, b = (lo[-2], lo[-1]) if len(lo) else (hi[0], hi[1])
+                else:
+                    v[i, j] = v[i, j_ok[0]]
+                    continue
+                v[i, j] = v[i, a] + (v[i, b] - v[i, a]) * (M[j] - M[a]) / (M[b] - M[a])
+        return v
 
     def _weights(self, z: float) -> np.ndarray:
         """Lagrange weights of the Z_ext layers at z."""
@@ -355,7 +385,10 @@ class HydroTable:
             z = float(np.clip(Z_ext, self.Z_ext[0], self.Z_ext[-1]))
             w = self._weights(z)
             out = {k: float(sum(wi * si(h, m)[0, 0] for wi, si in zip(w, s))) for k, s in self._splines.items()}
-        out["extrapolated"] = h != heel or m != M_ext or z != Z_ext
+        i = min(max(int(np.searchsorted(self.heels, h, side="right")) - 1, 0), len(self.heels) - 2)
+        j = min(max(int(np.searchsorted(self.M_ext, m, side="right")) - 1, 0), len(self.M_ext) - 2)
+        no_eq = len(self.heels) > 1 and len(self.M_ext) > 1 and not self._cell_ok[i, j]
+        out["extrapolated"] = h != heel or m != M_ext or z != Z_ext or bool(no_eq)
         return out
 
     def rm(self, heel: float) -> float:

@@ -44,6 +44,14 @@ def test_dat_roundtrip(tmp_path):
     assert foils.load("x.dat", [tmp_path]).name == g.name
 
 
+def test_dat_from_the_repository_by_default():
+    """Without search_dirs a file: section is looked up in geometry/foils, as
+    keel3d's fin and the VPP's keel shape load it."""
+    f = foils.load("file:ht35-t0725.dat")
+    assert f.thickness()[0] == pytest.approx(0.0725, abs=1e-5)
+    assert foils.load("ht35-t0725").name == f.name
+
+
 def test_blunt_te_is_closed(tmp_path):
     # NACA 4-digit with the open-TE coefficient, written as a Selig file
     f = foils.naca4("0010", closed_te=False)

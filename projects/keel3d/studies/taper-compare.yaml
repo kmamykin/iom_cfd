@@ -1,0 +1,33 @@
+study: taper-compare
+project: keel3d
+description: >
+  The planform question on the fine mesh, which taper-mesh run
+  20261019-213145 found can rank these fins (medium can't): NACA 0007 at a
+  constant 90 mm chord against 100 -> 80 mm (lambda 0.8), both 90 mm mean
+  chord, so the same span and area, on the canoe body and 2380 g NACA 0007
+  bulb. 1 m/s, upright, leeway 0-6 deg; compared at the side force the
+  constant-chord fin makes at 2, 4 and 6 deg (light, working and high load)
+  and ranked by race time. taper-mesh found a tie on fine at the light and
+  working loads (0.01 / 0.07 % in favour of the tapered fin) and 2 % more
+  S_h per degree for the tapered fin on every mesh; 6 deg adds the high
+  load, where taper-selection (100 mm mean chord, medium) saw the forces
+  become unreliable. The 0, 2 and 4 deg cases repeat taper-mesh's fine ones
+  with the drift-checked convergence test, a reproducibility check. Caveat:
+  a half-cell grid shift moved the constant-chord fin's S_h by 6.5 % on
+  fine (taper-gridshift asks why). Next: 0.75 and 1.5 m/s, and heel.
+report:
+  compare_at: {fin_taper: 1.0, leeway: [2, 4, 6]}
+highlights:
+  - name: high-load
+    why: At 6 deg, does either fin separate at the trailing edge or next to the bulb, and how do their spanwise loadings differ?
+    where: {leeway: 6}
+    compare: fin_taper
+    views: [surface_cp_starboard, section, wake_slice]
+defaults:
+  fin_mean_chord: 0.090
+  speed: 1.0
+  heel: 0
+  mesh: fine
+sweep:
+  fin_taper: [1.0, 0.8]
+  leeway: [0, 2, 4, 6]

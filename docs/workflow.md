@@ -152,7 +152,11 @@ Solvers run until the forces settle, not for a fixed number of iterations.
 While a case runs, the runner polls its force history every 15 s. When the
 mean over the last `conv_window` iterations differs from the previous
 window's mean by less than `conv_tol` (relative), it writes
-`stopAt writeNow` into `controlDict` and the solver stops cleanly. If that
+`stopAt writeNow` into `controlDict` and the solver stops cleanly. The two
+means can agree by chance while the forces still climb, when the earlier
+window holds the start-up transient; keel3d therefore also requires the
+last window to be flat (`settled(..., drift=True)`: its two halves' means
+within `conv_tol`). The other projects don't check that yet. If that
 never happens within `max_iter`, the case is marked `not_converged`; its
 values are still averages over the last window.
 
@@ -208,7 +212,8 @@ of the solver log.
     transient case adds flow-throughs, the lift oscillation over the last
     flow-through and `Cl_drift`/`Cd_drift`. A steady case adds the
     windowed change of the means against `conv_tol`. keel3d gives the
-    boat's latest D_h and S_h [N] and `D_h_change`/`S_h_change` against
+    boat's latest D_h and S_h [N], `D_h_change`/`S_h_change` and
+    `D_h_drift`/`S_h_drift` (the trend within the last window) against
     `conv_tol`.
 
   For example (illustrative):

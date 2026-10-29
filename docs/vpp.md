@@ -22,6 +22,8 @@ uv run iomcfd vpp compare canoe-placeholder --set-b components.hull.forces.args.
 uv run iomcfd vpp sweep canoe-placeholder --vary components.keel.forces.args.table=tables/a.csv,tables/b.csv
 uv run iomcfd vpp export-table keel3d bulb-section@20261019-203823 --select bulb_aspect=1.0 ... \
     --out boats/tables/keel-round-bulb.csv      # one keel3d design as a table for a boat file
+uv run iomcfd vpp export-table keel3d ht35-keel@<run id> --select mesh=medium --model grid \
+    --out boats/tables/keel-ht35-3d.csv         # a heel x leeway x speed keel3d run as a grid table
 uv run iomcfd vpp table build boats/tables/keel-ht35.yaml   # a table built by a model from a recipe
 uv run iomcfd vpp compare canoe-placeholder --set-b components.keel.forces.args.table=tables/keel-ht35.csv
 ```
@@ -42,6 +44,14 @@ Every command takes `--no-cache` to compute the boat's tables afresh.
   `runs/` (e.g. `IOMCFD_SOURCE_RUNS=../bulb-design/runs`); `--select` picks
   the design's cases. The table holds the raw points and, in its header, the
   run, the filter and the geometry the forces belong to.
+* **Grid exports.** A keel3d run over heel × leeway × speed (every
+  combination, one design) exports with `--model grid` as a `model: grid`
+  table: per case X less the hull's 0° drag (the hull model has it), Y, and
+  K, M, N at the case's centre of lateral resistance; the vertical force
+  less its 0° value as `Zv`, `Mv`. `KeelGrid` reads it as it is, so the
+  speed dependence is the CFD's, not the C_F(Re) scaling of a fit. A missing
+  case is an error; `--fill` fills it along the leeway and flags it, as a
+  `not_converged` case is.
 * **Built tables.** `vpp table build <recipe>.yaml` evaluates a model on a
   grid and writes its table (`model: grid`). The one recipe so far,
   `keel-section`, puts another fin section on a keel3d table's keel from 2D
@@ -138,11 +148,14 @@ Each run writes these files:
     force (`hydrostatics.Z_ext`: three layers, read back by a quadratic;
     one layer ignores the vertical forces), from the hull's surface clipped
     at the heeled waterline, plus the appendages' volumes
-    (`hydrostatics.py`);
+    (`hydrostatics.py`). The pitch moment runs −2 to 10 N·m (every 0.5
+    above 6). Where a large bow-down moment buries the bow there is no
+    equilibrium: those nodes are continued linearly for the splines, and a
+    point in a cell next to one is flagged `extrapolated`;
   * each force model's finish: the hull's Michell wave-resistance table
-    (over V_b and trim at the static sinkage; with `michell-heeled` also
-    over heel, each at its own static sinkage) and the windage's
-    projected-area table (over heel and the wind's angle to the
+    (V_b 0.1–4 m/s and trim −2 to 15° at the static sinkage; with
+    `michell-heeled` also over heel, each at its own static sinkage) and the
+    windage's projected-area table (over heel and the wind's angle to the
     centreline).
 * **Solve** (`solver.py`), nested:
   * **inner:** side force, roll and yaw balance give heel, leeway and the
@@ -175,7 +188,7 @@ tests build.
 | part | shape · force model | model | main limits |
 |---|---|---|---|
 | hull | `.hull.MeshHull` (an STL, or `canoe:` the canoe body as a mesh; `.hull.CanoeHull` = analytic) · `.hull.IttcMichell` | ITTC-57 × (1 + k) on the wetted area at the solved attitude, plus Michell thin-ship waves (`hullres.py`; within 0.3 % of the published Wigley Michell curve). `waves: michell-heeled`: the heeled sections' half-widths as the centreplane offsets, each heel at its static sinkage. Jones' side force at the keel line's centre of pressure | Michell exaggerates humps and hollows near Fn 0.3–0.4 compared with tank tests (about 2× in the wave slope). Thin-ship theory has no heel, so the heeled waves are an estimate; above 45° they are held and flagged. Fully turbulent friction (`cf_factor` brackets a laminar run) |
-| keel (fin + bulb) | `.keel.ParametricKeel` · `.keel.PolarFit` | keel3d fits from a table: S_h = S0 + a β_Y and D_h = D0 + k S_h² per heel, with the hull's side force and yaw included; friction scales with C_F(Re), the rest with q, and T_eff is kept. `vertical: delta`: keel3d's vertical force less its zero-leeway value, ΔZ = z1 S_h + z2 S_h². A built table (`model: grid`, e.g. the HT35 fin) is read by `KeelGrid`. Or `.keel.FinAndBulb`: lifting line on the fin and the bulb's friction | keel3d is at 1 m/s and heels 0 and 25° only: points above 25° hold the 25° fit and are flagged `extrapolated`. The zero-leeway vertical force (−2.7 N) is the double body's suction under its mirror plane, so it is dropped (an assumption: the hull's real squat is not modelled) |
+| keel (fin + bulb) | `.keel.ParametricKeel` · `.keel.PolarFit` | A grid table (`model: grid`) is read by `KeelGrid`: X, Y, Z, K, M, N over heel × leeway × V_b, interpolated as loads / V_b² by cubic splines, so the speed dependence is the CFD's. The boat's is `tables/keel-ht35-3d.csv` (keel3d ht35-keel@20261027-215521: HT35 7.25 %, 2° cant; φ 0–65°, β_Y −2 to 10°, V_b 0.5–3.7 m/s). A one-speed table (`tables/keel-round-bulb.csv`, the NACA 0007 fin) gives fits instead: S_h = S0 + a β_Y and D_h = D0 + k S_h² per heel, with the hull's side force and yaw included; friction scales with C_F(Re), the rest with q, and T_eff is kept. `vertical: delta`: keel3d's vertical force less its zero-leeway value. Or `.keel.FinAndBulb`: lifting line on the fin and the bulb's friction | keel3d is fully turbulent (Tu 0.5 %), so a section's laminar-flow gain (HT35's, custom-section) is not in it, and a double body (no waves; above about 36° of heel the deck edge is under the mirror plane). Outside a grid the loads are held at its edge and flagged `extrapolated`, as are points nearest a not-converged node (ht35-keel: 8–10° at φ ≤ 35°, stalled). A one-speed fit table holds its 25° fit above 25° (flagged). The zero-leeway vertical force is the double body's suction under its mirror plane, so it is dropped (an assumption: the hull's real squat is not modelled) |
 | rudder | `.foils.ParametricFoil` · `.foils.LiftingLine` | lifting line (Helmbold slope) in the keel's elliptic downwash | no stall model |
 | sails | `.sails.Rig` · `.sails.OrcSails` | ORC VPP Documentation 2026 §5: main and jib, flat depowering, effective height, the jib-downwind set standing in for a goose-winged jib (`sails_orc.py`) | full-scale coefficients at Re 10–100× an IOM's. Coefficients are copyright ORC, so **don't publish `vpp/data/orc2026_sails.yaml`** |
 | windage | `shape: hull` · `.windage.ProjectedArea` (`.windage.OrcWindage` = ORC's areas) | C_D 0.816 (ORC Table 5.12) on the hull's area above the water projected normal to the apparent wind, at its centroid, the wind read at the centroid's height; tabulated over heel at each heel's static attitude | exact for the faceted hull's silhouette when every line along the wind crosses it at most twice (a cockpit or tumblehome counts hidden faces); the mesh must be the hull alone, since the rig's windage is in the sail model |
@@ -203,6 +216,45 @@ weighted race time, uniform wind weights):
 The HT35 fin (`tables/keel-ht35.csv`) is −0.045 % with the rung-0 hull and
 windage (it reproduces the earlier section change to 1e-5) and −0.057 % with
 all of the above.
+
+## The 3D keel table (2026-10-28)
+
+`boats/canoe-placeholder.yaml` now sails TWS 1.5–8 m/s (14 winds, to the A
+rig's top wind of about 15 kn) with `solver.leeway_max: 8` (the fin starts to
+stall at 6–8° upright), and its keel is the chosen one as a keel3d grid:
+HT35 at 7.25 %, 100 → 80 mm, the round NACA 0011 bulb at 2° nose up
+(`tables/keel-ht35-3d.csv`; [keel3d ht35-keel findings](../projects/keel3d/findings/ht35-keel.md)).
+
+Against the old keel (NACA 0007, cant 0, `keel-round-bulb.csv`), both at the
+8° limit, the weighted race time is 434.8 s against 430.4 s: **+1.0 %**
+(+0.2 to +0.5 % per wind up to 5 m/s, +0.8 % at 5.5, +1.2 to +4.1 % at
+6–8 m/s). It is
+mostly the old table's extrapolation going away, not the keel: the old table
+held its 25° heel fit at every heel above 25°, which overstated the heeled
+keel's side force (at TWS 7 m/s, 56° of heel, 3.32 N at 2.3° of leeway
+against the grid's 2.61 N at 4.3°). It was flagged `keel_extrapolated` at
+every upwind VMG point from 2.5 m/s; the grid at none. Below 25° of heel the
+grid's drag at low speed (the CFD's own Re dependence against ITTC-57
+scaling of a 1 m/s fit) and the cant's upright drag cost 0.2–0.4 %. Both
+tables are fully turbulent, so the HT35 section's laminar gain is in
+neither. At 7.5–8 m/s the polar has no equilibrium at β_TW 30–40°, and
+upwind the boat sails at 56–61° of heel with 15–26° of rudder (no rudder
+stall model): the A rig is past its range there.
+
+**Trim tables extended (2026-10-28).** The hydrostatic table stopped at a
+6 N·m bow-down moment (8.2° of trim) and the wave table at 4° of trim and
+3 m/s, so downwind from 5 m/s the trim and the wave drag were held at those
+edges. With the ranges above, the weighted race time is 439.0 s (434.8 s
+before): the downwind legs are 0.9 % (5 m/s) to 13.8 % (8 m/s) slower and
+the upwind ones unchanged up to 7 m/s. Dead downwind the boat trims 0.7° bow
+down at 1.5 m/s, 2.8° at 4, 4.5° at 5, 6.6° at 6 and 7.4–8.0° at 6.5–7.5
+m/s, where the solver flattens the sails to keep the bow up; at 8 m/s it
+trims 17° (24° on the VMG course, flagged): the bow is buried. The canoe
+body has 60 mm of freeboard and a flat deck, so its bow deck reaches the
+water at about 7° of trim, and its masses are placeholders: these trims are
+the stand-in hull's, and Michell's thin-ship waves are out of their depth
+above a few degrees. The keel comparison above was made before the
+extension, with both keels on the same clamped tables.
 
 ## Inputs to replace
 

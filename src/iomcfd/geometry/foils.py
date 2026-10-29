@@ -30,6 +30,8 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.optimize import minimize_scalar
 
+from .. import config
+
 
 @dataclass
 class Foil:
@@ -320,6 +322,8 @@ def load(spec: str, search_dirs: list[Path] | None = None) -> Foil:
     'file:sd8020.dat' or 'sd8020.dat' -> coordinate file searched in
     search_dirs (default: geometry/foils of the repository)
     """
+    if search_dirs is None:
+        search_dirs = [config.geometry_dir() / "foils"]
     s = spec.strip()
     if re.match(r"(?i)(?:(?:stair|kfm)\d+|film|faired):", s):  # kfm: renamed, stepped.py explains
         from . import stepped

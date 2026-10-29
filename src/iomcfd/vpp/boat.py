@@ -96,7 +96,10 @@ def hydro_table(hydro: Hydrostatics, spec: BoatSpec) -> HydroTable:
     the vertical-force layers [N]; one layer at 0 ignores the other parts'
     vertical forces), from the cache when it holds these inputs."""
     hmax, hstep = float(spec.get("hydrostatics.heel_max", 60.0)), float(spec.get("hydrostatics.heel_step", 2.5))
-    grid = {"heels": np.arange(0.0, hmax + 1e-9, hstep), "M_ext": np.linspace(-2.0, 6.0, 9),
+    # M_ext to 10 N m: an IOM's bow-down sail moment downwind in a strong wind; every
+    # 0.5 N m above 6, where the trim grows fast (the bow nears the water) and then has no equilibrium
+    grid = {"heels": np.arange(0.0, hmax + 1e-9, hstep),
+            "M_ext": np.r_[np.linspace(-2.0, 6.0, 9), np.arange(6.5, 10.01, 0.5)],
             "Z_ext": np.atleast_1d(np.asarray(spec.get("hydrostatics.Z_ext", 0.0), float))}
 
     def compute():
@@ -264,7 +267,7 @@ def build(spec: BoatSpec, table: HydroTable | None = None) -> Built:
 
     sv = spec.get("solver") or {}
     settings = Settings(yaw=bool(sv.get("yaw", True)), optimise=bool(sv.get("optimise", True)),
-                        heel_max=float(sv.get("heel_max", 70.0)))
+                        heel_max=float(sv.get("heel_max", 70.0)), leeway_max=float(sv.get("leeway_max", 15.0)))
     boat = Boat(parts, righting, settings)
 
     w = spec.get("wind") or {}

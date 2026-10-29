@@ -65,7 +65,9 @@ def test_foil_lift_and_rudder_sign():
 
 # The weighted race time at 07ad64b (before the components refactor), which
 # the refactor reproduced bit for bit; a change here is a change of the model.
-PINNED_RACE_S = 507.52813971251095
+# 507.52813971251095 until the trim tables were extended (pitch moment to
+# 10 N m, waves to 15° and 4 m/s): the new nodes move the splines, −2.7e-6.
+PINNED_RACE_S = 507.5267728187576
 
 
 @pytest.fixture(scope="module")
@@ -83,6 +85,16 @@ def test_build_placeholder_boat(built):
     # GZ at 40 deg against Gilbert's 117-158 mm for real IOMs (fin-stiffness.md; unverified anchor)
     gz40 = built.table.rm(40.0) / (built.mass.mass * 9.80665)
     assert 0.10 < gz40 < 0.17
+
+
+@needs_orc
+def test_solver_settings_from_the_boat_file(built):
+    from iomcfd.vpp.boat import BoatSpec, build
+
+    assert built.boat.settings.leeway_max == 15.0
+    spec = BoatSpec.load(config.home() / "boats" / "canoe-placeholder-foil.yaml",
+                         {"wind.tws": [2.0], "solver.leeway_max": 10.0})
+    assert build(spec).boat.settings.leeway_max == 10.0
 
 
 @needs_orc

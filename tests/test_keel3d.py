@@ -2,6 +2,7 @@
 
 import math
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -95,6 +96,25 @@ def test_mesh_shift_moves_the_background_grid(project, tmp_path):
     assert moved["xMin"] - base["xMin"] == pytest.approx(0.5 * cell)
     assert moved["yMin"] - base["yMin"] == pytest.approx(0.5 * cell)
     assert moved["zMax"] == base["zMax"] == 0.0  # the waterline stays the top
+    for axis, (dx, dy) in (("x", (0.5, 0.0)), ("y", (0.0, 0.5))):
+        one = project.prepare_case(tmp_path / axis, {**project.defaults, "mesh": "medium", "mesh_shift": 0.5,
+                                                     "mesh_shift_only": axis})
+        assert one["xMin"] - base["xMin"] == pytest.approx(dx * cell, abs=1e-12)
+        assert one["yMin"] - base["yMin"] == pytest.approx(dy * cell, abs=1e-12)
+    with pytest.raises(ValueError, match="mesh_shift_only"):
+        project.prepare_case(tmp_path / "z", {**project.defaults, "mesh_shift_only": "z"})
+
+
+def test_shift_axes_kept_apart_and_out_of_old_hashes(project):
+    from iomcfd.study import params_hash
+
+    grid_shift = type(project).report.__globals__["_grid_shift"]  # project modules load outside sys.modules
+    p = dict(project.defaults)
+    old = {k: v for k, v in p.items() if k != "mesh_shift_only"}  # a case from before the parameter
+    assert params_hash(p) == params_hash(old) != params_hash({**p, "mesh_shift_only": "x"})
+    df = pd.DataFrame({"mesh_shift": [0.0, 0.5, 0.5, 0.5], "mesh_shift_only": [np.nan, np.nan, "x", "y"]})
+    assert grid_shift(df) == ["0", "0.5 xy", "0.5 x", "0.5 y"]
+    assert grid_shift(df.drop(columns="mesh_shift_only")) == ["0", "0.5 xy", "0.5 xy", "0.5 xy"]
 
 
 def test_grid_aligned_with_the_boat_at_any_leeway(project, tmp_path):
@@ -147,9 +167,25 @@ def test_progress_reports_forces_and_their_drift(project, tmp_path):
     w = slice(-100, None), slice(-200, -100)
     assert prog["D_h_change"] == pytest.approx(abs(drag[w[0]].mean() - drag[w[1]].mean()) / drag[-1])
     assert prog["S_h_change"] == pytest.approx(abs(side[w[0]].mean() - side[w[1]].mean()) / side[-1])
+    last = drag[-100:]
+    assert prog["D_h_drift"] == pytest.approx(abs(last[50:].mean() - last[:50].mean()) / drag[-1])
     assert prog["conv_tol"] == p["conv_tol"]
-    assert project.converged(tmp_path, p, d) == (max(prog["D_h_change"], prog["S_h_change"]) < p["conv_tol"])
+    worst = max(prog[f"{k}_{m}"] for k in ("D_h", "S_h") for m in ("change", "drift"))
+    assert project.converged(tmp_path, p, d) == (worst < p["conv_tol"])
     assert project.progress(tmp_path / "none", p, d) == {}
+
+
+def test_not_converged_while_climbing_after_the_transient(project, tmp_path):
+    # taper-mesh run 20261019-213145, 0.8 at 0 deg on fine: the start-up
+    # transient's window had the same mean as the next, still-climbing window
+    p = {**project.defaults}
+    d = {"dragDir": [1.0, 0.0, 0.0], "sideDir": [0.0, 1.0, 0.0], "convWindow": 200}
+    n = np.arange(200)
+    drag = np.concatenate([0.68 + 0.2 * np.sin(2 * np.pi * n / 50), 0.66 + 0.04 * n / 199])
+    _total_forces(tmp_path, drag, 0 * drag)
+    prog = project.progress(tmp_path, p, d)
+    assert prog["D_h_change"] < p["conv_tol"] < prog["D_h_drift"]
+    assert not project.converged(tmp_path, p, d)
 
 
 def test_flatter_bulb_same_lead_lower_and_longer_fin(project):
@@ -178,6 +214,18 @@ def test_canted_bulb_stays_at_the_draft(project):
     assert d["bulb_cg_above_draft"] > project.derive(dict(project.defaults))["bulb_cg_above_draft"]
 
 
+def test_fin_section_from_a_file(project, tmp_path):
+    """HT35 at 7.25 % (geometry/foils), 100 -> 80 mm: the fin is that thick at its root."""
+    p = {**project.defaults, "fin_section": "file:ht35-t0725.dat", "fin_mean_chord": 0.090, "fin_taper": 0.8}
+    d = project.prepare_case(tmp_path / "h", p)
+    assert d["fin_root_thickness"] == pytest.approx(0.00725, rel=1e-4)
+    assert d["fin_tip_thickness"] == pytest.approx(0.0058, rel=1e-4)
+    fin = project.surfaces(p)[1]
+    root = fin.vertices[fin.vertices[:, 2] > d["fin_z_root"] - 1e-6]
+    assert 2 * np.abs(root[:, 1]).max() == pytest.approx(0.00725, rel=0.01)
+    assert (tmp_path / "h" / "constant" / "triSurface" / "boat.stl").is_file()
+
+
 def test_fin_alone(project, tmp_path):
     p = {**project.defaults, "bulb": False}
     assert [s.name for s in project.surfaces(p)] == ["hull", "fin"]
@@ -204,3 +252,49 @@ def test_effective_draft(project):
     assert fits.loc[1.0, "T_eff_m"] == pytest.approx(1 / math.sqrt(math.pi * 499.6 * 0.010))
     df.loc[df["leeway"] == 8, "drag_N"] += 1.0  # a separated point
     assert project.polar_fits(df, max_leeway=6).loc[0, "k_per_N"] == pytest.approx(0.010)
+
+
+def _polars(chords=(0.08, 0.10)):
+    rows = []
+    for c in chords:
+        for a in range(0, 8):
+            cl = 0.1 * a
+            rows.append({"chord": c, "aoa": a, "Cl": cl, "Cd": 0.02 + 0.05 * cl, "turbulence": "kOmegaSST", "Tu": 0.5})
+            # transition model: 10 % more angle for the same lift, less drag at zero lift, more so on the longer
+            # chord (linear in C_l, so that interpolation is exact)
+            rows.append({"chord": c, "aoa": a, "Cl": cl / 1.1, "Cd": 0.012 - 0.02 * (c - 0.08) + 0.08 * (cl / 1.1),
+                         "turbulence": "kOmegaSSTLM", "Tu": 0.1})
+    return pd.DataFrame(rows)
+
+
+def test_transition_delta_at_equal_section_lift(project):
+    g = type(project).report.__globals__
+    delta = g["transition_delta"](_polars(), 0.1)
+    dcd, da = delta([0.08, 0.10, 0.09], [0.3, 0.3, -0.3])
+    assert dcd[0] == pytest.approx((0.012 + 0.08 * 0.3) - (0.02 + 0.05 * 0.3))
+    assert dcd[1] == pytest.approx(dcd[0] - 0.02 * 0.02)
+    assert dcd[2] == pytest.approx(0.5 * (dcd[0] + dcd[1]))  # linear in chord; |C_l|
+    assert np.allclose(da, 0.3 * 10 * (1.1 - 1.0))  # 3.3 deg against 3.0 deg
+    assert np.isnan(delta(0.09, 0.69)[0])  # beyond the transition polar's highest C_l (0.636)
+
+
+def test_transition_correction_strip_by_strip(project):
+    g = type(project).report.__globals__
+    delta = g["transition_delta"](_polars(), 0.1)
+    span = pd.DataFrame({"eta": [0.25, 0.75], "chord_m": [0.10, 0.08], "side_N_per_m": [20.0, 10.0], "cl": [0.3, 0.3]})
+    d = {"fin_span": 0.3, "dynamicPressure": 500.0}
+    c = g["transition_correction"](span, d, delta)
+    dcd, da = delta(span["chord_m"], span["cl"])
+    assert c["dD_N"] == pytest.approx(float(np.sum(dcd * 500.0 * span["chord_m"] * 0.15)))
+    assert c["dbeta_deg"] == pytest.approx(0.3) and c["strips_out"] == 0
+    zero = g["transition_correction"](span.assign(side_N_per_m=[1e-4, -1e-4], cl=[0.0, 0.0]), d, delta)
+    assert zero["dbeta_deg"] == 0.0 and zero["dD_N"] < 0  # downwind: laminar friction only
+
+
+def test_compare_at_given_loads(project):
+    df = pd.DataFrame(_sweep(1.0, 1.5, 0.010) + _sweep(0.6, 1.5, 0.009, d0=0.62))
+    t0 = project.compare_at_equal_force(df, {"compare_at": {"fin_taper": 1.0, "leeway": [2, 4]}})
+    later = df.assign(leeway=df["leeway"] + 0.5)  # e.g. a leeway correction
+    t = project.compare_at_equal_force(later, {"compare_at": {"fin_taper": 1.0, "leeway": [2, 4]}}, loads=t0)
+    assert np.allclose(t["side_N"], t0["side_N"])
+    assert np.allclose(t["leeway"], t0["leeway"] + 0.5)

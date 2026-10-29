@@ -15,6 +15,17 @@ centre of lateral resistance (heeled; at zero leeway, where it is undefined,
 the mean of the heel's other rows), X_hull = −drag_hull_N, X_friction_fin
 and X_friction_bulb (the parts' friction drag), Y_fin = side_fin_N.
 
+With `--model grid` a run over heel × leeway × speed (a full tensor grid,
+one design) is written as a `model: grid` table instead, read by
+components/keel.py KeelGrid as it is: the CFD's own speed (Re) dependence,
+no fits. Per case, with u the same heel and speed at 0° leeway: X =
+−(drag_N − drag_hull_N(u)) (the hull's own resistance stays in the hull
+model, as PolarFit leaves it), Y = side_N, Z = 0; K, M, N those forces at
+the case's centre of lateral resistance about the bow (at 0° the mean of its
+heel and speed's lifting cases); Zv = vertical_N − vertical_N(u) (the double
+body's suction dropped) and Mv its pitch moment; ext 1 for a not_converged
+or filled case. `--fill` fills missing cases linearly along the leeway.
+
 `iomcfd vpp table build boats/tables/<name>.yaml` builds a table from a
 recipe. The one recipe so far, `keel-section`, puts another fin section on a
 keel3d table's keel (components/section.py SectionChange on its PolarFit)
@@ -94,19 +105,25 @@ def _param(v: Any) -> Any:
     return float(v) if numeric(v) else str(v)
 
 
-def export(ref: str, select: dict | None, out: str | Path, base: Path | None = None) -> Path:
-    """One keel3d design's cases as a VPP table at `out`."""
+def export(ref: str, select: dict | None, out: str | Path, base: Path | None = None, model: str = "fit",
+           fill: bool = False) -> Path:
+    """One keel3d design's cases as a VPP table at `out`: raw points at one
+    speed (`model` fit) or loads on a heel × leeway × speed grid (grid)."""
     import pandas as pd
 
     path = resolve_results(ref, base)
     df = select_rows(pd.read_csv(path), select)
     if df.empty:
         raise ValueError(f"no keel3d rows match {select} in {path}")
-    if df["speed"].nunique() > 1:
-        raise ValueError("keel3d rows at more than one speed: select one")
     varies = [k for k in (*KEEL_KEYS, *HULL_KEYS) if k in df and df[k].astype(str).nunique() > 1]
     if varies:
         raise ValueError(f"the selection holds more than one design ({varies} vary): select one")
+    if model == "grid":
+        return _export_grid(ref, path, df, select, out, fill)
+    if model != "fit":
+        raise ValueError(f"model {model}: fit or grid")
+    if df["speed"].nunique() > 1:
+        raise ValueError("keel3d rows at more than one speed: select one, or export a grid (--model grid)")
     rows = []
     for _, r in df.iterrows():
         rows.append({"case": r["case"], "status": r["status"], "heel": float(r["heel"]), "leeway": float(r["leeway"]),
@@ -121,26 +138,113 @@ def export(ref: str, select: dict | None, out: str | Path, base: Path | None = N
             if r["heel"] == heel and r["leeway"] <= 0 and lift:
                 r["x"], r["z"] = float(np.nanmean([q["x"] for q in lift])), float(np.nanmean([q["z"] for q in lift]))
     rows.sort(key=lambda r: (r["heel"], r["leeway"]))
+    header = _header(ref, path, df, select, "fit",
+                     "keel3d double body: canoe body, fin and bulb under a mirror plane at the waterline (no waves); "
+                     "Z includes the double body's suction",
+                     point="boat",
+                     units={"heel": "deg", "leeway": "deg", "V": "m/s", "X": "N", "Y": "N", "Z": "N", "x": "m"},
+                     reference={"length": float(df.iloc[0]["fin_mean_chord"])})
+    return tables.write(out, header, rows, COLUMNS)
+
+
+def _header(ref: str, path: Path, df, select: dict | None, model: str, note: str, **keys) -> dict:
+    """A keel3d table's header; `keys` (units, ...) go after the frame."""
     r0 = df.iloc[0]
-    header = {
+    return {
         "component": "keel",
-        "model": "fit",
+        "model": model,
         "dims": ["heel", "leeway", "V"],
         "frame": "inflow",
-        "point": "boat",
-        "units": {"heel": "deg", "leeway": "deg", "V": "m/s", "X": "N", "Y": "N", "Z": "N", "x": "m"},
+        **keys,
         "fluid": {"rho": float(r0["rhoInf"]), "nu": float(r0["nu"])},
-        "reference": {"length": float(r0["fin_mean_chord"])},
         "includes": ["host.side_force", "host.yaw_moment"],
-        "note": "keel3d double body: canoe body, fin and bulb under a mirror plane at the waterline (no waves); "
-                "Z includes the double body's suction",
+        "note": note,
         "params": {k: _param(r0[k]) for k in (*KEEL_KEYS, *HULL_KEYS) if k in r0},
         "source": {"tool": "keel3d", "run": ref, "file": "/".join(path.parts[-3:]),
                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "select": dict(select or {})},
         "created": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "git": config.git_describe(),
     }
-    return tables.write(out, header, rows, COLUMNS)
+
+
+GRID_LOADS = ["X", "Y", "Z", "K", "M", "N", "Zv", "Mv"]
+
+
+def _export_grid(ref: str, path: Path, df, select: dict | None, out: str | Path, fill: bool) -> Path:
+    """The design's cases as a `model: grid` table (see the module docstring)."""
+    from .components.base import Loads
+
+    dims = ("heel", "leeway", "speed")
+    n = df.groupby(list(dims)).size()
+    if (n > 1).any():
+        raise ValueError(f"more than one case at (heel, leeway, speed) {list(n[n > 1].index)}: select one "
+                         "(e.g. --select mesh=medium)")
+    heels, leeways, speeds = (sorted(df[d].astype(float).unique()) for d in dims)
+    if 0.0 not in leeways:
+        raise ValueError("no 0° leeway cases: the grid's loads are taken against them")
+    by = {(float(r["heel"]), float(r["leeway"]), float(r["speed"])): r for _, r in df.iterrows()}
+    rows, missing = [], []
+    for h in heels:
+        for V in speeds:
+            u = by.get((h, 0.0, V))
+            if u is None:
+                raise ValueError(f"no 0° leeway case at heel {h:g}, {V:g} m/s")
+            lift = [by[(h, b, V)] for b in leeways if b > 0 and (h, b, V) in by]
+            clr = (float(np.nanmean([float(r["x_clr"]) for r in lift])),
+                   float(np.nanmean([float(r["z_clr"]) for r in lift])))
+            line = []
+            for b in leeways:
+                r = by.get((h, b, V))
+                if r is None:
+                    line.append(None)
+                    continue
+                pt = (float(r["x_clr"]), 0.0, float(r["z_clr"])) if b != 0 else (clr[0], 0.0, clr[1])
+                ld = Loads.at(pt, X=-(float(r["drag_N"]) - float(u["drag_hull_N"])), Y=float(r["side_N"]))
+                Zv = float(r["vertical_N"]) - float(u["vertical_N"])
+                line.append({"heel": h, "leeway": b, "V": V, "X": ld.X, "Y": ld.Y, "Z": 0.0, "K": ld.K, "M": ld.M,
+                             "N": ld.N, "Zv": Zv, "Mv": Loads.at(pt, Z=Zv).M,
+                             "ext": float(r["status"] != "ok"), "case": r["case"]})
+            gaps = [b for b, x in zip(leeways, line) if x is None]
+            if gaps and not fill:
+                missing += [(h, b, V) for b in gaps]
+            elif gaps:
+                line = _fill_leeway(line, leeways, h, V)
+            rows += line
+    if missing:
+        raise ValueError(f"no case at (heel, leeway, speed) {missing}: run them, or --fill along the leeway")
+    i_ref = int(np.argmin([abs(V - 1.0) for V in speeds]))
+    a = []  # the side-force slope per heel at V_ref over 0-4°, for the rudder's downwash
+    for h in heels:
+        pts = [(r["leeway"], r["Y"]) for r in rows if r["heel"] == h and r["V"] == speeds[i_ref]
+               and 0.0 <= r["leeway"] <= 4.0 and r["ext"] == 0.0]
+        if len(pts) >= 2:
+            a.append(float(np.polyfit(*zip(*pts), 1)[0]))
+    header = _header(ref, path, df, select, "grid",
+                     "keel3d double body (canoe body, fin and bulb under a mirror plane at the waterline, no waves) "
+                     "on a heel × leeway × V_b grid: X less the hull's 0° drag, K, M, N at each case's centre of "
+                     "lateral resistance; Zv, Mv: the vertical force less its 0° value and its pitch moment (added "
+                     "with vertical: delta); ext: not converged or filled",
+                     moments="bow", normalise="V^2",
+                     units={"heel": "deg", "leeway": "deg", "V": "m/s", "X": "N", "K": "N m"},
+                     fit={"a": a, "V_ref": speeds[i_ref]})
+    return tables.write(out, header, rows, ["heel", "leeway", "V", *GRID_LOADS, "ext", "case"])
+
+
+def _fill_leeway(line: list, leeways: list[float], h: float, V: float) -> list:
+    """Missing cases of one heel and speed, linear along the leeway through
+    the nearest two that ran (extrapolated at the ends), flagged."""
+    have = [(b, x) for b, x in zip(leeways, line) if x is not None]
+    if len(have) < 2:
+        raise ValueError(f"heel {h:g}, {V:g} m/s: fewer than two cases to fill from")
+    out = []
+    for b, x in zip(leeways, line):
+        if x is None:
+            (b0, x0), (b1, x1) = sorted(have, key=lambda q: abs(q[0] - b))[:2]
+            w = (b - b0) / (b1 - b0)
+            x = {"heel": h, "leeway": b, "V": V, **{q: x0[q] + w * (x1[q] - x0[q]) for q in GRID_LOADS},
+                 "ext": 1.0, "case": ""}
+        out.append(x)
+    return out
 
 
 def _resolve(ref: str, base: Path) -> Path:

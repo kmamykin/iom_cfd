@@ -115,6 +115,66 @@ def test_grid_keel_reproduces_its_table(tmp_path):
     assert v.loads(State(1.0, 10.0, 2.0), Wind(3.0, 45.0)).Z == pytest.approx(0.2, abs=1e-12)
 
 
+def _keel3d_grid_csv(path, drop=()):
+    """keel3d results over heel × leeway × speed: loads ∝ V², the hull's drag
+    D_HULL V² and a −2.7 V² N suction; x_clr meaningless at 0°, as in keel3d."""
+    import pandas as pd
+
+    rows = []
+    for heel in (0.0, 20.0):
+        a = 1.3 * (1 - heel / 100)
+        for b in (-2.0, 0.0, 2.0, 4.0):
+            for V in (0.5, 1.0, 1.5):
+                if (heel, b, V) in drop:
+                    continue
+                q, S = V**2, (0.05 + a * b) * V**2
+                rows.append({"case": f"heel{heel:g}_leeway{b:g}_speed{V:g}", "status": "ok", "heel": heel,
+                             "leeway": b, "speed": V, "fin_mean_chord": 0.09, "nu": 1.137e-6, "rhoInf": 999.1,
+                             "bulb_section": "naca0011", "side_N": S, "drag_N": (0.4 + 0.3) * q + 0.004 * S**2 / q,
+                             "drag_hull_N": 0.4 * q, "vertical_N": (-2.7 + 0.1 * b) * q,
+                             "x_clr": 0.47 if b else 0.9, "z_clr": -0.25 if b else 3.0,
+                             "roll_moment_Nm": 0.25 * S, "yaw_moment_Nm": 0.47 * S})
+    pd.DataFrame(rows).to_csv(path, index=False)
+    return path
+
+
+def test_keel3d_grid_export(tmp_path):
+    csv = _keel3d_grid_csv(tmp_path / "results.csv")
+    t = tables.read(keel3d.export(str(csv), {"bulb_section": "naca0011"}, tmp_path / "keel.csv", model="grid"))
+    assert t.header["model"] == "grid" and t.header["moments"] == "bow" and len(t.rows) == 24
+    assert t.header["fit"]["V_ref"] == 1.0 and t.header["fit"]["a"] == pytest.approx([1.3, 1.3 * 0.8])
+    g = KeelGrid.from_table(t, "keel", RHO, _Fin(), vertical=True)
+    for r in t.rows:
+        q, S = r["V"] ** 2, (0.05 + 1.3 * (1 - r["heel"] / 100) * r["leeway"]) * r["V"] ** 2
+        assert r["X"] == pytest.approx(-(0.3 * q + 0.004 * S**2 / q))  # the hull's 0° drag left to the hull
+        assert r["Y"] == pytest.approx(S) and r["Z"] == 0.0
+        assert r["K"] == pytest.approx(0.25 * S) and r["N"] == pytest.approx(-0.47 * S)  # keel3d's moments, VPP signs
+        assert r["Zv"] == pytest.approx(0.1 * r["leeway"] * q)  # the suction is gone
+        assert r["Mv"] == pytest.approx(0.47 * r["Zv"])  # at the lifting cases' x_clr at 0° too
+        ld = g.loads(State(r["V"], r["heel"], r["leeway"]), Wind(3.0, 45.0))
+        assert (ld.X, ld.Y, ld.Z, ld.N) == pytest.approx((r["X"], r["Y"], r["Zv"], r["N"]), abs=1e-12)
+        assert not ld.extrapolated
+
+
+def test_keel3d_grid_export_needs_every_case(tmp_path):
+    csv = _keel3d_grid_csv(tmp_path / "results.csv", drop={(20.0, 4.0, 1.0)})
+    with pytest.raises(ValueError, match="no case at"):
+        keel3d.export(str(csv), None, tmp_path / "k.csv", model="grid")
+    t = tables.read(keel3d.export(str(csv), None, tmp_path / "k.csv", model="grid", fill=True))
+    r = next(r for r in t.rows if (r["heel"], r["leeway"], r["V"]) == (20.0, 4.0, 1.0))
+    assert r["ext"] == 1.0 and r["Y"] == pytest.approx(0.05 + 1.04 * 4)  # linear along the leeway: exact here
+
+
+
+def test_keel3d_grid_export_one_case_per_node(tmp_path):
+    import pandas as pd
+
+    df = pd.read_csv(_keel3d_grid_csv(tmp_path / "results.csv"))
+    pd.concat([df, df.assign(case=df["case"] + "_fine")]).to_csv(tmp_path / "two.csv", index=False)
+    with pytest.raises(ValueError, match="more than one case"):  # e.g. a mesh check: --select mesh=medium
+        keel3d.export(str(tmp_path / "two.csv"), None, tmp_path / "k.csv", model="grid")
+
+
 def test_keel_vertical_force_less_the_suction(tmp_path):
     csv = _keel3d_csv(tmp_path / "results.csv")  # vertical_N = −2.7 + 0.1 β
     t = tables.read(keel3d.export(str(csv), {"bulb_section": "naca0011"}, tmp_path / "keel.csv"))
