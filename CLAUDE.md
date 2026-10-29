@@ -33,6 +33,12 @@
   spanload.csv, force_history.csv, start_from.json) plus one mesh per mesh level; `--logs`, `--fields`,
   `--only` add more. Exported cases have gzipped mesh and logs. `iomcfd slim` frees a local run (dry run
   unless `--yes`). Don't fetch whole runs: the laptop's disk is limited.
+- Private files: `boats/private/` (git-ignored; in a worktree a link to the
+  main checkout's) holds what must never be committed: hull STLs (`hulls/`)
+  and the ORC 2026 sail tables with their tests (`orc/`, copyright ORC;
+  pytest collects them from there when present). Boat files that use the
+  hulls (`boats/iom-alternative.yaml`) and the numbers derived from them
+  (particulars, RM; docs/hulls.md) may be committed.
 - Website: `site/` (Quarto, GitHub Pages on push to main; see
   docs/website.md). The front page (`site/index.qmd`) is a card per
   published study; each study is a page, `site/<study>/index.qmd` (now only

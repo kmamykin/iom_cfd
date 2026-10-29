@@ -1,0 +1,129 @@
+boat: iom-alternative
+description: >
+  Alternative hull (private STL), HT35 7.25 % fin 100 -> 80 mm (90 mm mean),
+  NACA 0011 round bulb 2380 g at the 420 mm draft, 2 deg nose up, A rig, ORC
+  2026 sails.
+
+water: {temperature: 15.0}
+air: {temperature: 15.0}
+
+# Parts: each a shape (class + args: geometry, mass, buoyancy, where it
+# mounts) and a force model (forces: class + args); "." = iomcfd.vpp.components.
+# controls: override a part's controls (role balance | optimise | choice |
+# hold, or {default, lo, hi, options}). Any entry by its dotted path, e.g.
+# --set components.rudder.args.span=0.21. Another design = another boat file
+# (or vpp compare --set-b), e.g. a keel3d design as its own table.
+components:
+  hull:
+    # The STL is private (boats/private/, git-ignored; docs/hulls.md): placed in the boat
+    # frame by tools/place_hull.py, sha256 02f6fb7f…1749985, x = 0 at the bow of
+    # the 1000 mm hull (the stem tip at 2.25 mm, the bumper short in the STL), the
+    # transom on the waterline at x = 1.000 m.
+    class: .hull.MeshHull         # the hull's surface; .hull.CanoeHull = the analytic canoe (rung 0)
+    args:
+      stl: private/hulls/iom-alternative.stl   # next to this file; in mm, already in the boat frame
+      scale: 0.001
+    forces:
+      class: .hull.IttcMichell
+      args:
+        form_factor: 0.10         # (1 + k) - 1; methodology.md uses ITTC-57 x 1.10
+        cf_factor: 1.0            # < 1 brackets a laminar run (surface-roughness.md: up to -41 %)
+        waves: michell-heeled     # michell (upright) | michell-heeled (each heel at its static sinkage) | none
+        side_force: auto          # auto: off when another part's loads hold it (keel3d's double body)
+
+  keel:
+    class: .keel.ParametricKeel   # keel3d's parametric fin and bulb (projects/keel3d/defaults.yaml)
+    mount: {host: hull, x: 0.544}   # fin quarter chord at the root, m aft of the bow (leading edge 0.519): the plan's
+                                    # fin's centre of force (its 86 -> 72 mm chord's MAC quarter point, plan 456 mm)
+    args:
+      draft: 0.42                 # m, waterline to the bulb bottom (C.4.1)
+      mass: 2.5                   # kg, fin + bulb (C.6.4)
+      fin: {section: "file:ht35-t0725.dat", root_chord: 0.100, tip_chord: 0.080, sweep: 0.0, mass: 0.120}
+      bulb: {section: naca0011, aspect: 1.0, top: 2.0, bottom: 2.0, cant: 2.0, x: 0.0, density: 11340}
+    forces:
+      class: .keel.PolarFit       # keel3d CFD fits; .keel.FinAndBulb = lifting line, no CFD (rung 0)
+      args:
+        # keel3d ht35-keel@20261027-215521, heel x leeway x V_b, medium mesh, fully turbulent:
+        # iomcfd vpp export-table keel3d ht35-keel@20261027-215521 --select mesh=medium --model grid
+        #   --out boats/tables/keel-ht35-3d.csv
+        # A grid table (KeelGrid) carries its own Re dependence: max_leeway and friction_factor don't apply.
+        table: tables/keel-ht35-3d.csv
+        vertical: delta           # keel3d's vertical force less its zero-leeway suction | none
+        # the NACA 0007 fin, cant 0 (bulb-section@20261019-203823, 1 m/s fits): tables/keel-round-bulb.csv,
+        #   with max_leeway: 4.0 and friction_factor: {fin: 1.0, bulb: 1.0}
+
+  rudder:                         # the user's own rudder
+    class: .foils.ParametricFoil
+    mount: {host: hull, x: 0.92}    # root leading edge, m aft of the bow
+    args: {section: naca0008, root_chord: 0.075, tip_chord: 0.060, span: 0.20,
+           sweep: 0.0, sweep_at: 1.0}   # the trailing edge vertical (at 0.995), the leading edge swept 4.3 deg
+    forces:
+      class: .foils.LiftingLine
+      args:
+        e: 0.9
+        downwash: {from: keel, factor: 1.0}   # fraction of the keel's elliptic far-field downwash ε = 2 C_L / (π A)
+    controls: {angle: balance}    # δ_R closes the yaw balance (held at 0 with solver.yaw false)
+
+  sails:
+    class: .sails.Rig
+    args:
+      rig: iom_a
+      main_tack: [0.512, 0.0, 0.120]   # where the boom meets the mast: the mast centre 6 mm ahead, at 0.506 (plan: 494 mm from the transom)
+      jib_tack: [0.111, 0.0, 0.117]    # the A jib boom's luff wire, 78 mm ahead of its pivot (BritPOP jib boom layout: 388 - 310 mm)
+                                       # on the plan's forward deck mark (811 mm: x 0.189, ASSUMED the A rig's); about 15 mm
+                                       # above the foredeck (101.6 mm there; the user's estimate)
+      sheer: 0.061                     # the sheer at the mast (plan and STL); the mast steps in a well 30 mm below it
+    forces:
+      class: .sails.OrcSails      # ORC VPP Documentation 2026 coefficients (full scale; not to be published)
+      args:
+        level: low                # ORC coefficient set
+        sets: {upwind: 0.0, downwind: 60.0}   # set: lowest β_TW; ORC's jib downwind set (goose-winged jib) from 60°
+    controls:
+      flat: {lo: 0.53}            # ORC FLAT_MIN (§5.1.3)
+
+  windage:                        # the hull above the water, projected on the plane normal to the apparent wind
+    shape: hull
+    forces:
+      class: .windage.ProjectedArea   # .windage.OrcWindage = ORC Table 5.12's areas (rung 0)
+      args:
+        cd: 0.816                 # ORC Table 5.12
+
+mass:                             # component masses and centres (boat frame, m)
+  items:
+    - {name: hull and deck, m: 0.40, cg: [0.48, 0.0, 0.01]}
+    - {name: "rig A: mast, booms, sails, rigging", m: 0.100, cg: [0.42, 0.0, 0.55]}   # weighed
+    - {name: sail winch, m: 0.133, cg: [0.45, 0.0, -0.02]}
+    - {name: "rudder servo, receiver, battery", m: 0.20, cg: [0.65, 0.0, -0.01]}
+    - {name: rudder blade, m: 0.033, cg: [0.95, 0.0, -0.11]}
+    - {name: fittings and fin box, m: 0.06, cg: [0.50, 0.0, 0.0]}
+  fill_to: 4.0                    # corrector weight up to the class minimum (C.4.2)
+  corrector_at: [0.509, 0.0, -0.03]   # placed so it floats level (the CG at x = 0.535)
+
+hydrostatics:
+  attitude: solved                # solved (sinkage and trim under the other parts' pitch moment and vertical force) | static
+  Z_ext: [-4.0, 0.0, 4.0]         # N, vertical-force layers of the table; [0.0]: vertical forces ignored
+  heel_max: 60.0
+  heel_step: 2.5
+
+wind:                             # the range is the A rig's, up to its top wind (8 m/s, ~15 kn)
+  tws: [1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0]
+  weights: uniform                # uniform | [w, ...] | file:<club histogram.csv> (columns tws, weight)
+  z_ref: 1.0                      # m, height the wind speed is measured at
+  alpha: 0.12                     # power-law profile exponent
+
+course:                           # race settings
+  leg: 100.0
+  laps: 2
+  tacks_per_leg: 4
+  gybes_per_leg: 2
+  tack_s: 3.0
+  gybe_s: 2.0
+
+solver:
+  yaw: true                       # solve the yaw balance with the balance control (the rudder)
+  optimise: true                  # search the optimised control (the sails' flat)
+  heel_max: 70.0
+  leeway_max: 8.0                 # deg: no balance beyond it (the fin starts to stall at 6-10 deg)
+
+polar:
+  twa: [30, 35, 40, 45, 50, 60, 75, 90, 105, 120, 135, 150, 165, 180]

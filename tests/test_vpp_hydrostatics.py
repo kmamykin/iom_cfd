@@ -8,7 +8,7 @@ import pytest
 
 from iomcfd.geometry import hulls, stl
 from iomcfd.physics import G, fresh_water
-from iomcfd.vpp.hydrostatics import Hydrostatics, HydroTable, place, placement, submerged
+from iomcfd.vpp.hydrostatics import Hydrostatics, HydroTable, particulars, place, placement, submerged
 
 RHO = fresh_water().rho
 
@@ -68,6 +68,75 @@ def test_box_upright_is_exact():
     assert s.waterplane_area == pytest.approx(0.2, rel=1e-12)
     assert s.i_t == pytest.approx(1.0 * 0.2**3 / 12, rel=1e-12)
     assert s.i_l == pytest.approx(0.2 * 1.0**3 / 12, rel=1e-12)
+
+
+def test_waterline_ends():
+    s = submerged(box().translated((0.1, 0.0, 0.0)))
+    assert (s.x_fwd, s.x_aft) == pytest.approx((0.1, 1.1), abs=1e-12)
+    spec = hulls.CanoeSpec()
+    s = submerged(hulls.canoe(spec))
+    assert s.x_fwd == pytest.approx(0.003 * spec.length, abs=1e-9)  # the canoe's tiny flat ends
+    assert s.lwl == pytest.approx(s.x_aft - s.x_fwd)
+
+
+# --- particulars ----------------------------------------------------------------
+
+
+def test_box_particulars_are_exact():
+    L, B, keel = 1.0, 0.2, -0.05
+    p = particulars(box(L, B, keel), sink=0.01, rho=RHO)  # 10 mm deeper: T = 0.06
+    T = 0.06
+    assert p.volume == pytest.approx(L * B * T, rel=1e-12)
+    assert (p.lwl, p.bwl, p.draft) == pytest.approx((L, B, T), rel=1e-12)
+    assert (p.lcb, p.vcb, p.lcf) == pytest.approx((L / 2, -T / 2, L / 2), abs=1e-12)
+    assert (p.section_area, p.waterplane_area) == pytest.approx((B * T, L * B), rel=1e-9)
+    assert (p.cb, p.cp, p.cx, p.cwp) == pytest.approx((1.0, 1.0, 1.0, 1.0), rel=1e-9)
+    assert (p.bm_t, p.bm_l) == pytest.approx((B**2 / (12 * T), L**2 / (12 * T)), rel=1e-12)
+    assert p.immersion == pytest.approx(RHO * L * B, rel=1e-12)
+
+
+def test_canoe_particulars():
+    spec = hulls.CanoeSpec()
+    vol, lcb, _ = hulls.canoe_displacement(spec)
+    p = particulars(hulls.canoe(spec))
+    assert p.volume == pytest.approx(vol, rel=5e-3) and p.lcb == pytest.approx(lcb, rel=5e-3)
+    assert p.draft == pytest.approx(spec.draft, rel=1e-9)
+    # elliptic sections (section 2): A_X = π/4 B T; the facets (28 points a side) lose 0.5 %
+    assert p.cx == pytest.approx(math.pi / 4, rel=1e-2)
+    assert p.cp == pytest.approx(p.cb / p.cx, rel=1e-12)
+
+
+def test_particulars_rows_gm_of_a_box_barge():
+    L, B, keel, T, z_g = 1.0, 0.2, -0.05, 0.06, -0.02
+    hs = Hydrostatics(box(L, B, keel), mass=RHO * L * B * T, cg=(L / 2, 0.0, z_g), rho=RHO)
+    rows = hs.particulars_rows()
+    f = rows[0]
+    assert f["condition"] == "floating" and f["converged"] == 1.0
+    assert f["sink"] == pytest.approx(T + keel, abs=1e-9) and f["displacement"] == pytest.approx(hs.mass)
+    GM_T = T / 2 + B**2 / (12 * T) - (z_g - keel)  # KB + BM − KG
+    GM_L = T / 2 + L**2 / (12 * T) - (z_g - keel)
+    assert (f["gm_t"], f["gm_l"]) == pytest.approx((GM_T, GM_L), rel=1e-9)
+    assert f["mct"] == pytest.approx(hs.mass * G * GM_L * math.pi / 180, rel=1e-9)
+    # GM_T is the slope of GZ at small heel
+    assert hs.float_at(1.0).gz / math.sin(math.radians(1.0)) == pytest.approx(GM_T, rel=1e-3)
+    even = rows[1:]
+    assert [r["condition"] for r in even] == ["even keel"] * 9
+    assert [r["sink"] for r in even] == pytest.approx(np.arange(-0.010, 0.0101, 0.0025))
+    assert all(r["trim"] == 0.0 for r in even)
+    assert np.diff([r["displacement"] for r in even]) == pytest.approx(RHO * L * B * 0.0025, rel=1e-9)
+
+
+def test_particulars_rows_count_the_appendages():
+    L, B, keel = 1.0, 0.2, -0.05
+    bulb = (2e-4, np.array([0.5, 0.0, -0.4]))
+    hs = Hydrostatics(box(L, B, keel), appendages=[bulb], mass=RHO * (L * B * 0.05 + bulb[0]), cg=(0.5, 0.0, -0.2),
+                      rho=RHO)
+    f = hs.particulars_rows(sinks=[])[0]
+    assert f["sink"] == pytest.approx(0.0, abs=1e-9) and f["volume"] == pytest.approx(L * B * 0.05)
+    V = L * B * 0.05 + bulb[0]
+    z_b = (L * B * 0.05 * -0.025 + bulb[0] * -0.4) / V
+    assert f["z_b"] == pytest.approx(z_b, rel=1e-9)
+    assert f["gm_t"] == pytest.approx(z_b + L * B**3 / 12 / V + 0.2, rel=1e-9)
 
 
 @pytest.mark.parametrize("heel,trim,sink", [(0, 0, 0.0), (30, 4, -0.01), (75, -10, 0.02)])

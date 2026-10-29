@@ -387,7 +387,7 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
 <!-- HYDROSTATICS -->
 <section class="s" id="hydro">
   <div class="wrap">
-    <div class="eyebrow"><code>hydro.csv</code><code>mass.csv</code><code>vmg.csv</code></div>
+    <div class="eyebrow"><code>hydro.csv</code><code>particulars.csv</code><code>mass.csv</code><code>vmg.csv</code></div>
     <h2>Righting moment, attitude and the mass budget</h2>
     <div class="prose"><p id="hydro-lede"></p></div>
     <div class="grid2">
@@ -408,6 +408,12 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
       <div id="z-chart"></div>
       <figcaption id="z-cap"></figcaption>
     </figure>
+    <h3 style="margin-top:22px">Hull particulars</h3>
+    <div class="prose"><p id="part-lede"></p></div>
+    <div id="part-box">
+      <dl class="readout" id="part-out"></dl>
+      <details style="margin-top:12px"><summary>On an even keel against sinkage from the waterline z = 0 (particulars.csv)</summary><div class="tw"><table id="part-table"></table></div></details>
+    </div>
     <h3 style="margin-top:22px">Attitude at the best-VMG points</h3>
     <div class="legend"><span><i style="background:var(--leg-up)"></i>upwind</span><span><i style="background:var(--leg-down)"></i>downwind</span></div>
     <div class="grid3" id="att-charts"></div>
@@ -545,6 +551,12 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
         <tr><td>Z<sub>CE</sub></td><td>height of the sails' centre of effort above the waterline [m]</td><td><code>sails_z_ce</code></td></tr>
         <tr><td>RM<sub>φ</sub>, GZ</td><td>hydrostatic righting moment at heel φ [N·m]; its arm RM<sub>φ</sub> / (m g)</td><td><code>rm</code></td></tr>
         <tr><td>M<sub>ext</sub>, Z<sub>ext</sub></td><td>the parts' pitch moment and vertical force that the hydrostatics float the boat under</td><td><code>M_ext</code>, <code>Z_ext</code> (hydro.csv); ΣM, ΣZ of the parts</td></tr>
+        <tr><td>∇, Δ</td><td>the hull's displaced volume [m³]; the boat's displacement, appendages included [kg]</td><td><code>volume</code>, <code>displacement</code> (particulars.csv)</td></tr>
+        <tr><td>LWL, BWL, T<sub>c</sub></td><td>waterline length (from <code>x_fwd</code> to <code>x_aft</code>) and beam; the hull's deepest point under water [m]</td><td><code>lwl</code>, <code>bwl</code>, <code>draft</code></td></tr>
+        <tr><td>LCB, VCB, LCF</td><td>the hull's centre of buoyancy (x, z) and the waterplane's centroid (x) [m]</td><td><code>lcb</code>, <code>vcb</code>, <code>lcf</code></td></tr>
+        <tr><td>S, A<sub>WP</sub>, A<sub>X</sub></td><td>wetted area, waterplane area, the largest section under water [m²]</td><td><code>wetted_area</code>, <code>waterplane_area</code>, <code>section_area</code></td></tr>
+        <tr><td>C<sub>B</sub>, C<sub>P</sub>, C<sub>X</sub>, C<sub>WP</sub></td><td>block ∇/(LWL BWL T<sub>c</sub>), prismatic ∇/(A<sub>X</sub> LWL), section A<sub>X</sub>/(BWL T<sub>c</sub>), waterplane A<sub>WP</sub>/(LWL BWL)</td><td><code>cb</code>, <code>cp</code>, <code>cx</code>, <code>cwp</code></td></tr>
+        <tr><td>BM, GM, MCT</td><td>metacentric radius I/∇ of the hull; the boat's metacentric height z<sub>B</sub> + I/∇ − z<sub>G</sub> (∇ with the appendages) [m]; the moment to trim 1° [N·m/deg]</td><td><code>bm_t</code>, <code>bm_l</code>, <code>gm_t</code>, <code>gm_l</code>, <code>mct</code></td></tr>
         <tr><td>α, L</td><td>a foil's angle of attack [deg] and lift [N]</td><td><code>rudder_alpha</code>, <code>rudder_L</code></td></tr>
         <tr><td>A, D</td><td>windage: projected area above the water [m²] and drag [N]</td><td><code>windage_A</code>, <code>windage_D</code></td></tr>
       </tbody>
@@ -852,6 +864,7 @@ const RATES = csvOf("rates.csv");
 const RSUM = csvOf("rates_summary.csv");
 const MASS = csvOf("mass.csv") || [];
 const HYDRO = csvOf("hydro.csv");
+const PARTIC = csvOf("particulars.csv");
 const RESP = csvOf("response.csv");
 const INFO = RUN.info || {};
 const COURSE = RUN.course || {};
@@ -1177,9 +1190,12 @@ const KEY_DOCS = [
   ["components.*.args.root_chord", "chord at the root, m"],
   ["components.*.args.tip_chord", "chord at the tip, m"],
   ["components.*.args.span", "span below the hull, m"],
+  ["components.*.args.sweep", "a foil's sweep, deg (+ tip aft), of the line at sweep_at of the chord"],
+  ["components.*.args.sweep_at", "the chord fraction sweep is of: 0 the leading edge, 1 the trailing edge (0° there: a vertical trailing edge)"],
   ["components.*.args.rig", "the rig: iom_a (A rig) only so far"],
-  ["components.*.args.mast_x", "mast position, m aft of the bow"],
-  ["components.*.args.deck", "deck height at the mast, m above the waterline"],
+  ["components.*.args.main_tack", "the main's tack, where the boom meets the mast [x, y, z], m (the mast 6 mm ahead)"],
+  ["components.*.args.jib_tack", "the jib's tack [x, y, z], m (default 0.08 m from the bow, 0.04 m below the main's)"],
+  ["components.*.args.sheer", "the deck at the mast, ORC's base of I, m above the waterline (default 0.08 m below the main's tack)"],
   ["components.*.forces.class", "the force model class, a dotted path"],
   ["components.*.forces.args.form_factor", "k of the friction: ½ρV²S(1 + k)C_F (ITTC-57)"],
   ["components.*.forces.args.cf_factor", "friction multiplier"],
@@ -1719,6 +1735,28 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
   const mo = document.getElementById("mass-out");
   [["total", fx(tot ? tot.m : mass, 3) + " kg"], ["CG x (aft)", fx((tot ? tot.x : NaN) * 1000, 0) + " mm"], ["CG z (up)", fx((tot ? tot.z : NaN) * 1000, 0) + " mm"],
     ["RM at 30°", fx(INFO.rm_30deg_Nm, 3) + " N·m"]].forEach(([kk, v]) => { const d = H("div", {}, mo); H("dt", { text: kk }, d); H("dd", { text: v }, d); });
+})();
+
+// ---------- hull particulars ----------
+(function particulars() {
+  const box = document.getElementById("part-box");
+  const f = (PARTIC || []).find((r) => r.condition === "floating");
+  if (!f) { missing(box, "No particulars.csv in this run."); return; }
+  const mm = (v, d) => fx(v * 1000, d === undefined ? 1 : d) + " mm";
+  document.getElementById("part-lede").innerHTML = `particulars.csv: the hull floating upright at the boat's mass and CG (sinkage ${fx(f.sink * 1000, 2)} mm, trim ${fx(f.trim, 2)}°${f.converged ? "" : ", <b>not converged</b>"}), then on an even keel at each sinkage. The hull's own numbers leave the appendages out; the displacement, z<sub>B</sub>, GM and MCT count their volume. x is aft from the bow, z up from the water.`;
+  const out = document.getElementById("part-out");
+  [["displacement Δ", fx(f.displacement, 3) + " kg"], ["hull ∇", fx(f.volume * 1e3, 3) + " L"], ["LWL", mm(f.lwl)], ["BWL", mm(f.bwl)], ["T_c", mm(f.draft)],
+    ["waterline x", fx(f.x_fwd * 1000, 0) + "–" + fx(f.x_aft * 1000, 0) + " mm"], ["LCB", mm(f.lcb)], ["LCF", mm(f.lcf)], ["VCB", mm(f.vcb)],
+    ["S", fx(f.wetted_area, 4) + " m²"], ["A_WP", fx(f.waterplane_area, 4) + " m²"], ["A_X", fx(f.section_area * 1e4, 1) + " cm²"],
+    ["C_B", fx(f.cb, 3)], ["C_P", fx(f.cp, 3)], ["C_X", fx(f.cx, 3)], ["C_WP", fx(f.cwp, 3)], ["BM_T (hull)", mm(f.bm_t)], ["BM_L (hull)", mm(f.bm_l, 0)],
+    ["GM_T", mm(f.gm_t)], ["GM_L", mm(f.gm_l, 0)], ["MCT", fx(f.mct, 3) + " N·m/°"], ["immersion", fx(f.immersion, 1) + " g/mm"]]
+    .forEach(([k, v]) => { const d = H("div", {}, out); H("dt", { html: subs(k) }, d); H("dd", { text: v }, d); });
+  const even = PARTIC.filter((r) => r.condition === "even keel");
+  const c = (k, h, s, d) => [k, h, (v) => fx(v * s, d)];
+  table(document.getElementById("part-table"), even, [c("sink", "sink mm", 1000, 1), c("displacement", "Δ kg", 1, 3), c("lwl", "LWL mm", 1000, 1),
+    c("bwl", "BWL mm", 1000, 1), c("draft", "T_c mm", 1000, 1), c("wetted_area", "S m²", 1, 4), c("waterplane_area", "A_WP m²", 1, 4),
+    c("lcb", "LCB mm", 1000, 1), c("lcf", "LCF mm", 1000, 1), c("cb", "C_B", 1, 3), c("cp", "C_P", 1, 3), c("cwp", "C_WP", 1, 3),
+    c("bm_t", "BM_T mm", 1000, 1), c("gm_t", "GM_T mm", 1000, 1), c("immersion", "g/mm", 1, 1)]);
 })();
 
 // ---------- race ----------

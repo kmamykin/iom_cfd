@@ -105,7 +105,7 @@ def summary_md(path: Path, boat: str, info: dict, rows: list[RaceRow], course: C
 
 
 TEMPLATE = Path(__file__).parent / "report_template.html"
-CSVS = ("polar", "vmg", "race", "rates", "rates_summary", "mass", "hydro", "response")
+CSVS = ("polar", "vmg", "race", "rates", "rates_summary", "mass", "hydro", "particulars", "response")
 ORC = ("_CL", "_CD")  # the ORC 2026 sail coefficients: copyright ORC, kept off the page
 
 

@@ -1,5 +1,6 @@
 """The ORC sail force model for a main and jib (ORC VPP Documentation 2026,
-§5; tables in data/orc2026_sails.yaml).
+§5; tables in boats/private/orc/orc2026_sails.yaml, kept out of git:
+copyright ORC).
 
 **Full-scale coefficients.** The ORC fitted the sail coefficients, the
 depowering law and the effective-height constants to full-size yachts, at
@@ -45,16 +46,16 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from functools import cache, lru_cache
-from pathlib import Path
 
 import numpy as np
 import yaml
 from scipy.interpolate import PchipInterpolator
 
+from .. import config
 from ..geometry.sails import SailSpec, _chord
 from . import frames
 
-DATA = Path(__file__).parent / "data" / "orc2026_sails.yaml"
+DATA = config.home() / "boats" / "private" / "orc" / "orc2026_sails.yaml"
 
 RHO_AIR = 1.225  # kg/m³, ISA sea level (ORC gives no value)
 FLAT_MIN = 0.53  # §5.1.3 p. 40: FlatMIN = 0.53 · Flat8 (Flat8 = flat at TWS 8 kt, TWA 52°)
@@ -92,7 +93,10 @@ class Table:
 
 @lru_cache(maxsize=1)
 def tables() -> dict:
-    """The transcribed ORC tables (data/orc2026_sails.yaml)."""
+    """The transcribed ORC tables (`DATA`)."""
+    if not DATA.is_file():
+        raise FileNotFoundError(f"no ORC 2026 sail tables at {DATA}: they are copyright ORC, so they live in "
+                                "boats/private/orc/ (git-ignored), not in the repo")
     return yaml.safe_load(DATA.read_text())
 
 
@@ -232,25 +236,37 @@ def planform(spec: SailSpec) -> tuple[float, float, float]:
     return spec.luff * m, spec.tack[2] + spec.luff * float(w @ (eta * c)) / m, float(w @ ((x_luff + 0.5 * c) * c)) / m
 
 
-def iom_a_specs(mast_x: float = 0.40, deck: float = 0.06, jib_tack_x: float = 0.08) -> tuple[SailSpec, SailSpec]:
+MAIN_TACK = (0.406, 0.0, 0.14)  # geometry.sails.iom_a_rig's: the mast at 0.40 m on a deck 0.06 m up
+
+
+def iom_a_specs(main_tack=MAIN_TACK, jib_tack=None) -> tuple[SailSpec, SailSpec]:
     """Main and jib planforms of `geometry.sails.iom_a_rig` (the same numbers,
-    which that function keeps inline; tests/test_vpp_sails_orc.py checks they
-    agree)."""
-    boom = deck + 0.08
-    main = SailSpec(luff=1.60, foot=0.355, half=0.240, head=0.03, tack=(mast_x + 0.006, 0.0, boom))
-    jib = SailSpec(luff=1.25, foot=0.380, half=0.200, head=0.02, tack=(jib_tack_x, 0.0, deck + 0.04),
-                   rake=math.degrees(math.atan2(mast_x - jib_tack_x - 0.03, 1.25)))
+    which that function keeps inline; boats/private/orc/test_vpp_sails_orc.py
+    checks they agree). `main_tack`: where the boom meets the mast (the
+    mast's centre 6 mm ahead); `jib_tack` default 0.08 m from the bow,
+    0.04 m below the main's tack, as on geometry/sails.py's flat deck."""
+    mx, _, mz = (float(v) for v in main_tack)
+    jt = (0.08, 0.0, round(mz - 0.04, 12)) if jib_tack is None else tuple(float(v) for v in jib_tack)
+    mast_x = round(mx - 0.006, 12)  # rounded so decimal tacks give geometry.sails' numbers exactly
+    main = SailSpec(luff=1.60, foot=0.355, half=0.240, head=0.03, tack=(mx, 0.0, mz))
+    jib = SailSpec(luff=1.25, foot=0.380, half=0.200, head=0.02, tack=jt,
+                   rake=math.degrees(math.atan2(mast_x - jt[0] - 0.03, 1.25)))
     return main, jib
 
 
-def iom_a_rig_geometry(mast_x: float = 0.40, deck: float = 0.06, jib_tack_x: float = 0.08, mast_d: float = 0.010,
+def iom_a_rig_geometry(main_tack=MAIN_TACK, jib_tack=None, sheer: float | None = None, mast_d: float = 0.010,
                        rigging_d: float = 4 * 0.0006, spreaders: bool = False, jib_pole: bool = True) -> Rig:
-    """The IOM A rig of geometry/sails.py as an ORC `Rig`.
+    """The IOM A rig of geometry/sails.py as an ORC `Rig`, placed by the
+    main's tack (boom and mast, boat frame [m]) and the jib's (`iom_a_specs`).
+    `sheer`: the deck at the mast, ORC's base of I and BAS (HBI); default
+    0.08 m below the main's tack, the boom height of geometry/sails.py.
 
     Girths are the horizontal chords at 1/4, 1/2, 3/4 and 7/8 of the main's
     height (ORC measures them from leech points to the luff; the same for a
     vertical luff). `rigging_d` is an estimate: four stays of 0.6 mm."""
-    main, jib = iom_a_specs(mast_x, deck, jib_tack_x)
+    main, jib = iom_a_specs(main_tack, jib_tack)
+    mast_x = round(main.tack[0] - 0.006, 12)
+    deck = round(main.tack[2] - 0.08, 12) if sheer is None else float(sheer)
     A_m, z_m, x_m = planform(main)
     A_j, z_j, x_j = planform(jib)
     rake = math.radians(jib.rake)

@@ -36,6 +36,8 @@ def _run(d, polar=True, rates=True):
     report.write_csv(d / "vmg.csv", [pts[0] | {"leg": "up"}])
     report.write_csv(d / "race.csv", [{"tws": 3.0, "weight": 1.0, "t_s": 450.0, "flags_up": "extrapolated"}])
     report.write_csv(d / "mass.csv", [{"name": "rig A: mast, booms", "m": 0.22, "x": 0.4, "y": 0.0, "z": 0.5}])
+    report.write_csv(d / "particulars.csv", [{"condition": "floating", "sink": -0.002, "trim": 0.4, "cb": 0.42,
+                                               "gm_t": 0.21, "converged": 1.0}])
     if rates:
         report.write_csv(d / "rates.csv", [{"name": "drag +0.01 N", "tws": 3.0, "dt": 1.2, "dt_pct": 0.27}])
         report.write_csv(d / "rates_summary.csv", [{"name": "drag +0.01 N", "dt_pct": 0.27, "boat_lengths": 1.1}])
@@ -49,9 +51,9 @@ def test_report_embeds_the_files_as_written(tmp_path):
     html = _text(report.html_report(d))
     assert "__DATA__" not in html and "__TITLE__" not in html and "<title>toy · VPP run" in html
     b = _blocks(html)
-    assert set(b) == {"polar.csv", "vmg.csv", "race.csv", "rates.csv", "rates_summary.csv", "mass.csv", "run.json",
-                      "boat.json", "boat.yaml"}
-    for f in ("race.csv", "mass.csv", "rates.csv", "rates_summary.csv"):
+    assert set(b) == {"polar.csv", "vmg.csv", "race.csv", "rates.csv", "rates_summary.csv", "mass.csv",
+                      "particulars.csv", "run.json", "boat.json", "boat.yaml"}
+    for f in ("race.csv", "mass.csv", "particulars.csv", "rates.csv", "rates_summary.csv"):
         assert b[f] == ("text/csv", _text(d / f))
     # the ORC coefficients are dropped, every other cell kept as written
     for f in ("polar.csv", "vmg.csv"):

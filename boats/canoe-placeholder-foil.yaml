@@ -61,7 +61,7 @@ components:
 
   sails:
     class: .sails.Rig
-    args: {rig: iom_a, mast_x: 0.40, deck: 0.06}
+    args: {rig: iom_a, main_tack: [0.406, 0.0, 0.14]}   # boom at the mast (0.40 m); jib tack, deck at the mast: defaults
     forces:
       class: .sails.OrcSails      # ORC VPP Documentation 2026 coefficients (full scale; not to be published)
       args:

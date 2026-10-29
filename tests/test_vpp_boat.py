@@ -7,12 +7,12 @@ import pandas as pd
 import pytest
 
 from iomcfd import config
+from iomcfd.vpp import sails_orc
 from iomcfd.vpp.components.base import State, Wind
 from iomcfd.vpp.components.foils import LiftingLine, lift_slope
 from iomcfd.vpp.components.keel import PolarFit
 
-ORC_DATA = config.home() / "src" / "iomcfd" / "vpp" / "data" / "orc2026_sails.yaml"
-needs_orc = pytest.mark.skipif(not ORC_DATA.exists(), reason="the ORC 2026 sail tables are not in the repo")
+needs_orc = pytest.mark.skipif(not sails_orc.DATA.exists(), reason="the ORC 2026 sail tables are not in boats/private/orc")
 
 D_HULL, D0, K, A, S0 = 0.40, 0.30, 0.004, 1.3, 0.05
 
