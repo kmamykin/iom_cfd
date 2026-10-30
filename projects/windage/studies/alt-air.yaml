@@ -1,0 +1,48 @@
+study: alt-air
+project: windage
+description: >
+  The air part of the alternative hull for the VPP's windage: the topsides
+  at each heel's static attitude (vpp hydro iom-alternative --zip; M_ext 0,
+  Z_ext 0) in a uniform apparent wind from 0 to 180 deg off the bow, every
+  10 deg to 60 (where cl builds to its peak and cd climbs to about 1) and
+  every 15 deg beyond. Settled by alt-air-scout (run 20261030-023242) and
+  alt-air-mesh (run 20261030-030100): the fine mesh (surface cells 3.1/1.6
+  mm, about 0.55 M cells, 7 min). At heel 30, 30-45 deg off the bow the
+  steady solution falls into one of two states depending on the mesh
+  (coarse and fine: cd 0.52-0.54, cl -0.76 to -0.78; medium and xfine: cd
+  0.56-0.57, cl -0.87 to -0.89), so cd there carries about +-4 % and cl
+  about +-7 % that refinement doesn't close. Three fine runs of that case
+  on different VMs agreed within 0.9 % in cd and 2 % in cl. One wind speed, 4 m/s, about the
+  apparent wind upwind at the venue's modal 3 m/s (from 3 to 6 m/s on the
+  fine mesh cd fell 1.2 % and cl 2.5 %). Checks: xfine at heel 0 and 60, 30
+  and 90 deg. Uniform wind over a slip water surface (the VPP applies the
+  gradient at the area's centroid height); fully turbulent kOmegaSST, wall
+  functions.
+highlights:
+  - name: upwind
+    why: Upwind (30 deg off the bow) across the heels - where the side force comes from as the hull heels.
+    where: {awa: 30, mesh: fine}
+    compare: heel
+    views: [hull_cp_windward, hull_cp_leeward, section]
+  - name: deck
+    why: The leeward deck edge goes under between 40 and 45 deg - the topsides change shape (beam reach).
+    where: {heel: [30, 40, 50, 60], awa: 90, mesh: fine}
+    compare: heel
+    views: [hull_cp_windward, hull_cp_leeward]
+defaults:
+  hull_stl: file:private/iom-alternative.stl
+  aws: 4.0
+  mesh: fine
+# iom-alternative: attitude at M_ext 0 N m, Z_ext 0 N (vpp hydro --zip; 2c93e9e-dirty)
+zip:
+  heel: [0, 10, 20, 30, 40, 50, 60]
+  sink: [-0.00215, -0.00253, -0.00363, -0.00540, -0.00797, -0.01127, -0.01473]   # m, + down
+  trim: [-0.001, 0.015, 0.064, 0.131, 0.193, 0.225, 0.192]   # deg, + bow down
+sweep:
+  awa: [0, 10, 20, 30, 40, 50, 60, 75, 90, 105, 120, 135, 150, 165, 180]
+cases:
+  # mesh: xfine at the lowest and highest heel, close-hauled and beam
+  - {heel: 0, sink: -0.00215, trim: -0.001, awa: 30, mesh: xfine}
+  - {heel: 0, sink: -0.00215, trim: -0.001, awa: 90, mesh: xfine}
+  - {heel: 60, sink: -0.01473, trim: 0.192, awa: 30, mesh: xfine}
+  - {heel: 60, sink: -0.01473, trim: 0.192, awa: 90, mesh: xfine}

@@ -56,7 +56,7 @@ KEEL_KEYS = ("draft", "keel_mass", "fin_mass", "lead_density", "fin_section", "f
              "fin_sweep", "fin_x", "bulb", "bulb_section", "bulb_x", "bulb_aspect", "bulb_top", "bulb_bottom",
              "bulb_cant")
 HULL_KEYS = ("hull_length", "hull_beam", "hull_draft", "hull_beam_at", "hull_draft_at", "hull_entry", "hull_run",
-             "hull_section")
+             "hull_section", "hull_stl")
 COLUMNS = ["case", "status", "heel", "leeway", "V", "X", "Y", "Z", "x", "y", "z", "X_hull", "X_friction_fin",
            "X_friction_bulb", "Y_fin"]
 

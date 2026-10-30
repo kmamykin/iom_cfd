@@ -1,0 +1,62 @@
+study: alt-water-scout
+project: keel3d
+description: >
+  Quick experiments to settle the alt-water study (the water part of the
+  alternative hull, iom-alternative's keel, heel x leeway x V_b for the VPP):
+  E1 the hull's mesh (hull_refine 0 / 1 / 2 on keel3d's medium keel mesh:
+  hull surface cells 5.6/2.8, 2.8/1.4, 1.4/0.7 mm) at heel 0 and 30, leeway 0
+  and 4, 1.5 m/s; E2 the hull's y+ at 0.5 and 3.6 m/s (the VPP's V_b 0.55-3.56);
+  E3 whether trim changes the hull's form factor D_hull / (q S C_F) by more than
+  3 % (the VPP's trims: up to 2.75 deg upwind, 9 deg downwind at heel 0-5).
+  The hull (private STL, geometry/private -> boats/private/hulls) is cut at the
+  waterline of each heel's attitude (vpp hydro iom-alternative --zip; static:
+  M_ext 0, Z_ext 0) and mirrored: double body, no waves. Fully turbulent
+  kOmegaSST, wall functions.
+defaults:
+  hull_stl: file:private/iom-alternative.stl
+  fin_section: "file:ht35-t0725.dat"
+  fin_mean_chord: 0.090
+  fin_taper: 0.8
+  fin_x: 0.544                # iom-alternative's keel mount (the fin's root quarter chord)
+  bulb_section: naca0011
+  bulb_cant: 2.0
+  Tu: 0.5
+  mesh: medium
+cases:
+  # E1 hull mesh: heel 0 and 30 (static attitude), leeway 0 and 4, 1.5 m/s, hull_refine 0 / 1 / 2
+  - {heel: 0, sink: -0.00215, trim: -0.001, leeway: 0, speed: 1.5, hull_refine: 0}
+  - {heel: 0, sink: -0.00215, trim: -0.001, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 0, sink: -0.00215, trim: -0.001, leeway: 0, speed: 1.5, hull_refine: 2}
+  - {heel: 0, sink: -0.00215, trim: -0.001, leeway: 4, speed: 1.5, hull_refine: 0}
+  - {heel: 0, sink: -0.00215, trim: -0.001, leeway: 4, speed: 1.5, hull_refine: 1}
+  - {heel: 0, sink: -0.00215, trim: -0.001, leeway: 4, speed: 1.5, hull_refine: 2}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 0, speed: 1.5, hull_refine: 0}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 0, speed: 1.5, hull_refine: 2}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 4, speed: 1.5, hull_refine: 0}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 4, speed: 1.5, hull_refine: 1}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 4, speed: 1.5, hull_refine: 2}
+  # E2 y+ over the speed range: heel 30, leeway 4, 0.5 and 3.6 m/s, hull_refine 1 and 2
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 4, speed: 0.5, hull_refine: 1}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 4, speed: 0.5, hull_refine: 2}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 4, speed: 3.6, hull_refine: 1}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 4, speed: 3.6, hull_refine: 2}
+  # E3 trim: leeway 0, hull_refine 1; M_ext 3.5 / 5.8 / 8.0 N m bow down (about +3.3 / 6.0 / 9.3 deg) at
+  # heel 0 and 10, 1.5 and 2.4 m/s, against the static attitude; and 2.6 N m (+2.5 deg) at heel 30, 1.5 m/s
+  # (vpp hydro iom-alternative --zip 0,10,30 --m-ext <M>)
+  - {heel: 0, sink: -0.00202, trim: 3.3, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 0, sink: -0.00416, trim: 6.017, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 0, sink: -0.00896, trim: 9.259, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 0, sink: -0.00215, trim: -0.001, leeway: 0, speed: 2.4, hull_refine: 1}
+  - {heel: 0, sink: -0.00202, trim: 3.3, leeway: 0, speed: 2.4, hull_refine: 1}
+  - {heel: 0, sink: -0.00416, trim: 6.017, leeway: 0, speed: 2.4, hull_refine: 1}
+  - {heel: 0, sink: -0.00896, trim: 9.259, leeway: 0, speed: 2.4, hull_refine: 1}
+  - {heel: 10, sink: -0.00253, trim: 0.015, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 10, sink: -0.00242, trim: 3.309, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 10, sink: -0.00459, trim: 6.018, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 10, sink: -0.00943, trim: 9.25, leeway: 0, speed: 1.5, hull_refine: 1}
+  - {heel: 10, sink: -0.00253, trim: 0.015, leeway: 0, speed: 2.4, hull_refine: 1}
+  - {heel: 10, sink: -0.00242, trim: 3.309, leeway: 0, speed: 2.4, hull_refine: 1}
+  - {heel: 10, sink: -0.00459, trim: 6.018, leeway: 0, speed: 2.4, hull_refine: 1}
+  - {heel: 10, sink: -0.00943, trim: 9.25, leeway: 0, speed: 2.4, hull_refine: 1}
+  - {heel: 30, sink: -0.00517, trim: 2.471, leeway: 0, speed: 1.5, hull_refine: 1}

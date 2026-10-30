@@ -21,7 +21,7 @@ from iomcfd import physics
 from iomcfd.foam import find_dat, read_dat
 from iomcfd.forces import forces_function, read_forces, settled, window_drift, window_stats
 from iomcfd.geometry import appendages as ap
-from iomcfd.geometry import foils, hulls, stl
+from iomcfd.geometry import foils, hulls, stl, waterline
 from iomcfd.geometry.keel import BULB_ZONE, MAX_FIN_THICKNESS, bulb_spec, hull_spec, keel_geometry  # noqa: F401
 from iomcfd.project import Project
 
@@ -58,7 +58,123 @@ BULB_SHAPE = {"bulb_section": "naca0007", "bulb_aspect": 1.0, "bulb_top": 2.0, "
 # conditions it is compared under.
 DESIGN = ["fin_taper", "fin_sweep", "fin_mean_chord", "fin_section", "fin_x", "bulb", "bulb_section", "bulb_x",
           "bulb_aspect", "bulb_top", "bulb_bottom", "bulb_cant"]
-CONDITION = ["speed", "heel", "mesh", "mesh_shift", "mesh_shift_only", "fin_wake", "turbulence", "Tu"]
+CONDITION = ["speed", "heel", "sink", "trim", "mesh", "mesh_shift", "mesh_shift_only", "hull_refine", "hull_yplus",
+             "fin_wake", "turbulence", "Tu"]
+
+# An STL hull: the fin's root runs up into it to at least half the hull's
+# depth at the fin (as into the canoe body), and to this fraction of that
+# depth above the highest point of the hull's bottom over the root section
+# (rocker, deadrise), so it meets the hull all round its root.
+ROOT_MARGIN = 0.25
+
+# hull_yplus: the hull gets this many layers, from the first (sized for the
+# y+) to the last, this fraction of the hull's coarser surface cell
+# (snappyHexMesh works out the expansion), added in this many passes
+# (nOuterIter). Heel 0, 1.5 m/s, hull_refine 1 (2026-10-30): in one pass,
+# 19 layers left 26 % of the hull above y+ 30; in three, 14 layers covered
+# 99.9 % of it, the first cell 88 µm against the 32 µm asked for (y+ ≤ 3
+# on 82 % of the area, ≤ 5 on 92 %); 17 or 19 layers, or five passes, gave
+# thicker first cells and illegal faces.
+YPLUS_LAYERS = 14
+YPLUS_FINAL = 0.3
+YPLUS_PASSES = 3
+
+
+def hull_layers(p: dict[str, Any], base_cell: float, nu: float, lwl: float) -> dict[str, Any]:
+    """The hull's prism layers for a first-cell y+ of `hull_yplus`: the first
+    layer from the friction velocity of ITTC-57's C_F at the case's Re_LWL
+    (y+ at the cell's centre, half its height, as OpenFOAM's yPlus reports it;
+    the local y+ is higher near the bow, lower aft), the last YPLUS_FINAL of
+    the hull's coarser surface cell (snappyHexMesh's firstAndRelativeFinal),
+    YPLUS_LAYERS of them; `hullExpansion` is the ratio that needs there (less
+    where the cells are finer). snappyHexMesh leaves the first cell thicker
+    than asked for: see YPLUS_LAYERS."""
+    V = float(p["speed"])
+    cf = 0.075 / (math.log10(V * lwl / nu) - 2.0) ** 2
+    first = 2.0 * float(p["hull_yplus"]) * nu / (V * math.sqrt(cf / 2.0))
+    level = MESH_LEVELS[p["mesh"]]["hull"][0] + int(p.get("hull_refine") or 0)
+    final = YPLUS_FINAL * base_cell / 2**level
+    r = (final / first) ** (1.0 / (YPLUS_LAYERS - 1))
+    if not 1.0 < r <= 1.5:
+        raise ValueError(f"hull_yplus {p['hull_yplus']}: {YPLUS_LAYERS} layers from {first * 1e3:.4f} mm to "
+                         f"{final * 1e3:.2f} mm need an expansion of {r:.2f} (1-1.5)")
+    return {"hullFirstLayer": first, "hullLayers": YPLUS_LAYERS, "hullExpansion": r}
+
+
+def hull_surface(p: dict[str, Any]) -> stl.Surface:
+    """The hull in the boat frame, upright: the STL (hull_stl) or the canoe body."""
+    return hulls.stl_hull(p["hull_stl"]) if p.get("hull_stl") else hulls.canoe(hull_spec(p), "hull")
+
+
+def attitude(p: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
+    """(R, t): boat frame to earth frame, p_earth = R p_boat + t. Heel only
+    (about the x axis at the waterline) unless sink or trim is given; then
+    trim about the middle of the hull's length and sink, as vpp/hydrostatics.py."""
+    if p.get("sink") is None and p.get("trim") is None:
+        return stl.rotation("x", float(p["heel"])), np.zeros(3)
+    return waterline.placement(float(p["heel"]), float(p.get("trim") or 0.0), float(p.get("sink") or 0.0),
+                               waterline.trim_axis(hull_surface(p)))
+
+
+def _placed(s: stl.Surface, R: np.ndarray, t: np.ndarray) -> stl.Surface:
+    return stl.Surface(s.vertices @ R.T + t, s.triangles.copy(), s.name)
+
+
+def root_extension(p: dict[str, Any], g: dict[str, Any], hull: stl.Surface) -> float:
+    """How far the fin runs up into an STL hull above its root (z_root, the
+    hull's bottom at the root quarter chord): at least half the hull's depth
+    there, and ROOT_MARGIN of it above the hull's bottom anywhere under the
+    root section (both sides of the section, leading to trailing edge), so
+    the hull's rocker or deadrise can't leave a corner of the root outside.
+    Raises if the root's top would leave the hull or reach the waterline."""
+    z_root, depth = g["fin_z_root"], -g["fin_z_root"]
+    foil = foils.load(p["fin_section"])
+    ring = np.vstack([foil.surface("upper", 41), foil.surface("lower", 41)])  # x/c, y/c
+    c, sweep = g["fin_root_chord"], math.tan(math.radians(float(p["fin_sweep"])))
+
+    def outline(ext):  # the root section at the top of the extension (sweep moves it)
+        return float(p["fin_x"]) - sweep * ext + (ring[:, 0] - 0.25) * c, ring[:, 1] * c
+
+    ext = 0.5 * depth
+    for _ in range(4):
+        xs, ys = outline(ext)
+        under = [waterline.crossings(hull, x, y) for x, y in zip(xs, ys)]
+        if any(len(z) == 0 for z in under):
+            raise ValueError(f"the fin's root section at x = {float(p['fin_x']):.3f} m reaches outside the hull")
+        new = max(0.5 * depth, max(float(z[0]) for z in under) - z_root + ROOT_MARGIN * depth)
+        if abs(new - ext) < 1e-6:
+            break
+        ext = new
+    top = z_root + ext
+    xs, ys = outline(ext)
+    for x, y in zip(xs, ys):
+        if int(np.sum(waterline.crossings(hull, x, y) < top)) % 2 != 1:
+            raise ValueError(f"the fin's root top at ({x:.4f}, {y:.4f}, {top:.4f}) m is not inside the hull")
+    if top >= 0.0:
+        raise ValueError(f"the fin's root would run up to {top * 1e3:.1f} mm, above the waterline")
+    return ext
+
+
+def geometry(p: dict[str, Any]) -> dict[str, Any]:
+    """keel_geometry on the case's hull, with the fin's root extension
+    (`fin_root_extension`). An STL hull: the fin's root at the hull's bottom
+    under the root quarter chord, and the hull's volume, LCB, wetted area
+    and waterline length at the case's attitude."""
+    if not p.get("hull_stl"):
+        return {**keel_geometry(p), "fin_root_extension": 0.5 * float(p["hull_draft"])}
+    from iomcfd.vpp.hydrostatics import submerged
+
+    hull = hull_surface(p)
+    z = waterline.crossings(hull, float(p["fin_x"]), 0.0)
+    if not len(z) or z[0] >= 0.0:
+        raise ValueError(f"no hull bottom under the fin at x = {float(p['fin_x']):.3f} m")
+    g = keel_geometry(p, z_root=float(z[0]))
+    g["fin_root_extension"] = root_extension(p, g, hull)
+    R, t = attitude(p)
+    sub = submerged(_placed(hull, R, t))
+    g.update({"hull_volume_m3": sub.volume, "hull_lcb": float((R.T @ (sub.centroid - t))[0]),
+              "hull_wetted_area_m2": sub.wetted_area, "hull_lwl": sub.lwl, "hull_depth_at_fin": -float(z[0])})
+    return g
 
 
 def _ok(df):
@@ -177,9 +293,8 @@ class Keel3D(Project):
         side_dir = [-math.sin(b), math.cos(b), 0.0]
         V = float(p["speed"])
         turb = physics.turbulence_inflow(V, fl.nu, float(p["Tu"]), float(p["viscosity_ratio"]))
-        g = keel_geometry(p)
+        g = geometry(p)
         c = float(p["fin_mean_chord"])
-        h = math.radians(float(p["heel"]))
         displaced = g["hull_volume_m3"] + g["fin_volume_m3"] + g["bulb_volume_m3"]
         # Spanwise strips: each a whole number of fin surface cells (background
         # cell / 2^level, rows of faces along z), so every strip holds the same
@@ -188,7 +303,8 @@ class Keel3D(Project):
         cell = c / 2 ** MESH_LEVELS[p["mesh"]]["fin"][0]
         k = max(1, int(g["fin_span"] / (int(p["span_bins"]) * cell)))
         n_bins = int(g["fin_span"] / (k * cell))
-        rot = stl.rotation("x", float(p["heel"]))
+        R, t = attitude(p)
+        yplus = {} if p.get("hull_yplus") is None else hull_layers(p, c, fl.nu, float(g.get("hull_lwl", p["hull_length"])))
         return {
             "rhoInf": fl.rho,
             "nu": fl.nu,
@@ -202,14 +318,16 @@ class Keel3D(Project):
             "Re_fin": V * c / fl.nu,
             "Re_root": V * g["fin_root_chord"] / fl.nu,
             "Re_tip": V * g["fin_tip_chord"] / fl.nu,
-            "Re_hull": V * float(p["hull_length"]) / fl.nu,
+            "Re_hull": V * float(g.get("hull_lwl", p["hull_length"])) / fl.nu,
             **g,
             "displacement_kg": displaced * fl.rho,
             # the bulb's centre of mass and pitch axis (boat y), heeled: its pitching moment
-            "bulbCofG": [float(v) for v in rot @ np.array([g["bulb_x_cg"], 0.0, g["bulb_z_cg"]])],
-            "bulbPitchAxis": [float(v) for v in rot @ np.array([0.0, 1.0, 0.0])],
-            # spanwise strips along the (heeled) fin: distance from the waterline
-            "spanDir": [0.0, math.sin(h), -math.cos(h)],
+            "bulbCofG": [float(v) for v in R @ np.array([g["bulb_x_cg"], 0.0, g["bulb_z_cg"]]) + t],
+            "bulbPitchAxis": [float(v) for v in R @ np.array([0.0, 1.0, 0.0])],
+            # moments about the bow on the waterline (the placed boat origin)
+            "cofR": [float(v) for v in t],
+            # spanwise strips along the (heeled) fin: distance from the waterline, from cofR
+            "spanDir": [float(v) for v in R @ np.array([0.0, 0.0, -1.0])],
             "spanMin": -g["fin_z_root"],
             "spanMax": -g["fin_z_root"] + n_bins * k * cell,
             "spanBins": n_bins,
@@ -220,22 +338,32 @@ class Keel3D(Project):
             "maxIter": int(p["max_iter"]),
             "convWindow": int(p["conv_window"]),
             "nLayers": int(p["n_layers"]),
+            **yplus,
         }
 
     # ------------------------------------------------------------------
     def surfaces(self, p: dict[str, Any]) -> list[stl.Surface]:
-        """Hull, fin and bulb in the world frame (heeled about the x axis at the waterline)."""
-        g = keel_geometry(p)
-        hull = hulls.canoe(hull_spec(p), "hull")
+        """Hull, fin and bulb in the world frame (heeled about the x axis at the
+        waterline; then trimmed and sunk if those are given). An STL hull is
+        cut at the waterline and closed by its mirror image (waterline.split)."""
+        g = geometry(p)
+        hull = hull_surface(p)
         root = g["fin_root_chord"]
         fin = ap.fin(ap.FinSpec(
             section=p["fin_section"], root_chord=root, tip_chord=g["fin_tip_chord"], span=g["fin_span"],
             sweep=float(p["fin_sweep"]), x_root_le=float(p["fin_x"]) - 0.25 * root, z_root=g["fin_z_root"],
-            root_extension=0.5 * float(p["hull_draft"]), tip_extension=g["fin_tip_extension"], n_span=40,
+            root_extension=g["fin_root_extension"], tip_extension=g["fin_tip_extension"], n_span=40,
         ), "fin")
         out = [hull, fin]
         if p["bulb"]:  # else the fin alone, with a flat tip where the bulb's top would be
             out.append(ap.foil_bulb(bulb_spec(p, g["bulb_length"], g["bulb_x_cg"], g["bulb_z_axis"]), "bulb"))
+        if p.get("hull_stl"):
+            R, t = attitude(p)
+            water, _ = waterline.split(hull, float(p["heel"]), float(p.get("trim") or 0.0), float(p.get("sink") or 0.0))
+            return [water] + [_placed(s, R, t) for s in out[1:]]
+        if p.get("sink") is not None or p.get("trim") is not None:
+            R, t = attitude(p)
+            return [_placed(s, R, t) for s in out]
         if float(p["heel"]):
             out = [s.rotated("x", float(p["heel"])) for s in out]
         return out
@@ -251,8 +379,10 @@ class Keel3D(Project):
         hi = np.max([s.bounds[1] for s in surfs], axis=0)
         klo = np.min([s.bounds[0] for s in surfs[1:]], axis=0)
         khi = np.max([s.bounds[1] for s in surfs[1:]], axis=0)
-        L = float(p["hull_length"])
-        lv = MESH_LEVELS[p["mesh"]]
+        L = float(hi[0] - lo[0]) if p.get("hull_stl") else float(p["hull_length"])
+        lv = dict(MESH_LEVELS[p["mesh"]])
+        r = int(p.get("hull_refine") or 0)
+        lv["hull"], lv["hullbox"] = (lv["hull"][0] + r, lv["hull"][1] + r), lv["hullbox"] + r
         h = float(d["lRef"])  # background cell = fin mean chord
         tb = abs(math.tan(math.radians(float(p["leeway"]))))
         # The domain ends on whole background cells from the origin (bow, centre
@@ -275,7 +405,8 @@ class Keel3D(Project):
         wake_y = (wake_x - klo[0]) * tb
         boxes = {
             "keelBox": (klo - m, np.minimum(khi + m, top)),
-            "hullBox": (np.array([lo[0] - m, lo[1] - m, -float(p["hull_draft"]) - m]), np.array([hi[0] + m, hi[1] + m, h])),
+            "hullBox": (np.array([lo[0] - m, lo[1] - m, (float(surfs[0].bounds[0][2]) if p.get("hull_stl") else
+                                                        -float(p["hull_draft"])) - m]), np.array([hi[0] + m, hi[1] + m, h])),
             "wakeBox": (np.array([klo[0] - m, klo[1] - m - wake_y, klo[2] - m]), np.array([wake_x, khi[1] + m + wake_y, h])),
         }
         loc = dom_lo + np.array([0.0371, 0.4123, 0.5137]) * (dom_hi - dom_lo)
@@ -294,6 +425,9 @@ class Keel3D(Project):
             "keelDistance": 6 * h / 2 ** lv["dist"], "keelDistanceLevel": lv["dist"],
             "locationInMesh": vec(loc),
             "components": [s.name for s in surfs],
+            # junction lines as feature edges: "self" finds them, "region" (kept for the canoe body's
+            # earlier runs) finds none
+            "featureIntersection": "self" if p.get("hull_stl") else "region",
             "bulb_wetted_area_m2": surfs[2].area() if len(surfs) > 2 else 0.0,
             "wetted_area_m2": d["hull_wetted_area_m2"] + d["fin_wetted_area_m2"] + sum(s.area() for s in surfs[2:]),
             "bodyBoxBoat": self._boat_box(p),
@@ -302,12 +436,21 @@ class Keel3D(Project):
             d[f"{name}Min"], d[f"{name}Max"] = vec(a), vec(b)
         d.update(self._fin_wake_box(p, d, lv))
 
-        fo = [forces_function(f"forces_{s.name}", [f"boat_{s.name}"]) for s in surfs]
-        fo.append(forces_function("forces_keel", [f"boat_{s.name}" for s in surfs[1:]]))
-        fo.append(forces_function("forces_total", ["boat"], interval=1))
+        cofr = "({:.9g} {:.9g} {:.9g})".format(*d["cofR"])
+        fo = [forces_function(f"forces_{s.name}", [f"boat_{s.name}"], cofr=cofr) for s in surfs]
+        fo.append(forces_function("forces_keel", [f"boat_{s.name}" for s in surfs[1:]], cofr=cofr))
+        fo.append(forces_function("forces_total", ["boat"], cofr=cofr, interval=1))
         inc = case_dir / "system" / "include"
         inc.mkdir(parents=True, exist_ok=True)
         (inc / "forceFunctions").write_text("// generated by iomcfd: one forces function object per component\n\n" + "\n".join(fo))
+        if "hullLayers" in d:  # hull_yplus: the hull's own layers, after "boat_.*" in snappyHexMeshDict's layers
+            (inc / "hullLayers").write_text(
+                "// generated by iomcfd (hull_yplus): an absolute first layer, the last relative to the cell\n\n"
+                "boat_hull\n{\n    nSurfaceLayers      $hullLayers;\n    thicknessModel      firstAndRelativeFinal;\n"
+                f"    firstLayerThickness $hullFirstLayer;\n    finalLayerThickness {YPLUS_FINAL};\n"
+                "    minThickness        0.1;\n}\n")
+            (inc / "layerPasses").write_text(f"// generated by iomcfd (hull_yplus): layers added in passes\n\n"
+                                             f"nOuterIter {YPLUS_PASSES};\n")
         self.write_parameters(case_dir, d, inputs=p)
 
     @staticmethod
@@ -332,11 +475,11 @@ class Keel3D(Project):
         lo2, hi2 = -half - drift, half + drift
         corner = te_t - ahead * e1 + lo2 * e2 - margin * e3
         span = [ahead + length, hi2 - lo2, float(np.linalg.norm(te_r - te_t)) + 2 * margin]
-        rot = stl.rotation("x", float(p["heel"]))
+        R, t = attitude(p)
         vec = lambda a: [float(x) for x in a]
         return {
-            "finWakeOrigin": vec(rot @ corner), "finWakeSpan": vec(span),
-            "finWakeE1": vec(rot @ e1), "finWakeE3": vec(rot @ e3),
+            "finWakeOrigin": vec(R @ corner + t), "finWakeSpan": vec(span),
+            "finWakeE1": vec(R @ e1), "finWakeE3": vec(R @ e3),
             "finWakeLevel": lv["fin"][0] if length > 0 else 0,
         }
 
@@ -350,11 +493,11 @@ class Keel3D(Project):
         in is a tie, and the feature refinement would pick one side in patches
         (about 1 % of the fin faces not mirrored). Refining along both copies
         refines both rows of cells the same."""
-        g = keel_geometry(p)
+        g = geometry(p)
         z_r, span = g["fin_z_root"], g["fin_span"]
         sweep = math.tan(math.radians(float(p["fin_sweep"])))
         # the fin's own extent: into the hull above the root, into the bulb below the tip
-        zs = [z_r + 0.5 * float(p["hull_draft"]), z_r, z_r - span]
+        zs = [z_r + g["fin_root_extension"], z_r, z_r - span]
         if g["fin_tip_extension"] > 0:
             zs.append(z_r - span - g["fin_tip_extension"])
 
@@ -363,11 +506,11 @@ class Keel3D(Project):
             chord = g["fin_root_chord"] + (g["fin_tip_chord"] - g["fin_root_chord"]) * frac
             return float(p["fin_x"]) + sweep * (z_r - z) + 0.75 * chord
 
-        rot = stl.rotation("x", float(p["heel"]))
+        R, t = attitude(p)
         verts, lines = [], []
         for y in (eps, -eps):
             first = len(verts) + 1  # OBJ numbers from 1
-            verts += [rot @ np.array([x_te(z), y, z]) for z in zs]
+            verts += [R @ np.array([x_te(z), y, z]) + t for z in zs]
             lines += [(first + k, first + k + 1) for k in range(len(zs) - 1)]
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# fin trailing edge, 1 um either side of the centre plane (iomcfd keel3d)\n"
@@ -559,6 +702,10 @@ class Keel3D(Project):
         # millions of cells with 5 layers, the near-wake box and the aligned grid
         # (4 deg; coarse measured before those, xfine an estimate)
         cells = {"xcoarse": 0.16, "coarse": 0.5, "medium": 1.07, "fine": 3.3, "xfine": 14}[p.get("mesh", "medium")]
+        r = int(p.get("hull_refine") or 0)
+        cells += {0: 0.0, 1: 1.0, 2: 4.0}.get(r, 8.0)  # an estimate, not measured
+        if p.get("hull_yplus") is not None:  # about 20 more layers on the hull: an estimate, not measured
+            cells += 0.2 * 4**r
         # time limit: 3000 iterations at a speed not yet measured on GCP, so generous
         return {"cpus": int(p.get("np", 8)), "memory_gb": max(4, int(3 * cells)), "max_hours": 2 + 2.5 * cells}
 
@@ -811,9 +958,16 @@ class Keel3D(Project):
 
         fig, ax = plt.subplots(figsize=(10, 6.5))
         first = df.iloc[0]
-        hs = hull_spec(first)
-        x = np.linspace(0, hs.length, 300)
-        ax.fill_between(x, -hulls.canoe_depth(hs, x), 0, color="0.85", label="canoe body (centre line)")
+        if isinstance(first.get("hull_stl"), str) and first["hull_stl"]:
+            from iomcfd.vpp.hullres import keel_line
+
+            hull = hull_surface(first)
+            x = np.linspace(*hull.bounds[0][:1], *hull.bounds[1][:1], 300)
+            ax.fill_between(x, -keel_line(hull, x), 0, color="0.85", label=f"{first['hull_stl']} (keel line, upright)")
+        else:
+            hs = hull_spec(first)
+            x = np.linspace(0, hs.length, 300)
+            ax.fill_between(x, -hulls.canoe_depth(hs, x), 0, color="0.85", label="canoe body (centre line)")
         drawn = set()
         for i, (key, g) in enumerate(df.groupby(design)):
             r = g.iloc[0]
@@ -837,7 +991,7 @@ class Keel3D(Project):
                     + f": {cr * 1e3:.0f} -> {ct * 1e3:.0f} mm")
         ax.axhline(-float(first["draft"]), color="r", lw=0.8, ls=":", label="draft limit")
         ax.set_aspect("equal")
-        ax.set_xlim(0.0, hs.length)
+        ax.set_xlim(0.0, x[-1])
         ax.set_xlabel("x from the bow [m]")
         ax.set_ylabel("z [m], waterline 0")
         ax.grid(alpha=0.3)

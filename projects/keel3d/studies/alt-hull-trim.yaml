@@ -1,0 +1,33 @@
+study: alt-hull-trim
+project: keel3d
+description: >
+  Bow-down trim on the alternative hull at leeway 0, for the VPP's downwind
+  trims (up to 9 deg at heel 0-5): heel 0 and 10 at the attitude of 3.5,
+  5.8 and 8.0 N m bow down (vpp hydro iom-alternative --zip 0,10 --m-ext M:
+  about 3.3, 6.0 and 9.3 deg) across V_b; the static attitude is in
+  alt-water. alt-water-scout (run 20261030-021322, E3) found the hull's form
+  factor D_hull / (q S C_F,ITTC(Re_LWL)) up 3-4 / 6-7 / 11-12 % at those
+  trims at 1.5 and 2.4 m/s while S falls 2.6 / 4.9 / 7.5 % and LWL 8 / 15 /
+  22 %. The hull and keel together change only +1 to +2 % (the fin and bulb
+  lose some of what the hull gains), and at heel 10 the trim yaws the fin
+  (about trim x sin(heel)) into a side force at leeway 0. The hull and keel
+  as alt-water; hull_refine 1; fully turbulent kOmegaSST, wall functions.
+defaults:
+  hull_stl: file:private/iom-alternative.stl
+  fin_section: "file:ht35-t0725.dat"
+  fin_mean_chord: 0.090
+  fin_taper: 0.8
+  fin_x: 0.544
+  bulb_section: naca0011
+  bulb_cant: 2.0
+  Tu: 0.5
+  mesh: medium
+  hull_refine: 1
+  leeway: 0
+# iom-alternative: attitude at M_ext 3.5 / 5.8 / 8.0 N m, Z_ext 0 N (vpp hydro --zip 0,10 --m-ext M; 2c93e9e-dirty)
+zip:
+  heel: [0, 10, 0, 10, 0, 10]
+  sink: [-0.00202, -0.00242, -0.00416, -0.00459, -0.00896, -0.00943]   # m, + down
+  trim: [3.300, 3.309, 6.017, 6.018, 9.259, 9.250]   # deg, + bow down
+sweep:
+  speed: [0.5, 0.9, 1.5, 2.4, 3.6]

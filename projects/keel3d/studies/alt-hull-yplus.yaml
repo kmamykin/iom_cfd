@@ -1,0 +1,35 @@
+study: alt-hull-yplus
+project: keel3d
+description: >
+  The alternative hull's friction with the wall resolved (hull_yplus 1: a
+  first layer sized for y+ 1, about 2-3 as meshed, the hull's 14 layers
+  grown to its surface cells) against alt-water's wall functions at the same
+  conditions. alt-water-scout (run 20261030-021322) found the hull's friction
+  rising 3.5 and 4.6 % per hull_refine level as its y+ fell 30 -> 19 -> 9,
+  so the form factor on ITTC-57, k = 0.00-0.06, couldn't be pinned. Here:
+  leeway 0, heel 0 and 30 at their static attitudes, V_b 0.5 and 1.5 m/s,
+  hull_refine 1 (as alt-water). Not 3.6 m/s: meshed locally (2026-10-30),
+  its 14.6 um first layer didn't hold under the hull's 2.8 mm cells (y+
+  11-30 on 70 % of the hull, 138 illegal faces); at 1.5 m/s y+ was 2-3 over
+  82-92 % of it (README: hull_yplus). Fin and bulb keep their relative
+  layers (wall functions). Compare drag_hull_N, drag_hull_friction_N and
+  yplus_hull_mean with alt-water's rows.
+defaults:
+  hull_stl: file:private/iom-alternative.stl
+  fin_section: "file:ht35-t0725.dat"
+  fin_mean_chord: 0.090
+  fin_taper: 0.8
+  fin_x: 0.544
+  bulb_section: naca0011
+  bulb_cant: 2.0
+  Tu: 0.5
+  mesh: medium
+  hull_refine: 1
+  hull_yplus: 1.0
+  leeway: 0
+zip:
+  heel: [0, 30]
+  sink: [-0.00215, -0.00540]   # m, + down (vpp hydro iom-alternative --zip; M_ext 0, Z_ext 0)
+  trim: [-0.001, 0.131]        # deg, + bow down
+sweep:
+  speed: [0.5, 1.5]

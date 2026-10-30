@@ -25,6 +25,8 @@ uv run iomcfd vpp export-table keel3d bulb-section@20261019-203823 --select bulb
     --out boats/tables/keel-round-bulb.csv      # one keel3d design as a table for a boat file
 uv run iomcfd vpp export-table keel3d ht35-keel@<run id> --select mesh=medium --model grid \
     --out boats/tables/keel-ht35-3d.csv         # a heel x leeway x speed keel3d run as a grid table
+uv run iomcfd vpp export-table windage alt-air@<run id> --select mesh=fine \
+    --out boats/tables/windage-alt.csv          # a heel x wind angle windage run: drag, lift, moments
 uv run iomcfd vpp table build boats/tables/keel-ht35.yaml   # a table built by a model from a recipe
 uv run iomcfd vpp compare canoe-placeholder --set-b components.keel.forces.args.table=tables/keel-ht35.csv
 ```
@@ -55,6 +57,14 @@ Every command takes `--no-cache` to compute the boat's tables afresh.
   speed dependence is the CFD's, not the C_F(Re) scaling of a fit. A missing
   case is an error; `--fill` fills it along the leeway and flags it, as a
   `not_converged` case is.
+* **Windage exports.** A windage run over heel × `awa` at one wind speed
+  (every combination, one hull; `--select mesh=fine` drops the mesh checks)
+  exports as a `component: windage` grid table: per case the topsides' drag
+  D along and lift L across the apparent wind, the vertical force and K, M,
+  N about the bow, each per unit ½ρV_AW², with the projected area, its
+  centroid's height and each heel's attitude. `WindageTable` reads it. The
+  header names the STL by its sha256, and a boat whose hull differs is an
+  error.
 * **Built tables.** `vpp table build <recipe>.yaml` evaluates a model on a
   grid and writes its table (`model: grid`). The one recipe so far,
   `keel-section`, puts another fin section on a keel3d table's keel from 2D
@@ -209,7 +219,7 @@ tests build.
 | keel (fin + bulb) | `.keel.ParametricKeel` · `.keel.PolarFit` | A grid table (`model: grid`) is read by `KeelGrid`: X, Y, Z, K, M, N over heel × leeway × V_b, interpolated as loads / V_b² by cubic splines, so the speed dependence is the CFD's. The boat's is `tables/keel-ht35-3d.csv` (keel3d ht35-keel@20261027-215521: HT35 7.25 %, 2° cant; φ 0–65°, β_Y −2 to 10°, V_b 0.5–3.7 m/s). A one-speed table (`tables/keel-round-bulb.csv`, the NACA 0007 fin) gives fits instead: S_h = S0 + a β_Y and D_h = D0 + k S_h² per heel, with the hull's side force and yaw included; friction scales with C_F(Re), the rest with q, and T_eff is kept. `vertical: delta`: keel3d's vertical force less its zero-leeway value. Or `.keel.FinAndBulb`: lifting line on the fin and the bulb's friction | keel3d is fully turbulent (Tu 0.5 %), so a section's laminar-flow gain (HT35's, custom-section) is not in it, and a double body (no waves; above about 36° of heel the deck edge is under the mirror plane). Outside a grid the loads are held at its edge and flagged `extrapolated`, as are points nearest a not-converged node (ht35-keel: 8–10° at φ ≤ 35°, stalled). A one-speed fit table holds its 25° fit above 25° (flagged). The zero-leeway vertical force is the double body's suction under its mirror plane, so it is dropped (an assumption: the hull's real squat is not modelled) |
 | rudder | `.foils.ParametricFoil` · `.foils.LiftingLine` | lifting line (Helmbold slope) in the keel's elliptic downwash, at the mean chord's quarter point at mid-span (`sweep` of the line at `sweep_at` of the chord moves it: `sweep: 0, sweep_at: 1` is a vertical trailing edge) | no stall model; the lift slope ignores the sweep |
 | sails | `.sails.Rig` · `.sails.OrcSails` | ORC VPP Documentation 2026 §5: main and jib, flat depowering, effective height, the jib-downwind set standing in for a goose-winged jib (`sails_orc.py`) | full-scale coefficients at Re 10–100× an IOM's. Coefficients are copyright ORC, so the tables and their tests live in `boats/private/orc/` (git-ignored); **don't publish them** |
-| windage | `shape: hull` · `.windage.ProjectedArea` (`.windage.OrcWindage` = ORC's areas) | C_D 0.816 (ORC Table 5.12) on the hull's area above the water projected normal to the apparent wind, at its centroid, the wind read at the centroid's height; tabulated over heel at each heel's static attitude | exact for the faceted hull's silhouette when every line along the wind crosses it at most twice (a cockpit or tumblehome counts hidden faces); the mesh must be the hull alone, since the rig's windage is in the sail model |
+| windage | `shape: hull` · `.windage.ProjectedArea` (`.windage.OrcWindage` = ORC's areas; `.windage.WindageTable` = CFD) | C_D 0.816 (ORC Table 5.12) on the hull's area above the water projected normal to the apparent wind, at its centroid, the wind read at the centroid's height; tabulated over heel at each heel's static attitude. `WindageTable` (`args: {table: ...}`, a windage CFD export): drag and lift, the vertical force and the moments over heel × the wind's angle to the centreline (β_AW − β_Y), × ½ρV_AW² at the centroid's height; upwind a heeled hull's topsides make mostly side force and little drag (projects/windage/findings/alt-air-scout.md) | exact for the faceted hull's silhouette when every line along the wind crosses it at most twice (a cockpit or tumblehome counts hidden faces); the mesh must be the hull alone, since the rig's windage is in the sail model. The CFD table: uniform wind over a slip water surface, no rig, one wind speed (its Re effect is 1-4 %), each heel at its static attitude (a boat floating otherwise is a warning) |
 
 The hull's projected area at 30° heel with the wind 30° off the bow is
 0.040 m², against ORC's formula's 0.079 m², with its centroid 0.041 m above

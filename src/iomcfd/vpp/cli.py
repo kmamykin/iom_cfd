@@ -252,9 +252,12 @@ def cmd_sweep(args) -> None:
 
 
 def cmd_export_table(args) -> None:
-    from . import keel3d
+    from . import keel3d, windage
 
-    out = keel3d.export(args.run, _sets(args.select), args.out, model=args.model, fill=args.fill)
+    if args.tool == "windage":
+        out = windage.export(args.run, _sets(args.select), args.out)
+    else:
+        out = keel3d.export(args.run, _sets(args.select), args.out, model=args.model, fill=args.fill)
     print(f"wrote {out}")
 
 
@@ -300,6 +303,23 @@ def cmd_hydro(args) -> None:
         d = tab.at(float(h), 0.0)
         gz = d["rm"] / (b.mass.mass * 9.80665) * 1000
         print(f"{h:5d} {d['rm']:9.4f} {gz:8.1f} {d['sink'] * 1000:8.2f} {d['trim']:9.3f} {d['wetted_area']:10.4f}")
+    if args.zip:
+        _print_attitude_zip(b, [float(h) for h in args.zip.split(",")], args.m_ext, args.z_ext)
+
+
+def _print_attitude_zip(b, heels: list[float], m_ext: float, z_ext: float) -> None:
+    """The boat's attitude at each heel under M_ext and Z_ext (the hydro
+    table's, as the windage table uses it), as a CFD study's zip block."""
+    from .. import config
+
+    rows = [b.table.at(h, m_ext, z_ext) for h in heels]
+    flags = [h for h, r in zip(heels, rows) if r["extrapolated"]]
+    print(f"\n# {b.spec.name}: attitude at M_ext {m_ext:g} N m, Z_ext {z_ext:g} N (vpp hydro --zip; "
+          f"{config.git_describe()}){'; EXTRAPOLATED at heel ' + str(flags) if flags else ''}")
+    print("zip:")
+    print(f"  heel: [{', '.join(f'{h:g}' for h in heels)}]")
+    print(f"  sink: [{', '.join(f'{r['sink']:.5f}' for r in rows)}]   # m, + down")
+    print(f"  trim: [{', '.join(f'{r['trim']:.3f}' for r in rows)}]   # deg, + bow down")
 
 
 def add_parser(sub) -> None:
@@ -331,7 +351,11 @@ def add_parser(sub) -> None:
     q = boat_cmd("compare", cmd_compare, "race time of two boats (or one with --set-b changes)")
     q.add_argument("other", nargs="?", help="second boat file (default: the same with --set-b)")
     q.add_argument("--set-b", action="append", metavar="KEY=VALUE", help="override for boat B only")
-    boat_cmd("hydro", cmd_hydro, "mass budget and righting moment against heel")
+    q = boat_cmd("hydro", cmd_hydro, "mass budget and righting moment against heel")
+    q.add_argument("--zip", metavar="HEELS", help="also print the attitude at these heels (deg, comma-separated) as a "
+                   "CFD study's zip block (heel, sink, trim)")
+    q.add_argument("--m-ext", type=float, default=0.0, help="with --zip: pitch moment, N m, + bow down (default 0)")
+    q.add_argument("--z-ext", type=float, default=0.0, help="with --zip: vertical force, N, + up (default 0)")
     q = boat_cmd("sweep", cmd_sweep, "race time of variants (e.g. CFD designs) against the boat file")
     q.add_argument("--vary", action="append", metavar="KEY=V1,V2,..",
                    help="dotted path and values, e.g. components.keel.forces.args.table=a.csv,b.csv "
@@ -341,12 +365,14 @@ def add_parser(sub) -> None:
     q.add_argument("--full", action="store_true", help="re-search angle and flat (default: the baseline's)")
     q.add_argument("--out", help="output directory")
     q = vs.add_parser("export-table", help="a CFD run's results for one design as a VPP table (for a boat file)")
-    q.add_argument("tool", choices=["keel3d"])
+    q.add_argument("tool", choices=["keel3d", "windage"], help="keel3d: a keel table; windage: the topsides' "
+                   "drag, lift and moments over heel x wind angle (one wind speed)")
     q.add_argument("run", help="<study>@<run id> (in $IOMCFD_SOURCE_RUNS, then runs/) or a results.csv")
     q.add_argument("--select", action="append", metavar="KEY=VALUE", help="the design's parameters (repeat)")
     q.add_argument("--out", required=True, help="the table, e.g. boats/tables/<name>.csv")
     q.add_argument("--model", choices=["fit", "grid"], default="fit",
-                   help="fit: raw points at one speed, fitted by the boat; grid: heel x leeway x speed loads, as run")
+                   help="keel3d: fit: raw points at one speed, fitted by the boat; grid: heel x leeway x speed loads, "
+                   "as run (windage: always a grid)")
     q.add_argument("--fill", action="store_true", help="grid: fill missing cases along the leeway (flagged)")
     q.set_defaults(func=cmd_export_table)
     q = vs.add_parser("table", help="build a table from a recipe file (boats/tables/<name>.yaml)")

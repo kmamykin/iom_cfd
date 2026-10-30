@@ -1,0 +1,25 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| windage template (OpenFOAM v2512). Values come from                         |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      surfaceFeatureExtractDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// The deck edge, the transom and the stem: edges sharper than 30 deg.
+hull.stl
+{
+    extractionMethod    extractFromSurface;
+    includedAngle       150;
+    subsetFeatures
+    {
+        nonManifoldEdges    no;
+        openEdges           yes;
+    }
+    writeObj            no;
+}

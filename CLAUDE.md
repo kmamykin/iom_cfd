@@ -36,7 +36,10 @@
 - Private files: `boats/private/` (git-ignored; in a worktree a link to the
   main checkout's) holds what must never be committed: hull STLs (`hulls/`)
   and the ORC 2026 sail tables with their tests (`orc/`, copyright ORC;
-  pytest collects them from there when present). Boat files that use the
+  pytest collects them from there when present). CFD studies name a hull
+  as `hull_stl: file:private/<name>.stl` through `geometry/private/`
+  (git-ignored links into `boats/private/hulls`; `gcp submit` uploads
+  them to the bucket, `.dockerignore` keeps them out of the image). Boat files that use the
   hulls (`boats/iom-alternative.yaml`) and the numbers derived from them
   (particulars, RM; docs/hulls.md) may be committed.
 - Website: `site/` (Quarto, GitHub Pages on push to main; see

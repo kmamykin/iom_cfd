@@ -26,6 +26,7 @@ from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import root
 
 from ..geometry import stl
+from ..geometry.waterline import _clip, above_water, placement  # noqa: F401 (above_water: used by windage)
 from ..physics import G, fresh_water
 
 
@@ -44,34 +45,6 @@ class Submerged:
     i_t: float = 0.0  # and about the x axis through its centroid (BM = i_t / volume) [m^4]
     x_fwd: float = 0.0  # the waterline's ends: lwl = x_aft − x_fwd [m]
     x_aft: float = 0.0
-
-
-def _cut(p: np.ndarray, q: np.ndarray) -> np.ndarray:
-    """Where the edges p -> q (p at or below z = 0, q above) meet the plane."""
-    t = p[:, 2] / (p[:, 2] - q[:, 2])
-    return p + t[:, None] * (q - p)
-
-
-def _clip(v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """The triangles of corners v (M, 3, 3) clipped to z ≤ 0 (K, 3, 3), and
-    the points where crossing edges meet the plane."""
-    below = v[:, :, 2] <= 0.0
-    nb = below[:, 0].astype(np.int8) + below[:, 1] + below[:, 2]
-    k3 = np.arange(3)
-    # One corner below: keep the triangle (a, p_ab, p_ac), a the corner below.
-    v1, b1 = v[nb == 1], below[nb == 1]
-    r1 = np.take_along_axis(v1, ((np.argmax(b1, axis=1)[:, None] + k3) % 3)[:, :, None], axis=1)
-    a, b, c = r1[:, 0], r1[:, 1], r1[:, 2]
-    pab, pac = _cut(a, b), _cut(a, c)
-    # Two corners below: the quad (a, b, p_bc, p_ca), c the corner above.
-    # Rolling the corners keeps their cyclic order, so the orientation too.
-    v2, b2 = v[nb == 2], below[nb == 2]
-    r2 = np.take_along_axis(v2, ((np.argmin(b2, axis=1)[:, None] + 1 + k3) % 3)[:, :, None], axis=1)
-    a2, b2_, c2 = r2[:, 0], r2[:, 1], r2[:, 2]
-    pbc, pca = _cut(b2_, c2), _cut(a2, c2)
-    T = np.concatenate([v[nb == 3], np.stack([a, pab, pac], axis=1),
-                        np.stack([a2, b2_, pbc], axis=1), np.stack([a2, pbc, pca], axis=1)])
-    return T, np.concatenate([pab, pac, pbc, pca])
 
 
 def _submerged(v: np.ndarray) -> Submerged:
@@ -126,14 +99,6 @@ def submerged(surface: stl.Surface) -> Submerged:
     return _submerged(surface.vertices[surface.triangles])
 
 
-def above_water(v: np.ndarray) -> np.ndarray:
-    """The triangles of corners v (M, 3, 3, earth frame, outward) clipped to
-    z ≥ 0, still outward."""
-    f = v * np.array([1.0, 1.0, -1.0])
-    T, _ = _clip(f[:, ::-1])  # mirrored in the plane, corners reversed to stay outward
-    return (T * np.array([1.0, 1.0, -1.0]))[:, ::-1]
-
-
 def projected_area(T: np.ndarray, d) -> tuple[float, np.ndarray]:
     """The area of the triangles T (K, 3, 3) facing the direction d (unit)
     projected on the plane normal to it, and the centroid of that area. The
@@ -144,13 +109,6 @@ def projected_area(T: np.ndarray, d) -> tuple[float, np.ndarray]:
     w = np.maximum(n @ np.asarray(d, float), 0.0)
     A = float(w.sum())
     return A, (w @ T.mean(axis=1) / A if A > 0 else np.zeros(3))
-
-
-def placement(heel: float, trim: float, sink: float, x_trim: float) -> tuple[np.ndarray, np.ndarray]:
-    """(R, t) with p_earth = R p_boat + t, for `place`."""
-    Rx, Ry = stl.rotation("x", heel), stl.rotation("y", -trim)  # bow down = −y rotation for x aft
-    a = np.array([x_trim, 0.0, 0.0])
-    return Ry @ Rx, a - Ry @ a - np.array([0.0, 0.0, sink])
 
 
 def place(surface: stl.Surface, heel: float, trim: float, sink: float, x_trim: float) -> stl.Surface:

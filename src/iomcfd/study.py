@@ -69,7 +69,7 @@ EXECUTION_KEYS = {"np", "relax_U", "relax_turb", "relax_transition", "snapshot_i
 
 # Parameters added after runs existed, left out of the hash while empty
 # (their default), so finished cases of earlier runs keep their hash.
-OPTIONAL_KEYS = {"start_from", "mesh_shift_only"}
+OPTIONAL_KEYS = {"start_from", "mesh_shift_only", "hull_stl", "sink", "trim", "hull_refine", "hull_yplus"}
 
 
 # Scientific notation PyYAML (YAML 1.1) leaves as a string, e.g. 6.0e6 or 1e5.

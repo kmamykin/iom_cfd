@@ -171,6 +171,73 @@ With the λ 0.8, 90 mm fin:
 * Domain: 1.5 L ahead, 3 L behind the stern, 1.5 L to each side, 1.2 L below
   the bulb (L = hull length); far boundaries freestream.
 
+### An STL hull (`hull_stl`)
+
+The water side of a hull split at the waterline (the air side is the
+windage project). `hull_stl: file:private/iom-alternative.stl` (a closed
+hull in the boat frame, in mm, under `geometry/`; `geometry/private` holds
+links to `boats/private/hulls`, git-ignored, uploaded to the bucket by `gcp
+submit`) replaces the canoe body:
+
+* **Attitude.** `sink` and `trim` (a heel's static attitude from
+  `vpp hydro <boat> --zip <heels>`; `--m-ext` for a trimmed one) place the
+  whole boat as the VPP floats it: heel about the x axis at the waterline,
+  trim about the middle of the hull's length, then sink. Moments are about
+  the placed bow on the waterline (`cofR`).
+* **Cut and mirrored.** The placed hull is cut at z = 0 and closed by its
+  mirror image (`iomcfd.geometry.waterline.split`), so it crosses the mirror
+  plane at its own angle. At 60° of heel (xcoarse) the real hull cut 5 mm
+  above the plane and capped flat gave 33 highly skewed faces and prism
+  layers over 61 % of the hull's target thickness; the mirror 7 and 80 %.
+* **The fin's root.** At the hull's bottom under the root quarter chord;
+  the fin runs up into the hull by half the hull's depth there, or by the
+  rise of the hull's bottom anywhere under the root section (rocker,
+  deadrise; both faces, leading to trailing edge) plus a quarter of that
+  depth if more, and the case refuses to render if the root's top would
+  leave the hull or reach the waterline. On the alternative hull at
+  fin_x 0.544 the bottom rises 2.0 mm to the root's trailing edge: the
+  extension is half the 59.0 mm depth, 29.5 mm.
+* **Junction lines.** `surfaceFeatureExtract` with `intersectionMethod
+  self` gives snappyHexMesh the fin-hull and fin-bulb junction lines (about
+  740 edges). The canoe body's cases keep `region`, which finds none (0 edges
+  in every run so far: those junctions were snapped by
+  `multiRegionFeatureSnap` alone).
+* **`hull_refine`** (0 / 1 / 2) adds levels to the hull's surface and box:
+  hull cells 5.6/2.8, 2.8/1.4 or 1.4/0.7 mm with the 90 mm fin's background
+  cell (the alt-water-scout study picks one).
+* **`hull_yplus`** (e.g. 1) resolves the hull's wall instead of modelling
+  it: alt-water-scout found the hull's friction rising 3.5 and 4.6 % per
+  `hull_refine` level as its y+ fell 30 → 19 → 9 through the buffer layer,
+  so wall functions leave its form factor uncertain by about as much as k.
+  * The hull gets its own layers (`system/include/hullLayers`, after
+    `"boat_.*"`): 14 of them, the first sized for that y+ from ITTC-57's
+    friction velocity at the case's speed and Re_LWL, the last 0.3 of the
+    hull's coarser surface cell (`firstAndRelativeFinal`). snappyHexMesh
+    works out the expansion, which is 1.19 / 1.29 / 1.37 at 0.5 / 1.5 /
+    3.6 m/s on `hull_refine` 1 (`hullExpansion`).
+  * The layers are added in 3 passes (`nOuterIter`,
+    `system/include/layerPasses`); the fin and bulb keep `n_layers` relative
+    layers.
+  * **snappyHexMesh doesn't reach y+ 1.** Tried at heel 0, 1.5 m/s,
+    `hull_refine` 1, measured from the first cells' volumes with ITTC-57's
+    friction velocity:
+    * One pass: 19 layers left 26 % of the hull above y+ 30.
+    * 3 passes, 14 layers: layers on 99.9 % of the hull. The first cell was
+      88 µm against the 32 µm asked for, y+ ≤ 3 on 82 % of the area and
+      ≤ 5 on 92 %.
+    * Asking for a thinner first layer (17 layers) or five passes gave
+      thicker first cells and illegal faces.
+    * At 3.6 m/s (14.6 µm asked for, expansion 1.37) it failed: first cells
+      of 243 µm, y+ 11-30 on 70 % of the hull, 138 illegal faces.
+
+    So on `hull_refine` 1, `hull_yplus: 1` gives about y+ 2-3 up to about
+    1.5 m/s, inside the viscous sublayer, where the Spalding wall function
+    is exact; above that the first layer is too thin for the hull's 2.8 mm
+    cells (a finer hull surface, `hull_refine` 2, is untried). The result's
+    `yplus_hull_mean` is the measure.
+* L, the hull's volume, LCB, wetted area and waterline length (`hull_lwl`,
+  for `Re_hull`) come from the cut hull at the case's attitude.
+
 ## Mesh levels
 
 Background cell = fin mean chord. Fin surface at level 6-7 on `medium`
@@ -353,6 +420,19 @@ slope V_b dD_h/dV_b by speed, default the foil2d estimates 0.40 / 0.81 /
   0011 bulb at 2° nose up) as the VPP's keel polar: φ 0-65° × β_Y −2 to
   10° × V_b 0.5-3.7 m/s on medium (270 cases), plus fine at 0 and 4°.
   Exported with `vpp export-table --model grid`.
+* `alt-hull-smoke`: the alternative hull (private STL) at 30° of heel with
+  iom-alternative's keel, xcoarse, 20 iterations.
+* `alt-water-scout`: the alternative hull with iom-alternative's keel:
+  `hull_refine` 0 / 1 / 2, the hull's y+ over the VPP's speeds, and whether
+  trim changes the hull's form factor; settles the alt-water study (heel ×
+  leeway × V_b for the VPP).
+* `alt-water`: that study: 7 heels at their static attitudes × β_Y −2 to 8°
+  × V_b 0.5-3.6 m/s, `hull_refine` 1, as the VPP's keel table for
+  iom-alternative. `alt-hull-trim`: β_Y 0 at 3.3 / 6.0 / 9.3° bow-down trim,
+  φ 0 and 10°, across V_b.
+* `alt-hull-yplus`: the hull's wall resolved (`hull_yplus` 1) at β_Y 0,
+  φ 0 and 30°, V_b 0.5 / 1.5 / 3.6 m/s, against alt-water's rows: the
+  hull's friction and form factor without wall functions.
 
 ## Limitations and next steps
 
