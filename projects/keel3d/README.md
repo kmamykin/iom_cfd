@@ -210,35 +210,41 @@ submit`) replaces the canoe body:
   `hull_refine` level as its y+ fell 30 → 19 → 9 through the buffer layer,
   so wall functions leave its form factor uncertain by about as much as k.
   * The hull gets its own layers (`system/include/hullLayers`, after
-    `"boat_.*"`): 14 of them, the first sized for that y+ from ITTC-57's
-    friction velocity at the case's speed and Re_LWL, the last 0.3 of the
-    hull's coarser surface cell (`firstAndRelativeFinal`). snappyHexMesh
-    works out the expansion, which is 1.19 / 1.29 / 1.37 at 0.5 / 1.5 /
-    3.6 m/s on `hull_refine` 1 (`hullExpansion`).
+    `"boat_.*"`). The first is sized for that y+ from ITTC-57's friction
+    velocity at the case's speed and Re_LWL; the last is 0.3 of the hull's
+    coarser surface cell (`firstAndRelativeFinal`). There are as many as
+    an expansion of about 1.3 needs, at most 14. On `hull_refine` 1 that is
+    10 / 12 / 14 / 14 layers at 0.5 / 0.9 / 1.5 / 2.4 m/s (`hullLayers`,
+    `hullExpansion`). A case that would need more than 1.35 is refused when
+    it is rendered: 3.6 m/s, at 1.37.
   * The layers are added in 3 passes (`nOuterIter`,
     `system/include/layerPasses`); the fin and bulb keep `n_layers` relative
     layers.
-  * **snappyHexMesh doesn't reach y+ 1.** Tried at heel 0, 1.5 m/s,
-    `hull_refine` 1, measured from the first cells' volumes with ITTC-57's
-    friction velocity:
-    * One pass: 19 layers left 26 % of the hull above y+ 30.
-    * 3 passes, 14 layers: layers on 99.9 % of the hull. The first cell was
-      88 µm against the 32 µm asked for, y+ ≤ 3 on 82 % of the area and
-      ≤ 5 on 92 %.
-    * Asking for a thinner first layer (17 layers) or five passes gave
-      thicker first cells and illegal faces.
-    * At 3.6 m/s (14.6 µm asked for, expansion 1.37) it failed: first cells
-      of 243 µm, y+ 11-30 on 70 % of the hull, 138 illegal faces.
+  * **snappyHexMesh doesn't reach y+ 1.** Tried at heel 0, `hull_refine`
+    1, measured from the first cells' volumes with ITTC-57's friction
+    velocity:
+    * 1.5 m/s, one pass: 19 layers left 26 % of the hull above y+ 30.
+    * 1.5 m/s, 3 passes, 14 layers: layers on 99.9 % of the hull. The first
+      cell was 88 µm against the 32 µm asked for, y+ ≤ 3 on 82 % of the
+      area and ≤ 5 on 92 %.
+    * 1.5 m/s, a thinner first layer (17 layers) or five passes: thicker
+      first cells and illegal faces.
+    * 0.5 m/s with 14 layers (expansion 1.19, a 5.3 mm stack): 26-93
+      inverted cells in the corner between the hull's bottom and the fin,
+      on every machine (alt-hull-yplus runs 20261030-182918 on
+      n2-standard-16 and 20261030-191930 on c2d-standard-16, and locally).
+      Stopping layers at sharp corners (`featureAngle` 90) or near
+      unextruded points (`nGrow` 1) made it worse. With 10 layers at 1.29
+      it meshed: y+ ≤ 3 on 98 % of the hull.
+    * 3.6 m/s, 14 layers at 1.37: first cells of 243 µm, y+ 11-30 on 70 %
+      of the hull, 138 illegal faces.
 
-    So on `hull_refine` 1, `hull_yplus: 1` gives about y+ 2-3 up to about
-    1.5 m/s, inside the viscous sublayer, where the Spalding wall function
-    is exact; above that the first layer is too thin for the hull's 2.8 mm
-    cells (a finer hull surface, `hull_refine` 2, is untried). The result's
-    `yplus_hull_mean` is the measure. In alt-hull-yplus (run
-    20261030-182918, n2-standard-16) it was 2.4 and 3.9 at 1.5 m/s (φ 0 and
-    30°) and 1.6 at 0.5 m/s (φ 30°). At φ 0°, 0.5 m/s the layers left 832
-    illegal faces and 86 inverted cells, and the case stopped at checkMesh:
-    the three passes aren't always clean.
+    So on `hull_refine` 1, `hull_yplus: 1` gives about y+ 1.5-4 up to
+    2.4 m/s, inside the viscous sublayer, where the Spalding wall function
+    is exact. Above that, the first layer is too thin for the hull's 2.8 mm
+    cells; a finer hull surface (`hull_refine` 2) is untried. The result's
+    `yplus_hull_mean` is the measure: in alt-hull-yplus it was 2.4 and 3.9
+    at 1.5 m/s (φ 0 and 30°) and 1.6 at 0.5 m/s (φ 30°).
 * L, the hull's volume, LCB, wetted area and waterline length (`hull_lwl`,
   for `Re_hull`) come from the cut hull at the case's attitude.
 

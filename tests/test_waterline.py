@@ -87,9 +87,13 @@ def test_hull_yplus_layers(keel3d, tmp_path):
     V, L, nu = 1.5, keel3d.defaults["hull_length"], d["nu"]
     u_tau = V * math.sqrt(0.075 / (math.log10(V * L / nu) - 2) ** 2 / 2)
     assert d["hullFirstLayer"] == pytest.approx(2 * nu / u_tau)
-    # 14 layers to 0.3 of the hull's coarser surface cell: the expansion that needs
+    # to 0.3 of the hull's coarser surface cell at an expansion of about 1.3: as many layers as that needs, ≤ 14
     final = 0.3 * d["baseCell"] / 2 ** d["hullLevelMin"]
-    assert d["hullLayers"] == 14 and d["hullExpansion"] == pytest.approx((final / d["hullFirstLayer"]) ** (1 / 13))
+    n = d["hullLayers"]
+    assert n <= 14 and d["hullExpansion"] == pytest.approx((final / d["hullFirstLayer"]) ** (1 / (n - 1)))
+    assert d["hullExpansion"] <= 1.3 < (final / d["hullFirstLayer"]) ** (1 / (n - 2))
+    slow = keel3d.derive({**p, "speed": 0.5, "hull_yplus": 1.0})
+    assert slow["hullLayers"] < n and slow["hullExpansion"] <= 1.3
     inc = tmp_path / "yplus" / "system" / "include"
     text = (inc / "hullLayers").read_text()
     assert "boat_hull" in text and "firstAndRelativeFinal" in text and "$hullFirstLayer" in text
@@ -99,8 +103,10 @@ def test_hull_yplus_layers(keel3d, tmp_path):
     assert not (tmp_path / "plain" / "system" / "include" / "layerPasses").exists()
     # every other entry as without it
     assert {k: v for k, v in d.items() if k not in ("hullLayers", "hullFirstLayer", "hullExpansion")} == plain
-    with pytest.raises(ValueError, match="expansion"):
+    with pytest.raises(ValueError, match="isn't thinner"):
         keel3d.derive({**p, "hull_yplus": 300.0})
+    with pytest.raises(ValueError, match="expansion of"):  # too fast for these cells: refused
+        keel3d.derive({**p, "speed": 6.0, "hull_yplus": 1.0})
 
 
 def test_fin_root_runs_up_into_a_rockered_hull(keel3d, tmp_path, monkeypatch):

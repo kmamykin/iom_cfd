@@ -10,6 +10,6 @@
 recipe: hull-form-factor
 source: alt-water@20261030-155529
 select: {mesh: medium, hull_refine: 1}       # not the mesh checks
-resolved: [alt-hull-yplus@20261030-182918, alt-hull-yplus@20261030-191930]
+resolved: [alt-hull-yplus@20261030-182918, alt-hull-yplus@20261030-201233]   # 191930 failed (14 layers at 0.5 m/s)
 reference: [alt-water-scout@20261030-021322]  # wall functions where alt-water has no case
 out: hull-k-alt.csv

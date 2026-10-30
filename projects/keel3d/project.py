@@ -67,14 +67,23 @@ CONDITION = ["speed", "heel", "sink", "trim", "mesh", "mesh_shift", "mesh_shift_
 # (rocker, deadrise), so it meets the hull all round its root.
 ROOT_MARGIN = 0.25
 
-# hull_yplus: the hull gets this many layers, from the first (sized for the
-# y+) to the last, this fraction of the hull's coarser surface cell
-# (snappyHexMesh works out the expansion), added in this many passes
-# (nOuterIter). Heel 0, 1.5 m/s, hull_refine 1 (2026-10-30): in one pass,
-# 19 layers left 26 % of the hull above y+ 30; in three, 14 layers covered
-# 99.9 % of it, the first cell 88 µm against the 32 µm asked for (y+ ≤ 3
-# on 82 % of the area, ≤ 5 on 92 %); 17 or 19 layers, or five passes, gave
-# thicker first cells and illegal faces.
+# hull_yplus: the hull's layers grow from the first (sized for the y+) to the
+# last, YPLUS_FINAL of the hull's coarser surface cell, at about
+# YPLUS_EXPANSION (as many layers as that needs, at most YPLUS_LAYERS;
+# snappyHexMesh works out the exact ratio), added in YPLUS_PASSES passes
+# (nOuterIter). Heel 0, hull_refine 1 (2026-10-30), y+ from the first cells'
+# volumes with ITTC-57's friction velocity:
+# * 1.5 m/s: in one pass 19 layers left 26 % of the hull above y+ 30; in
+#   three, 14 layers (1.29) covered 99.9 % of it, y+ ≤ 3 on 82 % of the
+#   area (first cell 88 µm, 32 asked for); 17 or 19 layers, or five passes,
+#   gave thicker first cells and illegal faces.
+# * 0.5 m/s: 14 layers (1.19, a 5.3 mm stack) inverted cells in the corner
+#   between the hull's bottom and the fin, every time (n2, c2d, local);
+#   10 layers (1.29) meshed, y+ ≤ 3 on 98 %.
+# * 3.6 m/s: 14 layers at 1.37 left first cells of 243 µm (y+ 11-30) and
+#   illegal faces: past YPLUS_EXPANSION_MAX the case is refused.
+YPLUS_EXPANSION = 1.3
+YPLUS_EXPANSION_MAX = 1.35
 YPLUS_LAYERS = 14
 YPLUS_FINAL = 0.3
 YPLUS_PASSES = 3
@@ -86,19 +95,25 @@ def hull_layers(p: dict[str, Any], base_cell: float, nu: float, lwl: float) -> d
     (y+ at the cell's centre, half its height, as OpenFOAM's yPlus reports it;
     the local y+ is higher near the bow, lower aft), the last YPLUS_FINAL of
     the hull's coarser surface cell (snappyHexMesh's firstAndRelativeFinal),
-    YPLUS_LAYERS of them; `hullExpansion` is the ratio that needs there (less
-    where the cells are finer). snappyHexMesh leaves the first cell thicker
-    than asked for: see YPLUS_LAYERS."""
+    enough layers for an expansion of about YPLUS_EXPANSION, at most
+    YPLUS_LAYERS; `hullExpansion` is the ratio that gives there (less where
+    the cells are finer). snappyHexMesh leaves the first cell thicker than
+    asked for (y+ about 2-3)."""
     V = float(p["speed"])
     cf = 0.075 / (math.log10(V * lwl / nu) - 2.0) ** 2
     first = 2.0 * float(p["hull_yplus"]) * nu / (V * math.sqrt(cf / 2.0))
     level = MESH_LEVELS[p["mesh"]]["hull"][0] + int(p.get("hull_refine") or 0)
     final = YPLUS_FINAL * base_cell / 2**level
-    r = (final / first) ** (1.0 / (YPLUS_LAYERS - 1))
-    if not 1.0 < r <= 1.5:
-        raise ValueError(f"hull_yplus {p['hull_yplus']}: {YPLUS_LAYERS} layers from {first * 1e3:.4f} mm to "
-                         f"{final * 1e3:.2f} mm need an expansion of {r:.2f} (1-1.5)")
-    return {"hullFirstLayer": first, "hullLayers": YPLUS_LAYERS, "hullExpansion": r}
+    if final <= first:
+        raise ValueError(f"hull_yplus {p['hull_yplus']}: a {first * 1e3:.4f} mm first layer isn't thinner than "
+                         f"the last ({final * 1e3:.2f} mm); use null (relative layers)")
+    n = min(YPLUS_LAYERS, 1 + math.ceil(math.log(final / first) / math.log(YPLUS_EXPANSION)))
+    r = (final / first) ** (1.0 / (n - 1))
+    if r > YPLUS_EXPANSION_MAX:
+        raise ValueError(f"hull_yplus {p['hull_yplus']}: {n} layers from {first * 1e3:.4f} mm to {final * 1e3:.2f} mm "
+                         f"need an expansion of {r:.2f}, over {YPLUS_EXPANSION_MAX}: snappyHexMesh doesn't hold so "
+                         "thin a first layer under these cells (a finer hull surface, hull_refine, might)")
+    return {"hullFirstLayer": first, "hullLayers": n, "hullExpansion": r}
 
 
 def hull_surface(p: dict[str, Any]) -> stl.Surface:
