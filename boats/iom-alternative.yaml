@@ -81,12 +81,16 @@ components:
     controls:
       flat: {lo: 0.53}            # ORC FLAT_MIN (§5.1.3)
 
-  windage:                        # the hull above the water, projected on the plane normal to the apparent wind
+  windage:                        # the hull above the water
     shape: hull
     forces:
-      class: .windage.ProjectedArea   # .windage.OrcWindage = ORC Table 5.12's areas (rung 0)
+      # windage CFD of this hull's topsides (projects/windage alt-air@20261030-155540, fine mesh, 4 m/s,
+      # each heel's static attitude; no rig, uniform wind): drag, lift, vertical force and moments over
+      # heel x wind angle. Against the drag-only .windage.ProjectedArea (args: {cd: 0.816}, ORC Table
+      # 5.12) the weighted race time is -1.70 % (2026-10-30), all of it upwind
+      class: .windage.WindageTable
       args:
-        cd: 0.816                 # ORC Table 5.12
+        table: tables/windage-alt.csv
 
 mass:                             # component masses and centres (boat frame, m)
   items:
