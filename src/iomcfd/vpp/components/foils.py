@@ -41,9 +41,10 @@ def section_form_factor(t_c: float) -> float:
 @dataclass
 class ParametricFoil:
     """A straight-tapered foil hung from the host's bottom (a rudder):
-    `mount: {host: <hull>, x: <root leading edge>}`. Its planform acts at the
-    mean chord's quarter point at mid-span; it has an `angle` control (held
-    at 0 unless the boat file makes it the yaw-balance unknown)."""
+    `mount: {host: <hull>, x: <root leading edge>}`, swept by `sweep`. Its
+    planform acts at the mean chord's quarter point at mid-span; it has an
+    `angle` control (held at 0 unless the boat file makes it the yaw-balance
+    unknown)."""
 
     section: str
     root_chord: float
@@ -52,14 +53,19 @@ class ParametricFoil:
     x: float  # quarter chord of the mean chord, m aft of the bow
     z_root: float  # the host's bottom there [m]
     controls: tuple[Control, ...] = (Control("angle", "hold"),)
+    sweep_le: float = 0.0  # the leading edge's sweep [deg, + tip aft]
 
     @classmethod
     def build(cls, ctx, name: str, mount: dict | None = None, *, root_chord: float, tip_chord: float, span: float,
-              section: str = "naca0008") -> "ParametricFoil":
-        chord = 0.5 * (float(root_chord) + float(tip_chord))
-        x = float(mount["x"]) + 0.25 * chord
-        return cls(str(section), float(root_chord), float(tip_chord), float(span), x,
-                   -ctx.host(mount).depth_at(x))
+              section: str = "naca0008", sweep: float = 0.0, sweep_at: float = 0.0) -> "ParametricFoil":
+        """`sweep` [deg, + tip aft] of the line at `sweep_at` of the chord:
+        0 the leading edge (default), 0.25 the quarter chord, 1 the trailing
+        edge (`sweep: 0, sweep_at: 1` is a vertical trailing edge)."""
+        cr, ct, b = float(root_chord), float(tip_chord), float(span)
+        le = b * math.tan(math.radians(float(sweep))) + float(sweep_at) * (cr - ct)  # the tip's leading edge aft of the root's
+        chord = 0.5 * (cr + ct)
+        x = float(mount["x"]) + 0.5 * le + 0.25 * chord
+        return cls(str(section), cr, ct, b, x, -ctx.host(mount).depth_at(x), sweep_le=math.degrees(math.atan2(le, b)))
 
     @property
     def chord(self) -> float:

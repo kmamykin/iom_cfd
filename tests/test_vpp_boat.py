@@ -7,12 +7,12 @@ import pandas as pd
 import pytest
 
 from iomcfd import config
+from iomcfd.vpp import sails_orc
 from iomcfd.vpp.components.base import State, Wind
 from iomcfd.vpp.components.foils import LiftingLine, lift_slope
 from iomcfd.vpp.components.keel import PolarFit
 
-ORC_DATA = config.home() / "src" / "iomcfd" / "vpp" / "data" / "orc2026_sails.yaml"
-needs_orc = pytest.mark.skipif(not ORC_DATA.exists(), reason="the ORC 2026 sail tables are not in the repo")
+needs_orc = pytest.mark.skipif(not sails_orc.DATA.exists(), reason="the ORC 2026 sail tables are not in boats/private/orc")
 
 D_HULL, D0, K, A, S0 = 0.40, 0.30, 0.004, 1.3, 0.05
 
@@ -109,7 +109,7 @@ def test_race_and_rates_on_the_built_boat(built):
         assert 0 <= r.up.heel < 60
     assert weighted(rows) == pytest.approx(PINNED_RACE_S, rel=1e-9)
     rs, summary = rates(built.boat, built.course, built.wind, rows, standard(built.boat))
-    assert summary["drag +0.01 N"] > 0
+    assert summary["fixed drag +0.01 N"] > 0
     assert summary["RM_φ +1 %"] < 0
 
 

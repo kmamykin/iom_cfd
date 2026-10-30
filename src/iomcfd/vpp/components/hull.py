@@ -116,6 +116,11 @@ class MeshHull:
             path = ctx.resolve(ref)
         except FileNotFoundError:
             path = config.geometry_dir() / ref
+            if not path.is_file():
+                where = [str(ctx.spec.path.parent)] if ctx.spec.path else []
+                raise FileNotFoundError(f"{name}: no {ref} next to the boat file, in the repo or in the geometry "
+                                        f"directory ({', '.join([*where, str(config.home()), str(config.geometry_dir())])}); "
+                                        "private hull lines go in boats/private/, which git ignores") from None
         s = stlmod.read(path).scaled(float(scale))
         for axis, deg in rotate or []:
             s = s.rotated(str(axis), float(deg))

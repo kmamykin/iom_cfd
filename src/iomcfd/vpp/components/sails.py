@@ -37,11 +37,15 @@ class Rig:
     controls: tuple = ()
 
     @classmethod
-    def build(cls, ctx, name: str, mount: dict | None = None, *, rig: str = "iom_a", mast_x: float = 0.40,
-              deck: float = 0.06) -> "Rig":
+    def build(cls, ctx, name: str, mount: dict | None = None, *, rig: str = "iom_a", main_tack: list | None = None,
+              jib_tack: list | None = None, sheer: float | None = None) -> "Rig":
+        """main_tack [x, y, z]: where the boom meets the mast (default
+        geometry/sails.py's, on a flat deck 0.06 m up); jib_tack and sheer
+        (the deck at the mast) default from it (sails_orc.iom_a_rig_geometry)."""
         if rig != "iom_a":
             raise NotImplementedError(f"{name}: rig {rig}: only iom_a so far")
-        return cls(sails_orc.iom_a_rig_geometry(mast_x=float(mast_x), deck=float(deck)))
+        return cls(sails_orc.iom_a_rig_geometry(sails_orc.MAIN_TACK if main_tack is None else main_tack, jib_tack,
+                                                None if sheer is None else float(sheer)))
 
 
 @dataclass

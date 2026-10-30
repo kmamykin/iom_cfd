@@ -163,15 +163,19 @@ class PolarFit:
         _check(ctx, name, table, t, shape)
         if vertical not in ("none", "delta"):
             raise ValueError(f"{name}: vertical {vertical}: none or delta")
+        dx = _moved(t, shape)
+        moved = f", moved {dx * 1000:+.1f} mm" if dx else ""
         if t.header.get("model") == "grid":
-            return KeelGrid.from_table(t, name, ctx.water.rho, shape, vertical == "delta")
+            g = KeelGrid.from_table(t, name, ctx.water.rho, shape, vertical == "delta")
+            return replace(g, dx=dx, provenance=g.provenance + moved)
         f = cls.from_table(t, max_leeway, friction_factor, name)
         if vertical == "none":
             f.z1, f.z2 = [], []
         pf = shape.planform()
         src = t.header.get("source") or {}
         return replace(f, nu=ctx.water.nu, rho=ctx.water.rho, fin_area=pf["area"], fin_aspect=pf["aspect"],
-                       covers=_covers(t, shape), provenance=f"{table} ({src.get('run', '')} {src.get('select', '')})")
+                       x_clr=[x + dx for x in f.x_clr], covers=_covers(t, shape),
+                       provenance=f"{table} ({src.get('run', '')} {src.get('select', '')}){moved}")
 
 
     @staticmethod
@@ -310,10 +314,21 @@ class PolarFit:
         return {"source": self.provenance}
 
 
-def _check(ctx, name: str, table: str, t: tables.Table, shape) -> None:
-    """A keel table must be of this shape's keel; a different hull is a warning."""
+PLACE_KEYS = ("fin_x",)  # where the keel sits, not what it is: a table moves with it (`_moved`)
+
+
+def _moved(t: tables.Table, shape) -> float:
+    """How far aft of the table's keel this shape's sits [m]: the table's
+    load points move with it."""
     tp = t.header.get("params") or {}
-    diff = [k for k, v in shape.params().items() if k in tp and not _same(v, tp[k])]
+    return float(shape.params()["fin_x"]) - float(tp["fin_x"]) if "fin_x" in tp else 0.0
+
+
+def _check(ctx, name: str, table: str, t: tables.Table, shape) -> None:
+    """A keel table must be of this shape's keel (wherever it sits along the
+    hull); a different hull is a warning."""
+    tp = t.header.get("params") or {}
+    diff = [k for k, v in shape.params().items() if k in tp and k not in PLACE_KEYS and not _same(v, tp[k])]
     if diff:
         raise ValueError(f"{name}: {table} was computed for another keel: {', '.join(f'{k} {tp[k]} (boat file '
                          f'{shape.params()[k]})' for k in diff)}")
@@ -322,6 +337,9 @@ def _check(ctx, name: str, table: str, t: tables.Table, shape) -> None:
     if hdiff:
         ctx.warn(f"{name}: {table}'s hull differs from this boat's in {hdiff}: its side force and yaw moment "
                  "include that hull")
+    elif any(k in tp for k in k3d.HULL_KEYS) and not any(k in hp for k in k3d.HULL_KEYS):
+        ctx.warn(f"{name}: {table} was computed on keel3d's canoe body, not this boat's hull: its side force and "
+                 "yaw moment include that hull")
 
 
 def _covers(t: tables.Table, shape) -> frozenset:
@@ -358,6 +376,7 @@ class KeelGrid:
     controls: tuple = ()
     covers: frozenset = frozenset()
     vertical: bool = False  # add the vertical force (Zv, Mv: vertical: delta)
+    dx: float = 0.0  # the keel sits this far aft of the table's [m]: its forces' moments about the bow follow
 
     @staticmethod
     def from_table(t: tables.Table, name: str, rho: float, shape, vertical: bool = False) -> "KeelGrid":
@@ -387,7 +406,8 @@ class KeelGrid:
         X, Y, Z, K, M, N, Zv, Mv = (float(v) for v in c)
         if self.vertical:
             Z, M = Z + Zv, M + Mv
-        return Loads(X, Y, Z, K, M, N, extrapolated=out)
+        # every point dx further aft: Loads.at's M = z X + x Z and N = −x Y − y X
+        return Loads(X, Y, Z, K, M + self.dx * Z, N - self.dx * Y, extrapolated=out)
 
     def downwash(self) -> float:
         return _downwash(self.a, self.rho, self.V_ref, self.fin_area, self.fin_aspect)

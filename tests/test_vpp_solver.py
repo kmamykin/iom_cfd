@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
+from iomcfd import config
 from iomcfd.vpp import frames
 from iomcfd.vpp.components.base import Control, Loads, Scaled, State, Wind
 from iomcfd.vpp.race import Course, WindRange, boat_lengths, race_row, weighted
@@ -237,9 +238,11 @@ def test_race_row_and_weighting():
 def test_wind_range_uniform_and_histogram(tmp_path):
     assert WindRange([1.0, 2.0]).weights == [1.0, 1.0]
     f = tmp_path / "club.csv"
-    f.write_text("tws,weight\n1.5,10\n2.5,30\n")
+    f.write_text("# venue: a club\ntws,weight\n1.5,10\n2.5,30\n")
     w = WindRange.from_histogram(f)
     assert w.tws == [1.5, 2.5] and w.weights == [10.0, 30.0]
+    venue = WindRange.from_histogram(config.home() / "boats" / "venue_winds.csv")
+    assert venue.tws[0] == 1.5 and sum(venue.weights) == pytest.approx(100.0, abs=0.01)
 
 
 # --- robustness (found with stand-ins for Python-VPP's YD-41) ----------------

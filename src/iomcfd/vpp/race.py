@@ -2,7 +2,7 @@
 
 Each lap is one beat and one run of `leg` metres measured along the wind,
 plus a fixed time per tack and per gybe. The race time per true wind speed is
-kept, so a different wind weighting (a club histogram) needs no new solve.
+kept, so a different wind weighting (a venue's winds) needs no new solve.
 Downwind numbers are flagged lower confidence: the sails there are
 separated and goose-winged, where the sail model is weakest.
 """
@@ -48,9 +48,10 @@ class WindRange:
 
     @staticmethod
     def from_histogram(path: str | Path, z_ref: float = 1.0, alpha: float = 0.0) -> "WindRange":
-        """A CSV with columns tws (m/s) and weight (e.g. hours or race count)."""
+        """A CSV with columns tws (m/s) and weight (e.g. hours or race count),
+        after any `#` comment lines (boats/venue_winds.csv)."""
         with open(path) as f:
-            rows = list(csv.DictReader(f))
+            rows = list(csv.DictReader(line for line in f if not line.startswith("#")))
         return WindRange([float(r["tws"]) for r in rows], [float(r["weight"]) for r in rows], z_ref, alpha)
 
 

@@ -37,7 +37,7 @@ build-backend = "hatchling.build"
 packages = ["src/iomcfd"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "boats/private"]  # boats/private: the ORC table tests, when present
 markers = [
     "docker: needs the iom-cfd Docker image (OpenFOAM) to run",
     "external: needs a checkout outside the repo (PYVPP_PATH)",

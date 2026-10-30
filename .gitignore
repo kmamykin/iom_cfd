@@ -42,8 +42,9 @@ cloud/gcp/jobs/
 /site/**/index_files/
 
 # Private boats (licensed hull lines and their derived parameters)
-boats/private/
+/boats/private
 
-# ORC 2026 sail tables, transcribed (copyright ORC; kept locally until our own data replaces them)
+# ORC 2026 sail tables, transcribed (copyright ORC; kept locally until our own data replaces them). They
+# live in boats/private/orc/ now; the old paths stay ignored so a stale copy can't be committed.
 /src/iomcfd/vpp/data/orc2026_sails.yaml
 /tests/test_vpp_sails_orc.py

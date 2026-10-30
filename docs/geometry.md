@@ -51,7 +51,11 @@ needs a sharp TE).
   study with `stl_rotate: [[x, 90]]` (a list of `[axis, degrees]`, applied in
   order).
 * **Position**: place the bow at x ≈ 0 and the design waterline at z = 0 with
-  `stl_translate: [dx, dy, dz]` (metres, after scaling). For the hull, the
+  `stl_translate: [dx, dy, dz]` (metres, after scaling). Or put the file
+  itself in the boat frame once with `tools/place_hull.py` (rotations, then a
+  translation, in the file's units; it prints the particulars at z = 0). The
+  alternative hull ([hulls.md](hulls.md)) was turned 180° about z and moved
+  so that x = 0 is the bow of the 1000 mm hull with its bumper. For the hull, the
   waterline must match the displacement you want; check `wetted_area_m2` and
   `Lwl` in `iomcfd plan -v`.
 * One file per component gives one patch (and one force breakdown) per

@@ -14,6 +14,8 @@ reports and new outputs.
   * centre of effort, effective draft and sail trim.
 
   These are rewritten in Parolini's style: D_i, not ORC's D_induced.
+* **Hull form and hydrostatics** use the ITTC symbols (ITTC Symbols and
+  Terminology List, ship geometry and hydrostatics).
 * **A few symbols neither source defines** are marked *project*.
 
 The geometry frame (x aft, y port, z up, waterline z = 0) and the signs of
@@ -111,6 +113,28 @@ marked *project*.
   angle, S_h / (2π e q b²), is the same for every fin. So a difference in α
   is a difference in leeway: Δβ_Y = Δα. On a swept board
   (projects/foil2d/methodology-thistle.md) Δβ_Y = Δα_n cos Λ.
+
+### Hull form and hydrostatics (ITTC)
+
+The VPP's `particulars.csv` and `vpp hydro` (vpp/hydrostatics.py). The
+hull's own numbers leave the appendages out; Δ, z_B, GM and MCT count
+their volume. x is aft from the bow, z up from the water.
+
+| symbol | meaning | `particulars.csv` |
+|---|---|---|
+| ∇, Δ | the hull's displaced volume; the boat's displacement (mass), appendages included | `volume`, `displacement` |
+| LWL, BWL | waterline length (between its ends) and beam | `lwl` (`x_fwd`, `x_aft`), `bwl` |
+| T_c | the hull's draft: its deepest point under water | `draft` |
+| LCB, VCB | the hull's centre of buoyancy, x and z | `lcb`, `vcb` |
+| LCF | x of the waterplane's centroid (the centre of flotation) | `lcf` |
+| S, A_WP | wetted area; waterplane area | `wetted_area`, `waterplane_area` |
+| A_X | the largest section under water, at `x_section` | `section_area` |
+| C_B, C_P, C_X, C_WP | block ∇ / (LWL BWL T_c), prismatic ∇ / (A_X LWL), section A_X / (BWL T_c), waterplane A_WP / (LWL BWL) | `cb`, `cp`, `cx`, `cwp` |
+| BM_T, BM_L | the hull's metacentric radii I_T / ∇, I_L / ∇ (I about the waterplane's centroid) | `bm_t`, `bm_l` |
+| z_B, z_G | the boat's centre of buoyancy (appendages included) and centre of gravity, z | `z_b`, `z_g` |
+| GM_T, GM_L | the boat's metacentric heights z_B + I / ∇ − z_G, ∇ with the appendages; GZ ≈ GM_T sin φ at small heel | `gm_t`, `gm_l` |
+| MCT | moment to trim 1°: ρ g ∇ GM_L π/180 [N m/deg] | `mct` |
+| — | immersion: ρ A_WP, mass per mm of sinkage [g/mm] | `immersion` |
 
 ## Balance equations
 

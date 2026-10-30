@@ -21,7 +21,7 @@ def test_drag_rate_matches_closed_form_and_the_full_search():
     course, wind = Course(tacks_per_leg=0, gybes_per_leg=0), WindRange([3.0])
     base = race(b, wind, course)
     dD = 0.01
-    rs, summary = rates(b, course, wind, base, [Perturbation("drag +0.01 N", add_drag(dD), dD=dD)])
+    rs, summary = rates(b, course, wind, base, [Perturbation("fixed drag +0.01 N", add_drag(dD), dD=dD)])
     # upwind at the best angle a*: V² = (T0 sin a* − ΔD) / d, so dV/V = −ΔD / (2 T0 sin a*)
     a = math.atan(math.sqrt(0.5))
     T = 2.0 * math.sin(a)
@@ -30,9 +30,9 @@ def test_drag_rate_matches_closed_form_and_the_full_search():
     # the implied V dR/dV is 2 D = 2 T at the balance (D = d V²)
     assert rs[0].vdrdv_up == pytest.approx(2 * T, rel=2e-2)
     # the envelope shortcut agrees with a full re-search of angle and trim
-    full, _ = rates(b, course, wind, base, [Perturbation("drag +0.01 N", add_drag(dD), dD=dD)], check=True)
+    full, _ = rates(b, course, wind, base, [Perturbation("fixed drag +0.01 N", add_drag(dD), dD=dD)], check=True)
     assert full[0].dt == pytest.approx(rs[0].dt, rel=2e-2)
-    assert summary["drag +0.01 N"] > 0
+    assert summary["fixed drag +0.01 N"] > 0
 
 
 def test_rm_and_scaling_rates_have_the_right_sign():

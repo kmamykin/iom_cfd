@@ -1,5 +1,6 @@
 """Hydrostatics of a heeled, trimmed and sunk boat: displaced volume, centre
-of buoyancy, waterplane, and the righting moment RM_φ.
+of buoyancy, waterplane, and the righting moment RM_φ; the hull's
+particulars upright (coefficients, BM, GM, MCT).
 
 Frames (docs/geometry.md): the boat frame is x aft, y port, z up, origin at
 the bow on the waterline. The boat is placed in the earth frame by heel φ
@@ -15,6 +16,7 @@ a boat heeled to starboard.
 
 from __future__ import annotations
 
+import dataclasses
 import math
 import warnings
 from dataclasses import dataclass, field
@@ -40,6 +42,8 @@ class Submerged:
     bwl: float  # waterline beam: extent in y of the cut [m]
     i_l: float = 0.0  # waterplane second moment about the y axis through its centroid [m^4]
     i_t: float = 0.0  # and about the x axis through its centroid (BM = i_t / volume) [m^4]
+    x_fwd: float = 0.0  # the waterline's ends: lwl = x_aft − x_fwd [m]
+    x_aft: float = 0.0
 
 
 def _cut(p: np.ndarray, q: np.ndarray) -> np.ndarray:
@@ -99,11 +103,11 @@ def _submerged(v: np.ndarray) -> Submerged:
     else:
         xf = yf = i_l = i_t = 0.0
     # The waterline: the points where crossing edges meet the plane.
-    lwl = float(np.ptp(cut[:, 0])) if len(cut) else 0.0
+    x_fwd, x_aft = (float(cut[:, 0].min()), float(cut[:, 0].max())) if len(cut) else (0.0, 0.0)
     bwl = float(np.ptp(cut[:, 1])) if len(cut) else 0.0
     wetted = 0.5 * np.sqrt(n[:, 0] ** 2 + n[:, 1] ** 2 + n[:, 2] ** 2).sum()
-    return Submerged(volume, np.asarray(centroid, float), float(wetted), area, np.array([xf, yf]), lwl, bwl,
-                     i_l, i_t)
+    return Submerged(volume, np.asarray(centroid, float), float(wetted), area, np.array([xf, yf]), x_aft - x_fwd,
+                     bwl, i_l, i_t, x_fwd, x_aft)
 
 
 def submerged(surface: stl.Surface) -> Submerged:
@@ -156,6 +160,86 @@ def place(surface: stl.Surface, heel: float, trim: float, sink: float, x_trim: f
     (x_trim, 0, 0), then sunk by `sink` [m, + down]."""
     return (surface.rotated("x", heel).rotated("y", -trim, about=(x_trim, 0.0, 0.0))
             .translated((0.0, 0.0, -sink)))
+
+
+@dataclass
+class Particulars:
+    """The form of a hull at an attitude (`particulars`), in ITTC's symbols
+    (docs/nomenclature.md). Earth frame: x as placed (from the bow when
+    there is no trim), z from the water."""
+
+    volume: float  # ∇ [m^3]
+    lwl: float  # [m]
+    x_fwd: float  # the waterline's ends [m]
+    x_aft: float
+    bwl: float  # [m]
+    draft: float  # T_c: the deepest point under water [m]
+    lcb: float  # x of the centre of buoyancy [m]
+    vcb: float  # z of the centre of buoyancy (< 0) [m]
+    lcf: float  # x of the waterplane's centroid [m]
+    waterplane_area: float  # A_WP [m^2]
+    wetted_area: float  # S [m^2]
+    section_area: float  # A_X: the largest section under water [m^2]
+    x_section: float  # where it is [m]
+    cb: float  # C_B = ∇ / (LWL BWL T_c)
+    cp: float  # C_P = ∇ / (A_X LWL)
+    cx: float  # C_X = A_X / (BWL T_c)
+    cwp: float  # C_WP = A_WP / (LWL BWL)
+    bm_t: float  # I_T / ∇ [m]
+    bm_l: float  # I_L / ∇ [m]
+    immersion: float  # ρ A_WP: mass per unit sinkage [kg/m, = g/mm]
+
+
+def _forward_volume(T: np.ndarray, xs: float) -> float:
+    """The volume of the clipped body T (K, 3, 3: the part below z = 0)
+    forward of the plane x = xs."""
+    # x becomes the third coordinate (a cyclic swap, so the orientation is
+    # kept) and _clip cuts it at xs. The origin (xs, 0, 0) is on both cut
+    # planes, so neither cap adds to the tetrahedra.
+    C, _ = _clip((T - np.array([xs, 0.0, 0.0]))[:, :, [1, 2, 0]])
+    n = np.cross(C[:, 1] - C[:, 0], C[:, 2] - C[:, 0])
+    return float(np.einsum("ij,ij->", C[:, 0], n) / 6.0)
+
+
+def _largest_section(T: np.ndarray, x0: float, x1: float, n: int = 100) -> tuple[float, float]:
+    """(A_X, x) of the clipped body T between x0 and x1: the section area
+    dV/dx from the volume forward of n + 1 stations, then of 20 more around
+    the largest (exact for the facets but for the difference over a step)."""
+    x = np.linspace(x0, x1, n + 1)
+    V = np.array([_forward_volume(T, xs) for xs in x])
+    i = int(np.argmax(np.diff(V)))
+    x = np.linspace(x[max(i - 1, 0)], x[min(i + 2, n)], 21)
+    V = np.array([_forward_volume(T, xs) for xs in x])
+    j = int(np.argmax(np.diff(V)))
+    return float((V[j + 1] - V[j]) / (x[j + 1] - x[j])), float(0.5 * (x[j] + x[j + 1]))
+
+
+def _particulars(v: np.ndarray, rho: float) -> Particulars:
+    """`particulars` on placed triangle corners v (M, 3, 3)."""
+    sub = _submerged(v)
+    T, _ = _clip(v)
+    vol, L, B = sub.volume, sub.lwl, sub.bwl
+    Tc = -float(T[:, :, 2].min())
+    ax, xx = _largest_section(T, sub.x_fwd, sub.x_aft)
+    return Particulars(vol, L, sub.x_fwd, sub.x_aft, B, Tc, float(sub.centroid[0]), float(sub.centroid[2]),
+                       float(sub.waterplane_centroid[0]), sub.waterplane_area, sub.wetted_area, ax, xx,
+                       vol / (L * B * Tc), vol / (ax * L), ax / (B * Tc), sub.waterplane_area / (L * B),
+                       sub.i_t / vol, sub.i_l / vol, rho * sub.waterplane_area)
+
+
+def particulars(surface: stl.Surface, sink: float = 0.0, trim: float = 0.0, x_trim: float | None = None,
+                rho: float | None = None) -> Particulars:
+    """The form of a closed hull in the boat frame floating upright, sunk by
+    `sink` [m, + down] and trimmed by `trim` [deg, + bow down] about
+    (x_trim, 0, 0) (default the middle of its length), as `place` does:
+    ∇, LCB, LCF, the coefficients, BM and the immersion. ρ default fresh
+    water at 15 °C. The appendages are not in it (see
+    `Hydrostatics.particulars_rows`)."""
+    lo, hi = surface.bounds
+    x_trim = 0.5 * float(lo[0] + hi[0]) if x_trim is None else float(x_trim)
+    R, t = placement(0.0, trim, sink, x_trim)
+    v = (np.asarray(surface.vertices, float) @ R.T + t)[np.asarray(surface.triangles)]
+    return _particulars(v, fresh_water().rho if rho is None else float(rho))
 
 
 @dataclass
@@ -279,6 +363,31 @@ class Hydrostatics:
         K = pts["cg"][1] * (-W) + cb[1] * self.rho * G * V
         return Floating(heel=float(heel), sink=float(x[0]), trim=math.degrees(x[1]), rm=float(-K), gz=float(-K / W),
                         wetted_area=sub.wetted_area, lwl=sub.lwl, bwl=sub.bwl, volume=V, cb=cb, converged=ok)
+
+    def particulars_rows(self, sinks=None) -> list[dict]:
+        """The hull's `particulars` with the boat's displacement and
+        metacentric heights, as table rows: floating upright (`float_at(0)`,
+        condition "floating"), then on an even keel at each sinkage `sinks`
+        [m, + down; default −10 to +10 mm every 2.5 mm] from the waterline
+        z = 0 ("even keel"). The boat's columns count the appendages' volume
+        ∇ (displacement ρ∇, z_b): GM_T = z_b + I_T / ∇ − z_g, GM_L likewise,
+        and the moment to trim one degree MCT = ρ g ∇ GM_L π/180 [N m/deg]."""
+        sinks = np.arange(-0.010, 0.010 + 1e-9, 0.0025) if sinks is None else np.asarray(sinks, float)
+        f = self.float_at(0.0)
+        rows = []
+        for cond, sink, trim, ok in [("floating", f.sink, f.trim, f.converged),
+                                     *(("even keel", float(s), 0.0, True) for s in sinks)]:
+            R, t = placement(0.0, trim, sink, self.x_trim)
+            p = _particulars((self._v @ R.T + t)[self._tri], self.rho)
+            app = [(v, R @ c + t) for v, c in self.appendages]
+            V = p.volume + sum(v for v, _ in app)
+            z_b = (p.volume * p.vcb + sum(v * c[2] for v, c in app)) / V
+            z_g = float((R @ self.cg + t)[2])
+            gm_t, gm_l = z_b + p.bm_t * p.volume / V - z_g, z_b + p.bm_l * p.volume / V - z_g
+            rows.append({"condition": cond, "sink": sink, "trim": trim, **dataclasses.asdict(p),
+                         "displacement": self.rho * V, "z_b": z_b, "z_g": z_g, "gm_t": gm_t, "gm_l": gm_l,
+                         "mct": self.rho * G * V * gm_l * math.pi / 180, "converged": float(ok)})
+        return rows
 
     def table(self, heels=None, M_ext=None, Z_ext=0.0) -> "HydroTable":
         """`float_at` on the grid heels × M_ext × Z_ext (defaults: φ 0-60°

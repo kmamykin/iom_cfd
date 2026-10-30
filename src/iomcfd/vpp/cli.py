@@ -102,6 +102,7 @@ def cmd_run(args) -> None:
     info()
     report.write_csv(out / "mass.csv", b.mass.to_rows())
     report.write_csv(out / "hydro.csv", b.table.rows())
+    report.write_csv(out / "particulars.csv", b.hydro.particulars_rows())
     t = time.time()
     rows = race(b.boat, b.wind, b.course)
     timings["race_s"] = round(time.time() - t, 2)
@@ -272,6 +273,27 @@ def cmd_hydro(args) -> None:
     print(f"mass {b.mass.mass:.4f} kg, CG {[round(float(c), 4) for c in b.mass.cg]}")
     for r in b.mass.to_rows():
         print(f"  {r}")
+    rows = b.hydro.particulars_rows()
+    f = rows[0]
+    print(f"floating upright{'' if f['converged'] else ' (NOT converged)'}: sink {f['sink'] * 1000:.2f} mm, "
+          f"trim {f['trim']:.3f} deg, displacement {f['displacement']:.4f} kg (hull {f['volume'] * 1e3:.4f} L)")
+    print(f"  waterline x {f['x_fwd'] * 1000:.1f} .. {f['x_aft'] * 1000:.1f} mm: LWL {f['lwl'] * 1000:.1f}, "
+          f"BWL {f['bwl'] * 1000:.1f}, T_c {f['draft'] * 1000:.1f} mm")
+    print(f"  LCB {f['lcb'] * 1000:.1f}, LCF {f['lcf'] * 1000:.1f}, VCB {f['vcb'] * 1000:.1f} mm; "
+          f"A_WP {f['waterplane_area']:.4f} m², S {f['wetted_area']:.4f} m², "
+          f"A_X {f['section_area'] * 1e4:.2f} cm² at {f['x_section'] * 1000:.0f} mm")
+    print(f"  C_B {f['cb']:.3f}, C_P {f['cp']:.3f}, C_X {f['cx']:.3f}, C_WP {f['cwp']:.3f}; "
+          f"BM_T {f['bm_t'] * 1000:.1f}, BM_L {f['bm_l'] * 1000:.0f} mm (hull)")
+    print(f"  boat: z_B {f['z_b'] * 1000:.1f}, z_G {f['z_g'] * 1000:.1f}, GM_T {f['gm_t'] * 1000:.1f}, "
+          f"GM_L {f['gm_l'] * 1000:.0f} mm; MCT {f['mct']:.4f} N·m/deg, immersion {f['immersion']:.1f} g/mm")
+    print("even keel against sinkage from the waterline z = 0 (hull, but displacement and GM_T: the boat):")
+    print(" sink mm  disp kg  LWL mm  BWL mm  T_c mm  S m²    A_WP m²  LCB mm  LCF mm  C_B    C_P    C_WP   "
+          "BM_T mm  GM_T mm  g/mm")
+    for r in rows[1:]:
+        print(f"{r['sink'] * 1000:8.1f} {r['displacement']:8.4f} {r['lwl'] * 1000:7.1f} {r['bwl'] * 1000:7.1f} "
+              f"{r['draft'] * 1000:7.1f} {r['wetted_area']:7.4f} {r['waterplane_area']:7.4f} {r['lcb'] * 1000:7.1f} "
+              f"{r['lcf'] * 1000:7.1f} {r['cb']:6.3f} {r['cp']:6.3f} {r['cwp']:6.3f} {r['bm_t'] * 1000:8.1f} "
+              f"{r['gm_t'] * 1000:8.1f} {r['immersion']:6.1f}")
     print(" heel    RM N·m   GZ mm   sink mm   trim deg   wetted m²")
     tab = b.table
     for h in range(0, 61, 5):

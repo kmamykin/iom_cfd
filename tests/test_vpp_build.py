@@ -1,11 +1,15 @@
 """The boat builder's protocol (boat.py BuildContext) and keel3d tables."""
 
+import math
+
 import numpy as np
 import pytest
 
 from iomcfd import config, physics
+from iomcfd.geometry import hulls
 from iomcfd.vpp import keel3d, tables
 from iomcfd.vpp.boat import BoatSpec, BuildContext, resolve_class
+from iomcfd.vpp.components.base import State, Wind
 from iomcfd.vpp.components.keel import PolarFit
 from test_vpp_boat import _keel3d_csv
 
@@ -73,9 +77,55 @@ def test_set_moves_the_rudder():
     assert b.volumes()[0][0] == pytest.approx(a.volumes()[0][0] * 0.21 / 0.20)
 
 
+def test_a_swept_rudder_acts_further_aft():
+    a = _ctx().get("rudder").shape  # the leading edge vertical
+    cr, ct, b = a.root_chord, a.tip_chord, a.span
+    te = _ctx(**{"components.rudder.args.sweep": 0.0, "components.rudder.args.sweep_at": 1.0}).get("rudder").shape
+    assert te.x == pytest.approx(a.x + 0.5 * (cr - ct))  # a vertical trailing edge: the tip's leading edge cr − ct aft
+    assert te.sweep_le == pytest.approx(math.degrees(math.atan2(cr - ct, b)))
+    le = _ctx(**{"components.rudder.args.sweep": 10.0}).get("rudder").shape
+    assert le.x == pytest.approx(a.x + 0.5 * b * math.tan(math.radians(10.0))) and le.sweep_le == pytest.approx(10.0)
+    assert a.sweep_le == 0.0
+
+
 def test_keel_geometry_must_match_its_table():
     with pytest.raises(ValueError, match="another keel"):
         _ctx(BOAT, **{"components.keel.args.fin.root_chord": 0.11}).get("keel")
+
+
+def test_a_keel_table_moves_with_the_keel():
+    s, w = State(1.5, 20.0, 3.0), Wind(3.0, 45.0)
+    a = _ctx(BOAT).get("keel").forces
+    b = _ctx(BOAT, **{"components.keel.mount.x": 0.547}).get("keel").forces  # 47 mm aft of the table's fin_x
+    la, lb = a.loads(s, w), b.loads(s, w)
+    assert b.dx == pytest.approx(0.047) and "moved +47.0 mm" in b.provenance
+    assert (lb.X, lb.Y, lb.Z, lb.K) == (la.X, la.Y, la.Z, la.K) and la.Z != 0
+    assert lb.M == pytest.approx(la.M + 0.047 * la.Z) and lb.N == pytest.approx(la.N - 0.047 * la.Y)
+
+
+def test_the_rig_is_placed_by_the_main_tack():
+    a = _ctx(BOAT).get("sails").shape.rig  # the default: geometry/sails.py's mast at 0.40 on a 0.06 m deck
+    assert (a.mast_x, a.HBI) == (0.4, 0.06) and a.BAS == pytest.approx(0.08)
+    b = _ctx(BOAT, **{"components.sails.args": {"main_tack": [0.506, 0.0, 0.120], "jib_tack": [0.08, 0.0, 0.145],
+                                                "sheer": 0.061}}).get("sails").shape.rig
+    assert b.mast_x == pytest.approx(0.5) and b.HBI == 0.061 and b.BAS == pytest.approx(0.059)
+    assert b.x_main == pytest.approx(a.x_main + 0.1) and b.z_main == pytest.approx(a.z_main - 0.02)
+    assert b.z_jib == pytest.approx(a.z_jib + 0.045)
+
+
+def test_keel_table_on_a_mesh_hull_warns(tmp_path):
+    hulls.canoe(hulls.CanoeSpec()).write(tmp_path / "hull.stl", binary=True)
+    ctx = _ctx(BOAT, **{"components.hull.args": {"stl": str(tmp_path / "hull.stl")}})
+    ctx.get("keel")
+    assert any("keel3d's canoe body" in w for w in ctx.warnings)
+    canoe = _ctx(BOAT)  # the canoe body as a mesh: the table's own hull
+    canoe.get("keel")
+    assert not any("canoe body" in w for w in canoe.warnings)
+
+
+def test_a_missing_hull_stl_says_where_it_looked():
+    with pytest.raises(FileNotFoundError, match="no private/nope.stl next to the boat file.*boats/private/"):
+        _ctx(BOAT, **{"components.hull.args": {"stl": "private/nope.stl", "scale": 0.001}}).get("hull")
 
 
 def test_keel_shape_reproduces_keel3d_parameters():

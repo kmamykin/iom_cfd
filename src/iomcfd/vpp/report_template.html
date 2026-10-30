@@ -387,7 +387,7 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
 <!-- HYDROSTATICS -->
 <section class="s" id="hydro">
   <div class="wrap">
-    <div class="eyebrow"><code>hydro.csv</code><code>mass.csv</code><code>vmg.csv</code></div>
+    <div class="eyebrow"><code>hydro.csv</code><code>particulars.csv</code><code>mass.csv</code><code>vmg.csv</code></div>
     <h2>Righting moment, attitude and the mass budget</h2>
     <div class="prose"><p id="hydro-lede"></p></div>
     <div class="grid2">
@@ -408,6 +408,12 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
       <div id="z-chart"></div>
       <figcaption id="z-cap"></figcaption>
     </figure>
+    <h3 style="margin-top:22px">Hull particulars</h3>
+    <div class="prose"><p id="part-lede"></p></div>
+    <div id="part-box">
+      <dl class="readout" id="part-out"></dl>
+      <details style="margin-top:12px"><summary>On an even keel against sinkage from the waterline z = 0 (particulars.csv)</summary><div class="tw"><table id="part-table"></table></div></details>
+    </div>
     <h3 style="margin-top:22px">Attitude at the best-VMG points</h3>
     <div class="legend"><span><i style="background:var(--leg-up)"></i>upwind</span><span><i style="background:var(--leg-down)"></i>downwind</span></div>
     <div class="grid3" id="att-charts"></div>
@@ -433,6 +439,14 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
     <div class="eyebrow"><code>race.csv</code><code>run.json: course</code></div>
     <h2>The race</h2>
     <div class="prose"><p id="race-lede"></p></div>
+    <figure id="wind-fig">
+      <div class="fig-title">The winds: each wind speed's weight in the race time</div>
+      <div class="grid2" style="align-items:start">
+        <div id="wind-chart"></div>
+        <dl class="readout" id="wind-out"></dl>
+      </div>
+      <figcaption id="wind-cap"></figcaption>
+    </figure>
     <div class="legend"><span><i style="background:var(--leg-up)"></i>upwind</span><span><i style="background:var(--leg-down)"></i>downwind</span></div>
     <div class="grid3" id="race-charts"></div>
     <figure>
@@ -445,7 +459,7 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
             <button class="chip" type="button" id="w-run" aria-pressed="true">As run</button>
             <button class="chip" type="button" id="w-uniform" aria-pressed="false">Uniform</button>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px" id="calc-w"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:8px" id="calc-w"></div>
         </div>
         <div>
           <div class="sub">Weighted race time</div>
@@ -480,7 +494,7 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
         <figcaption>Each row is coloured on its own scale (darker = a larger share of that row's biggest effect), so read colour within a row and the numbers across rows.</figcaption>
       </figure>
       <figure id="vdr-fig">
-        <div class="fig-title">V dR/dV implied by the drag step [N]</div>
+        <div class="fig-title">V dR/dV implied by the fixed drag [N]</div>
         <div class="legend"><span><i style="background:var(--leg-up)"></i>upwind</span><span><i style="background:var(--leg-down)"></i>downwind</span></div>
         <div id="vdr-chart"></div>
         <figcaption>ΔV/V = −ΔD / (V dR/dV): the slope a hand estimate assumes when it turns drag into speed. The VPP's includes the sails' response to the slower boat.</figcaption>
@@ -545,6 +559,12 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
         <tr><td>Z<sub>CE</sub></td><td>height of the sails' centre of effort above the waterline [m]</td><td><code>sails_z_ce</code></td></tr>
         <tr><td>RM<sub>φ</sub>, GZ</td><td>hydrostatic righting moment at heel φ [N·m]; its arm RM<sub>φ</sub> / (m g)</td><td><code>rm</code></td></tr>
         <tr><td>M<sub>ext</sub>, Z<sub>ext</sub></td><td>the parts' pitch moment and vertical force that the hydrostatics float the boat under</td><td><code>M_ext</code>, <code>Z_ext</code> (hydro.csv); ΣM, ΣZ of the parts</td></tr>
+        <tr><td>∇, Δ</td><td>the hull's displaced volume [m³]; the boat's displacement, appendages included [kg]</td><td><code>volume</code>, <code>displacement</code> (particulars.csv)</td></tr>
+        <tr><td>LWL, BWL, T<sub>c</sub></td><td>waterline length (from <code>x_fwd</code> to <code>x_aft</code>) and beam; the hull's deepest point under water [m]</td><td><code>lwl</code>, <code>bwl</code>, <code>draft</code></td></tr>
+        <tr><td>LCB, VCB, LCF</td><td>the hull's centre of buoyancy (x, z) and the waterplane's centroid (x) [m]</td><td><code>lcb</code>, <code>vcb</code>, <code>lcf</code></td></tr>
+        <tr><td>S, A<sub>WP</sub>, A<sub>X</sub></td><td>wetted area, waterplane area, the largest section under water [m²]</td><td><code>wetted_area</code>, <code>waterplane_area</code>, <code>section_area</code></td></tr>
+        <tr><td>C<sub>B</sub>, C<sub>P</sub>, C<sub>X</sub>, C<sub>WP</sub></td><td>block ∇/(LWL BWL T<sub>c</sub>), prismatic ∇/(A<sub>X</sub> LWL), section A<sub>X</sub>/(BWL T<sub>c</sub>), waterplane A<sub>WP</sub>/(LWL BWL)</td><td><code>cb</code>, <code>cp</code>, <code>cx</code>, <code>cwp</code></td></tr>
+        <tr><td>BM, GM, MCT</td><td>metacentric radius I/∇ of the hull; the boat's metacentric height z<sub>B</sub> + I/∇ − z<sub>G</sub> (∇ with the appendages) [m]; the moment to trim 1° [N·m/deg]</td><td><code>bm_t</code>, <code>bm_l</code>, <code>gm_t</code>, <code>gm_l</code>, <code>mct</code></td></tr>
         <tr><td>α, L</td><td>a foil's angle of attack [deg] and lift [N]</td><td><code>rudder_alpha</code>, <code>rudder_L</code></td></tr>
         <tr><td>A, D</td><td>windage: projected area above the water [m²] and drag [N]</td><td><code>windage_A</code>, <code>windage_D</code></td></tr>
       </tbody>
@@ -673,10 +693,25 @@ function showTip(ev, title, rows) {
 }
 function hideTip() { tip.hidden = true; }
 
+// ---------- wind speeds in m/s and knots ----------
+const KT = 1852 / 3600; // m/s per knot
+const kt = (v) => v / KT;
+const twsKt = (v) => `${v} m/s (${fx(kt(v), 1)} kt)`;
+// a wind-speed axis's two tick rows, m/s over kt: their units, right-aligned at x
+function twsUnits(s, x, y0) {
+  E("text", { x, y: y0 + 15, class: "tick", "text-anchor": "end", text: "m/s" }, s);
+  E("text", { x, y: y0 + 29, class: "tick", "text-anchor": "end", text: "kt" }, s);
+}
+// a bar's wind speed under it, m/s over kt
+function twsTick(s, cx, y0, v) {
+  E("text", { x: cx, y: y0 + 15, class: "tick", "text-anchor": "middle", text: String(v) }, s);
+  E("text", { x: cx, y: y0 + 29, class: "tick", "text-anchor": "middle", text: fx(kt(v), 1) }, s);
+}
+
 // ---------- line chart ----------
 let clipN = 0;
 function lineChart(host, o) {
-  const W = o.w || 560, Hh = o.h || 300, m = Object.assign({ l: 50, r: 16, t: 12, b: 40 }, o.m || {});
+  const W = o.w || 560, Hh = o.h || 300, m = Object.assign({ l: 50, r: 16, t: 12, b: o.x.kt ? 54 : 40 }, o.m || {});
   const s = svgRoot(W, Hh, o.label);
   const x = lin(o.x.lo, o.x.hi, m.l, W - m.r), y = lin(o.y.lo, o.y.hi, Hh - m.b, m.t);
   (o.bands || []).forEach((b) => {
@@ -692,6 +727,10 @@ function lineChart(host, o) {
     E("text", { x: m.l - 7, y: y(v) + 4, class: "tick", "text-anchor": "end", text: yf(v) }, s);
   });
   xt.forEach((v) => E("text", { x: x(v), y: Hh - m.b + 16, class: "tick", "text-anchor": "middle", text: xf(v) }, s));
+  if (o.x.kt) { // wind speed: a second row in knots, at round knots
+    nice(kt(o.x.lo), kt(o.x.hi), o.x.n || 6).forEach((v) => E("text", { x: x(v * KT), y: Hh - m.b + 30, class: "tick", "text-anchor": "middle", text: String(v) }, s));
+    twsUnits(s, m.l - 14, Hh - m.b + 1);
+  }
   E("line", { x1: m.l, x2: W - m.r, y1: Hh - m.b, y2: Hh - m.b, class: "axis-l" }, s);
   if (o.x.label) T(s, (m.l + W - m.r) / 2, Hh - 6, o.x.label, { class: "alab", "text-anchor": "middle" });
   (o.refs || []).forEach((r) => {
@@ -852,6 +891,7 @@ const RATES = csvOf("rates.csv");
 const RSUM = csvOf("rates_summary.csv");
 const MASS = csvOf("mass.csv") || [];
 const HYDRO = csvOf("hydro.csv");
+const PARTIC = csvOf("particulars.csv");
 const RESP = csvOf("response.csv");
 const INFO = RUN.info || {};
 const COURSE = RUN.course || {};
@@ -918,6 +958,8 @@ function hover(g, title, rows) {
 
 // ---------- wind speeds, parts, controls ----------
 const TWS = uniq((POLAR || []).map((p) => p.tws).concat(RACE.map((r) => r.tws)));
+// a chart's x axis over these wind speeds, ticked in m/s and kt
+const twsAxis = (t) => ({ lo: t[0], hi: t[t.length - 1], ticks: t.length <= 10 ? t : undefined, label: "TWS", kt: true, tipTitle: (v) => "TWS " + twsKt(v) });
 function twsC(t) {
   const n = TWS.length, i = TWS.indexOf(t);
   if (n <= 1) return "var(--tws4)";
@@ -992,8 +1034,8 @@ function pointAt(tws, key) {
     ["Weighted race time", fx(tRun, 1) + " s", `${COURSE.laps} laps of ${fx(COURSE.leg, 0)} m; ${RACE.length} wind speeds, ${equal ? "equal weights" : "weighted"}`],
     ["Mass", fx(INFO.mass_kg, 3) + " kg", `CG ${fx(Math.abs(cg[2] * 1000), 0)} mm ${cg[2] < 0 ? "below" : "above"} the waterline, ${fx(cg[0] * 1000, 0)} mm aft of the bow`],
     ["RM at 30° heel", fx(INFO.rm_30deg_Nm, 2) + " N·m", "GZ " + fx((INFO.rm_30deg_Nm / (INFO.mass_kg * G)) * 1000, 0) + " mm"],
-    ["Best VMG upwind", rng(up, 2) + " m/s", `over TWS ${rng(TWS, 1)} m/s`],
-    ["Best VMG downwind", rng(dn, 2) + " m/s", `over TWS ${rng(TWS, 1)} m/s`],
+    ["Best VMG upwind", rng(up, 2) + " m/s", `over TWS ${rng(TWS, 1)} m/s (${rng(TWS.map(kt), 1)} kt)`],
+    ["Best VMG downwind", rng(dn, 2) + " m/s", `over TWS ${rng(TWS, 1)} m/s (${rng(TWS.map(kt), 1)} kt)`],
     ["Compute", fx(tsum, 0) + " s", Object.entries(tm).map(([k, v]) => `${k.replace(/_s$/, "")} ${fx(v, 0)}`).join(", ")],
   ];
   const host = document.getElementById("facts");
@@ -1067,7 +1109,7 @@ function pointAt(tws, key) {
     if (!pts.length) return;
     const p = pts.reduce((a, b) => (Math.abs(b.twa - 120) < Math.abs(a.twa - 120) ? b : a));
     const [px, py] = Pt(p.twa, p.V);
-    T(s, px + dx, py + dy, t + " m/s", { class: "t11 ink2" });
+    T(s, px + dx, py + dy, twsKt(t), { class: "t11 ink2", style: "paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round" });
   };
   if (TWS.length) { lab(TWS[TWS.length - 1], 6, 4); if (TWS.length > 1) lab(TWS[0], -40, 18); }
   let only = null;
@@ -1078,7 +1120,7 @@ function pointAt(tws, key) {
   }
   H("button", { class: "chip", type: "button", "data-t": "null", text: "All" }, chips).addEventListener("click", () => { only = null; paint(); });
   TWS.forEach((t) => {
-    const b = H("button", { class: "chip", type: "button", "data-t": String(t) }, chips);
+    const b = H("button", { class: "chip", type: "button", "data-t": String(t), title: "TWS " + twsKt(t) }, chips);
     H("span", { class: "sw" }, b).style.background = twsC(t);
     b.appendChild(document.createTextNode(String(t)));
     b.addEventListener("click", () => { only = only === t ? null : t; paint(); });
@@ -1100,7 +1142,7 @@ function pointAt(tws, key) {
     s.style.cursor = "pointer";
     const [px, py] = Pt(p.twa, p.V);
     E("circle", { cx: px, cy: py, r: 6, style: "fill:none;stroke:var(--ink);stroke-width:1.5" }, hov);
-    showTip(ev, `TWS ${p.tws} m/s · βTW ${p.twa}°`, [
+    showTip(ev, `TWS ${twsKt(p.tws)} · βTW ${p.twa}°`, [
       ["V_b, m/s", fx(p.V, 3), twsC(p.tws)], ["VMG, m/s", fx(p.vmg, 3)], ["heel", fx(p.heel, 1) + "°"], ["leeway", fx(p.leeway, 2) + "°"],
     ].concat(CONTROLS.map((k) => [ctrlSym(k.key), ctrlText(k.key, p[k.key])])).concat(p.flags ? [["flags", p.flags]] : []));
   });
@@ -1124,7 +1166,7 @@ function pointAt(tws, key) {
   const twa = uniq(POLAR.map((p) => p.twa));
   const tr = H("tr", {}, H("thead", {}, t));
   H("th", { html: "β<sub>TW</sub> \\ TWS" }, tr);
-  TWS.forEach((v) => H("th", { class: "n", text: v + " m/s" }, tr));
+  TWS.forEach((v) => H("th", { class: "n", html: `${v} m/s<br>${fx(kt(v), 1)} kt` }, tr));
   const tb = H("tbody", {}, t);
   twa.forEach((a) => {
     const x = H("tr", {}, tb);
@@ -1177,9 +1219,12 @@ const KEY_DOCS = [
   ["components.*.args.root_chord", "chord at the root, m"],
   ["components.*.args.tip_chord", "chord at the tip, m"],
   ["components.*.args.span", "span below the hull, m"],
+  ["components.*.args.sweep", "a foil's sweep, deg (+ tip aft), of the line at sweep_at of the chord"],
+  ["components.*.args.sweep_at", "the chord fraction sweep is of: 0 the leading edge, 1 the trailing edge (0° there: a vertical trailing edge)"],
   ["components.*.args.rig", "the rig: iom_a (A rig) only so far"],
-  ["components.*.args.mast_x", "mast position, m aft of the bow"],
-  ["components.*.args.deck", "deck height at the mast, m above the waterline"],
+  ["components.*.args.main_tack", "the main's tack, where the boom meets the mast [x, y, z], m (the mast 6 mm ahead)"],
+  ["components.*.args.jib_tack", "the jib's tack [x, y, z], m (default 0.08 m from the bow, 0.04 m below the main's)"],
+  ["components.*.args.sheer", "the deck at the mast, ORC's base of I, m above the waterline (default 0.08 m below the main's tack)"],
   ["components.*.forces.class", "the force model class, a dotted path"],
   ["components.*.forces.args.form_factor", "k of the friction: ½ρV²S(1 + k)C_F (ITTC-57)"],
   ["components.*.forces.args.cf_factor", "friction multiplier"],
@@ -1209,7 +1254,7 @@ const KEY_DOCS = [
   ["hydrostatics.heel_max", "heel range of the table, deg"],
   ["hydrostatics.heel_step", "heel step of the table, deg"],
   ["wind.tws", "true wind speeds at z_ref, m/s"],
-  ["wind.weights", "uniform, a list, or file:<csv> (a club histogram of tws, weight)"],
+  ["wind.weights", "uniform, a list, or file:<csv> (a venue's winds: tws, weight; boats/venue_winds.csv)"],
   ["wind.z_ref", "height the tws is given at, m"],
   ["wind.alpha", "power-law exponent of the wind profile"],
   ["course.leg", "m along the wind, mark to mark"],
@@ -1382,7 +1427,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
   const sT = document.getElementById("bal-tws"), sA = document.getElementById("bal-twa");
   const host = document.getElementById("bal-charts");
   if (!VMG.length && !POLAR) { missing(host, "No solved points in this run."); return; }
-  TWS.forEach((t) => H("option", { value: t, text: t + " m/s" }, sT));
+  TWS.forEach((t) => H("option", { value: t, text: twsKt(t) }, sT));
   function fillA() {
     sA.replaceChildren();
     [["up", "best VMG up"], ["down", "best VMG down"]].forEach(([k, lab]) => {
@@ -1423,7 +1468,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
     CONTROLS.forEach((k) => items.push([ctrlSym(k.key), ctrlText(k.key, p[k.key])]));
     items.push(["sinkage", fx(p.sink * 1000, 2) + " mm"], ["trim", fx(p.trim, 2) + "°"], ["RM_φ", fx(p.rm, 3) + " N·m"]);
     const aws = COLS.find((c) => c.endsWith("_aws")), awa = COLS.find((c) => c.endsWith("_awa"));
-    if (aws) items.push(["V_AW", fx(p[aws], 2) + " m/s"]);
+    if (aws) items.push(["V_AW", fx(p[aws], 2) + " m/s (" + fx(kt(p[aws]), 1) + " kt)"]);
     if (awa) items.push(["β_AW", fx(p[awa], 1) + "°"]);
     items.forEach(([k, v]) => { const d = H("div", {}, st); H("dt", { html: subs(k) }, d); H("dd", { text: v }, d); });
     (p.flags ? String(p.flags).split(" ") : []).forEach((f) => H("span", { class: "pill", text: f, style: "margin-right:6px" }, fl));
@@ -1453,7 +1498,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
   respTws.forEach((t) => {
     const b = H("button", { class: "chip", type: "button", "data-t": String(t) }, tw);
     H("span", { class: "sw" }, b).style.background = twsC(t);
-    b.appendChild(document.createTextNode(t + " m/s"));
+    b.appendChild(document.createTextNode(twsKt(t)));
     b.addEventListener("click", () => { fm.tws = t; render(); });
   });
   H("span", { class: "ctl", text: "best VMG" }, lg);
@@ -1576,7 +1621,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
     const f = H("figure", { style: "margin:0" }, host);
     H("div", { class: "fig-title", text: leg === "up" ? "Upwind" : "Downwind" }, f);
     const rows = TWS.map((t) => VMG.find((r) => r.tws === t && r.leg === leg)).filter((r) => r && r.converged);
-    const Wd = 470, Hh = 260, m = { l: 44, r: 10, t: 12, b: 36 };
+    const Wd = 470, Hh = 274, m = { l: 44, r: 10, t: 12, b: 50 };
     const s = svgRoot(Wd, Hh, `Drag of each part at the best-VMG points, ${leg}wind`);
     const drag = (r, n) => Math.max(0, -r[`X_${n}`]);
     const max = niceMax(Math.max(1e-6, ...rows.map((r) => PARTS.reduce((a, n) => a + drag(r, n), 0))) * 1.04);
@@ -1603,12 +1648,13 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
         E("path", { d: path, class: "barfill", style: `fill:${pc(n)};stroke:var(--surface);stroke-width:${y0 - y1 > 3 ? 1 : 0}` }, g);
         acc += d;
       });
-      E("text", { x: cx, y: Hh - m.b + 15, class: "tick", "text-anchor": "middle", text: String(r.tws) }, s);
+      twsTick(s, cx, Hh - m.b, r.tws);
       const tr = segs.slice().reverse().map((n) => [n, `${fx(drag(r, n), 3)} N · ${fx((100 * drag(r, n)) / tot, 0)} %`, pc(n)]);
       tr.push(["total drag", fx(tot, 3) + " N"], ["drive (parts with X > 0)", fx(drive, 3) + " N"], ["β_TW", fx(r.twa, 1) + "°"]);
-      hover(g, `TWS ${r.tws} m/s, ${leg}wind`, tr);
+      hover(g, `TWS ${twsKt(r.tws)}, ${leg}wind`, tr);
     });
-    T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS [m/s] · drag [N]", { class: "alab", "text-anchor": "middle" });
+    twsUnits(s, m.l - 6, Hh - m.b);
+    T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS · drag [N]", { class: "alab", "text-anchor": "middle" });
     H("div", {}, f).appendChild(s);
     H("figcaption", { text: "At balance the drive equals the total drag, so each column is also the drive. A part pushing forward (X > 0, such as windage downwind) adds to the drive instead; hover for it." }, f);
   });
@@ -1636,7 +1682,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
       extraTip: (h) => { const r = at(h, m0, z0); return r ? [["GZ", fx((r.rm / W) * 1000, 1) + " mm"], ["sinkage", fx(r.sink * 1000, 2) + " mm"], ["trim", fx(r.trim, 2) + "°"], ["wetted", fx(r.wetted_area, 4) + " m²"]] : []; },
       label: "Righting moment against heel",
     });
-    document.getElementById("rm-cap").innerHTML = `The table at M<sub>ext</sub> = ${auto(m0)} N·m and Z<sub>ext</sub> = ${auto(z0)} N. Dots are the race's best-VMG upwind points at their own heel and RM<sub>φ</sub>, which include their pitch moment and vertical force, coloured by wind speed (${TWS[0]} → ${TWS[TWS.length - 1]} m/s, light to dark).`;
+    document.getElementById("rm-cap").innerHTML = `The table at M<sub>ext</sub> = ${auto(m0)} N·m and Z<sub>ext</sub> = ${auto(z0)} N. Dots are the race's best-VMG upwind points at their own heel and RM<sub>φ</sub>, which include their pitch moment and vertical force, coloured by wind speed (${twsKt(TWS[0])} → ${twsKt(TWS[TWS.length - 1])}, light to dark).`;
     const sh = document.getElementById("hy-heel");
     const med = up.length ? up.map((r) => r.heel).sort((a, b) => a - b)[Math.floor(up.length / 2)] : heels[0];
     const h0 = heels.reduce((p, q) => (Math.abs(q - med) < Math.abs(p - med) ? q : p));
@@ -1674,13 +1720,13 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
   }
   // attitude at best VMG
   const ah = document.getElementById("att-charts");
-  const xo = { lo: TWS[0], hi: TWS[TWS.length - 1], ticks: TWS.length <= 10 ? TWS : undefined, label: "TWS [m/s]", tipTitle: (v) => `TWS ${v} m/s` };
+  const xo = twsAxis(TWS);
   [["heel φ [deg]", (r) => r.heel, 1, "°", true], ["sinkage [mm, + down]", (r) => r.sink * 1000, 2, " mm", false], ["trim [deg, + bow down]", (r) => r.trim, 2, "°", false]].forEach(([title, f, d, u, zero]) => {
     const fig = H("figure", { style: "margin:0" }, ah);
     H("div", { class: "fig-title", text: title }, fig);
     const el = H("div", {}, fig);
     const su = up.map((r) => [r.tws, f(r)]), sd = dn.map((r) => [r.tws, f(r)]);
-    lineChart(el, { w: 360, h: 220, m: { l: 46 }, x: xo, y: Object.assign(span(su.concat(sd).map((p) => p[1]), zero), { n: 4, tip: (v) => fx(v, d) + u }),
+    lineChart(el, { w: 360, h: 234, m: { l: 46 }, x: xo, y: Object.assign(span(su.concat(sd).map((p) => p[1]), zero), { n: 4, tip: (v) => fx(v, d) + u }),
       series: [{ name: "upwind", color: "var(--leg-up)", dots: true, pts: su }, { name: "downwind", color: "var(--leg-down)", dots: true, pts: sd }], label: title });
   });
   // mass
@@ -1721,13 +1767,72 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
     ["RM at 30°", fx(INFO.rm_30deg_Nm, 3) + " N·m"]].forEach(([kk, v]) => { const d = H("div", {}, mo); H("dt", { text: kk }, d); H("dd", { text: v }, d); });
 })();
 
+// ---------- hull particulars ----------
+(function particulars() {
+  const box = document.getElementById("part-box");
+  const f = (PARTIC || []).find((r) => r.condition === "floating");
+  if (!f) { missing(box, "No particulars.csv in this run."); return; }
+  const mm = (v, d) => fx(v * 1000, d === undefined ? 1 : d) + " mm";
+  document.getElementById("part-lede").innerHTML = `particulars.csv: the hull floating upright at the boat's mass and CG (sinkage ${fx(f.sink * 1000, 2)} mm, trim ${fx(f.trim, 2)}°${f.converged ? "" : ", <b>not converged</b>"}), then on an even keel at each sinkage. The hull's own numbers leave the appendages out; the displacement, z<sub>B</sub>, GM and MCT count their volume. x is aft from the bow, z up from the water.`;
+  const out = document.getElementById("part-out");
+  [["displacement Δ", fx(f.displacement, 3) + " kg"], ["hull ∇", fx(f.volume * 1e3, 3) + " L"], ["LWL", mm(f.lwl)], ["BWL", mm(f.bwl)], ["T_c", mm(f.draft)],
+    ["waterline x", fx(f.x_fwd * 1000, 0) + "–" + fx(f.x_aft * 1000, 0) + " mm"], ["LCB", mm(f.lcb)], ["LCF", mm(f.lcf)], ["VCB", mm(f.vcb)],
+    ["S", fx(f.wetted_area, 4) + " m²"], ["A_WP", fx(f.waterplane_area, 4) + " m²"], ["A_X", fx(f.section_area * 1e4, 1) + " cm²"],
+    ["C_B", fx(f.cb, 3)], ["C_P", fx(f.cp, 3)], ["C_X", fx(f.cx, 3)], ["C_WP", fx(f.cwp, 3)], ["BM_T (hull)", mm(f.bm_t)], ["BM_L (hull)", mm(f.bm_l, 0)],
+    ["GM_T", mm(f.gm_t)], ["GM_L", mm(f.gm_l, 0)], ["MCT", fx(f.mct, 3) + " N·m/°"], ["immersion", fx(f.immersion, 1) + " g/mm"]]
+    .forEach(([k, v]) => { const d = H("div", {}, out); H("dt", { html: subs(k) }, d); H("dd", { text: v }, d); });
+  const even = PARTIC.filter((r) => r.condition === "even keel");
+  const c = (k, h, s, d) => [k, h, (v) => fx(v * s, d)];
+  table(document.getElementById("part-table"), even, [c("sink", "sink mm", 1000, 1), c("displacement", "Δ kg", 1, 3), c("lwl", "LWL mm", 1000, 1),
+    c("bwl", "BWL mm", 1000, 1), c("draft", "T_c mm", 1000, 1), c("wetted_area", "S m²", 1, 4), c("waterplane_area", "A_WP m²", 1, 4),
+    c("lcb", "LCB mm", 1000, 1), c("lcf", "LCF mm", 1000, 1), c("cb", "C_B", 1, 3), c("cp", "C_P", 1, 3), c("cwp", "C_WP", 1, 3),
+    c("bm_t", "BM_T mm", 1000, 1), c("gm_t", "GM_T mm", 1000, 1), c("immersion", "g/mm", 1, 1)]);
+})();
+
 // ---------- race ----------
 (function raceSection() {
   const c = COURSE;
   document.getElementById("race-lede").innerHTML = `For each wind speed the best VMG upwind and downwind (vmg.csv has those points in full), and the windward–leeward race in run.json's course: ${c.laps} laps of ${auto(c.leg)} m along the wind, ${auto(c.tacks_per_leg)} tacks of ${auto(c.tack_s)} s per beat and ${auto(c.gybes_per_leg)} gybes of ${auto(c.gybe_s)} s per run. The weighted race time is ${fx(tRun, 1)} s.`;
   const host = document.getElementById("race-charts");
-  if (!RACE.length) { missing(host, "No race.csv in this run."); return; }
-  const xo = { lo: TWS[0], hi: TWS[TWS.length - 1], ticks: TWS.length <= 10 ? TWS : undefined, label: "TWS [m/s]", tipTitle: (v) => `TWS ${v} m/s` };
+  if (!RACE.length) { missing(host, "No race.csv in this run."); document.getElementById("wind-fig").hidden = true; return; }
+  // the winds (run.json: wind; race.csv: weight): each one's share of the weights
+  (function winds() {
+    const wsum = RACE.reduce((a, r) => a + r.weight, 0), share = RACE.map((r) => (100 * r.weight) / wsum);
+    const Wd = 470, Hh = 230, m = { l: 44, r: 10, t: 12, b: 50 };
+    const s = svgRoot(Wd, Hh, "Share of the weights at each wind speed");
+    const max = niceMax(Math.max(1, ...share) * 1.08);
+    const y = lin(0, max, Hh - m.b, m.t), bw = (Wd - m.l - m.r) / RACE.length, cw = Math.min(24, bw - 8);
+    nice(0, max, 4).forEach((v) => {
+      E("line", { x1: m.l, x2: Wd - m.r, y1: y(v), y2: y(v), class: v === 0 ? "axis-l" : "grid-l" }, s);
+      E("text", { x: m.l - 6, y: y(v) + 4, class: "tick", "text-anchor": "end", text: tk(v) }, s);
+    });
+    RACE.forEach((r, i) => {
+      const cx = m.l + bw * i + bw / 2, y0 = y(0), y1 = y(share[i]), rr = Math.min(4, (y0 - y1) / 2);
+      twsTick(s, cx, Hh - m.b, r.tws);
+      const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `TWS ${twsKt(r.tws)}: ${fx(share[i], 1)} % of the weights` }, s);
+      E("rect", { x: cx - bw / 2, y: m.t, width: bw, height: Hh - m.t - m.b, fill: "transparent" }, g);
+      if (y0 - y1 > 0.5) E("path", { d: `M${cx - cw / 2},${y0} V${y1 + rr} Q${cx - cw / 2},${y1} ${cx - cw / 2 + rr},${y1} H${cx + cw / 2 - rr} Q${cx + cw / 2},${y1} ${cx + cw / 2},${y1 + rr} V${y0} Z`, class: "barfill", style: "fill:var(--accent)" }, g);
+      hover(g, "TWS " + twsKt(r.tws), [["weight", auto(r.weight)], ["share of the weights", fx(share[i], 1) + " %", "var(--accent)"], ["race time", fx(r.t_s, 1) + " s"],
+        ["share of the weighted race time", fx((100 * r.weight * r.t_s) / (wsum * tRun), 1) + " %"]]);
+    });
+    twsUnits(s, m.l - 6, Hh - m.b);
+    T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS · share of the weights [%]", { class: "alab", "text-anchor": "middle" });
+    document.getElementById("wind-chart").appendChild(s);
+    const wr = RUN.wind || {}, src = (BOAT.wind || {}).weights;
+    const mean = RACE.reduce((a, r) => a + r.weight * r.tws, 0) / wsum;
+    let acc = 0;
+    const median = (RACE.find((r) => (acc += r.weight) >= wsum / 2) || {}).tws;
+    const peak = RACE[share.indexOf(Math.max(...share))];
+    const both = (v, d) => `${fx(v, d)} m/s <span class="sub">${fx(kt(v), 1)} kt</span>`;
+    const out = document.getElementById("wind-out");
+    [["wind speeds", String(RACE.length)], ["most weight", `${both(peak.tws, 1)}`], ["median", both(median, 1)], ["mean", both(mean, 2)],
+      ["lightest", both(RACE[0].tws, 1)], ["strongest", both(RACE[RACE.length - 1].tws, 1)]]
+      .forEach(([k, v]) => { const d = H("div", {}, out); H("dt", { text: k }, d); H("dd", { html: v }, d); });
+    const from = typeof src === "string" && src.startsWith("file:") ? `the venue file <code>${esc(src.slice(5))}</code> (<code>wind.weights</code>; its <code>#</code> lines say how it was made)`
+      : Array.isArray(src) ? "the boat file's list (<code>wind.weights</code>)" : "equal weights (<code>wind.weights: uniform</code>)";
+    document.getElementById("wind-cap").innerHTML = `The weighted race time is each wind speed's race time weighted by ${from}. Wind speeds are at ${auto(wr.z_ref)} m, with a power-law profile of exponent ${wr.alpha} up the rig. Hover a bar for its race time and its share of the weighted race time: light winds count for more than their weight, as those races take longer. The calculator below re-weights the race without a new solve.`;
+  })();
+  const xo = twsAxis(TWS);
   // the best-VMG points in full (vmg.csv), up and down
   const leg = (l) => TWS.map((t) => VMG.find((r) => r.tws === t && r.leg === l)).filter((r) => r && r.converged);
   const ups = leg("up"), dns = leg("down");
@@ -1740,7 +1845,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
     H("div", { class: "fig-title", html: subs(title) }, fig);
     const el = H("div", {}, fig);
     const su = ups.map((r) => [r.tws, f(r)]), sd = dns.map((r) => [r.tws, f(r)]);
-    lineChart(el, { w: 360, h: 230, m: { l: 46 }, x: xo, y: Object.assign(span(su.concat(sd).map((p) => p[1]), zero), { n: 4, tip: (v) => fx(v, d) + u }),
+    lineChart(el, { w: 360, h: 244, m: { l: 46 }, x: xo, y: Object.assign(span(su.concat(sd).map((p) => p[1]), zero), { n: 4, tip: (v) => fx(v, d) + u }),
       series: [{ name: "upwind", color: "var(--leg-up)", dots: true, pts: su }, { name: "downwind", color: "var(--leg-down)", dots: true, pts: sd }], label: title,
       extraTip: (t) => choices.flatMap((k) => ["up", "down"].map((l) => { const r = VMG.find((q) => q.tws === t && q.leg === l); return r ? [`${ctrlSym(k.key)} ${l}`, choiceName(k.key, r[k.key])] : null; }).filter(Boolean)) });
   });
@@ -1761,7 +1866,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
   const hw = document.getElementById("calc-w");
   const inps = RACE.map((r, i) => {
     const l = H("label", { class: "ctl", for: "w-" + i, style: "display:grid;gap:2px" }, hw);
-    l.appendChild(document.createTextNode(r.tws + " m/s"));
+    l.appendChild(document.createTextNode(twsKt(r.tws)));
     const inp = H("input", { type: "number", id: "w-" + i, value: r.weight, min: 0, step: 0.5 }, l);
     inp.addEventListener("input", () => { const v = Number(inp.value); if (isFinite(v) && v >= 0) { w[i] = v; mark(null); draw(); } });
     return inp;
@@ -1786,7 +1891,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
     const dd = tot - tRun;
     document.getElementById("calc-delta").textContent = isFinite(tot) ? (Math.abs(dd) < 0.05 ? "the same as the run's " + fx(tRun, 1) + " s" : sg(dd, 1) + " s against the run's " + fx(tRun, 1) + " s (" + sg((100 * dd) / tRun, 2) + " %)") : "set at least one weight above zero";
     const hostC = document.getElementById("calc-chart");
-    const Wd = 470, Hh = 250, m = { l: 44, r: 10, t: 12, b: 36 };
+    const Wd = 470, Hh = 264, m = { l: 44, r: 10, t: 12, b: 50 };
     const s = svgRoot(Wd, Hh, "Race time per wind speed, upwind and downwind legs stacked");
     const fin = rows.filter((r) => isFinite(r.t));
     const max = niceMax(Math.max(1, ...fin.map((r) => r.t)) * 1.04);
@@ -1795,16 +1900,17 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
     nice(0, max, 5).forEach((v) => { E("line", { x1: m.l, x2: Wd - m.r, y1: y(v), y2: y(v), class: v === 0 ? "axis-l" : "grid-l" }, s); E("text", { x: m.l - 6, y: y(v) + 4, class: "tick", "text-anchor": "end", text: String(v) }, s); });
     rows.forEach((r, i) => {
       const cx = m.l + bw * i + bw / 2, cw = Math.min(24, bw - 10);
-      E("text", { x: cx, y: Hh - m.b + 15, class: "tick", "text-anchor": "middle", text: String(r.tws) }, s);
+      twsTick(s, cx, Hh - m.b, r.tws);
       if (!isFinite(r.t)) return;
       const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `TWS ${r.tws}: ${fx(r.t, 1)} s` }, s);
       E("rect", { x: cx - bw / 2, y: m.t, width: bw, height: Hh - m.t - m.b, fill: "transparent" }, g);
       const yUp = y(r.up), yTop = y(r.t);
       E("rect", { x: cx - cw / 2, y: yUp, width: cw, height: y(0) - yUp, class: "barfill", style: "fill:var(--leg-up);opacity:" + (r.w > 0 ? 1 : 0.3) }, g);
       E("path", { d: `M${cx - cw / 2},${yUp - 2} V${yTop + 4} Q${cx - cw / 2},${yTop} ${cx - cw / 2 + 4},${yTop} H${cx + cw / 2 - 4} Q${cx + cw / 2},${yTop} ${cx + cw / 2},${yTop + 4} V${yUp - 2} Z`, class: "barfill", style: "fill:var(--leg-down);opacity:" + (r.w > 0 ? 1 : 0.3) }, g);
-      hover(g, `TWS ${r.tws} m/s`, [["upwind legs", fx(r.up, 1) + " s", "var(--leg-up)"], ["downwind legs", fx(r.dn, 1) + " s", "var(--leg-down)"], ["race", fx(r.t, 1) + " s"], ["weight", auto(r.w)]]);
+      hover(g, "TWS " + twsKt(r.tws), [["upwind legs", fx(r.up, 1) + " s", "var(--leg-up)"], ["downwind legs", fx(r.dn, 1) + " s", "var(--leg-down)"], ["race", fx(r.t, 1) + " s"], ["weight", auto(r.w)]]);
     });
-    T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS [m/s] · race time [s]", { class: "alab", "text-anchor": "middle" });
+    twsUnits(s, m.l - 6, Hh - m.b);
+    T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS · race time [s]", { class: "alab", "text-anchor": "middle" });
     hostC.replaceChildren(s);
   }
   draw();
@@ -1820,13 +1926,16 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
       tip: [["race time", sg(s.dt_pct, 3) + " %", s.dt_pct > 0 ? "var(--div-pos)" : "var(--div-neg)"], ["seconds", sg((s.dt_pct / 100) * tRun, 2) + " s"], ["boat lengths", sg(s.boat_lengths, 2)]] })),
     fmt: (v) => sg(v, 3) + " %", tickFmt: (v) => fx(v, 1) + " %", label: "Exchange rates",
   });
-  document.getElementById("rates-cap").innerHTML = `Percent of the ${fx(tRun, 1)} s weighted race time (rates_summary.csv, as in summary.md) and the same as boat lengths over the ${auto(DIST)} m sailed along the wind (Δt × distance / t / ${auto(COURSE.boat_length || 1)} m).`;
+  document.getElementById("rates-cap").innerHTML = `Percent of the ${fx(tRun, 1)} s weighted race time (rates_summary.csv, as in summary.md) and the same as boat lengths over the ${auto(DIST)} m sailed along the wind (Δt × distance / t / ${auto(COURSE.boat_length || 1)} m). <b>Fixed drag</b>: 0.01 N more drag, the same at every speed and heel. <b>Loads</b>: all of that part's forces and moments +1 %. For the hull, its resistance (friction and waves) and its side force${INFO["hull.side_force"] === false ? "; in this run the keel's table holds the hull's side force and yaw (keel3d's double body), so those move with the keel's loads" : ""}. For the sails, drive and heeling force together. The keel fits' own rows (D0, k, side slope, leeway) replace its loads row.`;
   const names = [...new Set(RATES.map((r) => r.name))], tws = uniq(RATES.map((r) => r.tws));
   const host = document.getElementById("rates-heat");
-  const cw = 64, ch = 28, ml = 210, mt = 24;
+  const cw = 64, ch = 28, ml = 210, mt = 38;
   const Wd = ml + cw * tws.length + 4, Hh = mt + ch * names.length + 4;
   const s = svgRoot(Wd, Hh, "Heat map of the exchange rates per wind speed");
-  tws.forEach((t, j) => E("text", { x: ml + cw * j + cw / 2, y: 16, class: "tick", "text-anchor": "middle", text: t + " m/s" }, s));
+  tws.forEach((t, j) => {
+    E("text", { x: ml + cw * j + cw / 2, y: 16, class: "tick", "text-anchor": "middle", text: t + " m/s" }, s);
+    E("text", { x: ml + cw * j + cw / 2, y: 30, class: "tick", "text-anchor": "middle", text: fx(kt(t), 1) + " kt" }, s);
+  });
   names.forEach((n, i) => {
     const rows = RATES.filter((r) => r.name === n);
     const mx = Math.max(...rows.map((r) => Math.abs(r.dt_pct)).filter(finite)) || 1;
@@ -1839,14 +1948,14 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
       const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `${n} at ${r.tws} m/s: ${sg(r.dt_pct, 3)} %` }, s);
       E("rect", { x: ml + cw * j + 1, y: mt + ch * i + 1, width: cw - 2, height: ch - 2, rx: 3, style: `fill:color-mix(in oklab, ${col} ${pct}%, var(--div-mid))` }, g);
       E("text", { x: ml + cw * j + cw / 2, y: mt + ch * i + ch / 2 + 4, "text-anchor": "middle", class: "t11", style: `fill:${pct > 62 ? "#ffffff" : "var(--ink)"};font-variant-numeric:tabular-nums`, text: sg(r.dt_pct, Math.abs(r.dt_pct) < 0.01 ? 4 : 3) }, g);
-      hover(g, `${n} · TWS ${r.tws}`, [["% of this wind's race time", sg(r.dt_pct, 4), col], ["seconds, up", sg(r.dt_up, 3)], ["seconds, down", sg(r.dt_down, 3)]]);
+      hover(g, `${n} · TWS ${twsKt(r.tws)}`, [["% of this wind's race time", sg(r.dt_pct, 4), col], ["seconds, up", sg(r.dt_up, 3)], ["seconds, down", sg(r.dt_down, 3)]]);
     });
   });
   host.replaceChildren(s);
   s.style.minWidth = Wd * 0.85 + "px";
   const dr = RATES.filter((r) => finite(r.vdrdv_up) || finite(r.vdrdv_down));
   if (dr.length) {
-    lineChart(document.getElementById("vdr-chart"), { w: 900, h: 260, x: { lo: tws[0], hi: tws[tws.length - 1], ticks: tws.length <= 10 ? tws : undefined, label: "TWS [m/s]", tipTitle: (v) => `TWS ${v} m/s` },
+    lineChart(document.getElementById("vdr-chart"), { w: 900, h: 274, x: twsAxis(tws),
       y: Object.assign(span(dr.flatMap((r) => [r.vdrdv_up, r.vdrdv_down]), true), { n: 6, tip: (v) => fx(v, 3) + " N" }),
       series: [{ name: "upwind", color: "var(--leg-up)", dots: true, pts: dr.map((r) => [r.tws, r.vdrdv_up]) }, { name: "downwind", color: "var(--leg-down)", dots: true, pts: dr.map((r) => [r.tws, r.vdrdv_down]) }], label: "V dR/dV" });
   } else document.getElementById("vdr-fig").hidden = true;
