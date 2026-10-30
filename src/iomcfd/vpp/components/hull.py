@@ -194,17 +194,45 @@ class IttcMichell:
     controls: tuple = ()
     covers: frozenset = frozenset()
     sinks: tuple = ()  # michell-heeled: the static sinkage at each heel [m]
+    k_table: object = None  # tables.Grid (|φ|, V_b) -> k, from form_factor_table (else form_factor)
+    k_source: str = ""
     _rw: object = field(default=None, repr=False)
 
     @classmethod
     def build(cls, ctx, name: str, shape, *, form_factor: float = 0.10, cf_factor: float = 1.0,
-              waves: str = "michell", side_force: bool | str = "auto") -> "IttcMichell":
+              waves: str = "michell", side_force: bool | str = "auto",
+              form_factor_table: str | None = None) -> "IttcMichell":
         """waves: michell | michell-heeled | none. form_factor (1 + k) − 1;
-        cf_factor < 1 brackets a laminar run."""
+        cf_factor < 1 brackets a laminar run. form_factor_table: k over heel ×
+        V_b from CFD (vpp table build, recipe hull-form-factor) instead of
+        form_factor; outside it k is held at its edge and the point flagged."""
         if waves not in ("michell", "michell-heeled", "none"):
             raise ValueError(f"{name}: waves {waves}: michell, michell-heeled or none")
+        grid, src = None, ""
+        if form_factor_table:
+            t = tables.read(ctx.resolve(form_factor_table))
+            if (t.header.get("component"), t.header.get("model")) != ("hull", "form-factor"):
+                raise ValueError(f"{name}: {form_factor_table} is not a hull form-factor table")
+            tp, hp = t.header.get("params") or {}, getattr(shape, "params", dict)()
+            diff = [k for k in tp if k in hp and tp[k] != hp[k]]
+            if diff:
+                raise ValueError(f"{name}: {form_factor_table} was computed for another hull ({', '.join(diff)} differ)")
+            if not any(k in hp for k in tp):
+                ctx.warn(f"{name}: {form_factor_table} names no hull this boat's can be checked against")
+            dims = t.header["dims"]
+            axes = [np.array(sorted({r[d] for r in t.rows})) for d in dims]
+            rows = sorted(t.rows, key=lambda r: tuple(r[d] for d in dims))
+            grid = tables.Grid(axes, np.array([r["k"] for r in rows]).reshape(tuple(len(a) for a in axes)))
+            src = f"{form_factor_table} ({(t.header.get('source') or {}).get('run', '')})"
         return cls(shape, ctx.water.rho, ctx.water.nu, float(form_factor), float(cf_factor), waves, side_force,
-                   name=name)
+                   name=name, k_table=grid, k_source=src)
+
+    def k(self, V: float, heel: float) -> tuple[float, bool]:
+        """The form factor k at V_b and heel (the table's, else form_factor) and whether it was held."""
+        if self.k_table is None:
+            return self.form_factor, False
+        k, out = self.k_table(abs(heel), V)
+        return float(k), out
 
     def finish(self, ctx) -> None:
         """Once the hydrostatics exist: the static sinkage for the waves, and
@@ -278,8 +306,10 @@ class IttcMichell:
         L = s.hydro.get("lwl", math.nan)
         S = S if math.isfinite(S) else self._wetted
         L = L if math.isfinite(L) else self.hull.length
-        Rf = hullres.friction_resistance(s.V, S, L, self.nu, self.rho, self.form_factor, self.cf_factor)
+        k, k_out = self.k(s.V, s.heel)
+        Rf = hullres.friction_resistance(s.V, S, L, self.nu, self.rho, k, self.cf_factor)
         Rw, out = self.wave_resistance(s.V, s.trim, s.heel)
+        out = out or k_out
         z_d = -0.4 * self.hull.draft  # drag centre: about the wetted area's centroid depth
         ld = Loads.at(frames.heeled_point(self._lcb, 0.0, z_d, s.heel), X=-(Rf + Rw), extrapolated=out)
         if self.side_force is True and s.V > 0:
@@ -287,8 +317,8 @@ class IttcMichell:
             # other idealisation of the same flow, so it is not added (hullres)
             Sh, x_cp = self.hull.jones(s.V, s.leeway, self.rho, self._volume)
             ld = ld + Loads.at(frames.heeled_point(x_cp, 0.0, z_d, s.heel), Y=Sh)
-        ld.info.update({"Rf": Rf, "Rw": Rw, "wetted": S})
+        ld.info.update({"Rf": Rf, "Rw": Rw, "wetted": S, "k": k})
         return ld
 
     def info(self) -> dict:
-        return {"side_force": self.side_force is True}
+        return {"side_force": self.side_force is True} | ({"form_factor": self.k_source} if self.k_source else {})

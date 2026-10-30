@@ -1,5 +1,7 @@
-"""Windage CFD tables (vpp/windage.py) and the windage force model that reads
-them (components/windage.py WindageTable): drag and lift in the VPP's frame."""
+"""VPP tables from the hull CFD: windage (vpp/windage.py export, read by
+components/windage.py WindageTable: drag and lift in the VPP's frame) and the
+hull's form factor (vpp/keel3d.py recipe hull-form-factor, read by
+components/hull.py IttcMichell's form_factor_table)."""
 
 import math
 
@@ -146,3 +148,84 @@ def test_a_boat_with_a_windage_table(tmp_path):
     assert isinstance(w.forces, WindageTable) and w.loads(State(1.0, 20.0, 2.0), Wind(3.0, 40.0)).finite()
     # the made-up table names no hull of this boat's and floats it differently
     assert any("no hull" in m for m in b.warnings) and any("floats differently" in m for m in b.warnings)
+
+
+# --- the hull's form factor from keel3d (vpp/keel3d.py recipe hull-form-factor) --------------------------------
+
+
+def _ittc(V, L=0.95, nu=1.137e-6):
+    return 0.075 / (math.log10(V * L / nu) - 2) ** 2
+
+
+def _hull_rows(path, rows):
+    import pandas as pd
+
+    pd.DataFrame(rows).to_csv(path, index=False)
+    return path
+
+
+def _k3d(heel, V, D_hull, case, **kw):
+    return {"case": case, "status": "ok", "heel": heel, "leeway": 0.0, "speed": V, "trim": 0.1 * heel / 30,
+            "hull_stl": "", "hull_refine": 1, "mesh": "medium", "rhoInf": 999.1, "nu": 1.137e-6, "hull_lwl": 0.95,
+            "hull_wetted_area_m2": 0.144, "drag_hull_N": D_hull, "yplus_hull_mean": 20.0, **kw}
+
+
+def _q_s_cf(V):
+    return 0.5 * 999.1 * V**2 * 0.144 * _ittc(V)
+
+
+def test_hull_form_factor_table(tmp_path):
+    from iomcfd.vpp import keel3d
+
+    kwf = {(0.0, 0.5): 0.02, (0.0, 1.5): 0.03, (0.0, 3.6): 0.04, (30.0, 0.5): 0.05, (30.0, 1.5): 0.06, (30.0, 3.6): 0.07}
+    src = _hull_rows(tmp_path / "src.csv", [_k3d(h, V, (1 + k) * _q_s_cf(V), f"h{h:g}_V{V:g}") for (h, V), k in kwf.items()]
+                     + [_k3d(0.0, 1.5, 9.9, "lw4", leeway=4.0)])
+    # resolved: 0.90 of the wall functions' drag at 1.5 m/s, 0.98 at 0.5 m/s (heel 30 only there)
+    res = _hull_rows(tmp_path / "res.csv", [
+        _k3d(0.0, 1.5, 0.90 * (1 + kwf[(0.0, 1.5)]) * _q_s_cf(1.5), "r0", hull_yplus=1.0, yplus_hull_mean=2.4),
+        _k3d(30.0, 1.5, 0.90 * (1 + kwf[(30.0, 1.5)]) * _q_s_cf(1.5), "r1", hull_yplus=1.0, yplus_hull_mean=3.9),
+        _k3d(30.0, 0.5, 0.98 * (1 + kwf[(30.0, 0.5)]) * _q_s_cf(0.5), "r2", hull_yplus=1.0, yplus_hull_mean=1.6),
+        {**_k3d(0.0, 0.5, 1.0, "r3", hull_yplus=1.0), "status": "failed"}])
+    recipe = tmp_path / "k.yaml"
+    recipe.write_text(f"recipe: hull-form-factor\nsource: {src}\nselect: {{mesh: medium}}\nresolved: [{res}]\nout: k.csv\n")
+    t = tables.read(keel3d.build_table(recipe))
+    assert t.header["component"] == "hull" and t.header["model"] == "form-factor" and len(t.rows) == 6
+    assert t.header["correction"]["V"] == [0.5, 1.5]
+    assert t.header["correction"]["ratio"] == pytest.approx([0.98, 0.90])
+    for r in t.rows:
+        c = {0.5: 0.98, 1.5: 0.90, 3.6: 0.90}[r["V"]]  # held beyond 1.5 m/s
+        assert r["k_wf"] == pytest.approx(kwf[(r["heel"], r["V"])], abs=1e-9)
+        assert r["k"] == pytest.approx(c * (1 + r["k_wf"]) - 1, abs=1e-9)
+        assert r["held"] == float(r["V"] == 3.6)
+
+
+def test_hull_reads_its_form_factor_table(tmp_path):
+    from iomcfd.geometry.hulls import CanoeSpec
+    from iomcfd.vpp import hullres
+    from iomcfd.vpp.components.hull import CanoeHull, IttcMichell
+
+    rows = [{"heel": h, "V": V, "k": -0.05 + 0.001 * h + 0.01 * V} for h in (0.0, 30.0, 60.0) for V in (0.5, 1.5, 3.6)]
+    tables.write(tmp_path / "k.csv", {"component": "hull", "model": "form-factor", "dims": ["heel", "V"],
+                                      "params": {"hull_mesh_sha256": "abc"}}, rows)
+
+    class Ctx(_Ctx):
+        water = physics.fresh_water(15.0)
+
+    shape = CanoeHull(CanoeSpec())
+    hull = IttcMichell.build(Ctx(tmp_path), "hull", shape, form_factor_table="k.csv", waves="none", side_force=False)
+    plain = IttcMichell.build(Ctx(tmp_path), "hull", shape, waves="none", side_force=False)
+    s = State(1.5, 30.0, 0.0, hydro={"wetted_area": 0.14, "lwl": 0.9})
+    k = -0.05 + 0.03 + 0.015
+    Rf = hullres.friction_resistance(1.5, 0.14, 0.9, hull.nu, hull.rho, k, 1.0)
+    ld = hull.loads(s, Wind(3.0, 45.0))
+    assert ld.info["k"] == pytest.approx(k, abs=1e-6) and -ld.X == pytest.approx(Rf, rel=1e-6)
+    assert plain.loads(s, Wind(3.0, 45.0)).info["k"] == 0.10  # without the table: form_factor
+    assert hull.loads(State(4.0, 30.0, 0.0), Wind(3.0, 45.0)).extrapolated  # beyond the table: held, flagged
+    with pytest.raises(ValueError, match="another hull"):
+        class Other:
+            def params(self):
+                return {"hull_mesh_sha256": "def"}
+
+            def displacement(self):
+                return shape.displacement()
+        IttcMichell.build(Ctx(tmp_path), "hull", Other(), form_factor_table="k.csv")

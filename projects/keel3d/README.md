@@ -234,7 +234,11 @@ submit`) replaces the canoe body:
     1.5 m/s, inside the viscous sublayer, where the Spalding wall function
     is exact; above that the first layer is too thin for the hull's 2.8 mm
     cells (a finer hull surface, `hull_refine` 2, is untried). The result's
-    `yplus_hull_mean` is the measure.
+    `yplus_hull_mean` is the measure. In alt-hull-yplus (run
+    20261030-182918, n2-standard-16) it was 2.4 and 3.9 at 1.5 m/s (φ 0 and
+    30°) and 1.6 at 0.5 m/s (φ 30°). At φ 0°, 0.5 m/s the layers left 832
+    illegal faces and 86 inverted cells, and the case stopped at checkMesh:
+    the three passes aren't always clean.
 * L, the hull's volume, LCB, wetted area and waterline length (`hull_lwl`,
   for `Re_hull`) come from the cut hull at the case's attitude.
 

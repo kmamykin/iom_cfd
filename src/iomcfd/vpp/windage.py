@@ -36,19 +36,6 @@ from . import keel3d, tables
 COLUMNS = ["heel", "angle", "A", "height", "cd", "cl", "D", "L", "Z", "K", "M", "N", "ext", "case"]
 
 
-def hull_params(r) -> dict:
-    """The hull a windage or keel3d case ran on, in the VPP hull shapes'
-    names (params()): an STL's sha256, else nothing (the canoe body's
-    parameters are keel3d's own hull_* columns)."""
-    spec = r.get("hull_stl")
-    if not isinstance(spec, str) or not spec.strip():
-        return {}
-    path = Path(config.geometry_dir()) / spec.removeprefix("file:")
-    if not path.exists():
-        raise FileNotFoundError(f"{spec}: no {path} to identify the hull by (boats/private, geometry/private)")
-    return {"hull_mesh_sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
-
-
 def export(ref: str, select: dict | None, out: str | Path, base: Path | None = None) -> Path:
     """One hull's windage cases at one wind speed as a VPP table at `out`."""
     import pandas as pd
@@ -98,7 +85,7 @@ def export(ref: str, select: dict | None, out: str | Path, base: Path | None = N
                 "surface (no gradient, no rig); D, L, Z, K, M, N per unit ½ρV_AW², D along and L across the "
                 "wind (L < 0 ahead of the beam: forward and to leeward), moments about the bow on the waterline; "
                 "angle from the centreline; ext: not converged",
-        "params": {"hull_stl": str(r0.get("hull_stl") or ""), **hull_params(r0)},
+        "params": {"hull_stl": str(r0.get("hull_stl") or ""), **keel3d.hull_params(r0)},
         "source": {"tool": "windage", "run": ref, "file": "/".join(path.parts[-3:]),
                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "select": dict(select or {})},
         "git": config.git_describe(),

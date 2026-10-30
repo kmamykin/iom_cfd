@@ -27,11 +27,14 @@ body's suction dropped) and Mv its pitch moment; ext 1 for a not_converged
 or filled case. `--fill` fills missing cases linearly along the leeway.
 
 `iomcfd vpp table build boats/tables/<name>.yaml` builds a table from a
-recipe. The one recipe so far, `keel-section`, puts another fin section on a
-keel3d table's keel (components/section.py SectionChange on its PolarFit)
-and writes its loads on a grid of heel × leeway × V_b (`model: grid`, read
-by components/keel.py KeelGrid): the 2D section differences depend on the
-Reynolds number, so the speed is one of the dimensions.
+recipe. `keel-section` puts another fin section on a keel3d table's keel
+(components/section.py SectionChange on its PolarFit) and writes its loads
+on a grid of heel × leeway × V_b (`model: grid`, read by components/keel.py
+KeelGrid): the 2D section differences depend on the Reynolds number, so the
+speed is one of the dimensions. `hull-form-factor` writes the hull's form
+factor k on ITTC-57 over heel × V_b from a keel3d run's zero-leeway rows,
+corrected by hull_yplus runs (resolved wall against wall functions), for
+components/hull.py IttcMichell's `form_factor_table`.
 """
 
 from __future__ import annotations
@@ -78,6 +81,19 @@ def resolve_results(ref: str, base: Path | None = None) -> Path:
         if p.exists():
             return p if p.suffix == ".csv" else p / "results.csv"
     raise FileNotFoundError(ref)
+
+
+def hull_params(r) -> dict:
+    """The hull a windage or keel3d case ran on, in the VPP hull shapes'
+    names (params()): an STL's sha256, else nothing (the canoe body's
+    parameters are keel3d's own hull_* columns)."""
+    spec = r.get("hull_stl")
+    if not isinstance(spec, str) or not spec.strip():
+        return {}
+    path = Path(config.geometry_dir()) / spec.removeprefix("file:")
+    if not path.exists():
+        raise FileNotFoundError(f"{spec}: no {path} to identify the hull by (boats/private, geometry/private)")
+    return {"hull_mesh_sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
 def numeric(v: Any) -> bool:
@@ -273,8 +289,10 @@ def build_table(recipe: str | Path) -> Path:
 
     recipe = Path(recipe)
     r = yaml.safe_load(recipe.read_text())
+    if r.get("recipe") == "hull-form-factor":
+        return _build_form_factor(recipe, r)
     if r.get("recipe") != "keel-section":
-        raise ValueError(f"{recipe}: recipe {r.get('recipe')}: only keel-section so far")
+        raise ValueError(f"{recipe}: recipe {r.get('recipe')}: keel-section or hull-form-factor")
     base = recipe.parent
     src_path = _resolve(str(r["source"]), base)
     src = tables.read(src_path)
@@ -328,3 +346,90 @@ def build_table(recipe: str | Path) -> Path:
         "git": config.git_describe(),
     }
     return tables.write(base / str(r["out"]), header, rows, [*dims, "X", "Y", "Z", "K", "M", "N", "Zv", "Mv", "ext"])
+
+
+def _form_factor(r) -> float:
+    """k on ITTC-57 of a keel3d case's hull: D_hull / (½ρV²S C_F(V LWL / ν)) − 1, S and LWL of its cut hull."""
+    V = float(r["speed"])
+    cf = 0.075 / (math.log10(V * float(r["hull_lwl"]) / float(r["nu"])) - 2.0) ** 2
+    return float(r["drag_hull_N"]) / (0.5 * float(r["rhoInf"]) * V**2 * float(r["hull_wetted_area_m2"]) * cf) - 1.0
+
+
+def _build_form_factor(recipe: Path, r: dict) -> Path:
+    """The hull's form factor k on ITTC-57 over heel × V_b (`recipe:
+    hull-form-factor`) from a keel3d run's zero-leeway rows (`source`,
+    `select`: one hull, every heel and speed, wall functions), each scaled by
+    the ratio of the hull's drag with its wall resolved (`resolved`: hull_yplus
+    runs) to the drag with wall functions at the same heel and speed (the
+    source's row, else the first `reference` run's with the source's
+    hull_refine and mesh). The ratio is averaged over heel at each speed,
+    linear in V_b between the speeds that have one and held beyond them
+    (`held` 1 on those rows)."""
+    import pandas as pd
+
+    base = recipe.parent
+    df = select_rows(pd.read_csv(resolve_results(str(r["source"]), base)), {**(r.get("select") or {}), "leeway": 0})
+    if df.empty:
+        raise ValueError(f"{recipe}: no zero-leeway rows of {r['source']} match {r.get('select')}")
+    for k in (*HULL_KEYS, "hull_refine", "mesh"):
+        if k in df and df[k].astype(str).nunique() > 1:
+            raise ValueError(f"{recipe}: {r['source']}'s rows vary in {k}: select one")
+    n = df.groupby(["heel", "speed"]).size()
+    if (n > 1).any():
+        raise ValueError(f"{recipe}: more than one zero-leeway case at (heel, V_b) {list(n[n > 1].index)}")
+    heels, speeds = (sorted(float(v) for v in df[d].astype(float).unique()) for d in ("heel", "speed"))
+    by = {(float(x["heel"]), float(x["speed"])): x for _, x in df.iterrows()}
+    missing = [(h, V) for h in heels for V in speeds if (h, V) not in by]
+    if missing:
+        raise ValueError(f"{recipe}: no zero-leeway case at (heel, V_b) {missing}")
+    r0 = df.iloc[0]
+    refs = [df] + [select_rows(pd.read_csv(resolve_results(str(x), base)),
+                               {"leeway": 0, "hull_refine": r0.get("hull_refine"), "mesh": r0["mesh"]})
+                   for x in r.get("reference") or []]
+    pairs = []
+    for ref in r.get("resolved") or []:
+        res = select_rows(pd.read_csv(resolve_results(str(ref), base)), {"leeway": 0})
+        for _, x in res[res["status"] == "ok"].iterrows():
+            for d in refs:
+                trim = 0.0 if pd.isna(x.get("trim")) else float(x["trim"])
+                m = d[np.isclose(d["heel"], x["heel"]) & np.isclose(d["speed"], x["speed"])
+                      & np.isclose(d["trim"].fillna(0.0), trim, atol=1e-3)]
+                if not m.empty:
+                    w = m.iloc[0]
+                    pairs.append({"heel": float(x["heel"]), "V": float(x["speed"]), "ratio": float(x["drag_hull_N"])
+                                  / float(w["drag_hull_N"]), "resolved": str(x["case"]), "yplus": float(x["yplus_hull_mean"]),
+                                  "wall_functions": str(w["case"]), "yplus_wf": float(w["yplus_hull_mean"])})
+                    break
+    if not pairs:
+        raise ValueError(f"{recipe}: no resolved case matches a wall-function case at its heel and speed")
+    pv = sorted({p["V"] for p in pairs})
+    ratio_at = [float(np.mean([p["ratio"] for p in pairs if p["V"] == V])) for V in pv]
+    rows = []
+    for h in heels:
+        for V in speeds:
+            x = by[(h, V)]
+            k_wf, c = _form_factor(x), float(np.interp(V, pv, ratio_at))
+            rows.append({"heel": h, "V": V, "k": c * (1.0 + k_wf) - 1.0, "k_wf": k_wf, "ratio": c,
+                         "S": float(x["hull_wetted_area_m2"]), "lwl": float(x["hull_lwl"]),
+                         "ext": float(x["status"] != "ok"), "held": float(not pv[0] <= V <= pv[-1]), "case": x["case"]})
+    header = {
+        "component": "hull",
+        "model": "form-factor",
+        "dims": ["heel", "V"],
+        "units": {"heel": "deg", "V": "m/s", "S": "m2", "lwl": "m"},
+        "fluid": {"rho": float(r0["rhoInf"]), "nu": float(r0["nu"])},
+        "note": "the hull's form factor k on ITTC-57, (1 + k) = D_hull / (½ρV²S C_F,ITTC(V LWL / ν)), from keel3d's "
+                "double body at zero leeway and each heel's static attitude (no waves; fully turbulent), with the "
+                "wall functions' hull drag scaled by the resolved wall's (ratio: linear in V_b between the speeds "
+                "that have one, held beyond, held 1); k_wf: without that",
+        "params": {"hull_stl": str(r0.get("hull_stl") or ""), **hull_params(r0)},
+        "correction": {"pairs": pairs, "V": pv, "ratio": ratio_at},
+        "source": {"run": str(r["source"]), "select": dict(r.get("select") or {}),
+                   "resolved": [str(x) for x in r.get("resolved") or []],
+                   "reference": [str(x) for x in r.get("reference") or []]},
+        "derived": {"recipe": recipe.name, "recipe_sha256": hashlib.sha256(recipe.read_bytes()).hexdigest()},
+        "created": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+        "git": config.git_describe(),
+    }
+    return tables.write(base / str(r["out"]), header, rows,
+                        ["heel", "V", "k", "k_wf", "ratio", "S", "lwl", "ext", "held", "case"])
