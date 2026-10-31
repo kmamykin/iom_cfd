@@ -154,6 +154,10 @@ def test_keel3d_grid_export(tmp_path):
         ld = g.loads(State(r["V"], r["heel"], r["leeway"]), Wind(3.0, 45.0))
         assert (ld.X, ld.Y, ld.Z, ld.N) == pytest.approx((r["X"], r["Y"], r["Zv"], r["N"]), abs=1e-12)
         assert not ld.extrapolated
+        # the drag split: the 0° row's drag at this heel and speed, and the rest from the leeway
+        r0 = next(q for q in t.rows if (q["heel"], q["leeway"], q["V"]) == (r["heel"], 0.0, r["V"]))
+        assert ld.info["D0"] == pytest.approx(-r0["X"], abs=1e-12)
+        assert ld.info["D0"] + ld.info["Dl"] == pytest.approx(-ld.X, abs=1e-12)
 
 
 def test_keel3d_grid_export_needs_every_case(tmp_path):

@@ -154,7 +154,10 @@ Each run writes these files:
   numbers can't drift apart. It leaves out the ORC sail-coefficient columns
   (`sails_CL`, `sails_CD`: copyright ORC); the CSVs keep them. Its sections:
   summary and polar, the boat file as run, the balance at one point, the
-  force models, hydrostatics and the mass budget, the race (the winds'
+  force models with the drag at the best-VMG points by part and by source
+  (the hull's R_f and R_w, a keel table's drag at zero leeway `keel_D0` and
+  from the leeway `keel_Dl`, the rudder's D_v and D_i), hydrostatics and the
+  mass budget, the race (the winds'
   weights as a distribution, then a race-time calculator), exchange rates,
   and the frames and symbols. Wind speeds are given in m/s and knots: a
   second tick row in kt on every wind-speed axis.
