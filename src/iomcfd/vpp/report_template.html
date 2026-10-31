@@ -997,7 +997,7 @@ function ctrlText(key, v) {
 const infoKeys = (n) => COLS.filter((c) => c.startsWith(n + "_") && c !== n + "_extrapolated").map((c) => c.slice(n.length + 1));
 const UNIT = { Rf: "N", Rw: "N", D0: "N", Dl: "N", Di: "N", Dv: "N", L: "N", D: "N", S: "N", drive: "N", heel_force: "N", D_bulb: "N",
   wetted: "m²", A: "m²", alpha: "deg", awa: "deg", awa_eff: "deg", aws: "m/s", z_ce: "m", x_ce: "m" };
-const INFO_NAME = { Rf: "R_f friction", Rw: "R_w waves", wetted: "wetted area", D0: "D_0 zero-lift drag", Di: "D_i induced drag",
+const INFO_NAME = { Rf: "R_f friction", Rw: "R_w waves", wetted: "wetted area", D0: "D_{0} zero-lift drag", Di: "D_i induced drag",
   S: "S_h side force", alpha: "α angle of attack", L: "L lift", Dv: "D_v profile drag", aws: "V_AW", awa: "β_AW from the course",
   awa_eff: "β_eff mast-normal", z_ce: "Z_CE", x_ce: "x_CE", drive: "drive", heel_force: "heel force", D: "D drag",
   A: "A projected area", D_bulb: "bulb drag", Dl: "D_{β} drag from leeway" };
@@ -1671,7 +1671,7 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
   // each part's drag split into the terms its force model reports: the hull's R_f + R_w, a keel table's
   // D_0 + D_β (a fit's D_0 + D_i), the rudder's D_v + D_i; what they leave of the part's drag is its "other"
   const ORDER = ["Rf", "Rw", "Dv", "D0", "Dl", "Di"];
-  const NAME = { Rf: "friction R_f", Rw: "waves R_w", Dv: "profile D_v", D0: "at zero leeway D_0", Dl: "from leeway D_{β}",
+  const NAME = { Rf: "friction R_f", Rw: "waves R_w", Dv: "profile D_v", D0: "at zero leeway D_{0}", Dl: "from leeway D_{β}",
     Di: "induced D_i" };
   const drag = (r, n) => Math.max(0, -r[`X_${n}`]);
   const tint = (n, i) => (i === 0 ? pc(n) : `color-mix(in oklab, ${pc(n)} ${i === 1 ? 50 : 25}%, var(--surface))`);
