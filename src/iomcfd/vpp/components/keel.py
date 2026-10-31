@@ -333,6 +333,11 @@ def _check(ctx, name: str, table: str, t: tables.Table, shape) -> None:
         raise ValueError(f"{name}: {table} was computed for another keel: {', '.join(f'{k} {tp[k]} (boat file '
                          f'{shape.params()[k]})' for k in diff)}")
     hp = getattr(ctx.get(shape.host).shape, "params", dict)()
+    if "hull_mesh_sha256" in tp:  # an STL hull: the same STL or not
+        if not _same(hp.get("hull_mesh_sha256"), tp["hull_mesh_sha256"]):
+            ctx.warn(f"{name}: {table} was computed on another hull ({tp.get('hull_stl')}): its side force and yaw "
+                     "moment include that hull")
+        return
     hdiff = [k for k in k3d.HULL_KEYS if k in tp and k in hp and not _same(hp[k], tp[k])]
     if hdiff:
         ctx.warn(f"{name}: {table}'s hull differs from this boat's in {hdiff}: its side force and yaw moment "

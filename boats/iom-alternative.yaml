@@ -26,7 +26,12 @@ components:
     forces:
       class: .hull.IttcMichell
       args:
-        form_factor: 0.10         # (1 + k) - 1; methodology.md uses ITTC-57 x 1.10
+        form_factor: 0.10         # (1 + k) - 1; methodology.md uses ITTC-57 x 1.10 (unused with the table)
+        # k over heel x V_b from keel3d alt-water@20261030-155529 at 0° leeway, wall-function drag scaled
+        # by the resolved wall's (alt-hull-yplus): k -0.12 to -0.01 on ITTC-57. Against form_factor 0.10
+        # the weighted race time is -1.32 % (2026-10-31; keel3d findings/alt-water.md).
+        # iomcfd vpp table build boats/tables/hull-k-alt.yaml
+        form_factor_table: tables/hull-k-alt.csv
         cf_factor: 1.0            # < 1 brackets a laminar run (surface-roughness.md: up to -41 %)
         waves: michell-heeled     # michell (upright) | michell-heeled (each heel at its static sinkage) | none
         side_force: auto          # auto: off when another part's loads hold it (keel3d's double body)
@@ -43,11 +48,14 @@ components:
     forces:
       class: .keel.PolarFit       # keel3d CFD fits; .keel.FinAndBulb = lifting line, no CFD (rung 0)
       args:
-        # keel3d ht35-keel@20261027-215521, heel x leeway x V_b, medium mesh, fully turbulent:
-        # iomcfd vpp export-table keel3d ht35-keel@20261027-215521 --select mesh=medium --model grid
-        #   --out boats/tables/keel-ht35-3d.csv
+        # keel3d alt-water@20261030-155529: this keel on this hull (the STL cut at each heel's static
+        # waterline, double body), heel x leeway x V_b, medium mesh, hull_refine 1, fully turbulent:
+        # iomcfd vpp export-table keel3d alt-water@20261030-155529 --select mesh=medium
+        #   --select hull_refine=1 --model grid --fill --out boats/tables/keel-ht35-alt.csv
+        # Against the canoe body's table (tables/keel-ht35-3d.csv, ht35-keel@20261027-215521, moved
+        # +44 mm) the weighted race time is -0.11 % (2026-10-31; keel3d findings/alt-water.md).
         # A grid table (KeelGrid) carries its own Re dependence: max_leeway and friction_factor don't apply.
-        table: tables/keel-ht35-3d.csv
+        table: tables/keel-ht35-alt.csv
         vertical: delta           # keel3d's vertical force less its zero-leeway suction | none
         # the NACA 0007 fin, cant 0 (bulb-section@20261019-203823, 1 m/s fits): tables/keel-round-bulb.csv,
         #   with max_leeway: 4.0 and friction_factor: {fin: 1.0, bulb: 1.0}

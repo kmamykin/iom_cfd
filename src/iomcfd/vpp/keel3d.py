@@ -155,7 +155,7 @@ def export(ref: str, select: dict | None, out: str | Path, base: Path | None = N
                 r["x"], r["z"] = float(np.nanmean([q["x"] for q in lift])), float(np.nanmean([q["z"] for q in lift]))
     rows.sort(key=lambda r: (r["heel"], r["leeway"]))
     header = _header(ref, path, df, select, "fit",
-                     "keel3d double body: canoe body, fin and bulb under a mirror plane at the waterline (no waves); "
+                     f"keel3d double body: {_hull_name(df.iloc[0])}, fin and bulb under a mirror plane at the waterline (no waves); "
                      "Z includes the double body's suction",
                      point="boat",
                      units={"heel": "deg", "leeway": "deg", "V": "m/s", "X": "N", "Y": "N", "Z": "N", "x": "m"},
@@ -175,12 +175,25 @@ def _header(ref: str, path: Path, df, select: dict | None, model: str, note: str
         "fluid": {"rho": float(r0["rhoInf"]), "nu": float(r0["nu"])},
         "includes": ["host.side_force", "host.yaw_moment"],
         "note": note,
-        "params": {k: _param(r0[k]) for k in (*KEEL_KEYS, *HULL_KEYS) if k in r0},
+        "params": {**{k: _param(r0[k]) for k in KEEL_KEYS if k in r0}, **_hull(r0)},
         "source": {"tool": "keel3d", "run": ref, "file": "/".join(path.parts[-3:]),
                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "select": dict(select or {})},
         "created": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "git": config.git_describe(),
     }
+
+
+def _hull(r0) -> dict:
+    """The hull's params: an STL's path and sha256 (the canoe body's hull_*
+    columns are only defaults then), else the canoe body's hull_*."""
+    stl = hull_params(r0)
+    if stl:
+        return {"hull_stl": str(r0["hull_stl"]), **stl}
+    return {k: _param(r0[k]) for k in HULL_KEYS if k in r0}
+
+
+def _hull_name(r0) -> str:
+    return f"the hull {r0['hull_stl']}" if hull_params(r0) else "canoe body"
 
 
 GRID_LOADS = ["X", "Y", "Z", "K", "M", "N", "Zv", "Mv"]
@@ -236,7 +249,7 @@ def _export_grid(ref: str, path: Path, df, select: dict | None, out: str | Path,
         if len(pts) >= 2:
             a.append(float(np.polyfit(*zip(*pts), 1)[0]))
     header = _header(ref, path, df, select, "grid",
-                     "keel3d double body (canoe body, fin and bulb under a mirror plane at the waterline, no waves) "
+                     f"keel3d double body ({_hull_name(df.iloc[0])}, fin and bulb under a mirror plane at the waterline, no waves) "
                      "on a heel × leeway × V_b grid: X less the hull's 0° drag, K, M, N at each case's centre of "
                      "lateral resistance; Zv, Mv: the vertical force less its 0° value and its pitch moment (added "
                      "with vertical: delta); ext: not converged or filled",
