@@ -43,6 +43,9 @@ cloud/gcp/jobs/
 
 # Private boats (licensed hull lines and their derived parameters)
 /boats/private
+# geometry/private: links to hull STLs in boats/private/hulls, so CFD studies can name one
+# (file:private/<name>.stl); gcp submit uploads it to the bucket with geometry/
+/geometry/private
 
 # ORC 2026 sail tables, transcribed (copyright ORC; kept locally until our own data replaces them). They
 # live in boats/private/orc/ now; the old paths stay ignored so a stale copy can't be committed.

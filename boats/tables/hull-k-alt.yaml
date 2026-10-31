@@ -1,0 +1,15 @@
+# The alternative hull's form factor k on ITTC-57 over heel × V_b, for
+# iom-alternative's hull (IttcMichell's form_factor_table) in place of the
+# assumed 0.10. From keel3d's alt-water at zero leeway (the hull with its
+# keel at each heel's static attitude, double body, fully turbulent, wall
+# functions on hull_refine 1), each row's hull drag scaled by the ratio of
+# the resolved wall's (hull_yplus, alt-hull-yplus) to the wall functions' at
+# the same heel and speed: wall functions overstated the hull's friction
+# (keel3d findings/alt-water-scout.md, README hull_yplus).
+# Build: iomcfd vpp table build boats/tables/hull-k-alt.yaml
+recipe: hull-form-factor
+source: alt-water@20261030-155529
+select: {mesh: medium, hull_refine: 1}       # not the mesh checks
+resolved: [alt-hull-yplus@20261030-182918, alt-hull-yplus@20261030-201233]   # 191930 failed (14 layers at 0.5 m/s)
+reference: [alt-water-scout@20261030-021322]  # wall functions where alt-water has no case
+out: hull-k-alt.csv

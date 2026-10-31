@@ -10,12 +10,15 @@ closed with a flat deck.
 
 from __future__ import annotations
 
+import functools
 import math
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 from scipy.integrate import trapezoid  # numpy < 2 in the solver image
 
+from . import stl
 from .stl import Surface, loft
 
 
@@ -147,3 +150,20 @@ def canoe(spec: CanoeSpec, name: str = "hull") -> Surface:
         ring = np.vstack([stbd, deck, port])
         rings.append(np.column_stack([np.full(len(ring), x), ring]))
     return loft(rings, name=name)
+
+
+@functools.lru_cache(maxsize=4)
+def _read_stl_hull(path: str, mtime_ns: int) -> Surface:
+    s = stl.read(path, "hull").scaled(0.001)
+    if not s.is_closed():
+        raise ValueError(f"{path}: the hull surface is not closed")
+    return s.oriented_outward()
+
+
+def stl_hull(spec: str) -> Surface:
+    """A CAD hull from `file:<path under geometry/>`: a closed surface in the
+    boat frame in mm (as tools/place_hull.py writes it), in m, outward."""
+    from .. import config
+
+    path = Path(config.geometry_dir()) / str(spec).removeprefix("file:")
+    return _read_stl_hull(str(path), path.stat().st_mtime_ns)

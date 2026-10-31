@@ -67,7 +67,10 @@ becomes the default of every job by accident.
 The image contains the code, templates and `geometry/`, so changes to
 templates or `src/` reach the cloud once they are pushed (`latest`: to
 `main`). Study YAMLs and `geometry/` are uploaded
-at submit time, so new studies and new STL files don't need a rebuild. Set
+at submit time, so new studies and new STL files don't need a rebuild
+(links are followed: `geometry/private` links to the private hull STLs in
+`boats/private/hulls`, which are git-ignored and kept out of the image by
+`.dockerignore`, and land in the bucket's `geometry/private/`). Set
 `IMAGE_TAG` in `config.env` to a git tag to pin a reproducible version; the
 tag is recorded in every `result.json` (`image`).
 

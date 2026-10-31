@@ -68,7 +68,7 @@ functions
         binModel        singleDirectionUniformBin;
         fields          (force);
         patches         (boat_fin);
-        CofR            (0 0 0);    // global axes for the bin direction
+        CofR            $cofR;      // the bow on the waterline; global axes for the bin direction
         executeControl  timeStep;
         executeInterval 5;
         writeControl    timeStep;

@@ -1,0 +1,25 @@
+study: alt-hull-smoke
+project: keel3d
+description: >
+  Pipeline check of an STL hull: the alternative hull (private STL,
+  geometry/private links to boats/private/hulls) cut at its static waterline
+  at 30 deg of heel and mirrored, with iom-alternative's keel (HT35 7.25 %
+  100 -> 80 mm at fin_x 0.544, NACA 0011 round bulb at 2 deg), leeway 4 deg,
+  xcoarse, a few iterations. Not for engineering use.
+defaults:
+  hull_stl: file:private/iom-alternative.stl
+  fin_section: "file:ht35-t0725.dat"
+  fin_mean_chord: 0.090
+  fin_taper: 0.8
+  fin_x: 0.544
+  bulb_section: naca0011
+  bulb_cant: 2.0
+  Tu: 0.5
+  heel: 30.0
+  sink: -0.00540   # vpp hydro iom-alternative --zip 30 (M_ext 0, Z_ext 0)
+  trim: 0.131
+  leeway: 4.0
+  speed: 1.5
+  mesh: xcoarse
+  max_iter: 20
+  np: 4

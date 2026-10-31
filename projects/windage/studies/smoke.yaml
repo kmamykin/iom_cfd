@@ -1,0 +1,12 @@
+study: windage-smoke
+project: windage
+description: >
+  Pipeline check: keel3d's canoe body (60 mm of vertical topsides) at 20 deg
+  of heel, wind 30 deg off the bow, xcoarse mesh, a few iterations. Not for
+  engineering use.
+defaults:
+  heel: 20.0
+  awa: 30.0
+  mesh: xcoarse
+  max_iter: 20
+  np: 4

@@ -1,0 +1,37 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| windage template (OpenFOAM v2512). Values come from                         |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform $Uinf;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"   // processor, cyclic, empty...
+
+    hull            // the topsides (and their mirror image, cut off by the floor)
+    {
+        type            noSlip;
+    }
+    freestream      // inlet, outlet, sides, top
+    {
+        type            freestreamVelocity;
+        freestreamValue uniform $Uinf;
+    }
+    water           // water surface: frictionless
+    {
+        type            slip;
+    }
+}

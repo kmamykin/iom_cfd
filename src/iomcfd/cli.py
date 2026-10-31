@@ -325,6 +325,9 @@ def docker_base(interactive: bool = False, runs: Path | None = None) -> list[str
         cmd += ["-e", f"IOMCFD_RUNS=/work/{rel}"]
     except ValueError:  # elsewhere, e.g. a worktree's runs/ linked to the main checkout's: mount the target
         cmd += ["-v", f"{runs.resolve()}:/runs", "-e", "IOMCFD_RUNS=/runs"]
+    private = repo / "boats" / "private"
+    if private.is_symlink() and private.exists():  # a worktree's link to the main checkout's: mount it where it points
+        cmd += ["-v", f"{private.resolve()}:{private.resolve()}:ro"]
     if platform.system() == "Linux":
         cmd += ["--user", f"{os.getuid()}:{os.getgid()}", "-e", "HOME=/tmp"]
     cmd += ["-e", f"IOMCFD_IMAGE_REF={config.image()}", "-e", f"IOMCFD_GIT={config.git_describe()}"]

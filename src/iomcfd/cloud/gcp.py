@@ -337,7 +337,9 @@ def cmd_submit(args) -> None:
     dst = f"{bucket}/runs/{study.name}/{run_id}"
     _gcloud("storage", "cp", str(study.path), f"{dst}/study.yaml", dry=args.dry_run)
     _gcloud("storage", "cp", str(run_info), f"{dst}/run.json", dry=args.dry_run)
-    _gcloud("storage", "rsync", "-r", str(config.geometry_dir()), f"{bucket}/geometry", dry=args.dry_run)
+    # --no-ignore-symlinks: geometry/private links to the private hull STLs (boats/private/hulls)
+    _gcloud("storage", "rsync", "-r", "--no-ignore-symlinks", str(config.geometry_dir()), f"{bucket}/geometry",
+            dry=args.dry_run)
     _gcloud("batch", "jobs", "submit", name, "--project", cfg["GCP_PROJECT"], "--location", cfg["GCP_REGION"],
             "--config", str(job_file), dry=args.dry_run)
     if not args.dry_run:

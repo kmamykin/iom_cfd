@@ -1,0 +1,22 @@
+study: alt-air-mesh
+project: windage
+description: >
+  Follow-up to alt-air-scout (run 20261030-023242), where medium and fine
+  differed by +9 % in cd and -14 % in cl at heel 30, 30 deg off the bow (and
+  coarse was closer to fine than medium): is fine converged there? fine and
+  xfine (surface cells 3.1/1.6 and 1.6/0.8 mm) at heel 30, 30 and 45 deg,
+  3 m/s; the fine 30 deg case again on another VM (snappyHexMesh is not
+  bit-identical across machines: the repeatability); and fine at 6 m/s,
+  30 deg, for the Re trend on the finer mesh.
+defaults:
+  hull_stl: file:private/iom-alternative.stl
+  heel: 30
+  sink: -0.0054
+  trim: 0.131
+  aws: 3.0
+sweep:
+  awa: [30, 45]
+  mesh: [fine, xfine]
+cases:
+  - {awa: 30, mesh: fine, aws: 6.0}
+  - {awa: 30, mesh: fine, Tu: 1.001}   # the repeat: a different parameter hash, the same flow (Tu 1 -> 1.001 %)

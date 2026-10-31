@@ -11,6 +11,8 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+#include "$FOAM_CASE/system/caseParameters"
+
 boat.stl
 {
     extractionMethod    extractFromSurface;
@@ -20,7 +22,10 @@ boat.stl
         nonManifoldEdges    no;
         openEdges           yes;
     }
-    // Fin-hull and fin-bulb junction lines: intersections between STL solids
-    intersectionMethod  region;
+    // Fin-hull and fin-bulb junction lines: intersections between STL solids.
+    // "region" finds none (0 edges in every canoe-body run so far; snappy's
+    // multiRegionFeatureSnap made the junctions); "self" finds them, and is
+    // used with an STL hull (project.py: featureIntersection).
+    intersectionMethod  $featureIntersection;
     writeObj            no;
 }

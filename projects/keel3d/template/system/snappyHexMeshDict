@@ -124,6 +124,7 @@ addLayersControls
     layers
     {
         "boat_.*"   { nSurfaceLayers $nLayers; }
+        #sinclude "include/hullLayers"   // hull_yplus: the hull's own layers (written only then)
     }
     expansionRatio      1.2;
     finalLayerThickness 0.5;
@@ -140,6 +141,7 @@ addLayersControls
     minMedialAxisAngle  90;
     nBufferCellsNoExtrude 0;
     nLayerIter          50;
+    #sinclude "include/layerPasses"   // hull_yplus: nOuterIter (written only then)
     // Limit how far from the walls layer addition moves interior points
     // (displacementMedialAxis). Unlimited, it inverted 12 cells in the fin's
     // near-wake box above the bulb on the fine mesh (bulb-endplate, NACA 0011

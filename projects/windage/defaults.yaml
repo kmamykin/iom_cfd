@@ -1,0 +1,33 @@
+# windage: the hull above the water in a uniform apparent wind (simpleFoam,
+# kOmegaSST). The topsides at the heel's attitude are cut at the water plane
+# and closed by their mirror image below it; the water surface z = 0 is a
+# slip floor (no wind gradient, no boundary layer on the water).
+# Boat frame: x aft (bow at x = 0), y port, z up, waterline z = 0.
+
+# --- hull ---------------------------------------------------------------------------
+hull_stl: null          # file:<path under geometry/>, e.g. file:private/iom-alternative.stl: a closed hull in
+                        # the boat frame, in mm. null: keel3d's canoe body (its default hull_* parameters, 60 mm
+                        # of vertical topsides), for smoke runs and tests
+
+# --- attitude and wind --------------------------------------------------------------
+heel: 0.0               # deg, + = mast to starboard (to leeward on port tack)
+sink: null              # m, + down, after heel and trim (null = 0); a heel's static attitude: vpp hydro --zip
+trim: null              # deg, + bow down, about the y axis through the middle of the hull's length (null = 0)
+awa: 30.0               # deg, apparent wind angle from the centreline (0 = from the bow), wind from port
+aws: 3.0                # m/s apparent wind speed, uniform
+temperature: 15.0
+
+# --- turbulence -----------------------------------------------------------------------
+turbulence: kOmegaSST   # fully turbulent, wall functions
+Tu: 1.0
+viscosity_ratio: 10
+
+# --- mesh (snappyHexMesh) ----------------------------------------------------------------
+mesh: medium            # xcoarse | coarse | medium | fine | xfine
+n_layers: 5             # prism layers on the topsides
+
+# --- solver -----------------------------------------------------------------------------
+max_iter: 3000          # SIMPLE iteration budget
+conv_window: 200        # iterations per averaging window
+conv_tol: 2.0e-3        # stop when window means of drag and lift change < this fraction
+np: 8                   # MPI ranks per case

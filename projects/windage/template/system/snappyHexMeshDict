@@ -1,0 +1,114 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| windage template (OpenFOAM v2512). Values come from                         |
+| system/caseParameters, written by iomcfd from the study YAML.               |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      snappyHexMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "$FOAM_CASE/system/caseParameters"
+
+castellatedMesh true;
+snap            true;
+addLayers       true;
+
+// The topsides cut at the water plane and closed by their mirror image below
+// it (iomcfd.geometry.waterline.split): the floor z = 0 cuts it off again.
+geometry
+{
+    hull.stl    { type triSurfaceMesh; name hull; }
+    nearBox     { type searchableBox; min $nearBoxMin; max $nearBoxMax; }
+    wakeBox                 // downwind of the hull, along the apparent wind
+    {
+        type    searchableRotatedBox;
+        origin  $wakeOrigin;    // a corner
+        span    $wakeSpan;      // lengths along e1, e2 = e3 x e1, e3
+        e1      $wakeE1;        // downwind
+        e3      (0 0 1);
+    }
+}
+
+castellatedMeshControls
+{
+    maxLocalCells       5000000;
+    maxGlobalCells      40000000;
+    minRefinementCells  10;
+    maxLoadUnbalance    0.10;
+    nCellsBetweenLevels 3;
+
+    features
+    (
+        { file "hull.eMesh"; level $featureLevel; }
+    );
+
+    refinementSurfaces
+    {
+        hull
+        {
+            level       ($surfaceLevelMin $surfaceLevelMax);
+            patchInfo   { type wall; inGroups (hull); }
+        }
+    }
+
+    resolveFeatureAngle 25;
+
+    refinementRegions
+    {
+        nearBox { mode inside; levels ((1e15 $nearBoxLevel)); }
+        wakeBox { mode inside; levels ((1e15 $wakeBoxLevel)); }
+    }
+
+    locationInMesh      $locationInMesh;
+    allowFreeStandingZoneFaces true;
+}
+
+snapControls
+{
+    nSmoothPatch        3;
+    tolerance           2.0;
+    nSolveIter          100;
+    nRelaxIter          5;
+    nFeatureSnapIter    10;
+    implicitFeatureSnap false;
+    explicitFeatureSnap true;
+    multiRegionFeatureSnap false;
+}
+
+addLayersControls
+{
+    relativeSizes       true;
+    layers
+    {
+        hull    { nSurfaceLayers $nLayers; }
+    }
+    expansionRatio      1.2;
+    finalLayerThickness 0.5;
+    minThickness        0.1;
+    nGrow               0;
+    featureAngle        130;
+    slipFeatureAngle    30;
+    nRelaxIter          5;
+    nSmoothSurfaceNormals 1;
+    nSmoothNormals      3;
+    nSmoothThickness    10;
+    maxFaceThicknessRatio 0.5;
+    maxThicknessToMedialRatio 0.3;
+    minMedialAxisAngle  90;
+    nBufferCellsNoExtrude 0;
+    nLayerIter          50;
+    nMedialAxisIter     20;     // as keel3d: limits how far layer addition moves interior points
+}
+
+meshQualityControls
+{
+    #includeEtc "caseDicts/meshQualityDict"
+    nSmoothScale    4;
+    errorReduction  0.75;
+}
+
+mergeTolerance 1e-6;

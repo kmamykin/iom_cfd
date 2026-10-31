@@ -175,6 +175,39 @@ def test_keel3d_grid_export_one_case_per_node(tmp_path):
         keel3d.export(str(tmp_path / "two.csv"), None, tmp_path / "k.csv", model="grid")
 
 
+def test_keel3d_export_names_an_stl_hull(tmp_path, monkeypatch):
+    """With hull_stl the header names the STL by its sha256 (the hull_*
+    columns are only the canoe's defaults then); a boat on another hull is
+    warned, on the same STL not."""
+    import hashlib
+    from types import SimpleNamespace as NS
+
+    import pandas as pd
+
+    from iomcfd.vpp.components import keel
+
+    (tmp_path / "private").mkdir()
+    (tmp_path / "private" / "h.stl").write_bytes(b"solid h")
+    monkeypatch.setattr(keel3d.config, "geometry_dir", lambda: tmp_path)
+    df = pd.read_csv(_keel3d_grid_csv(tmp_path / "results.csv"))
+    df.assign(hull_stl="file:private/h.stl", hull_length=0.99).to_csv(tmp_path / "stl.csv", index=False)
+    t = tables.read(keel3d.export(str(tmp_path / "stl.csv"), None, tmp_path / "k.csv", model="grid"))
+    p = t.header["params"]
+    assert p["hull_mesh_sha256"] == hashlib.sha256(b"solid h").hexdigest() and "hull_length" not in p
+    assert "the hull file:private/h.stl" in t.header["note"] and "canoe" not in t.header["note"]
+
+    def ctx(params):
+        c = NS(warnings=[], get=lambda host: NS(shape=NS(params=lambda: params)))
+        c.warn = c.warnings.append
+        return c
+
+    same, other, canoe = ctx({"hull_mesh_sha256": p["hull_mesh_sha256"]}), ctx({"hull_mesh_sha256": "x"}), \
+        ctx({"hull_length": 0.99})
+    for c in (same, other, canoe):
+        keel._check(c, "keel", "k.csv", t, NS(host="hull", params=dict))
+    assert not same.warnings and "another hull" in other.warnings[0] and "another hull" in canoe.warnings[0]
+
+
 def test_keel_vertical_force_less_the_suction(tmp_path):
     csv = _keel3d_csv(tmp_path / "results.csv")  # vertical_N = −2.7 + 0.1 β
     t = tables.read(keel3d.export(str(csv), {"bulb_section": "naca0011"}, tmp_path / "keel.csv"))

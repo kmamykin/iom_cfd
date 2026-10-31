@@ -1,0 +1,49 @@
+study: alt-air-scout
+project: windage
+description: >
+  Quick experiments to settle the alt-air study (the air part of the
+  alternative hull: its topsides at each heel's static attitude in the
+  apparent wind, for the VPP's windage): E4 the mesh (coarse / medium / fine)
+  at heel 0 and 30, wind 30 and 90 deg off the bow; E5 the Re dependence
+  (1.5 / 3 / 6 m/s) at heel 30, 30 / 90 / 150 deg; E6 how cd and cl vary with
+  the wind's angle at heel 30, every 15 deg. The hull (private STL,
+  geometry/private -> boats/private/hulls) is cut at the waterline of each
+  heel's attitude (vpp hydro iom-alternative --zip: M_ext 0, Z_ext 0) and the
+  topsides mirrored below the slip floor. Uniform apparent wind; fully
+  turbulent kOmegaSST, wall functions.
+defaults:
+  hull_stl: file:private/iom-alternative.stl
+  mesh: medium
+cases:
+  # E4 mesh: heel 0 and 30, wind 30 and 90 deg off the bow, 3 m/s, coarse / medium / fine
+  - {heel: 0, sink: -0.00215, trim: -0.001, awa: 30, aws: 3.0, mesh: coarse}
+  - {heel: 0, sink: -0.00215, trim: -0.001, awa: 30, aws: 3.0, mesh: medium}
+  - {heel: 0, sink: -0.00215, trim: -0.001, awa: 30, aws: 3.0, mesh: fine}
+  - {heel: 0, sink: -0.00215, trim: -0.001, awa: 90, aws: 3.0, mesh: coarse}
+  - {heel: 0, sink: -0.00215, trim: -0.001, awa: 90, aws: 3.0, mesh: medium}
+  - {heel: 0, sink: -0.00215, trim: -0.001, awa: 90, aws: 3.0, mesh: fine}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 30, aws: 3.0, mesh: coarse}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 30, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 30, aws: 3.0, mesh: fine}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 90, aws: 3.0, mesh: coarse}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 90, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 90, aws: 3.0, mesh: fine}
+  # E5 Re: heel 30, wind 30 / 90 / 150 deg at 1.5 and 6 m/s (and 150 at 3), medium
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 30, aws: 1.5, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 30, aws: 6.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 90, aws: 1.5, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 90, aws: 6.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 150, aws: 1.5, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 150, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 150, aws: 6.0, mesh: medium}
+  # E6 wind angles: heel 30, every 15 deg from the bow to the stern, 3 m/s, medium
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 0, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 15, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 45, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 60, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 75, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 105, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 120, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 135, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 165, aws: 3.0, mesh: medium}
+  - {heel: 30, sink: -0.0054, trim: 0.131, awa: 180, aws: 3.0, mesh: medium}

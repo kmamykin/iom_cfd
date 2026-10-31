@@ -1,0 +1,62 @@
+study: alt-water
+project: keel3d
+description: >
+  The water part of the alternative hull with iom-alternative's keel (HT35 at
+  7.25 %, 100 -> 80 mm, round NACA 0011 bulb at 2 deg, fin_x 0.544) as a grid
+  table for the VPP: heel x leeway x V_b, each heel at its static attitude
+  (vpp hydro iom-alternative --zip; M_ext 0, Z_ext 0). The hull (private STL,
+  geometry/private -> boats/private/hulls) is cut at that waterline and
+  mirrored: double body, no waves (the VPP keeps Michell's). Leeway and speed
+  as ht35-keel (-2 to 8 deg; 0.5-3.6 m/s, the VPP's V_b 0.55-3.56). Settled by
+  alt-water-scout (run 20261030-021322): hull_refine 1 (hull surface cells
+  2.8/1.4 mm). Side force is within 0.2 % of hull_refine 2 and the leeway-4
+  drag increment within 0.2-3.5 %; the hull's friction rises with
+  refinement as its y+ falls through the buffer layer (30 -> 19 -> 9 at
+  1.5 m/s), so the hull's own drag carries a wall-treatment band of about
+  4 % that refinement doesn't close. Checks: hull_refine 2 at heel 60 (0
+  and 30 are in the scout) and the keel's fine mesh at heel 30, leeway 0
+  and 4, 1.5 m/s. Fully turbulent kOmegaSST, wall functions.
+report:
+  max_leeway: 4
+highlights:
+  - name: upwind
+    why: Upwind (heel 30, 3 deg) across the boat speeds - the hull and fin loading with Re.
+    where: {heel: 30, leeway: 3, mesh: medium, hull_refine: 1}
+    compare: speed
+    views: [surface_cp_starboard, vortices, wake_slice]
+  - name: deck
+    why: The leeward deck edge goes under between 40 and 45 deg (E0) - does the side force or drag jump?
+    where: {heel: [40, 50, 60], leeway: 3, speed: 1.5, mesh: medium, hull_refine: 1}
+    compare: heel
+    views: [surface_cp_starboard, wake_slice]
+  - name: stall
+    why: Where the fin stalls on this hull - 4, 6 and 8 deg upright and at 30 deg heel, 1.5 m/s.
+    where: {heel: [0, 30], leeway: [4, 6, 8], speed: 1.5, mesh: medium, hull_refine: 1}
+    compare: leeway
+    views: [surface_cp_starboard, wake_slice]
+defaults:
+  hull_stl: file:private/iom-alternative.stl
+  fin_section: "file:ht35-t0725.dat"
+  fin_mean_chord: 0.090
+  fin_taper: 0.8
+  fin_x: 0.544                # iom-alternative's keel mount (the fin's root quarter chord)
+  bulb_section: naca0011
+  bulb_cant: 2.0
+  Tu: 0.5
+  mesh: medium
+  hull_refine: 1
+# iom-alternative: attitude at M_ext 0 N m, Z_ext 0 N (vpp hydro --zip; 2c93e9e-dirty)
+zip:
+  heel: [0, 10, 20, 30, 40, 50, 60]
+  sink: [-0.00215, -0.00253, -0.00363, -0.00540, -0.00797, -0.01127, -0.01473]   # m, + down
+  trim: [-0.001, 0.015, 0.064, 0.131, 0.193, 0.225, 0.192]   # deg, + bow down
+sweep:
+  leeway: [-2, 0, 1, 2, 3, 4, 6, 8]
+  speed: [0.5, 0.9, 1.5, 2.4, 3.6]
+cases:
+  # hull mesh at the highest heel (heel 0 and 30: alt-water-scout)
+  - {heel: 60, sink: -0.01473, trim: 0.192, leeway: 0, speed: 1.5, hull_refine: 2}
+  - {heel: 60, sink: -0.01473, trim: 0.192, leeway: 4, speed: 1.5, hull_refine: 2}
+  # the keel's mesh on this hull
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 0, speed: 1.5, mesh: fine}
+  - {heel: 30, sink: -0.0054, trim: 0.131, leeway: 4, speed: 1.5, mesh: fine}

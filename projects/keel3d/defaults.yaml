@@ -21,6 +21,10 @@ hull_draft_at: 0.50     # fraction of the length where the hull is deepest
 hull_entry: 2.0         # waterline shape exponent forward / aft of the widest point
 hull_run: 2.0           #   (2 = parabolic, larger = fuller ends)
 hull_section: 2.0       # section shape |y/b|^n + |z/t|^n = 1 (2 = elliptic)
+# Or a hull from an STL (then the canoe body's parameters don't apply): a closed
+# surface in the boat frame, in mm (as boats/private/hulls holds them), cut at
+# the waterline of its attitude (sink, trim) and closed by its mirror image.
+hull_stl: null          # file:<path under geometry/>, e.g. file:private/iom-alternative.stl
 
 # --- keel fin ----------------------------------------------------------------------
 # The planform runs from the hull bottom to the top of the bulb (the exposed
@@ -48,6 +52,8 @@ bulb_cant: 0.0          # deg nose up, about the bulb's centre of mass; it is th
 speed: 1.0              # m/s boat speed through the water
 leeway: 0.0             # deg, + = bow to port of the track (port tack upwind); side force + to port
 heel: 0.0               # deg, + = mast to starboard; the boat rotates about the x axis at the waterline
+sink: null              # m, + down, after heel and trim (null = 0); a heel's static attitude: vpp hydro --zip
+trim: null              # deg, + bow down, about the y axis through the middle of the hull's length (null = 0)
 fluid: water
 temperature: 15.0
 
@@ -61,6 +67,11 @@ mesh: medium            # xcoarse | coarse | medium | fine | xfine
 fin_wake: 0.3           # near-wake box behind the fin's trailing edge, mean chords long (0 = none)
 mesh_shift: 0.0         # shift of the background grid in x and y, fraction of the finest fin cell
 mesh_shift_only: ""     # "x" or "y": shift along that axis only ("": both)
+hull_refine: null       # levels added to the hull's surface and box levels (null = 0)
+hull_yplus: null        # y+ the hull's first layer is sized for, e.g. 1 (the wall resolved, not modelled): layers from
+                        # it (ITTC-57's friction at the case's speed) to 0.3 of the hull's surface cell at about 1.3,
+                        # at most 14, in 3 passes; snappyHexMesh leaves the first cell thicker, y+ about 1.5-4, and
+                        # refuses more than 1.35 (README). null: n_layers relative layers
 n_layers: 5             # prism layers on hull, fin and bulb
 span_bins: 16           # strips for the fin's spanwise loading (spanload.csv); rounded to whole fin cells
 
