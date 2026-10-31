@@ -1,6 +1,7 @@
-"""The website's data (site/data.yaml, site/data/, site/assets/), export and
+"""The website's data (site/data.yaml, site/data/, site/assets/, site/runs/), export and
 figures (pure Python, no OpenFOAM, no Quarto)."""
 
+import hashlib
 import json
 import re
 
@@ -22,11 +23,14 @@ def test_every_data_file_is_in_the_manifest_with_a_source():
     expected = {site.output_path(SITE, n, e).relative_to(SITE).as_posix() for n, e in entries.items()}
     present = {p.relative_to(SITE).as_posix() for d in ("data", "assets") for p in (SITE / d).iterdir()
                if p.name != "sources.json"}
+    present |= {p.relative_to(SITE).as_posix() for p in (SITE / "runs").rglob("*") if p.is_file()}
     assert present == expected  # nothing missing, nothing left over
     assert set(sources) == set(entries)
     for name, s in sources.items():
         assert s["file"] == site.output_path(SITE, name, entries[name]).relative_to(SITE).as_posix()
         assert s["source"], name
+        if s["kind"] == "report":  # published unchanged
+            assert hashlib.sha256((SITE / s["file"]).read_bytes()).hexdigest() == s["sha256"], name
 
 
 @pytest.fixture
@@ -39,24 +43,33 @@ def fake(tmp_path, monkeypatch):
     pd.DataFrame({"foil": ["a", "a", "b"], "speed": [1.0, 2.0, 1.0], "Cl": [0.1, 0.2, 0.3], "x": 1}).to_csv(
         run / "results.csv", index=False)
     (run / "report" / "pic.png").write_bytes(b"png")
+    vpp = runs / "vpp" / "boat" / "20260102-000000"
+    vpp.mkdir(parents=True)
+    (vpp / "report.html").write_text("<!doctype html>report")
     s = tmp_path / "site"
     (s / "data").mkdir(parents=True)
     (s / "data" / "by-hand.csv").write_text("a\n1\n")
     (s / "data.yaml").write_text(
         "tab: {study: st, runs: [20260101-000000], file: results.csv, where: {speed: 1.0}, columns: [foil, Cl]}\n"
         "pic: {kind: file, study: st, runs: [20260101-000000], file: report/pic.png}\n"
+        "rep: {kind: report, study: vpp/boat, runs: [20260102-000000], file: report.html}\n"
         "by-hand: {kind: manual, source: a findings log}\n")
     return s
 
 
 def test_export_copies_and_records_sources(fake):
     written = site.export(site=fake)
-    assert {p.name for p in written} == {"tab.csv", "pic.png"}
+    assert {p.name for p in written} == {"tab.csv", "pic.png", "report.html"}
     tab = pd.read_csv(fake / "data" / "tab.csv")
     assert list(tab.columns) == ["run", "foil", "Cl"] and list(tab.foil) == ["a", "b"]
     assert (fake / "assets" / "pic.png").read_bytes() == b"png"
+    # a report keeps the run's path and its bytes
+    report = fake / "runs" / "vpp" / "boat" / "20260102-000000" / "report.html"
+    assert report.read_text() == "<!doctype html>report"
     src = json.loads((fake / "data" / "sources.json").read_text())
     assert src["tab"]["runs"] == ["20260101-000000"] and src["tab"]["study"] == "st"
+    assert src["rep"]["file"] == "runs/vpp/boat/20260102-000000/report.html"
+    assert src["rep"]["sha256"] == hashlib.sha256(report.read_bytes()).hexdigest()
     assert src["by-hand"] == {"kind": "manual", "file": "data/by-hand.csv", "source": "a findings log"}
 
 

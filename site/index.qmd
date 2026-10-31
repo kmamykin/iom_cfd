@@ -13,6 +13,7 @@ listing:
     - custom-section/index.qmd
     - steps-and-films/index.qmd
     - bulb-design/index.qmd
+    - vpp/index.qmd
   sort: false
   type: grid
   grid-columns: 2

@@ -993,5 +993,39 @@
     "source": "results.csv",
     "exported": "2026-10-17",
     "git": "1ce5be2-dirty"
+  },
+  "vpp-polar": {
+    "kind": "table",
+    "file": "data/vpp-polar.csv",
+    "study": "vpp/iom-alternative",
+    "runs": [
+      "20261031-162130"
+    ],
+    "source": "polar.csv",
+    "exported": "2026-10-31",
+    "git": "fc8679f-dirty"
+  },
+  "vpp-report": {
+    "kind": "report",
+    "file": "runs/vpp/iom-alternative/20261031-162130/report.html",
+    "study": "vpp/iom-alternative",
+    "runs": [
+      "20261031-162130"
+    ],
+    "source": "report.html",
+    "exported": "2026-10-31",
+    "git": "fc8679f-dirty",
+    "sha256": "1e238a3010ce210e27535171e0413f941704b4d6c2fea1cbd75648caa65cdf80"
+  },
+  "vpp-vmg": {
+    "kind": "table",
+    "file": "data/vpp-vmg.csv",
+    "study": "vpp/iom-alternative",
+    "runs": [
+      "20261031-162130"
+    ],
+    "source": "vmg.csv",
+    "exported": "2026-10-31",
+    "git": "fc8679f-dirty"
   }
 }

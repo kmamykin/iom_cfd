@@ -1,7 +1,7 @@
 """Charts, diagrams and generated tables for the website's study pages
 (site/fin-selection/index.qmd, site/bulb-design/index.qmd,
 site/custom-section/index.qmd, site/thistle-board/index.qmd,
-site/steps-and-films/index.qmd), and their card images on the front page.
+site/steps-and-films/index.qmd, site/vpp/index.qmd), and their card images on the front page.
 
 `iomcfd site build` calls make_all() before Quarto renders the page. Every
 figure is drawn from the committed files in site/data/ and site/assets/ (or from
@@ -3111,6 +3111,119 @@ def steps_card(out: Path) -> Path:
     return out
 
 
+# ---------------------------------------------------------------------------
+# The VPP page (site/vpp/index.qmd). Data: vpp-*.csv, one run of the VPP (docs/vpp.md): its polar
+# (polar.csv) and best-VMG points (vmg.csv). Forces are in the course frame with X forward, so a part's
+# drag is -X. The run's own report is published beside the page (site/runs/..., data.yaml `vpp-report`).
+
+VPP_W = 5.8  # figure width [in]: narrow enough to read at phone width
+VPP_SOURCES = [  # each drag at a best-VMG point: column, label, colour, hatch. Greens: CFD; earth tones: theory
+    ("keel", "keel (fin and bulb): CFD table", "#2f5d50", None),
+    ("hull_Rf", "hull friction: ITTC-57 line × CFD form factor", "#7fae94", None),
+    ("windage", "windage (topsides): CFD table", "#c4dccd", None),
+    ("hull_Rw", "hull waves: thin-ship theory (Michell)", "#e09a4f", "///"),
+    ("rudder", "rudder: lifting line", "#b3a27f", "///"),
+]
+
+
+def _vpp_drag(vmg: pd.DataFrame) -> pd.DataFrame:
+    """Drag [N] by source at each best-VMG point. The windage pushes a little downwind; it counts as 0."""
+    return pd.DataFrame({"leg": vmg.leg, "tws": vmg.tws, "keel": -vmg.X_keel, "hull_Rf": vmg.hull_Rf,
+                         "windage": (-vmg.X_windage).clip(lower=0), "hull_Rw": vmg.hull_Rw, "rudder": -vmg.X_rudder})
+
+
+def _vpp_bars(a, g: pd.DataFrame, width: float, labels: bool = True) -> None:
+    bottom = np.zeros(len(g))
+    for col, name, colour, hatch in VPP_SOURCES:
+        a.bar(g.tws, g[col], width, bottom=bottom, color=colour, hatch=hatch, edgecolor=PAPER, lw=0,
+              label=name if labels else None)
+        bottom += g[col].to_numpy()
+
+
+def _vpp_polar_lines(a, data: Path, xy) -> list:
+    """The polar's curves, light to dark green as the wind rises, and the best-VMG points in red; returns
+    the wind speeds with their colours."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    polar = pd.read_csv(data / "vpp-polar.csv")
+    polar = polar[polar.converged.astype(bool)]
+    vmg = pd.read_csv(data / "vpp-vmg.csv")
+    ramp = LinearSegmentedColormap.from_list("wind", ["#b9d3c3", "#2f5d50", INK])
+    winds = sorted(polar.tws.unique())
+    out = []
+    for i, tws in enumerate(winds):
+        g = polar[polar.tws == tws].sort_values("twa")
+        colour = ramp(i / (len(winds) - 1))
+        a.plot(*xy(g.V, g.twa), color=colour, lw=1.5, solid_capstyle="round")
+        out.append((tws, colour, g))
+    a.plot(*xy(vmg.V, vmg.twa), "o", color=ACCENT, ms=4, zorder=3)
+    return out
+
+
+def vpp_polar(data: Path, out: Path) -> Path:
+    """The polar: boat speed against the true wind angle from the course, one curve per wind speed, the wind
+    from the top; the best-VMG points, which the race uses, in red."""
+    xy = lambda v, twa: (v * np.sin(np.radians(twa)), v * np.cos(np.radians(twa)))  # noqa: E731
+    fig, a = plt.subplots(figsize=(VPP_W, 6.6))
+    for r in np.arange(0.5, 4.01, 0.5):
+        a.add_patch(Arc((0, 0), 2 * r, 2 * r, theta1=-90, theta2=90, color=RULE, lw=0.8))
+        if r % 1 == 0:
+            a.text(-0.06, r, f"{r:g}", ha="right", va="center", fontsize=8.5, color=MUTED)
+    for ang in range(0, 181, 30):
+        a.plot(*xy(np.array([0, 4.0]), ang), color=RULE, lw=0.8)
+        if ang:
+            a.text(*xy(4.25, ang), f"{ang}°", ha="center", va="center", fontsize=8.5, color=MUTED)
+    lines = _vpp_polar_lines(a, data, xy)
+    for tws, colour, _ in (lines[0], lines[-1]):
+        a.plot([], [], color=colour, lw=1.5, label=f"wind {tws:g} m/s")
+    a.plot([], [], "o", color=ACCENT, ms=4, label="best VMG")
+    a.annotate("wind", xy=(0, 4.05), xytext=(0, 4.8), ha="center", fontsize=9, color=MUTED,
+               arrowprops={"arrowstyle": "->", "color": MUTED})
+    a.text(-0.55, 2.0, "boat speed $V_b$ [m/s]", rotation=90, ha="center", va="center", fontsize=9, color=MUTED)
+    a.legend(loc="lower right", bbox_to_anchor=(1.0, 0.02), title="a curve every 0.5 m/s",
+             title_fontsize=8.5, alignment="left")
+    a.set_aspect("equal")
+    a.set(xlim=(-0.8, 6.4), ylim=(-4.6, 4.9))
+    a.axis("off")
+    return _save(fig, out)
+
+
+def vpp_drag(data: Path, out: Path) -> Path:
+    """Each part's drag at the best-VMG points, upwind and downwind, coloured by where its model comes
+    from. The stack's height is what the sails' drive balances."""
+    d = _vpp_drag(pd.read_csv(data / "vpp-vmg.csv"))
+    fig, axs = plt.subplots(2, 1, figsize=(VPP_W, 7.6), sharex=True)
+    for a, leg, title in ((axs[0], "up", "Upwind, at the best VMG"),
+                          (axs[1], "down", "Downwind, at the best VMG (a dead run)")):
+        g = d[d.leg == leg]
+        _vpp_bars(a, g, 0.36, labels=leg == "up")
+        a.set(title=title, ylabel="drag [N]")
+        a.grid(axis="x", visible=False)
+    axs[1].set_xlabel("true wind speed $V_{TW}$ [m/s]")
+    axs[1].set_xticks(d.tws.unique()[::2])
+    fig.legend(loc="lower left", bbox_to_anchor=(0.06, 0), ncols=1, frameon=False)
+    fig.tight_layout(rect=(0, 0.14, 1, 1))
+    return _save(fig, out)
+
+
+def vpp_card(data: Path, out: Path) -> Path:
+    """The page's card at 3:1: the polar on its side, the wind from the left."""
+    xy = lambda v, twa: (-v * np.cos(np.radians(twa)), v * np.sin(np.radians(twa)))  # noqa: E731
+    fig = plt.figure(figsize=(9, 3))
+    a = fig.add_axes([0, 0, 1, 1])
+    for r in np.arange(0.5, 7.5, 0.5):
+        a.add_patch(Arc((0, 0), 2 * r, 2 * r, theta1=0, theta2=180, color=RULE, lw=0.8 if r % 1 else 1.1))
+    for ang in range(0, 181, 30):
+        a.plot(*xy(np.array([0, 7.5]), ang), color=RULE, lw=0.8)
+    _vpp_polar_lines(a, data, xy)
+    a.set_aspect("equal")
+    a.set(xlim=(-4.55, 6.25), ylim=(-0.2, 3.4))  # 10.8 x 3.6: 3:1
+    a.axis("off")
+    fig.savefig(out, dpi=120, facecolor=PAPER)
+    plt.close(fig)
+    return out
+
+
 def make_all(data: Path, out: Path) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     ref = data.parents[1] / "projects" / "foil2d" / "validation" / "naca0009_re1e5_princeton.csv"
@@ -3130,7 +3243,7 @@ def make_all(data: Path, out: Path) -> list[Path]:
         race_time_table(data, out / "race-time.md"),
         race_time_by_speed_table(data, out / "race-time-by-speed.md"),
         fin_choice_table(data, out / "fin-choice.md"),
-        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith(("bulb-", "custom-", "thistle-", "steps-"))),
+        sources_table(data, out / "sources.md", keep=lambda n: not n.startswith(("bulb-", "custom-", "thistle-", "steps-", "vpp-"))),
         card_image(data.parent / "assets" / "flow-shedding-vorticity.png", out / "fin-selection-card.png"),
         # the keel bulb page
         bulb_side(out / "bulb-side.svg"),
@@ -3214,4 +3327,8 @@ def make_all(data: Path, out: Path) -> list[Path]:
         steps_flow_pictures(data, out / "steps-flow-pictures.png"),
         sources_table(data, out / "sources-steps.md", keep=lambda n: n.startswith("steps-")),
         steps_card(out / "steps-and-films-card.png"),
+        # the VPP page
+        vpp_polar(data, out / "vpp-polar.svg"),
+        vpp_drag(data, out / "vpp-drag.svg"),
+        vpp_card(data, out / "vpp-card.png"),
     ]

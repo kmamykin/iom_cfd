@@ -15,6 +15,8 @@ site/
 ├── index.qmd        the front page: a card per published study, in order
 ├── fin-selection/
 │   └── index.qmd    a study's page, written by hand (which fin section; foil2d)
+├── vpp/
+│   └── index.qmd    the VPP: a progress report (what works, how far to trust it), beside an example run's report
 ├── privacy/
 │   └── index.qmd    what Google Analytics collects (the cookie banner links to it)
 ├── _quarto.yml      Quarto settings (navbar, footer; for study pages: contents, numbering, references)
@@ -24,6 +26,7 @@ site/
 ├── data.yaml        which run each data file comes from
 ├── data/            small CSVs taken from runs (committed); sources.json records where from
 ├── assets/          pictures and videos that can't be rebuilt online (ParaView renders)
+├── runs/            run reports published as is, at the run's own path (runs/<study>/<run id>/report.html)
 ├── figures.py       one function per chart, drawn from data/ and assets/ into _generated/
 ├── _generated/      figures, tables and card images (build output, not committed)
 └── _site/           the built site (build output, not committed)
@@ -90,6 +93,20 @@ Every `site/*/index.qmd` is built, but only pages listed under `contents:`
 in `site/index.qmd` get a card, in that order (`privacy/` is the one page
 that isn't a study). A page that isn't listed can
 still be reached by its address, so keep unfinished pages out of `site/`.
+
+## Publishing a run's report
+
+A run that writes its own page (the VPP's `report.html`) can be published
+unchanged, at the run's own path, so its address says where it came from:
+`kmamykin.github.io/iom_cfd/runs/<study>/<run id>/report.html`. Add a
+`kind: report` entry to `site/data.yaml` (`study: vpp/<boat>`, the run,
+`file: report.html`) and run `uv run iomcfd site export <name>`. It copies
+the file byte for byte into `site/runs/` and records its sha256 in
+`sources.json`; `tests/test_site.py` checks the copy still matches. Quarto
+copies `runs/**/report.html` as a resource. Link to it from a page that
+says how far to trust it (as `site/vpp/` does): a report has no caveats of
+its own beyond its flags. A newer run is a new entry and a new path; remove
+the old entry and its file only if the old report should go offline.
 
 ## Updating it after new findings
 

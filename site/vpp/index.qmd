@@ -1,0 +1,208 @@
+---
+title: "IOM Velocity Prediction Program (VPP): report on progress"
+subtitle: "What the project's VPP does, what it rests on, and what to watch out for"
+# the card on the front page (and link previews): image, title, description
+description: >-
+  The project's VPP turns simulated forces into boat speed and race time. Use it to compare designs,
+  and to see how large the forces on the boat are on each point of sail and in each wind.
+image: ../_generated/vpp-card.png
+author: Kliment Mamykin
+date: 2026-10-31
+date-modified: 2026-10-31
+license: "CC BY"
+code-links:
+  - text: An example run's report
+    icon: file-earmark-bar-graph
+    href: ../runs/vpp/iom-alternative/20261031-162130/report.html
+  - text: Source on GitHub
+    icon: github
+    href: https://github.com/kmamykin/iom_cfd
+  - text: VPP documentation
+    icon: journal-text
+    href: https://github.com/kmamykin/iom_cfd/blob/main/docs/vpp.md
+---
+
+::::: {.callout-warning appearance="simple" icon=false}
+::: {.status}
+**Work in progress, 31 October 2026.** The VPP runs end to end, but the sails are not simulated yet
+and nothing has been checked against a real boat. Read its race times as comparisons between
+designs, not as predictions.
+:::
+:::::
+
+## What the VPP does {#sec-what}
+
+The other studies on this site compare fins, sections and bulbs by the forces the simulations give.
+A velocity prediction program (VPP) turns those forces into boat speed. For each wind speed and
+angle it finds the steady state in which the forces balance [@parolini2007]:
+
+* the sails' drive equals the drag of the hull and appendages;
+* the sails' side force equals the side force the keel, hull and rudder make at some leeway;
+* the sails' heeling moment equals the righting moment;
+* the rudder holds the boat on course.
+
+It solves for boat speed, heel, leeway and rudder angle, and flattens the sails as far as that pays.
+The result is a polar (@fig-vpp-polar). From the best course upwind and downwind it then times a
+windward-leeward race, averaged over the winds a club races in.
+
+![The polar of an example run: boat speed against the true wind angle, one curve per wind speed. The
+red points are the best VMG (velocity made good) upwind and downwind, which the race
+uses.](../_generated/vpp-polar.svg){#fig-vpp-polar}
+
+Each run writes one self-contained page: the polar, every part's forces at every point, the balance
+at any point, the hydrostatics and mass budget, the race (with wind weights you can change) and
+how race time responds to small changes. [An example run's report](../runs/vpp/iom-alternative/20261031-162130/report.html)
+is published here as it was written.
+
+The example uses the "Alternative" IOM hull, because I have its lines as an STL file. The file is
+private and can't be distributed without a licence; the numbers derived from it can. The fin and bulb
+are the ones the [fin section](../custom-section/) and [bulb](../bulb-design/) studies arrived at,
+with the A rig.
+
+## Where it stands {#sec-progress}
+
+**Working:**
+
+* **The solver.** All four balances, including the yaw balance with the rudder, with the sails'
+  flattening and sail set chosen for speed. With the same forces it gives the same speeds as
+  Python-VPP [@pyvpp].
+* **Any hull from its lines.** Sinkage, trim and righting moment of an STL hull at any heel, under
+  the other parts' forces.
+* **CFD in the boat model.** The keel (fin, bulb and hull together, over heel, leeway and speed), the
+  hull's form factor and the windage of the topsides come from simulations of the hull in use.
+* **The race and the report.** Best VMG, race time over a club's winds, exchange rates (the race
+  time per small change in a part), and the page above.
+
+**Not yet:** the sails, which are next; the hull's waves; laminar flow; and a check against a real
+boat (@sec-trust).
+
+## Where each force comes from {#sec-sources}
+
+| part | what it supplies | model | from CFD? |
+|:-------|:-----------------|:---------------------|:--------|
+| sails | all the drive, the heeling force and moment | the ORC's coefficients for full-size main and jib [@orc-vpp2026] | **no** |
+| keel (fin and bulb) | most of the side force; about a third of the drag upwind | a table of 3D simulations of fin, bulb and hull over heel, leeway and speed | yes |
+| hull, friction | about a quarter of the drag upwind | the ITTC-57 friction line times a form factor from CFD | the form factor |
+| hull, waves | a sixth to almost half of the drag upwind, rising with the wind; about half downwind in a breeze | Michell's thin-ship theory [@michell1898] | **no** |
+| rudder | the yaw balance; a tenth to a sixth of the drag upwind | lifting-line theory in the keel's downwash | **no** |
+| windage | side force, lift and a little drag from the topsides | a table of CFD of the hull above the water | yes, without the rig |
+| righting moment | the moment that keeps the boat upright | the hull's lines floated at heel with the mass budget | geometry, not CFD |
+
+: Where each part's forces come from. {#tbl-vpp-sources}
+
+All of the drag is balanced by the sails' drive, and the sails are not simulated. Of the drag
+itself, the models built on CFD cover most in light air; as the wind rises, the hull's waves, from
+theory, grow to about half (@fig-vpp-drag).
+
+![Each part's drag at the best-VMG points of the example run, coloured by where its model comes
+from: greens are built on CFD, hatched earth tones on theory. The height of each bar is the drag the
+sails' drive balances.](../_generated/vpp-drag.svg){#fig-vpp-drag}
+
+## How far to trust it {#sec-trust}
+
+The shortcomings, the largest first. The confidence ratings are my judgement from the findings logs.
+
+| | what it covers | confidence | the main unknown |
+|:--|:--|:--|:--|
+| sails (@sec-sails) | all the drive | low | coefficients for full-size yachts, not IOM sails |
+| calibration (@sec-calibration) | everything | none | no measured IOM speeds |
+| hull waves (@sec-waves) | up to half the drag | low to medium | thin-ship theory, no free-surface CFD |
+| laminar flow (@sec-laminar) | the friction of every part | medium | all the CFD is fully turbulent |
+| keel and hull form factor (@sec-keel) | side force, viscous drag | medium to high | a double body, the mesh |
+| rudder (@sec-rudder) | yaw balance | medium; low at large angles | no stall, no CFD |
+| windage (@sec-windage) | side force and lift of the topsides | medium | no sails over the deck |
+| steady sailing (@sec-steady) | the race | for comparisons only | flat water, steady wind |
+| assumed inputs (@sec-inputs) | masses, winds, course | medium | estimated masses, assumed winds |
+
+: The confidence in each part, in short. {#tbl-vpp-trust}
+
+### The sails are not simulated: the next focus {#sec-sails}
+
+This is the largest gap. The sails make all the drive and all the heeling force, so an error in them
+goes straight into the boat speed, heel and leeway, and through those into every other part's forces.
+
+* **The coefficients are for full-size yachts.** The ORC's coefficients [@orc-vpp2026] were fitted at
+  Reynolds numbers 10–100 times an IOM's. On an IOM's sails the flow can stay laminar and separate in
+  ways it doesn't at full size. How far off they are is not known.
+* **One way to depower.** The model only flattens the sails, and in a breeze it runs out. Twist,
+  sheeting and mast bend are not in it, and only the A rig is modelled.
+* **Downwind,** the goose-winged jib has no coefficients of its own.
+* **One wind for the whole rig:** the change of wind up the mast is ignored.
+
+**The sails are the next focus.** The project has a sail simulation, which runs but is not yet
+validated. The plan is to simulate the A rig and put its forces into the VPP in place of ORC's.
+
+### Nothing has been checked against a real boat {#sec-calibration}
+
+No measured speed, heel or leeway of a real IOM has been compared with the VPP's. Unit tests and the
+Python-VPP cross-check show the solver does its arithmetic right, not that the forces describe a real
+boat. The only other IOM VPP found, Lester Gilbert's spreadsheet, is not calibrated either
+[@gilbert-simplevpp]. GPS logs of an IOM in measured wind would be the first check.
+
+### The hull's waves come from theory {#sec-waves}
+
+The hull simulations have no free surface: the hull is mirrored at the waterline, which gives
+friction and form drag but no waves. The waves come from Michell's thin-ship theory, which is known
+to exaggerate the humps and hollows of wave resistance at the speeds an IOM sails upwind, has no
+heel, and is out of its depth with the bow trimmed down in a breeze.
+
+### Laminar flow is left out {#sec-laminar}
+
+Every simulation behind the VPP treats the flow as turbulent from the leading edge. At an IOM's
+Reynolds numbers much of it is laminar, with less friction. So the absolute drag is probably too
+high, and a design's laminar-flow advantage, such as the HT35 fin's ([fin section
+page](../custom-section/)), is not in the keel table.
+
+### The keel and the hull's form factor {#sec-keel}
+
+The parts most firmly based on CFD: 3D simulations of fin, bulb and hull over heel, leeway and speed.
+They are double bodies, so no waves; the leeway drag depends on the mesh; the fin's stall is unsteady
+flow solved as steady; and the table holds each heel's static trim, not the bow-down trim downwind.
+The form factor rests on a few simulations that resolve the wall.
+
+### The rudder: no stall, no CFD {#sec-rudder}
+
+A lifting line in the keel's estimated downwash, with no stall model. Fine at small angles; in strong
+wind the VPP asks for rudder angles a real rudder would stall at, so those points are optimistic.
+
+### Windage without the rig {#sec-windage}
+
+The topsides' forces come from CFD of the hull above the water, without sails, in a uniform wind.
+Upwind the jib and main turn the wind over the deck, which the table doesn't see. The direction of
+the effect (side force and lift, little drag) is likely right; its size less so.
+
+### Steady sailing in flat water {#sec-steady}
+
+The VPP describes a boat sailing straight at a steady speed: no waves, gusts or shifts, a fixed time
+per tack and gybe, no starts or other boats, and perfect trim. Its race time measures boat speed, not
+race results.
+
+### Assumed inputs {#sec-inputs}
+
+The masses other than the bulb, fin and rig are estimates; the hull's waterline is assumed; the
+club's winds are an assumed distribution, not measured; the course is two laps of 100 m legs.
+
+## What it is good for, and what's next {#sec-use}
+
+**Good for:**
+
+* comparing designs that differ in a part the CFD models (two keels, fins or bulbs on the same hull),
+  sailed with the same sails, as a ranking under the model rather than a measured gain;
+* seeing how large each force is on each point of sail and in each wind (@fig-vpp-drag);
+* trade-offs through the exchange rates, such as righting moment against drag.
+
+**Not for:** absolute boat speeds, anything that depends on the sails' shape or trim, strong winds,
+or predicting race results.
+
+**Next,** roughly in order:
+
+1. the sails: simulate the A rig and replace the ORC coefficients;
+2. a real-boat check: GPS speed and heel of an IOM in measured wind;
+3. free-surface simulations of the hull at a few points, against the thin-ship waves;
+4. laminar flow on the keel;
+5. a rudder stall model, and the smaller rigs for strong winds;
+6. windage with the rig over the deck.
+
+## Revision history {.appendix .unnumbered}
+
+* **31 October 2026.** First version, with an example run (20261031-162130).

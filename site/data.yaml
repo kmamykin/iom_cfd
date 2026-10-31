@@ -10,6 +10,7 @@
 # kind: table (default)  `file` of each run, concatenated; rows matching `where`; `columns`
 #       force_history    foil2d force coefficients of `cases`, joined across continuations
 #       file             one file copied as is (ParaView renders: they can't be rebuilt online)
+#       report           a run's own report, published unchanged at site/runs/<study>/<run>/<file>
 #       manual           a table written by hand; `source` says where its numbers come from
 
 validation-naca0009:
@@ -564,3 +565,24 @@ steps-flow-2deg-ht35-film-edge:
   study: ht35-film
   runs: [20261025-145441]
   file: Tu1_aoa2_foilfilmht35mt070x0.5t0.002_speed1/viz/step.png
+
+# The VPP page (site/vpp/index.qmd): iom-alternative with every CFD table in (hull form factor and
+# keel from keel3d alt-water, windage from windage alt-air). The run's report.html is published
+# as is; the tables leave out the ORC sail coefficients (sails_CL, sails_CD: copyright ORC).
+vpp-report:
+  kind: report
+  study: vpp/iom-alternative
+  runs: [20261031-162130]
+  file: report.html
+vpp-vmg:
+  study: vpp/iom-alternative
+  runs: [20261031-162130]
+  file: vmg.csv
+  columns: [leg, tws, twa, V, heel, leeway, trim, rudder.angle, sails.flat, sails.set, flags, X_hull, hull_Rf,
+            hull_Rw, hull_k, X_keel, keel_D0, keel_Dl, X_rudder, rudder_Dv, rudder_Di, X_windage, X_sails,
+            hull_extrapolated, keel_extrapolated, rudder_extrapolated, sails_extrapolated, windage_extrapolated]
+vpp-polar:
+  study: vpp/iom-alternative
+  runs: [20261031-162130]
+  file: polar.csv
+  columns: [tws, twa, V, converged, extrapolated, flags]

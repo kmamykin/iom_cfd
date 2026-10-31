@@ -7,7 +7,9 @@ site/data/, which are committed, so the site builds without runs/. site/data.yam
 comes from; `iomcfd site export` copies it out of the local runs (a light
 `gcp fetch` is enough for tables) and records the source in
 site/data/sources.json. Pictures and videos that can't be rebuilt online
-(ParaView renders) are copied the same way into site/assets/.
+(ParaView renders) are copied the same way into site/assets/. A run's own
+report (the VPP's report.html) is published unchanged at the run's path,
+site/runs/<study>/<run>/<file>, so its address names where it came from.
 
     iomcfd site export [NAME ...]    refresh data files from runs (data.yaml)
     iomcfd site build [--preview]    draw the figures, then quarto render (or preview)
@@ -16,6 +18,7 @@ site/data/sources.json. Pictures and videos that can't be rebuilt online
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import importlib.util
 import json
 import shutil
@@ -29,7 +32,7 @@ from . import config
 
 # Quarto from PyPI when it is not installed (`uvx`); CI installs the same version.
 QUARTO_VERSION = "1.10.19"
-KINDS = ("table", "force_history", "file", "manual")
+KINDS = ("table", "force_history", "file", "report", "manual")
 
 
 def site_dir() -> Path:
@@ -47,13 +50,18 @@ def manifest(site: Path | None = None) -> dict[str, dict[str, Any]]:
             raise ValueError(f"site/data.yaml {name}: a manual entry needs a `source`")
         if kind != "manual" and not (e.get("study") and e.get("runs")):
             raise ValueError(f"site/data.yaml {name}: needs `study` and `runs`")
+        if kind in ("file", "report") and len(e["runs"]) != 1:
+            raise ValueError(f"site/data.yaml {name}: a {kind} comes from one run")
     return entries
 
 
 def output_path(site: Path, name: str, entry: dict[str, Any]) -> Path:
-    """site/assets/<name><suffix of the source> for files, else site/data/<name>.csv."""
+    """site/assets/<name><suffix of the source> for files, site/runs/<study>/<run>/<file> for a
+    report, else site/data/<name>.csv."""
     if entry["kind"] == "file":
         return site / "assets" / (name + Path(entry["file"]).suffix)
+    if entry["kind"] == "report":
+        return site / "runs" / entry["study"] / str(entry["runs"][0]) / entry["file"]
     return site / "data" / f"{name}.csv"
 
 
@@ -129,7 +137,7 @@ def export(names: list[str] | None = None, site: Path | None = None) -> list[Pat
                 raise FileNotFoundError(f"{out}: manual data file missing (source: {e['source']})")
             sources[name] = {"kind": "manual", "file": out.relative_to(site).as_posix(), "source": e["source"]}
             continue
-        if e["kind"] == "file":
+        if e["kind"] in ("file", "report"):
             (run,) = e["runs"]
             shutil.copyfile(_run_dir(e["study"], run) / e["file"], out)
         else:
@@ -144,6 +152,8 @@ def export(names: list[str] | None = None, site: Path | None = None) -> list[Pat
             "exported": dt.datetime.now(dt.UTC).strftime("%Y-%m-%d"),
             "git": config.git_describe(),
         }
+        if e["kind"] == "report":  # published as is: the hash ties the page to the run's file
+            sources[name]["sha256"] = hashlib.sha256(out.read_bytes()).hexdigest()
         written.append(out)
     src_file.write_text(json.dumps(dict(sorted(sources.items())), indent=2) + "\n")
     return written
