@@ -111,11 +111,23 @@ def _retime(boat: Boat, course: Course, wind: WindRange, base: list[RaceRow], ch
     return out
 
 
+def weighted_pct(base: list[RaceRow], rows: list[RaceRow]) -> tuple[float, list[float]]:
+    """The weighted change in race time, % of the weighted race time, over the
+    winds where the changed boat still balances (a finite race time); and the
+    winds left out. nan when none is left."""
+    ok = [(r0, r1) for r0, r1 in zip(base, rows) if math.isfinite(r1.t)]
+    left = [r0.tws for r0, r1 in zip(base, rows) if not math.isfinite(r1.t)]
+    if not ok:
+        return math.nan, left
+    t0 = weighted([r0 for r0, _ in ok])
+    return 100 * (weighted([r1 for _, r1 in ok]) - t0) / t0, left
+
+
 def rates(boat: Boat, course: Course, wind: WindRange, base: list[RaceRow], perts: list[Perturbation],
           check: bool = False) -> tuple[list[Rate], dict[str, float]]:
-    """Per perturbation and wind: the change in race time; and the weighted
-    change in % of the weighted race time."""
-    t0 = weighted(base)
+    """Per perturbation and wind: the change in race time (inf where the
+    changed boat finds no balance); and the weighted change in % of the
+    weighted race time, over the winds where it does (weighted_pct)."""
     out, summary = [], {}
     for pt in perts:
         rows = _retime(pt.apply(boat), course, wind, base, check)
@@ -126,7 +138,7 @@ def rates(boat: Boat, course: Course, wind: WindRange, base: list[RaceRow], pert
                 rate.vdrdv_up = _vdrdv(pt.dD, r0.up, r1.up)
                 rate.vdrdv_down = _vdrdv(pt.dD, r0.down, r1.down)
             out.append(rate)
-        summary[pt.name] = 100 * (weighted(rows) - t0) / t0
+        summary[pt.name] = weighted_pct(base, rows)[0]
     return out, summary
 
 

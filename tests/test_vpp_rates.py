@@ -5,7 +5,7 @@ import math
 import pytest
 
 from iomcfd.vpp.race import Course, WindRange, race
-from iomcfd.vpp.rates import Perturbation, add_drag, rates, scale_component, scale_righting
+from iomcfd.vpp.rates import Perturbation, add_drag, rates, scale_component, scale_righting, weighted_pct
 from iomcfd.vpp.solver import Boat, Settings, SineRighting
 from test_vpp_solver import ConstSails, ToyHull, ToyRudder
 
@@ -43,3 +43,15 @@ def test_rm_and_scaling_rates_have_the_right_sign():
                                                  Perturbation("hull +1 %", scale_component("hull", 1.01))])
     assert summary["hull +1 %"] > 0  # more drag: slower
     assert summary["RM +1 %"] == pytest.approx(0.0, abs=1e-9)  # the toy's heel costs nothing
+
+
+def test_a_wind_without_balance_is_left_out_of_the_weighted_rate():
+    """A changed boat that finds no balance at one wind (race time inf) doesn't make the weighted rate inf."""
+    from types import SimpleNamespace as Row
+
+    base = [Row(tws=3.0, weight=2.0, t=100.0), Row(tws=8.0, weight=1.0, t=80.0)]
+    rows = [Row(tws=3.0, weight=2.0, t=101.0), Row(tws=8.0, weight=1.0, t=math.inf)]
+    pct, left = weighted_pct(base, rows)
+    assert pct == pytest.approx(1.0) and left == [8.0]
+    assert weighted_pct(base, base) == (0.0, [])
+    assert math.isnan(weighted_pct(base[1:], rows[1:])[0])  # no wind left

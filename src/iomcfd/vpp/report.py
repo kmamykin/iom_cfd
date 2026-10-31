@@ -61,6 +61,16 @@ def polar_figure(points: list[Point], race_rows: list[RaceRow] | None, path: Pat
     return path
 
 
+def winds_left_out(rates_rows: list[Rate]) -> dict[str, list[float]]:
+    """Per perturbation, the wind speeds where the changed boat found no
+    balance (an infinite race time), which its weighted rate leaves out."""
+    out: dict[str, list[float]] = {}
+    for r in rates_rows:
+        if not math.isfinite(r.dt):
+            out.setdefault(r.name, []).append(r.tws)
+    return out
+
+
 def summary_md(path: Path, boat: str, info: dict, rows: list[RaceRow], course: Course,
                rates_rows: list[Rate] | None = None, rate_summary: dict | None = None,
                warnings: list[str] | None = None) -> Path:
@@ -87,8 +97,10 @@ def summary_md(path: Path, boat: str, info: dict, rows: list[RaceRow], course: C
               "Change in weighted race time (and boat lengths over the race) per perturbation, re-timed at the "
               "baseline's best-VMG angles and optimised controls (envelope theorem).", "",
               "| perturbation | race time % | boat lengths |", "|---|---|---|"]
+        left = winds_left_out(rates_rows or [])
         for name, pct in rate_summary.items():
-            L.append(f"| {name} | {pct:+.3f} | {boat_lengths(pct / 100 * t, t, course):+.2f} |")
+            note = f" (without TWS {', '.join(f'{w:g}' for w in left[name])} m/s: no balance)" if name in left else ""
+            L.append(f"| {name}{note} | {pct:+.3f} | {boat_lengths(pct / 100 * t, t, course):+.2f} |")
         vd = [r for r in rates_rows or [] if math.isfinite(r.vdrdv_up)]
         if vd:
             L += ["", "V dR/dV implied by the fixed drag (compare racetime.VDRDV, 1.354 N at 1 m/s):", "",

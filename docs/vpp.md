@@ -211,7 +211,10 @@ Each run writes these files:
   else its loads (all its forces and moments: the hull's resistance and its
   side force, when it has one) +1 %, and the mass and its height. Each is re-timed at the baseline's best-VMG angles
   and flat. By the envelope theorem that is exact
-  to first order; `--check` re-searches instead. The fixed drag also gives
+  to first order; `--check` re-searches instead. Where the changed boat
+  finds no balance at a wind, that wind's rate is inf in `rates.csv` and the
+  weighted rate leaves it out (`rates.weighted_pct`; `rates_summary.csv`'s
+  `winds_left_out` lists them, the report marks the row with *). The fixed drag also gives
   the V dR/dV the sails and hull really imply, for comparison with
   `racetime.VDRDV`.
 

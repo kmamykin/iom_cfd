@@ -818,7 +818,7 @@ function barH(host, o) {
   const W = o.w || 460, rowH = o.rowH || 28, m = { l: o.ml || 84, r: o.mr || 62, t: o.mt || 6, b: o.mb || 22 };
   const Hh = m.t + m.b + rowH * o.rows.length;
   const s = svgRoot(W, Hh, o.label);
-  const max = o.max || Math.max(1e-9, ...o.rows.map((r) => Math.abs(r.value))) * 1.04;
+  const max = o.max || Math.max(1e-9, ...o.rows.map((r) => Math.abs(r.value)).filter(finite)) * 1.04;
   const neg = o.rows.some((r) => r.value < 0) || o.sym;
   const x = lin(neg ? -max : 0, max, m.l, W - m.r);
   nice(neg ? -max : 0, max, o.nt || 4).forEach((v) => {
@@ -831,10 +831,10 @@ function barH(host, o) {
     const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `${r.label}: ${(o.fmt || fx)(r.value)}` }, s);
     E("rect", { x: 0, y: yy, width: W, height: rowH, fill: "transparent" }, g);
     T(g, m.l - 8, yy + rowH / 2 + 4, r.label, { class: "t12 " + (r.strong ? "ink b6" : "ink2"), "text-anchor": "end" });
-    const d = roundBar(x(0), x(r.value), by, bh, 4);
+    const d = finite(r.value) && roundBar(x(0), x(r.value), by, bh, 4);
     if (d) E("path", { d, class: "barfill", style: `fill:${r.color}` }, g);
-    const tx = o.valueCol ? W - m.r + 10 : x(r.value) + (r.value >= 0 ? 6 : -6);
-    T(g, tx, yy + rowH / 2 + 4, r.text || (o.fmt || fx)(r.value), { class: "t12 " + (r.strong ? "ink b6" : "ink2"), "text-anchor": o.valueCol || r.value >= 0 ? "start" : "end" });
+    const tx = o.valueCol || !finite(r.value) ? W - m.r + 10 : x(r.value) + (r.value >= 0 ? 6 : -6);
+    T(g, tx, yy + rowH / 2 + 4, r.text || (o.fmt || fx)(r.value), { class: "t12 " + (r.strong ? "ink b6" : "ink2"), "text-anchor": o.valueCol || !(r.value < 0) ? "start" : "end" });
     const tipRows = r.tip || [[o.unit || "", (o.fmt || fx)(r.value), r.color]];
     g.addEventListener("pointermove", (ev) => showTip(ev, r.label, tipRows));
     g.addEventListener("focus", (ev) => showTip(ev, r.label, tipRows));
@@ -2001,13 +2001,30 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
 (function ratesSection() {
   const body = document.getElementById("rates-body");
   if (!RSUM || !RATES) { missing(body, "No exchange rates in this run (vpp run --no-rates)."); return; }
+  // Where the changed boat finds no balance, rates.csv has dt = inf and the weighted value leaves that wind
+  // out (rates.weighted_pct). Older runs wrote inf for the weighted value: recomputed here the same way.
+  const raceAt = Object.fromEntries(RACE.map((r) => [r.tws, r]));
+  const sums = RSUM.map((s) => {
+    const rows = RATES.filter((r) => r.name === s.name), left = rows.filter((r) => !finite(r.dt)).map((r) => r.tws);
+    let pct = s.dt_pct, bl = s.boat_lengths;
+    if (!finite(pct)) {
+      const ok = rows.filter((r) => finite(r.dt) && raceAt[r.tws]);
+      const den = ok.reduce((a, r) => a + raceAt[r.tws].weight * raceAt[r.tws].t_s, 0);
+      pct = den > 0 ? (100 * ok.reduce((a, r) => a + raceAt[r.tws].weight * r.dt, 0)) / den : NaN;
+      bl = ((pct / 100) * DIST) / (COURSE.boat_length || 1);
+    }
+    return { name: s.name, pct, bl, left };
+  });
+  const partial = sums.some((s) => s.left.length);
   barH(document.getElementById("rates-chart"), {
     w: 760, ml: 210, mr: 170, rowH: 28, sym: true, valueCol: true,
-    rows: RSUM.map((s) => ({ label: s.name.replace(/_([^\s{]+)/g, "_{$1}"), value: s.dt_pct, color: s.dt_pct > 0 ? "var(--div-pos)" : "var(--div-neg)", text: sg(s.dt_pct, 3) + " %  ·  " + sg(s.boat_lengths, 2) + " BL",
-      tip: [["race time", sg(s.dt_pct, 3) + " %", s.dt_pct > 0 ? "var(--div-pos)" : "var(--div-neg)"], ["seconds", sg((s.dt_pct / 100) * tRun, 2) + " s"], ["boat lengths", sg(s.boat_lengths, 2)]] })),
+    rows: sums.map((s) => ({ label: s.name.replace(/_([^\s{]+)/g, "_{$1}") + (s.left.length ? " *" : ""), value: s.pct, color: s.pct > 0 ? "var(--div-pos)" : "var(--div-neg)",
+      text: finite(s.pct) ? sg(s.pct, 3) + " %  ·  " + sg(s.bl, 2) + " BL" : "no balance at any wind",
+      tip: [["race time", sg(s.pct, 3) + " %", s.pct > 0 ? "var(--div-pos)" : "var(--div-neg)"], ["seconds", sg((s.pct / 100) * tRun, 2) + " s"], ["boat lengths", sg(s.bl, 2)],
+        ...(s.left.length ? [["left out (no balance)", s.left.map((t) => t + " m/s").join(", ")]] : [])] })),
     fmt: (v) => sg(v, 3) + " %", tickFmt: (v) => fx(v, 1) + " %", label: "Exchange rates",
   });
-  document.getElementById("rates-cap").innerHTML = `Percent of the ${fx(tRun, 1)} s weighted race time (rates_summary.csv, as in summary.md) and the same as boat lengths over the ${auto(DIST)} m sailed along the wind (Δt × distance / t / ${auto(COURSE.boat_length || 1)} m). <b>Fixed drag</b>: 0.01 N more drag, the same at every speed and heel. <b>Loads</b>: all of that part's forces and moments +1 %. For the hull, its resistance (friction and waves) and its side force${INFO["hull.side_force"] === false ? "; in this run the keel's table holds the hull's side force and yaw (keel3d's double body), so those move with the keel's loads" : ""}. For the sails, drive and heeling force together. The keel fits' own rows (D0, k, side slope, leeway) replace its loads row.`;
+  document.getElementById("rates-cap").innerHTML = `Percent of the ${fx(tRun, 1)} s weighted race time (rates_summary.csv, as in summary.md) and the same as boat lengths over the ${auto(DIST)} m sailed along the wind (Δt × distance / t / ${auto(COURSE.boat_length || 1)} m). <b>Fixed drag</b>: 0.01 N more drag, the same at every speed and heel. <b>Loads</b>: all of that part's forces and moments +1 %. For the hull, its resistance (friction and waves) and its side force${INFO["hull.side_force"] === false ? "; in this run the keel's table holds the hull's side force and yaw (keel3d's double body), so those move with the keel's loads" : ""}. For the sails, drive and heeling force together. The keel fits' own rows (D0, k, side slope, leeway) replace its loads row.${partial ? " <b>*</b> Weighted over the winds where the changed boat still finds a balance; at the others (— below, inf in rates.csv) it finds none, a sign that the baseline there is at the edge of what the model can balance. Hover a bar for the winds left out." : ""}`;
   const names = [...new Set(RATES.map((r) => r.name))], tws = uniq(RATES.map((r) => r.tws));
   const host = document.getElementById("rates-heat");
   const cw = 64, ch = 28, ml = 210, mt = 38;
@@ -2023,7 +2040,14 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
     T(s, ml - 8, mt + ch * i + ch / 2 + 4, n.replace(/_([^\s{]+)/g, "_{$1}"), { class: "t12 ink2", "text-anchor": "end" });
     rows.forEach((r) => {
       const j = tws.indexOf(r.tws);
-      if (j < 0 || !finite(r.dt_pct)) return;
+      if (j < 0) return;
+      if (!finite(r.dt_pct)) {
+        const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `${n} at ${r.tws} m/s: no balance` }, s);
+        E("rect", { x: ml + cw * j + 1, y: mt + ch * i + 1, width: cw - 2, height: ch - 2, rx: 3, style: "fill:var(--sunk)" }, g);
+        E("text", { x: ml + cw * j + cw / 2, y: mt + ch * i + ch / 2 + 4, "text-anchor": "middle", class: "t11", style: "fill:var(--muted)", text: "—" }, g);
+        hover(g, `${n} · TWS ${twsKt(r.tws)}`, [["no balance after this change", ""]]);
+        return;
+      }
       const f = Math.abs(r.dt_pct) / mx, pct = Math.round(15 + 85 * f);
       const col = r.dt_pct >= 0 ? "var(--div-pos)" : "var(--div-neg)";
       const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `${n} at ${r.tws} m/s: ${sg(r.dt_pct, 3)} %` }, s);

@@ -132,8 +132,10 @@ def cmd_run(args) -> None:
         print(f"rates: {timings['rates_s']:.1f} s")
         report.write_csv(out / "rates.csv", [x.row() for x in rr])
         t0 = weighted(rows)
+        left = report.winds_left_out(rr)  # where the changed boat found no balance: not in the weighted value
         report.write_csv(out / "rates_summary.csv", [
-            {"name": n, "dt_pct": pct, "boat_lengths": boat_lengths(pct / 100 * t0, t0, b.course)}
+            {"name": n, "dt_pct": pct, "boat_lengths": boat_lengths(pct / 100 * t0, t0, b.course),
+             "winds_left_out": " ".join(f"{t:g}" for t in left.get(n, []))}
             for n, pct in rs.items()])
     pts = []
     if not args.no_polar:
