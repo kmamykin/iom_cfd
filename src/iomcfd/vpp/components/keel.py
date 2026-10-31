@@ -411,8 +411,10 @@ class KeelGrid:
         X, Y, Z, K, M, N, Zv, Mv = (float(v) for v in c)
         if self.vertical:
             Z, M = Z + Zv, M + Mv
+        # the drag at zero leeway (same heel and speed) and what the leeway adds to it
+        D0 = -float(self.coeffs(abs(s.heel), 0.0, s.V)[0][0]) * s.V**2
         # every point dx further aft: Loads.at's M = z X + x Z and N = −x Y − y X
-        return Loads(X, Y, Z, K, M + self.dx * Z, N - self.dx * Y, extrapolated=out)
+        return Loads(X, Y, Z, K, M + self.dx * Z, N - self.dx * Y, extrapolated=out, info={"D0": D0, "Dl": -X - D0})
 
     def downwash(self) -> float:
         return _downwash(self.a, self.rho, self.V_ref, self.fin_area, self.fin_aspect)

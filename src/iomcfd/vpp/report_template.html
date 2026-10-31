@@ -381,6 +381,10 @@ td.mono, .mono { font-family: var(--f-mono); font-size: 12.5px; }
     <h3 style="margin-top:26px">Where the drive goes: each part's drag at the best-VMG points [N]</h3>
     <div class="legend" id="budget-legend"></div>
     <div class="grid2" id="budget"></div>
+    <h3 style="margin-top:26px">Where the drag comes from: each source at the best-VMG points [N]</h3>
+    <div class="prose"><p>The same columns split into the terms each force model reports: the hull's friction (ITTC-57 × (1 + k)) and waves (Michell); a keel table's drag at zero leeway and what the leeway adds to it (the fin's induced drag, its viscous rise and the hull's drag at leeway, together in the CFD); the rudder's profile and induced drag. "Other" is what a part's terms leave of its drag.</p></div>
+    <div class="legend" id="sources-legend"></div>
+    <div class="grid2" id="sources"></div>
   </div>
 </section>
 
@@ -991,12 +995,12 @@ function ctrlText(key, v) {
   return /angle/.test(key) ? fx(v, 2) + "°" : fx(v, 3);
 }
 const infoKeys = (n) => COLS.filter((c) => c.startsWith(n + "_") && c !== n + "_extrapolated").map((c) => c.slice(n.length + 1));
-const UNIT = { Rf: "N", Rw: "N", D0: "N", Di: "N", Dv: "N", L: "N", D: "N", S: "N", drive: "N", heel_force: "N", D_bulb: "N",
+const UNIT = { Rf: "N", Rw: "N", D0: "N", Dl: "N", Di: "N", Dv: "N", L: "N", D: "N", S: "N", drive: "N", heel_force: "N", D_bulb: "N",
   wetted: "m²", A: "m²", alpha: "deg", awa: "deg", awa_eff: "deg", aws: "m/s", z_ce: "m", x_ce: "m" };
 const INFO_NAME = { Rf: "R_f friction", Rw: "R_w waves", wetted: "wetted area", D0: "D_0 zero-lift drag", Di: "D_i induced drag",
   S: "S_h side force", alpha: "α angle of attack", L: "L lift", Dv: "D_v profile drag", aws: "V_AW", awa: "β_AW from the course",
   awa_eff: "β_eff mast-normal", z_ce: "Z_CE", x_ce: "x_CE", drive: "drive", heel_force: "heel force", D: "D drag",
-  A: "A projected area", D_bulb: "bulb drag" };
+  A: "A projected area", D_bulb: "bulb drag", Dl: "D_{β} drag from leeway" };
 const QC = ["var(--q-x)", "var(--q-y)", "var(--q-z)", "var(--q-w)"];
 const short = (c) => (c ? String(c).replace(/^iomcfd\.vpp\.components\./, ".") : "–");
 
@@ -1657,6 +1661,83 @@ const docOf = (path) => { const m = KEY_DOCS.find(([re]) => re.test(path)); retu
     T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS · drag [N]", { class: "alab", "text-anchor": "middle" });
     H("div", {}, f).appendChild(s);
     H("figcaption", { text: "At balance the drive equals the total drag, so each column is also the drive. A part pushing forward (X > 0, such as windage downwind) adds to the drive instead; hover for it." }, f);
+  });
+})();
+
+// ---------- drag by source ----------
+(function sources() {
+  const host = document.getElementById("sources");
+  if (!VMG.length) { missing(host, "No best-VMG points in this run."); return; }
+  // each part's drag split into the terms its force model reports: the hull's R_f + R_w, a keel table's
+  // D_0 + D_β (a fit's D_0 + D_i), the rudder's D_v + D_i; what they leave of the part's drag is its "other"
+  const ORDER = ["Rf", "Rw", "Dv", "D0", "Dl", "Di"];
+  const NAME = { Rf: "friction R_f", Rw: "waves R_w", Dv: "profile D_v", D0: "at zero leeway D_0", Dl: "from leeway D_{β}",
+    Di: "induced D_i" };
+  const drag = (r, n) => Math.max(0, -r[`X_${n}`]);
+  const tint = (n, i) => (i === 0 ? pc(n) : `color-mix(in oklab, ${pc(n)} ${i === 1 ? 50 : 25}%, var(--surface))`);
+  const SRC = PARTS.flatMap((n) => {
+    const ks = ORDER.filter((k) => infoKeys(n).includes(k));
+    if (!ks.length) return [{ part: n, key: null, name: n, color: pc(n) }];
+    return ks.map((k, i) => ({ part: n, key: k, name: `${n}: ${NAME[k]}`, color: tint(n, i) }))
+      .concat([{ part: n, key: null, name: `${n}: other`, color: tint(n, ks.length) }]);
+  });
+  const val = (r, n, k) => (finite(r[`${n}_${k}`]) ? r[`${n}_${k}`] : 0);
+  function segs(r) {
+    const out = [];
+    PARTS.forEach((n) => {
+      const d = drag(r, n);
+      if (!(d > 0)) return;
+      const src = SRC.filter((q) => q.part === n && q.key);
+      if (!src.length) { out.push([SRC.find((q) => q.part === n), d]); return; }
+      const v = src.map((q) => Math.max(0, val(r, n, q.key)));
+      v[0] = Math.max(0, v[0] + src.reduce((a, q) => a + Math.min(0, val(r, n, q.key)), 0));  // a term just below zero comes off the first
+      const sum = v.reduce((a, b) => a + b, 0);
+      if (sum > d) v.forEach((_, i) => (v[i] *= d / sum));  // never more than the part's drag
+      src.forEach((q, i) => { if (v[i] > 0) out.push([q, v[i]]); });
+      const rest = d - Math.min(sum, d);
+      if (rest > 1e-3 * d) out.push([SRC.find((q) => q.part === n && !q.key), rest]);
+    });
+    return out;
+  }
+  const rowsOf = (leg) => TWS.map((t) => VMG.find((r) => r.tws === t && r.leg === leg)).filter((r) => r && r.converged);
+  const used = new Set(["up", "down"].flatMap((leg) => rowsOf(leg).flatMap((r) => segs(r).map(([q]) => q))));
+  legend(document.getElementById("sources-legend"), SRC.filter((q) => used.has(q)).map((q) => ({ name: q.name, color: q.color, sq: true })));
+  ["up", "down"].forEach((leg) => {
+    const f = H("figure", { style: "margin:0" }, host);
+    H("div", { class: "fig-title", text: leg === "up" ? "Upwind" : "Downwind" }, f);
+    const rows = rowsOf(leg);
+    const Wd = 470, Hh = 274, m = { l: 44, r: 10, t: 12, b: 50 };
+    const s = svgRoot(Wd, Hh, `Drag of each source at the best-VMG points, ${leg}wind`);
+    const max = niceMax(Math.max(1e-6, ...rows.map((r) => PARTS.reduce((a, n) => a + drag(r, n), 0))) * 1.04);
+    const y = lin(0, max, Hh - m.b, m.t);
+    const bw = (Wd - m.l - m.r) / Math.max(1, TWS.length);
+    nice(0, max, 5).forEach((v) => {
+      E("line", { x1: m.l, x2: Wd - m.r, y1: y(v), y2: y(v), class: v === 0 ? "axis-l" : "grid-l" }, s);
+      E("text", { x: m.l - 6, y: y(v) + 4, class: "tick", "text-anchor": "end", text: tk(v) }, s);
+    });
+    rows.forEach((r) => {
+      const i = TWS.indexOf(r.tws), cx = m.l + bw * i + bw / 2, cw = Math.min(28, bw - 10);
+      const sg = segs(r), tot = sg.reduce((a, [, d]) => a + d, 0);
+      const g = E("g", { class: "bar-hit", tabindex: 0, role: "img", "aria-label": `TWS ${r.tws}: drag ${fx(tot, 2)} N` }, s);
+      E("rect", { x: cx - bw / 2, y: m.t, width: bw, height: Hh - m.t - m.b, fill: "transparent" }, g);
+      let acc = 0;
+      sg.forEach(([q, d], j) => {
+        const y0 = y(acc), y1 = y(acc + d);
+        const top = j === sg.length - 1, rr = Math.min(4, (y0 - y1) / 2, cw / 2);
+        const path = top
+          ? `M${cx - cw / 2},${y0} V${y1 + rr} Q${cx - cw / 2},${y1} ${cx - cw / 2 + rr},${y1} H${cx + cw / 2 - rr} Q${cx + cw / 2},${y1} ${cx + cw / 2},${y1 + rr} V${y0} Z`
+          : `M${cx - cw / 2},${y0} V${y1} H${cx + cw / 2} V${y0} Z`;
+        E("path", { d: path, class: "barfill", style: `fill:${q.color};stroke:var(--surface);stroke-width:${y0 - y1 > 3 ? 1 : 0}` }, g);
+        acc += d;
+      });
+      twsTick(s, cx, Hh - m.b, r.tws);
+      const tr = sg.slice().reverse().map(([q, d]) => [q.name, `${fx(d, 3)} N · ${fx((100 * d) / tot, 0)} %`, q.color]);
+      tr.push(["total drag", fx(tot, 3) + " N"], ["β_TW", fx(r.twa, 1) + "°"]);
+      hover(g, `TWS ${twsKt(r.tws)}, ${leg}wind`, tr);
+    });
+    twsUnits(s, m.l - 6, Hh - m.b);
+    T(s, (m.l + Wd - m.r) / 2, Hh - 4, "TWS · drag [N]", { class: "alab", "text-anchor": "middle" });
+    H("div", {}, f).appendChild(s);
   });
 })();
 
